@@ -1,0 +1,13 @@
+.vs/
+.vscode/
+target/
+x64/
+*.vcxproj.user
+*.suo
+*.user
+.env
+.env.*
+!.env.example
+*.log
+*.tmp
+*.bak

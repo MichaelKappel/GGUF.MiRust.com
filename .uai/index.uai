@@ -1,0 +1,18 @@
+profile: gguf-mirust.uai-index.v2
+updated_utc: 2026-06-25T11:30:16Z
+files:
+  - .uai/system-profile.uai
+  - .uai/workspace-guidance.uai
+  - .uai/coding-standards.uai
+  - .uai/architecture.uai
+  - .uai/report-synthesis.uai
+  - .uai/file-handoff.uai
+  - .uai/intake-outcome-ledger.uai
+  - .uai/short-term-memory.uai
+  - .uai/long-term-memory.uai
+  - .uai/test-plan.uai
+  - .uai/receiver-brief.uai
+  - .uai/startup-packet.uai
+  - .uai/operations.uai
+  - .uai/next-recursive-prompt.uai
+startup_hint: Read report-synthesis.uai after architecture and coding-standards when report-derived design pressure, governance, or UAIX dogfood context matters.

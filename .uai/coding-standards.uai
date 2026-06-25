@@ -1,0 +1,39 @@
+profile: gguf-mirust.coding-standards.v2
+updated_utc: 2026-06-25T12:22:29Z
+rust:
+  edition: 2021
+  dependency_policy: No third-party Rust crates in TinyRustLM runtime or packer.
+  unsafe_policy: Unsafe is allowed only at the WASM memory boundary where raw browser pointers must become slices; keep it isolated in memory.rs and wasm_exports.rs with explicit validation.
+  formatting: cargo fmt --all
+  tests: cargo test --workspace
+  error_handling: use explicit ErrorCode values across runtime and WASM boundaries; do not add anyhow, thiserror, serde, rand, tokenizer, ML, or web framework crates.
+  generation_memory: allocate generation scratch, logits, and tensor routing with the loaded model, reuse them across token work, and do not add vocab-sized per-token diagnostic/sampling vectors or per-token layer-name formatting.
+  generation_state: each generate request starts from clean prompt/cache diagnostics, errors must not preserve stale generated counts or KV length, and successful generation must extend token state for generate_next_token.
+  tokenizer_support: custom tokenizer work must include native .slm validation plus a runtime fixture proving tokenizer diagnostics, not parser-only tests.
+  public_docs: every public Rust function should carry a doc comment before completion.
+browser_runtime:
+  rule: JavaScript only fetches local static WASM/model files, copies bytes into WASM memory, calls exports, and renders UI.
+  forbidden: npm dependencies, CDNs, frontend frameworks, remote inference APIs, telemetry, analytics, hidden model downloads, wasm-bindgen, Transformers.js, ONNX Runtime, Candle, tokenizers crate.
+  report_derived_rules:
+    - Fetch failure, missing model, malformed model, context overflow, and reset recovery must remain user-visible and smoke-tested.
+    - Model-specific failure should disable Generate and Reset while preserving model selection once WASM is loaded.
+    - Browser smoke must keep checking local-only network requests as a privacy claim verifier.
+    - JS must not parse .slm, own tensor logic, or make quality claims.
+    - Conversation transcript text must be inserted with DOM text nodes, remain browser-local, and keep runtime Reset separate from transcript Clear behavior.
+memory:
+  rule: Do not store durable implementation reports inside .uai/long-term-memory.uai; point to docs or wiki files instead.
+  report_synthesis_rule: Do store compact report-derived operating memory in typed .uai files so cold-start agents can route and reason without bulk-loading every report.
+file_handoff:
+  rule: Active handoff files must receive disposition ledger entries before they are removed, preserved, or kept active.
+report_derived_rust_rules:
+  - Prefer enums, newtypes, slices, explicit lengths, and data-driven dimensions over abstract framework layers.
+  - Treat unsafe as a named boundary with validation and tests, not a convenience.
+  - Do not translate SOLID into object-oriented scaffolding; use ownership, cohesive modules, and explicit interfaces.
+  - Keep deterministic smoke models clearly separated from trained-quality model claims.
+  - Keep trained-source conversion explicit: raw f32 source manifests, safe relative tensor paths, checksums, finite bounded weights, and converted-trained provenance before any runtime or quality claim.
+  - Keep assistant-quality evidence exact: eval cases need positive declared counts, nonempty exact prompts/expected text, no stray case keys, and quality sidecars need matching per-case actual text.
+  - Add abstractions only when they reduce real runtime complexity or protect a verified boundary.
+report_derived_testing_rules:
+  - Every support claim needs a corresponding Rust unit test, Node WASM smoke, browser smoke, checksum, or documented manual evidence.
+  - Report-derived ideas become work only after being turned into a testable invariant or explicit future-boundary note.
+  - UI failure states are part of runtime correctness, not polish.

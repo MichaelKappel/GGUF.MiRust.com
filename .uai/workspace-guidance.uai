@@ -1,0 +1,55 @@
+profile: gguf-mirust.workspace-guidance.v2
+updated_utc: 2026-06-25T12:22:29Z
+canonical_root: E:\Source\Rust\GGUF.MiRust.com
+startup_rule: Read AGENTS.md, workspace.uai, and local .uai startup files before broad loading.
+memory_strategy:
+  hot_memory: .uai/
+  durable_memory: wiki/gguf-mirust/ and docs/ deep-linked from .uai/long-term-memory.uai
+  public_durable_target: https://aiwikis.org/gguf-mirust/
+  note: LLM Wiki and docs-based durable Markdown are both valid when deep-linked from .uai with routing summaries and review status.
+  hot_report_synthesis: .uai/report-synthesis.uai must summarize processed reports enough for cold-start routing before durable wiki loading.
+  dogfood_rule: If durable wiki memory is hard to crawl from .uai, update UAIX/LLM Wiki guidance and strengthen hot .uai synthesis rather than only adding more Markdown.
+long_term_pointer_rule:
+  link_only_not_context_free: true
+  summary_rule: Routing-only, one sentence, 35 words maximum, no body memory.
+  statuses: current, retired, superseded, quarantined
+  file_targets_need_checksum: true
+file_handoff_rule:
+  active_buckets: agent-file-handoff/Content/, agent-file-handoff/Improvement/
+  source_site_archive_default: forbidden
+  completion_gate: live bucket scan, disposition ledger, actual work outcome, hot-memory update, durable preservation evidence, checks, blockers, removal or keep-active reason.
+  report_processing_gate: For large report batches, preserve raw originals, create distributed durable synthesis, populate typed .uai summaries, update pointer ledger, then clear source copies.
+implementation_rule:
+  status: milestone_27_model_tensor_index_routing_verified
+  active_product: TinyRustLM
+  active_root: tinyrustlm/
+  dependency_rule: zero third-party Rust crates and zero third-party browser runtime dependencies.
+  core_math_ops: direct_unit_coverage_for_dot_matvec_matmul_rmsnorm_softmax_silu_swiglu_and_shape_failure_paths
+  public_rust_doc_gate: missing_docs_denied_workspace_wide_and_visual_studio_test_helper_runs_strict_rustdoc_for_runtime_and_all_tool_bins
+  require_tests_before_runtime_claims: true
+  tiny_transformer_forward: verified_for_f32_q8_0_q4_0_tiny_fixtures
+  custom_bpe_tokenizer: verified_with_tiny_bpe_slm_runtime_fixture_prompt_the_merging_to_diagnostics_tokenizer_output_256_261
+  tinylm16_f32_forward: verified_with_deterministic_real_shaped_smoke_model
+  tinylm16_q8_forward: verified_with_deterministic_real_shaped_smoke_model_and_direct_q8_matvec
+  tinylm16_q4_forward: verified_with_deterministic_real_shaped_smoke_model_and_direct_q4_matvec
+  quantized_tensor_storage: verified_without_full_decoded_f32_shadow_copies_using_runtime_owned_reusable_scratch_for_row_and_vector_dequantization
+  model_tensor_routing: verified_for_model_load_pre_resolved_tensor_indices_tied_output_projection_fallback_and_generation_without_per_token_layer_name_formatting
+  reusable_generation_buffers: verified_for_model_loaded_scratch_and_logits_reuse_across_generate_and_generate_next_token_plus_top_k_without_vocab_sized_candidate_vec
+  fixed_buffer_stochastic_sampling: verified_for_temperature_top_k_top_p_seed_sampling_with_fixed_1024_candidate_buffers_bpe_top_k_262_and_oversized_top_k_rejection_without_vocab_sized_candidate_vec
+  context_boundary_state: verified_for_last_prompt_slot_acceptance_full_context_rejection_clean_failed_request_diagnostics_and_step_token_state_continuation
+  browser_ui_smoke: verified_with_headless_chrome_generate_click_for_q8_default_q4_selected_reload_reset_model_switch_loop_malformed_model_context_overflow_missing_model_desktop_mobile_ui_audit_model_provenance_conversation_transcript_clear_button_state_endurance_performance_and_performance_soak
+  browser_conversation_transcript: local_user_and_tinyrustlm_turns_render_dom_safe_text_reset_preserves_transcript_clear_button_empties_transcript_and_browser_smoke_clicks_clear
+  wasm_abi_smoke: verified_for_invalid_utf8_null_pointer_invalid_length_zero_generation_length_invalid_sampling_recovery_generate_next_token_free_model_and_post_free_model_not_loaded
+  slm_checksum_gate: verified_for_nonzero_checksum_generation_and_mismatch_rejection
+  slm_admission_gate: verified_for_header_checksum_tokenizer_required_shapes_payload_lengths_finite_f32_and_quant_scale_validation
+  slm_quality_gate: verified_for_runtime_smoke_admission_pending_assistant_quality_eval_rejection_fixture_scoped_assistant_quality_for_converted_f32_q8_q4_outputs_and_exact_case_ledger_requirements
+  slm_trained_source_conversion: verified_for_raw_f32_source_layout_validation_f32_q8_q4_conversion_converted_trained_manifests_runtime_smoke_and_fixture_scoped_eval_gates
+  rust_local_server: verified_for_loopback_app_wasm_slm_manifest_routes_get_head_content_length_and_visual_studio_reuse_path
+  rust_mini_browser_harness: verified_for_static_app_contract_local_only_markers_required_ui_ids_js_wasm_boundary_calls_rust_wasm_export_definitions_model_manifest_presence_and_loopback_content_types
+  performance_smoke: verified_for_q8_q4_four_token_generation_benchmark_fields_47104_scratch_bytes_reset_recovery_and_local_only_requests
+  performance_soak: verified_for_three_cycles_of_q8_q4_four_token_generation_benchmark_fields_kv_length_scratch_bytes_reset_recovery_and_local_only_requests
+  visual_studio_solution: TinyRustLM.sln verified with VS build helper, model-admission test helper, all-quantization converted-source gates, Rust local-server reuse, Rust browser harness, and busy-port fallback
+  wasm_artifact: tinyrustlm/runtime/tinyrustlm.wasm
+  slm_model_artifact: tinyrustlm/models/tinylm16-q8.slm
+  slm_model_q4_artifact: tinyrustlm/models/tinylm16-q4.slm
+  slm_model_bpe_artifact: tinyrustlm/models/tiny-test-model-bpe.slm

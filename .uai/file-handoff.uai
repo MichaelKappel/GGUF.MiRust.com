@@ -1,0 +1,37 @@
+profile: gguf-mirust.file-handoff.v2
+updated_utc: 2026-06-25T00:00:00Z
+handoff_root: agent-file-handoff/
+active_buckets:
+  content: agent-file-handoff/Content/
+  improvement: agent-file-handoff/Improvement/
+forbidden_default_bucket:
+  archive: agent-file-handoff/Archive/
+completion_gate:
+  required_before_broad_work: true
+  live_scan_required: true
+  ledger_path: .uai/intake-outcome-ledger.uai
+  outcomes:
+    - incorporated
+    - rejected-with-reason
+    - preserved-to-durable-memory
+    - kept-active-with-reason
+  proof_required:
+    - disposition
+    - actual_source_work
+    - hot_memory_update
+    - llm_wiki_or_aiwikis_preservation_evidence
+    - checks
+    - blockers
+    - source_site_removal_or_keep_active_reason
+durable_preservation:
+  target: raw/gguf-mirust/
+  public_target: https://aiwikis.org/gguf-mirust/files/
+  manifest: raw/gguf-mirust/MANIFEST.md
+  checksum_required: true
+current_scan:
+  scanned_utc: 2026-06-25T00:00:00Z
+  content_bucket_non_placeholder_files: 0
+  improvement_bucket_non_placeholder_files: 0
+  misplaced_root_files: 0
+  status: all_reports_processed
+  action: 23 Improvement reports were preserved to raw/gguf-mirust/report-intake-2026-06-25/, synthesized into wiki/gguf-mirust/reports/, recorded in .uai/intake-outcome-ledger.uai, and removed from the active source bucket.

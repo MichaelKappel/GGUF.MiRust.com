@@ -1,0 +1,14 @@
+tinyrustlm_slm_manifest_version=1
+model_path=tinyrustlm\models\tiny-test-model-bpe.slm
+model_bytes=20544
+slm_version=1
+slm_checksum=0x277b7051f235a14f
+model_shape=vocab=262,hidden=8,layers=1,heads=2,kv_heads=2,head_dim=4,ffn=16,context=16
+tensor_count=12
+parameter_count=4856
+quantization=f32
+source_kind=deterministic-smoke
+quality_claim=runtime-execution-smoke-only
+trained_quality_claim=not-claimed
+admission_status=accepted-for-runtime-smoke
+required_next_gate=replace-with-trained-or-evaluated-model-before-product-quality-claim

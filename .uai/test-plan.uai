@@ -1,0 +1,171 @@
+profile: gguf-mirust.test-plan.v2
+updated_utc: 2026-06-25T12:22:29Z
+available_now:
+  - node --check tinyrustlm/app/app.js passed after local transcript edits.
+  - node --check tinyrustlm/tools/static-server.js passed.
+  - node --check tinyrustlm/tools/browser-smoke.js passed after transcript smoke assertions were added.
+  - node --check tinyrustlm/tools/wasm-abi-smoke.js passed after WASM step/free ABI edits.
+  - rg source scan found no active third-party dependency declarations in Cargo manifests.
+  - rg file scan verified tinyrustlm source/docs/app/fixture tree exists.
+toolchain_now_available:
+  - C:\Users\AI\.cargo\bin\cargo.exe
+  - C:\Users\AI\.cargo\bin\rustc.exe
+  - C:\Users\AI\.cargo\bin\rustup.exe
+completed_toolchain_checks:
+  - cargo test --workspace passed with 92 tests total after model tensor routing hardening: 6 browser-harness tests, 5 local-server tests, 58 runtime tests, and 23 slm_pack tests. Runtime coverage now includes pre-resolved top-level/per-layer tensor index tests and tied-output projection fallback tests alongside direct core math ops and existing runtime gates.
+  - tools/vs/Test-TinyRustLM.ps1 passed after tensor index routing hardening; it rebuilt WASM, ran 92 Cargo tests, strict rustdoc gates, Rust browser-harness static contract, all model/manifest checks, converted-source gates, fixture-scoped eval gates, and WASM ABI step/free smoke.
+  - cargo fmt --all -- --check passed after transcript edits.
+  - cargo run -p tinyrustlm-browser-harness -- tinyrustlm passed after adding clearChatButton and conversation to the required static UI contract.
+  - cargo fmt --all passed.
+  - cargo build --workspace passed after adding tinyrustlm-local-server.
+  - cargo test --workspace passed with 90 tests total after core math coverage growth; this evidence is superseded by the current 92-test model tensor routing run.
+  - tools/vs/Build-TinyRustLM.ps1 -Configuration Debug passed.
+  - tools/vs/Test-TinyRustLM.ps1 passed with Cargo tests, JS syntax checks, strict rustdoc missing_docs gates, WASM release build, Rust browser-harness static contract, model/manifest gates, converted-source gates, reusable generation buffer tests, and WASM ABI step/free smoke.
+  - tools/vs/Test-TinyRustLM.ps1 validates all seven local .slm artifacts, their .slm.manifest sidecars, the tiny trained-source fixture, converted-trained f32/q8_0/q4_0 outputs, converted manifests, runtime-smoke gates, fixture-scoped assistant-quality eval gates, and WASM ABI step/free smoke.
+  - cargo test -p tinyrustlm-runtime runtime_generates_from_tiny_bpe_fixture passed, proving prompt the becomes tokenizer_output 256,261 before generation.
+  - cargo test -p tinyrustlm-runtime runtime_accepts_stochastic_bpe_top_k_above_byte_vocab passed, proving BPE top_k 262 through runtime generation.
+  - cargo test -p tinyrustlm-runtime stochastic_sampler_accepts_bpe_vocab_above_byte_tokenizer_size passed, proving sampler selection beyond the byte-tokenizer vocabulary size.
+  - cargo test -p tinyrustlm-slm-pack bpe passed, proving BPE writer and validator coverage.
+  - cargo fmt --all -- --check passed after strict public Rust documentation gate wiring.
+  - cargo rustdoc -p tinyrustlm-runtime --lib -- -D missing_docs passed.
+  - cargo rustdoc -p tinyrustlm-slm-pack --bin tinyrustlm-slm-pack -- -D missing_docs passed.
+  - cargo rustdoc -p tinyrustlm-local-server --bin tinyrustlm-local-server -- -D missing_docs passed.
+  - cargo rustdoc -p tinyrustlm-browser-harness --bin tinyrustlm-browser-harness -- -D missing_docs passed.
+  - cargo test -p tinyrustlm-runtime sampler::tests passed with fixed-buffer stochastic candidate cap coverage and top_k cap rejection.
+  - cargo test -p tinyrustlm-runtime runtime_accepts_last_prompt_slot_and_rejects_full_context_prompt passed with last-prompt-slot acceptance, full-context rejection, empty failed token state, and zero cache length.
+  - cargo test -p tinyrustlm-runtime runtime_generate_next_token_continues_current_context passed with token state ending on the generated token before step continuation.
+  - tools/vs/Test-TinyRustLM.ps1 passed after assistant-quality case-ledger hardening; it rebuilt WASM, ran 78 Cargo tests, strict rustdoc gates, static browser harness, all model/manifest checks, converted-source gates, fixture-scoped eval gates, and WASM ABI smoke.
+  - tools/vs/Test-TinyRustLM.ps1 -BrowserSmoke -BrowserSmokePort 8094 -PortSearchLimit 10 passed after quantized decoded-shadow removal, including q8, q4, loop, malformed model, context-overflow, missing-model, endurance, performance browser smokes, and desktop/mobile UI audit.
+  - tools/vs/Run-TinyRustLM.ps1 parse check passed after identity-aware port selection edits.
+  - tools/vs/Test-TinyRustLM.ps1 parse check passed after BrowserSmokePort and PortSearchLimit edits.
+  - tools/vs/Test-TinyRustLM.ps1 parse check passed after PerformanceSoak parameters were added.
+  - Focused Run-TinyRustLM busy-port fallback passed from unrelated occupied 18180 to free 18181.
+  - Focused Run-TinyRustLM verified-server reuse passed on 18182 without starting a second server.
+  - Focused tools/vs/Test-TinyRustLM.ps1 -PerformanceSoak -PerformanceSoakCycles 1 -PerformanceSoakTokens 1 -BrowserSmokePort 18291 -PortSearchLimit 5 passed through Rust local-server startup; the browser harness clamps soak minimums to two cycles and two tokens, then completed with only a temporary profile cleanup warning.
+  - cargo run -p tinyrustlm-browser-harness -- tinyrustlm passed the static app contract with 8 checks, including Rust WASM export-definition crawl.
+  - cargo run -p tinyrustlm-browser-harness -- tinyrustlm --http http://127.0.0.1:18315/app/ passed the loopback route/content-type contract with 8 checks against the Rust local server.
+  - tools/vs/Test-TinyRustLM.ps1 -PerformanceSoak -PerformanceSoakCycles 2 -PerformanceSoakTokens 2 -BrowserSmokePort 18320 -PortSearchLimit 5 passed after Rust browser harness integration; it exercised the default static harness and server-backed --http harness path, then completed with only a temporary profile cleanup warning.
+  - tools/vs/Test-TinyRustLM.ps1 -BrowserSmoke -BrowserSmokePort 18340 -PortSearchLimit 5 passed after local transcript UI work, including q8/q4 transcript assertions and desktop/mobile ui-audit Clear-button state; only temporary Chrome profile cleanup warnings remained.
+  - node tinyrustlm/tools/browser-smoke.js http://127.0.0.1:18350/app/ 9240 tinylm16q8 ui-audit passed after adding the Clear-click cleared transcript snapshot.
+pending_build_artifact_checks:
+  - none_for_current_source_slice
+completed_build_artifact_checks:
+  - cargo build -p tinyrustlm-runtime --release --target wasm32-unknown-unknown passed.
+  - copied target/wasm32-unknown-unknown/release/tinyrustlm_runtime.wasm to tinyrustlm/runtime/tinyrustlm.wasm.
+  - cargo run -p tinyrustlm-slm-pack -- tinyrustlm/models/tiny-test-model.slm tiny-fixture passed.
+  - cargo run -p tinyrustlm-slm-pack -- tinyrustlm/models/tiny-test-model-q8.slm tiny-fixture-q8 passed.
+  - cargo run -p tinyrustlm-slm-pack -- tinyrustlm/models/tiny-test-model-q4.slm tiny-fixture-q4 passed.
+  - cargo run -p tinyrustlm-slm-pack -- tinyrustlm/models/tiny-test-model-bpe.slm tiny-fixture-bpe passed.
+  - cargo run -p tinyrustlm-slm-pack -- tinyrustlm/models/tinylm16-f32.slm tinylm16-f32 passed.
+  - cargo run -p tinyrustlm-slm-pack -- tinyrustlm/models/tinylm16-q8.slm tinylm16-q8 passed.
+  - cargo run -p tinyrustlm-slm-pack -- tinyrustlm/models/tinylm16-q4.slm tinylm16-q4 passed.
+  - The seven .slm artifacts carry nonzero checksums after packer/runtime checksum enforcement.
+  - tinyrustlm-slm-pack validate passed for tiny-test-model.slm, tiny-test-model-q8.slm, tiny-test-model-q4.slm, tiny-test-model-bpe.slm, tinylm16-f32.slm, tinylm16-q8.slm, and tinylm16-q4.slm.
+  - tinyrustlm-slm-pack manifest generated deterministic-smoke sidecars for all seven current .slm artifacts.
+  - tinyrustlm-slm-pack validate-manifest passed for all seven current .slm.manifest sidecars.
+  - Manifest unit tests passed for generated fixture round-trip, checksum mismatch rejection, and converted-trained quality-overclaim rejection.
+  - Quality-gate unit tests passed for runtime-smoke admission, deterministic-smoke assistant-quality rejection, converted-trained assistant-quality rejection without eval evidence, pending eval template rejection, and converted-trained passed-eval admission.
+  - CLI quality-gate smoke passed for tinylm16-q8 runtime-smoke.
+  - CLI eval-template smoke generated a pending assistant-quality sidecar for a converted-trained tiny fixture manifest, then quality-gate rejected that pending template as expected.
+  - CLI source-template generated tinyrustlm/tests/fixtures/trained-source-tiny.
+  - CLI validate-source passed for tinyrustlm/tests/fixtures/trained-source-tiny.
+  - CLI convert-trained emitted target/trained-source-smoke/tiny-converted-f32.slm, tiny-converted-q8.slm, and tiny-converted-q4.slm plus matching converted-trained manifests from the source fixture.
+  - CLI quality-gate runtime-smoke passed for converted-trained f32, q8_0, and q4_0 fixture artifacts.
+  - CLI tinyrustlm-eval passed the scoped fixture cases for converted-trained f32, q8_0, and q4_0 artifacts.
+  - CLI quality-gate assistant-quality passed only for the declared tiny-converted-source-fixture-only scope for converted-trained f32, q8_0, and q4_0 artifacts.
+  - Build-TinyRustLM.ps1 -RegenerateModels includes all seven .slm artifacts plus deterministic-smoke sidecars, including tiny-test-model-bpe.slm.
+  - Node WASM smoke test instantiated WASM, loaded f32/q8_0/q4_0 tiny fixtures, generated eeeeeeeeeeeee through the tiny transformer path, and read diagnostics with code 0 for each fixture.
+  - Node WASM smoke test instantiated WASM, loaded tinylm16-f32.slm, generated e from prompt hi with max_new_tokens 1, and read diagnostics with code 0.
+  - Node WASM smoke test instantiated WASM, loaded tinylm16-q8.slm, generated e from prompt hi with max_new_tokens 1, and read q8_0 diagnostics with code 0.
+  - Node WASM smoke test instantiated WASM, loaded tinylm16-q4.slm, generated e from prompt hi with max_new_tokens 1, and read q4_0 diagnostics with code 0.
+  - Headless Chrome browser smoke loaded http://127.0.0.1:8080/app/, defaulted to TinyLM-16M q8_0, clicked Generate, displayed e, rendered diagnostics plus benchmark fields, and appended User hi plus TinyRustLM e transcript entries.
+  - Headless Chrome browser smoke loaded http://127.0.0.1:8080/app/, selected TinyLM-16M q4_0, clicked Generate, displayed e, rendered diagnostics plus benchmark fields, and appended User hi plus TinyRustLM e transcript entries.
+  - Headless Chrome browser loop smoke reloaded the app, verified clean q8_0 ready diagnostics, generated q8 twice around reset, switched to q4_0 with clean ready diagnostics, generated q4 twice around reset, and observed only local-origin HTTP requests.
+  - Headless Chrome browser model-error smoke intercepted the local q8 model route with malformed .slm bytes, rendered Model rejected, surfaced invalid model magic, kept Generate/Reset disabled, kept model selection recoverable, recorded diagnostics model_loaded false, and observed only local-origin HTTP requests.
+  - Headless Chrome browser context-error smoke submitted an over-context prompt, rendered context exceeded, kept the runtime ready with controls enabled, recorded ContextExceeded diagnostics without generated tokens, and observed only local-origin HTTP requests.
+  - Headless Chrome browser missing-model smoke returned a local 404 for tinylm16-q8.slm, rendered Model load failed, surfaced Unable to fetch local .slm model (404), kept Generate/Reset disabled, kept model selection recoverable, recorded diagnostics model_loaded false, and observed only local-origin HTTP requests.
+  - Headless Chrome browser endurance smoke completed three q8/q4 ready-generate-reset cycles, preserved clean diagnostics after resets, generated deterministic e responses, and observed only local-origin HTTP requests.
+  - Headless Chrome browser performance smoke generated four q8_0 tokens and four q4_0 tokens through the UI, verified benchmark prompt/generated counts, host-side token speed, 47,104 scratch bytes, quantization mode, KV cache length, reset recovery, and local-only HTTP requests.
+  - Headless Chrome browser performance-soak mode completed repeated q8_0 and q4_0 four-token UI generations, verified each cycle's benchmark counts, positive host-side token speed, scratch bytes, KV length, deterministic eeee output, reset recovery, and local-only HTTP requests.
+  - Headless Chrome browser ui-audit mode passed for fresh desktop and mobile viewports, verifying product shell identity, local-only notice, footer, required panels, labels, model options, Model Provenance panel, empty/generated/cleared conversation transcript, Clear-button state, response preservation after Clear, no horizontal overflow, q8_0 generation, diagnostics/developer mirror, benchmark fields, and local-only HTTP requests.
+  - Focused 2026-06-25 provenance-panel check passed: node --check tinyrustlm/app/app.js, node --check tinyrustlm/tools/browser-smoke.js, cargo fmt --all -- --check, and browser-smoke ui-audit against http://127.0.0.1:8080/app/ with same-origin `.slm.manifest` fetch.
+  - Focused Visual Studio performance soak passed with two q8/q4 cycles and four generated tokens per run.
+  - Full Visual Studio BrowserSmoke plus PerformanceSoak passed with three q8/q4 performance-soak cycles after the regular q8, q4, loop, malformed model, context-overflow, missing-model, endurance, performance, and desktop/mobile UI-audit smokes.
+  - Full Visual Studio BrowserSmoke plus PerformanceSoak passed again after checksum-bearing model regeneration, before the UI-audit gate was added.
+  - Visual Studio BrowserSmoke reused an existing verified TinyRustLM server at http://127.0.0.1:8080/app/ after port-selection hardening.
+  - Current Visual Studio BrowserSmoke performance evidence after decoded-shadow removal: q8_0 generated `eeee` at 29.197 tok/s host-side, q4_0 generated `eeee` at 14.706 tok/s host-side, both with 47,104 scratch bytes and clean reset diagnostics.
+  - WASM ABI smoke loaded tinyrustlm/runtime/tinyrustlm.wasm and tinyrustlm/models/tinylm16-q8.slm, rejected invalid UTF-8 prompt bytes with code 3, rejected null prompt pointer with code 1, rejected invalid lengths with code 2, rejected invalid sampling, recovered with response e plus q8_0 diagnostics, stepped one token through generate_next_token with ErrorCode Ok/result e/generated count 2/KV length 5, freed the model, and rejected post-free generate_next_token with ModelNotLoaded.
+  - Full Visual Studio BrowserSmoke passed after diagnostics JSON escaping hardening, proving browser diagnostics still parse across q8/q4 generation, model errors, context overflow, missing-model, endurance, and performance checks.
+  - Targeted current browser smoke loaded http://127.0.0.1:8080/app/, defaulted to TinyLM-16M q8_0, generated e, rendered benchmark fields, and reported selected_next_token 101.
+  - Improvement report intake processed 23 reports into raw evidence and distributed long-term report memory, then cleared the active source bucket.
+  - localhost static server served /app/, /runtime/tinyrustlm.wasm, /models/tiny-test-model.slm, /models/tiny-test-model-q8.slm, /models/tiny-test-model-q4.slm, /models/tinylm16-f32.slm, /models/tinylm16-q8.slm, /models/tinylm16-q4.slm, and /app/app.js with HTTP/HEAD 200.
+  - Rust local server direct HTTP smoke passed for /app/, /runtime/tinyrustlm.wasm, /models/tinylm16-q8.slm, and /models/tinylm16-q8.slm.manifest on port 18280.
+  - Run-TinyRustLM.ps1 -NoBuild -NoBrowser verified-server reuse passed against a Rust-hosted TinyRustLM server on port 18282.
+required_rust_tests:
+  - byte tokenizer round-trip
+  - UTF-8 prompt handling
+  - TensorView and MutableTensorView shape validation and row-major flat indexing
+  - dot known output and shape mismatch rejection
+  - RMSNorm known vector
+  - softmax sum approximately 1.0
+  - softmax empty slice rejection
+  - matvec known output
+  - matvec shape mismatch rejection
+  - matmul known output and shape mismatch rejection
+  - SiLU known values
+  - SwiGLU known output and shape mismatch rejection
+  - q8 dequant known output
+  - q4 dequant known output
+  - q4 direct matvec uses block scales
+  - RoPE known small vector
+  - KV cache append/read
+  - .slm header parse
+  - .slm checksum mismatch rejection
+  - native .slm admission validator accepts generated fixtures
+  - native .slm admission validator rejects non-finite f32 payload values
+  - .slm provenance manifest validation accepts generated fixture sidecars
+  - .slm provenance manifest validation rejects checksum drift
+  - .slm provenance manifest validation rejects trained-quality overclaims
+  - .slm quality gate accepts runtime-smoke evidence for existing manifests
+  - .slm quality gate rejects deterministic-smoke assistant-quality claims
+  - .slm quality gate rejects converted-trained assistant-quality claims without evaluation evidence
+  - .slm quality gate rejects pending assistant-quality eval templates
+  - .slm quality gate accepts converted-trained assistant-quality claims only with passed task-eval and safety-review evidence
+  - .slm quality gate rejects assistant-quality sidecars without case totals or with mismatched per-case actual text
+  - trained-source validator accepts generated raw-f32 source fixture
+  - trained-source converter builds f32, q8_0, and q4_0 .slm artifacts with converted-trained manifests
+  - trained-source validator rejects source checksum drift
+  - trained-source validator rejects unsafe tensor path traversal
+  - trained-source validator rejects non-finite source weights even when source checksum is refreshed
+  - invalid magic rejection
+  - missing tensor rejection
+  - greedy sampler deterministic selection
+  - stochastic sampler selects from a fixed 1024-candidate buffer, accepts BPE top_k 262, and rejects top_k above the fixed cap
+  - generation stops on EOS
+  - tiny fixture forward path generates deterministic local output
+  - q8_0 tiny fixture forward path generates deterministic local output and reports q8_0 diagnostics
+  - q8_0 named model matvec matches caller-owned copied reference output
+  - q4_0 tiny fixture forward path generates deterministic local output and reports q4_0 diagnostics
+  - q8_0/q4_0 tensors reject borrowed f32 slices and require explicit copy buffers for decoded reference paths
+  - model loading exposes pre-resolved top-level and per-layer tensor indices
+  - tied-output projection flags route output projection to tok_embeddings
+  - custom BPE tiny fixture loads from .slm and records merged tokenizer output 256,261 for prompt the before generation
+  - generation scratch and logits buffers are allocated on model load and reused across generate plus repeated generate_next_token calls
+  - generate request state clears prompt/cache diagnostics before errors can preserve stale counts, and successful generation extends token state for step-token continuation
+  - eval-case files reject zero case_count, empty exact prompt/output fields, and stray case keys outside declared case_count
+  - top-k diagnostic summary selects candidates without allocating a vocab-sized vector
+  - generate_next_token returns ErrorCode Ok on success, writes decoded token text to last_result, and records selected token id in diagnostics
+  - free_model clears model-loaded diagnostics and makes later generation fail with ModelNotLoaded
+  - TinyLM-16M f32 smoke path generates deterministic local output and reports f32 diagnostics
+  - TinyLM-16M q8_0 smoke path generates deterministic local output and reports q8_0 diagnostics
+  - TinyLM-16M q4_0 smoke path generates deterministic local output and reports q4_0 diagnostics
+  - model reload resets generation diagnostics before model-specific generation resumes
+  - diagnostics JSON escapes quotes, backslashes, control characters, line separators, and paragraph separators before browser parsing
+  - Visual Studio wrapper build/test scripts continue to pass
+  - public Rust API documentation must pass strict missing_docs rustdoc gates for runtime and all tool binaries
+  - Rust local server unit tests cover request-line parsing, directory index resolution, traversal rejection, percent decoding, and WASM content type
+  - Rust mini browser harness unit tests cover loopback URL parsing, remote URL rejection, manifest parsing, HTTP response parsing, and remote marker rejection
+  - browser transcript smokes cover empty ready state, generated User/TinyRustLM entries, Clear-click removal, response preservation after Clear, Clear-button state, and DOM-safe text rendering expectations
+future_browser_tests:
+  - longer performance soak across more than three cycles and more models when quality-model artifacts exist
+  - server-port race test that starts a local service between port resolution and Rust local-server launch

@@ -1,0 +1,16 @@
+profile: gguf-mirust.receiver-brief.v1
+updated_utc: 2026-06-25T00:00:00Z
+brief: GGUF.MiRust.com now contains TinyRustLM, a zero-dependency Rust/WASM browser-local SLM runtime and UI. Treat trained-model quality, GGUF compatibility, Mini Browser work, and broader orchestration as pending until source and tests prove them.
+must_read:
+  - AGENTS.md
+  - workspace.uai
+  - .uai/workspace-guidance.uai
+  - .uai/file-handoff.uai
+  - .uai/long-term-memory.uai
+  - .uai/test-plan.uai
+  - tinyrustlm/README.md
+  - wiki/gguf-mirust/reports/report-intake-index-2026-06-25.md
+do_not:
+  - Create agent-file-handoff/Archive/ as default memory.
+  - Store durable reports inside .uai/long-term-memory.uai.
+  - Claim trained-quality model behavior, GGUF import, Mini Browser automation, WebGPU acceleration, or remote inference support from report memory alone.

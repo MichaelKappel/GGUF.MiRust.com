@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TinyRustLM</title>
+  <link rel="stylesheet" href="./app.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">GGUF.MiRust.com</p>
+        <h1>TinyRustLM</h1>
+      </div>
+      <div class="status" id="runtimeStatus">Booting</div>
+    </header>
+
+    <section class="notice">
+      All inference runs locally in this browser. Prompts are not sent to a server.
+    </section>
+
+    <section class="grid">
+      <form class="panel chat" id="chatForm">
+        <label for="prompt">Prompt</label>
+        <textarea id="prompt" rows="8" autocomplete="off" spellcheck="true">hi</textarea>
+        <div class="settings">
+          <label for="maxTokens">Max Tokens</label>
+          <input id="maxTokens" type="number" min="1" max="512" step="1" value="8">
+        </div>
+        <fieldset class="decoding">
+          <legend>Decoding</legend>
+          <label for="temperature">Temperature</label>
+          <input id="temperature" type="number" min="0" max="5" step="0.05" value="0">
+          <label for="topK">Top K</label>
+          <input id="topK" type="number" min="1" max="1024" step="1" value="1">
+          <label for="topP">Top P</label>
+          <input id="topP" type="number" min="0.01" max="1" step="0.01" value="1">
+          <label for="seed">Seed</label>
+          <input id="seed" type="number" min="0" max="4294967295" step="1" value="1">
+        </fieldset>
+        <div class="actions">
+          <button id="generateButton" type="submit" disabled>Generate</button>
+          <button id="resetButton" type="button" disabled>Reset</button>
+          <button id="clearChatButton" type="button" disabled>Clear</button>
+        </div>
+      </form>
+
+      <section class="panel transcript">
+        <h2>Conversation</h2>
+        <ol id="conversation" class="messages" aria-live="polite"></ol>
+      </section>
+
+      <section class="panel output">
+        <h2>Response</h2>
+        <pre id="response"></pre>
+      </section>
+
+      <section class="panel">
+        <h2>Model Loading</h2>
+        <label for="modelSelect">Model</label>
+        <select id="modelSelect">
+          <option value="tinylm16q8" selected>TinyLM-16M q8_0</option>
+          <option value="tinylm16q4">TinyLM-16M q4_0</option>
+          <option value="tinylm16f32">TinyLM-16M f32</option>
+          <option value="tinyf32">Tiny Fixture f32</option>
+          <option value="tinytied">Tiny Fixture tied-output f32</option>
+          <option value="tinyq8">Tiny Fixture q8_0</option>
+          <option value="tinyq4">Tiny Fixture q4_0</option>
+          <option value="tinybpe">Tiny Fixture BPE f32</option>
+        </select>
+        <dl id="loadPanel">
+          <dt>WASM</dt><dd id="wasmState">waiting</dd>
+          <dt>Model</dt><dd id="modelState">waiting</dd>
+          <dt>Error</dt><dd id="errorState">none</dd>
+        </dl>
+      </section>
+
+      <section class="panel">
+        <h2>Model Provenance</h2>
+        <dl id="provenancePanel">
+          <dt>Manifest</dt><dd id="provenanceState">waiting</dd>
+          <dt>Source</dt><dd id="provenanceSourceKind">waiting</dd>
+          <dt>Admission</dt><dd id="provenanceAdmission">waiting</dd>
+          <dt>Quality</dt><dd id="provenanceQualityClaim">waiting</dd>
+          <dt>Trained</dt><dd id="provenanceTrainedClaim">waiting</dd>
+          <dt>Checksum</dt><dd id="provenanceChecksum">waiting</dd>
+          <dt>Next Gate</dt><dd id="provenanceNextGate">waiting</dd>
+        </dl>
+      </section>
+
+      <section class="panel">
+        <h2>Benchmark</h2>
+        <dl>
+          <dt>Load</dt><dd id="benchLoadMs">waiting</dd>
+          <dt>Prompt</dt><dd id="benchPromptTokens">0 tokens</dd>
+          <dt>Generated</dt><dd id="benchGeneratedTokens">0 tokens</dd>
+          <dt>Speed</dt><dd id="benchTokensPerSecond">0.000 tok/s</dd>
+          <dt>Scratch</dt><dd id="benchScratch">0 bytes</dd>
+        </dl>
+      </section>
+
+      <section class="panel">
+        <h2>Runtime Diagnostics</h2>
+        <pre id="diagnostics"></pre>
+      </section>
+
+      <section class="panel">
+        <h2>Token Generation Console</h2>
+        <pre id="console"></pre>
+      </section>
+
+      <section class="panel">
+        <h2>Developer Mode</h2>
+        <pre id="developer"></pre>
+      </section>
+    </section>
+
+    <footer class="footnote" id="appFooter">
+      <span>TinyRustLM</span>
+      <span>GGUF.MiRust.com browser-local Rust/WASM runtime</span>
+      <span>Local .slm models only</span>
+    </footer>
+  </main>
+  <script src="./app.js"></script>
+</body>
+</html>

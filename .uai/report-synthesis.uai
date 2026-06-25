@@ -1,0 +1,83 @@
+profile: gguf-mirust.report-synthesis.v1
+updated_utc: 2026-06-25T00:00:00Z
+purpose: Hot .uai synthesis of the 23 processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
+source_authority:
+  raw_evidence: raw/gguf-mirust/report-intake-2026-06-25/
+  raw_manifest: raw/gguf-mirust/MANIFEST.md
+  durable_index: wiki/gguf-mirust/reports/report-intake-index-2026-06-25.md
+  durable_synthesis:
+    - wiki/gguf-mirust/reports/enterprise-rust-governance-memory-2026-06-25.md
+    - wiki/gguf-mirust/reports/browser-local-runtime-memory-2026-06-25.md
+    - wiki/gguf-mirust/reports/tinylm-modular-architecture-memory-2026-06-25.md
+    - wiki/gguf-mirust/reports/teleodynamic-resource-bounded-memory-2026-06-25.md
+    - wiki/gguf-mirust/reports/brand-product-positioning-memory-2026-06-25.md
+failure_dogfood:
+  issue: First report-processing pass over-prioritized durable wiki files and pointer-ledger cleanliness, leaving hot .uai files too thin for cold-start agents.
+  correction: Keep long-term-memory.uai pointer-only, but populate typed .uai files with enough report-derived routing, constraints, tensions, and next questions to guide work before wiki deep-loading.
+  uaix_guidance_needed: UAIX and LLM Wiki setup guidance should say link-only is not memory-thin; every project needs hot .uai synthesis plus crawlable durable nodes.
+  crawlability_rule: A future agent should be able to identify what to load next from .uai files within two minutes, without opening every report or wiki page.
+report_clusters:
+  enterprise_rust_governance:
+    sources: enterprise Rust adoption, Enterprise Rust Best Practices, Rust Design Patterns, Rust ownership/SOLID.
+    hot_takeaway: Enterprise quality for TinyRustLM means smaller trusted surface, no third-party runtime crates, explicit tests, visible checksums, bounded unsafe, and maintainable Rust idioms.
+    apply_now:
+      - Keep runtime and packer dependency lists empty.
+      - Treat every browser/model boundary as a typed trust boundary with explicit errors.
+      - Prefer enums, newtypes, ownership, and cohesive modules over object-oriented pattern translation.
+      - Make tests and smoke outputs the authority for support claims.
+    watch_out:
+      - Do not import cargo-audit/cargo-deny/cargo-vet as project requirements while the no-crate/no-extra-tool prompt is active.
+      - Do not add framework layers to look enterprise; proof and simplicity are the enterprise move here.
+  browser_local_runtime:
+    sources: lightweight browser AI runtime, Rust AI Runtime for Web, Rust Browser Tiny LLM, TinyLM-16M in-browser, Custom Rust SML runtime.
+    hot_takeaway: The browser host should fetch local files, copy bytes, call Rust exports, and render diagnostics; Rust owns model parsing, inference, errors, and memory discipline.
+    apply_now:
+      - Keep JS handwritten and minimal.
+      - Keep local-only request checks in browser smoke.
+      - Distinguish missing file, malformed file, rejected model, context overflow, and generation failure in UI.
+      - Preserve model selection recovery after model-specific failures.
+      - Measure load time, prompt count, generated count, scratch use, KV length, and quantization mode.
+    watch_out:
+      - Treat WebGPU, OPFS, IndexedDB, workers, and framework runtimes as future comparison topics only.
+      - Do not let JS parse .slm or own inference logic.
+  tinylm_modular_architecture:
+    sources: Modular AI in Browser, Modular Tiny Language Models, Multiple Tiny Language Models, Tiny Language Models Architecture, modular teleodynamic duplicate reports.
+    hot_takeaway: Multi-model routing, adapters, task composition, speculative decoding, and skill packages are future architecture lanes; first stabilize one auditable TinyLM-16M .slm path.
+    apply_now:
+      - Keep .slm metadata shaped like a future model ABI.
+      - Preserve tokenizer and quantization extensibility without implementing marketplace behavior.
+      - Document future compatibility requirements before adding adapters or routers.
+    watch_out:
+      - Do not implement LoRA, task arithmetic, mixture-of-agents, speculative decoding, or model marketplaces until the base runtime is correct and benchmarked.
+  teleodynamic_resource_bounded_design:
+    sources: Rust In-Browser Teleodynamic AI Plan, Rust WebAssembly Teleodynamic AI Architecture, Teleodynamic AI in Browser, resource-bounded reports, Teleodynamic Tiny Language Model Architecture, Teleodynamics framework.
+    hot_takeaway: Translate teleodynamic theory into measurable resource behavior: context, scratch arena, KV cache, load failure recovery, reset, latency, and honest stopping conditions.
+    apply_now:
+      - Treat Booting, Loading runtime, Loading model, Ready, Model rejected, Model load failed, and context exceeded as meaningful phase states.
+      - Prefer graceful refusal or reset over hidden degradation when context or model boundaries fail.
+      - Expose enough diagnostics for users and agents to see resource pressure.
+    watch_out:
+      - Do not let theory become decorative language.
+      - Do not add adaptive behavior unless deterministic tests prove it.
+  brand_product_positioning:
+    sources: Branding MiRust.com and duplicate Machine Inteligence framwork for rust.
+    hot_takeaway: TinyRustLM should be positioned as a transparent browser-local Rust/WASM SLM runtime, not a cloud AI wrapper or trained-quality assistant yet.
+    apply_now:
+      - Lead with local proof and custom runtime.
+      - Say deterministic smoke models prove execution path, not assistant quality.
+      - Keep public claims aligned with workspace.uai and test-plan.uai.
+    watch_out:
+      - Do not imply GGUF compatibility, Mini Browser automation, remote inference, or trained model quality before implementation evidence exists.
+report_distillation_questions:
+  - What invariant should move from documentation into a test next?
+  - Which UI state makes a local failure recoverable instead of mysterious?
+  - What is the smallest useful model ABI that can support future tiny model routing without becoming a framework?
+  - Which philosophical idea can be translated into a metric, error state, or user-visible budget?
+  - What claim would become misleading if copied from a report into product copy today?
+crawlability_requirements_for_future_memory:
+  - .uai/index.uai must list every hot memory file.
+  - .uai/startup-packet.uai must route to report-synthesis.uai before durable report wiki files.
+  - .uai/short-term-memory.uai must record the current report-processing state and next implementation risks.
+  - .uai/architecture.uai must include report-derived architecture pressure in typed fields.
+  - .uai/coding-standards.uai must include report-derived engineering rules that are safe under the active prompt.
+  - .uai/long-term-memory.uai must remain pointer-only with routing summaries and checksums.

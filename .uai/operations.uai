@@ -1,0 +1,85 @@
+profile: gguf-mirust.operations.v2
+updated_utc: 2026-06-25T12:22:29Z
+local_development:
+  active_product: TinyRustLM
+  app_url: http://127.0.0.1:8080/app/
+  static_server: cargo run -p tinyrustlm-local-server -- tinyrustlm 8080
+  rust_browser_harness: cargo run -p tinyrustlm-browser-harness -- tinyrustlm
+  rust_browser_harness_http: cargo run -p tinyrustlm-browser-harness -- tinyrustlm --http http://127.0.0.1:8080/app/
+  visual_studio_solution: TinyRustLM.sln
+  visual_studio_run: tools/vs/Run-TinyRustLM.ps1
+  visual_studio_test: tools/vs/Test-TinyRustLM.ps1 -BrowserSmoke
+  visual_studio_performance_soak: tools/vs/Test-TinyRustLM.ps1 -PerformanceSoak -PerformanceSoakCycles 3 -PerformanceSoakTokens 4
+  visual_studio_port_behavior: Run and BrowserSmoke helpers reuse a verified TinyRustLM server or choose the first free loopback port from the requested port.
+toolchain:
+  cargo: C:\Users\AI\.cargo\bin\cargo.exe
+  rustup: C:\Users\AI\.cargo\bin\rustup.exe
+  node: required_for_javascript_execution_smoke_tools_only
+current_verified_checks:
+  - Runtime model loading now pre-resolves top-level and per-layer tensor indices, generation uses those indices without per-token layer-name formatting, and the tied-output projection flag routes logits through tok_embeddings when output.weight is absent.
+  - Core math ops now have direct unit coverage for dot known output and mismatch rejection, matvec known output and mismatch rejection, matmul known output and mismatch rejection, RMSNorm, softmax sum and empty rejection, SiLU known values, and SwiGLU known output plus mismatch rejection.
+  - TensorView and MutableTensorView now have direct unit coverage for shape validation, row-major flat indexing, mutable scratch writes, and element-count overflow rejection.
+  - Runtime generation now allocates ForwardScratch and logits on model load, reuses their buffers across generate and repeated generate_next_token calls, and selects diagnostic top-k candidates without a vocab-sized Vec.
+  - Stochastic sampling now scans logits into fixed 1024-candidate arrays for temperature/top-k/top-p/seed decoding, accepts BPE top_k 262, and rejects values above the fixed cap without a vocab-sized candidate Vec.
+  - Generate request state now clears prompt/cache diagnostics at request start, rejects full-context prompts without stale generated counts or KV length, and extends token state after success so generate_next_token continues from generated output.
+  - Custom BPE support now has an end-to-end tiny .slm fixture: packer mode tiny-fixture-bpe writes BPE1, runtime generation from prompt the records tokenizer output 256,261, and the browser/VS model contracts include the artifact.
+  - WASM generate_next_token now returns explicit ErrorCode values, writes stepped token text to last_result, exposes selected token id through diagnostics, and free_model clears loaded-model state before post-free generation returns ModelNotLoaded.
+  - Local conversation transcript is implemented in the static browser app; Generate appends User/TinyRustLM entries with DOM-safe text, Reset preserves history while clearing runtime context/output, and Clear empties history.
+  - Cargo workspace now denies missing public Rust docs, and strict rustdoc gates passed for tinyrustlm-runtime plus the slm_pack, local_server, and browser_harness binaries.
+  - cargo test --workspace passed with 92 tests, including 58 runtime tests, 23 slm_pack tests, 6 Rust browser-harness tests, and 5 Rust local-server tests; runtime coverage includes direct core math ops, pre-resolved tensor indices, tied-output projection fallback, tensor view contracts, tiny BPE runtime generation, BPE stochastic top_k 262, reusable generation buffer pointer stability, allocation-free top-k diagnostic selection, fixed-buffer stochastic sampling, context-boundary state cleanup, generate_next_token context continuation, free_model post-free rejection, checksum mismatch rejection, native .slm admission validation, provenance manifest validation, assistant-quality case-ledger validation, all-quantization trained-source validation/conversion tests, quantized tensor f32-borrow rejection, and diagnostics JSON escaping.
+  - Rust mini browser harness static contract audit passed with 8 checks; loopback HTTP audit previously passed with 8 checks against the Rust local server.
+  - Rust local server direct HTTP smoke passed for /app/, /runtime/tinyrustlm.wasm, /models/tinylm16-q8.slm, and /models/tinylm16-q8.slm.manifest with the trained-quality non-claim visible.
+  - Quantized q8_0/q4_0 runtime tensors no longer keep full decoded f32 shadow copies; runtime generation uses reusable scratch through copy_tensor_f32 or copy_tensor_row_f32 for dequantization when needed.
+  - CLI quality-gate passed runtime-smoke for the current tinylm16-q8 deterministic-smoke manifest.
+  - CLI eval-template generated a pending assistant-quality sidecar for a converted-trained tiny fixture manifest, and quality-gate rejected it until reviewed task-eval, safety-review, quality-boundary, and exact case-ledger evidence is supplied.
+  - CLI source-template generated tinyrustlm/tests/fixtures/trained-source-tiny, validate-source accepted it, convert-trained emitted target/trained-source-smoke/tiny-converted-f32.slm, tiny-converted-q8.slm, and tiny-converted-q4.slm plus converted-trained manifests, and quality-gate accepted runtime-smoke plus fixture-scoped assistant-quality for each converted artifact.
+  - Default Visual Studio test helper validates strict rustdoc public-doc gates, the static app contract through the Rust browser harness, all seven local .slm artifacts, their .slm.manifest sidecars, the tiny trained-source fixture, converted-trained f32/q8_0/q4_0 outputs, converted manifests, runtime-smoke gates, fixture-scoped assistant-quality eval gates, and WASM ABI step/free smoke.
+  - Build helper regenerates deterministic-smoke .slm.manifest sidecars whenever local models are regenerated or sidecars are missing.
+  - node --check passed for app.js, static-server.js, and browser-smoke.js.
+  - BrowserSmoke verifies q8 default, q4 selected, transcript entries and Clear-button state, reload/reset/model switch loop, malformed model, missing model, context overflow, desktop/mobile UI audit with Model Provenance sidecar fields, endurance, 47,104-byte scratch-backed q8/q4 generation, and local-only requests.
+  - BrowserSmoke passed after diagnostics JSON escape hardening, so handwritten diagnostics remain parseable in browser benchmark and developer panels.
+  - PerformanceSoak verifies repeated q8/q4 four-token UI generation, benchmark counts, token speed, scratch bytes, KV length, reset recovery, and local-only requests.
+  - BrowserSmoke port helper passed verified-server reuse at 8080 after helper hardening.
+  - Run helper passed unrelated busy-port fallback 18180 to 18181 and verified-server reuse on 18182; reuse was rechecked against the Rust local server on 18282.
+  - Focused PerformanceSoak passed through Rust local-server startup on port 18291; low requested soak counts were clamped by browser-smoke to its two-cycle/two-token minimum.
+  - Focused PerformanceSoak passed through Test-TinyRustLM.ps1 on port 18320 after the Rust browser harness was wired into both static and --http server-backed checks.
+  - Full BrowserSmoke passed through Test-TinyRustLM.ps1 on port 18340 after the transcript implementation; only temporary Chrome profile cleanup warnings remained.
+  - Focused ui-audit passed through browser-smoke on port 18350 after adding Clear-click assertions; cleared snapshots kept response visible and emptied transcript history.
+  - 2026-06-25 Test-TinyRustLM.ps1 passed after reusable generation buffer hardening; that evidence is superseded by the current 78-test assistant-quality case-ledger run with 8 static browser-harness checks, model/manifest validation, all converted-source quality gates, strict rustdoc, rebuilt WASM, and updated WASM ABI smoke.
+  - Combined BrowserSmoke plus PerformanceSoak passed with three performance-soak q8/q4 cycles.
+  - Combined BrowserSmoke plus PerformanceSoak passed after checksum-bearing .slm artifact regeneration.
+  - Focused browser ui-audit passed after adding the Model Provenance panel; it verified same-origin `.slm.manifest` fetch, deterministic-smoke source kind, runtime-smoke admission, trained-quality non-claim, checksum display, required next gate, desktop/mobile layout, q8_0 generation, and local-only requests.
+  - Raw report evidence copy verified 23 source files into raw/gguf-mirust/report-intake-2026-06-25/.
+  - Active handoff Content and Improvement buckets contain only .gitkeep after report processing.
+security_boundary:
+  dropped_files: review_preserve_synthesize_then_clear_when_processed
+  browser_actions: allowed_only_through_local_static_app_and_headless_smoke_harness
+  model_files: local_static_slm_only_with_rust_validation_nonzero_checksum_match_and_native_admission_validation
+  model_manifests: line_based_sidecars_required_for_local_artifacts_with_deterministic_smoke_or_converted_trained_quality_boundaries
+  browser_manifest_display: app_js_may_parse_line_based_local_slm_manifest_sidecars_after_rust_accepts_the_model_but_must_not_parse_slm_model_bytes_or_replace_runtime_admission
+  browser_transcript_display: app_js_may_render_local_conversation_history_with_dom_text_nodes; Reset must not imply transcript deletion, and Clear must not imply runtime reset.
+  wasm_step_token_abi: generate_next_token_returns_error_code_last_result_carries_decoded_token_text_diagnostics_carry_selected_token_id_and_free_model_must_make_post_free_generation_fail_model_not_loaded
+  generation_allocation_boundary: scratch_logits_and_tensor_indices_are_model_loaded_runtime_state_reused_across_generate_and_generate_next_token_top_k_diagnostics_and_stochastic_sampling_do_not_allocate_vocab_sized_candidate_vectors
+  generation_state_boundary: failed_generate_requests_clear_prompt_cache_diagnostics_and_successful_generate_extends_tokens_for_step_token_continuation
+  source_weights: raw_f32_source_manifest_layout_required_before_convert_trained_safe_relative_paths_exact_shapes_checksums_finite_bounded_nonzero_weights
+  quality_gates: runtime-smoke allowed for execution evidence; assistant-quality requires converted-trained provenance plus a matching passed eval sidecar with positive case count, zero failures, and exact per-case expected/actual matches.
+  network: no_remote_inference_no_cdn_no_telemetry
+  report_guidance: design_pressure_only_until_converted_to_source_change_or_testable_invariant
+operations_notes:
+  - Chrome may leave temporary tinyrustlm-browser-smoke-* profiles; remove only matching directories under %TEMP% after verifying no matching browser process remains.
+  - Keep the Rust local server on port 8080 for TinyRustLM unless occupied; Visual Studio helpers can use an existing verified TinyRustLM server or fall forward to the next free loopback port.
+  - Use PerformanceSoak after runtime, model-selection, benchmark-panel, or reset changes that could hide multi-cycle performance regressions.
+  - Use tinyrustlm-browser-harness before browser smoke after app, model selector, manifest, local server, or public claim changes; use --http when a local server is already running.
+  - Use the strict rustdoc gates after changing public Rust APIs or Visual Studio test wrapper behavior; missing_docs is a workspace error, not a soft style warning.
+  - Use sampler unit tests and WASM ABI smoke after changing temperature/top-k/top-p/seed behavior; stochastic sampling must stay fixed-buffer and reject oversized top_k values.
+  - Use context-boundary and step-token tests after changing Runtime.generate; failed requests must not leak stale diagnostics or stale token state.
+  - Use wasm-abi-smoke after changing WASM exports, generation state, model-free behavior, diagnostics, memory transfer, or Visual Studio test wrapper behavior; step-token and post-free semantics are part of the ABI contract.
+  - Use browser-smoke ui-audit after app HTML/CSS/JS changes that affect product identity, layout, panels, controls, diagnostics, or benchmark visibility.
+  - Use browser-smoke ui-audit after conversation transcript changes; it must verify empty ready state, generated entries, Clear-click removal, response preservation, and Clear-button state on desktop and mobile.
+  - Use browser-smoke ui-audit after manifest/provenance UI changes; the audit must keep `.slm.manifest` requests same-origin and keep trained-quality non-claim visible until real evidence exists.
+  - Use tinyrustlm-slm-pack validate on every generated or converted .slm file before serving it through the browser app.
+  - Use tinyrustlm-slm-pack validate-manifest on every generated or converted .slm sidecar before treating an artifact as admitted.
+  - Use tinyrustlm-slm-pack validate-source before convert-trained; do not treat unchecked source weights as eligible for converted-trained provenance.
+  - Use tinyrustlm-slm-pack quality-gate runtime-smoke for execution-only claims and quality-gate assistant-quality with a passed eval sidecar before any trained assistant-quality claim.
+  - After quality-gate or eval-runner changes, run focused provenance/eval tests, cargo test --workspace, and tools/vs/Test-TinyRustLM.ps1 so converted f32/q8_0/q4_0 eval sidecars are regenerated and revalidated.
+  - Do not revive legacy Axum or GGUF scaffold commands from older memory.

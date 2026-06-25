@@ -1,0 +1,47 @@
+profile: gguf-mirust.architecture.v2
+updated_utc: 2026-06-25T12:22:29Z
+active_product:
+  name: TinyRustLM
+  root: tinyrustlm/
+  goal: 100% custom Rust/WASM browser-local SLM runtime and UI.
+workspace_members:
+  - tinyrustlm/runtime
+  - tinyrustlm/tools/browser_harness
+  - tinyrustlm/tools/slm_pack
+active_static_app:
+  - tinyrustlm/app/index.html
+  - tinyrustlm/app/app.css
+  - tinyrustlm/app/app.js
+boundaries:
+  runtime: no-crate Rust WASM runtime for memory boundary, checksum-verified f32/q8_0/q4_0 model loading, pre-resolved tensor index routing, tied-output projection fallback, custom BPE fixture loading, native q8_0/q4_0 compact storage, runtime-owned reusable row/vector scratch, reusable logits, fixed-buffer stochastic sampling, clean context-boundary request state, q8_0 and q4_0 matrix dispatch, tokenizer, math, KV cache, sampler, diagnostics, generation, ErrorCode step-token ABI, and model free.
+  local_server: no-crate Rust loopback static server for app, WASM, .slm, and manifest hosting with GET/HEAD support and traversal rejection.
+  mini_browser_harness: no-crate Rust contract verifier for static app UI ids, local-only markers, JS WASM boundary calls, Rust WASM export definitions, model route declarations, .slm manifest sidecars, trained-quality non-claims, and loopback content types.
+  app: static HTML/CSS/handwritten JS that fetches only local WASM, selectable local .slm files, and accepted-model .slm.manifest sidecars, defaulting to TinyLM-16M q8_0 while allowing TinyLM-16M q4_0 and tiny BPE selection; local transcript state is rendered with DOM text nodes, persists across runtime Reset, and is cleared only by Clear.
+  packer: no-crate Rust utility for generating checksum-bearing local f32/q8_0/q4_0 tiny fixtures, a tiny BPE fixture, plus TinyLM-16M f32, q8_0, and q4_0 smoke models, validating .slm artifact admission, validating provenance sidecars, validating raw-f32 trained-source layouts, and converting source weights into f32/q8_0/q4_0 artifacts.
+  docs: durable implementation docs under tinyrustlm/docs/.
+  browser_smoke: no-dependency Node DevTools harness that verifies headless Chrome or Edge single-generate behavior, conversation transcript state, reload/reset/q8-q4 model-switch loops, malformed local model rejection, missing local model handling, context overflow rendering, endurance loops, performance soak, recoverable model selection, and local-origin requests.
+  visual_studio: TinyRustLM.sln and tools/vs PowerShell scripts wrap Cargo build, tests, WASM copy, model artifact checks, Rust browser harness checks, identity-aware Rust local server reuse, busy-port fallback, and local static server run.
+superseded_boundary:
+  old_members: apps/gguf-mirust-site, crates/gguf-browser-harness, crates/gguf-mirust-cli, crates/gguf-mirust-core
+  status: removed_from_workspace_and_deleted_because_dependency_based_scaffold_conflicted_with_zero_dependency_prompt
+current_boundary: Tiny f32, q8_0, q4_0, and custom BPE fixture transformer paths plus TinyLM-16M f32, q8_0, q4_0 deterministic smoke generation, checksum-bearing .slm pack/load validation, native .slm admission validation, model-load tensor index routing with tied-output projection fallback, q8/q4 decoded-shadow removal with runtime-owned reusable row/vector scratch, reusable logits across prompt and step generation, allocation-free top-k diagnostic candidate selection, fixed-buffer stochastic sampling with top-k cap rejection, context-boundary acceptance/rejection with clean failed-request state, provenance sidecar validation plus browser-visible Model Provenance panel, local conversation transcript rendering with Clear separate from runtime Reset, raw-f32 trained-source validation and f32/q8_0/q4_0 conversion, executable fixture-scoped eval runner for each converted output mode, runtime-smoke quality gating, assistant-quality rejection for pending or case-incomplete eval sidecars, Rust local static server, Rust mini browser contract harness with Rust export definition crawl, reload/reset/model-switch browser loop, malformed local model rejection, missing-model UI handling, context-overflow UI handling, WASM ABI invalid-boundary recovery smoke, generate_next_token ErrorCode step-token smoke, free_model smoke, desktop/mobile UI audit, three-cycle q8/q4 endurance smoke, multi-token q8/q4 browser performance smoke, three-cycle q8/q4 performance soak, and Visual Studio verified-server reuse plus busy-port fallback are implemented and verified; real trained weights and product assistant-quality evidence review remain pending.
+report_derived_architecture_memory:
+  enterprise_quality: Small trusted surface, explicit model validation, visible diagnostics, deterministic tests, and no third-party runtime crates are the enterprise posture for this prompt.
+  browser_runtime: JS fetches local WASM/model files and renders state; Rust owns .slm parsing, inference, errors, memory, tokenizer, quantization, and diagnostics.
+  browser_transcript: Treat conversation history as browser-local UI state; render text with DOM nodes, test Clear versus Reset semantics, and keep it out of Rust runtime/model claims.
+  model_abi: The .slm header, tensor directory, byte or BPE tokenizer metadata, quantization fields, checksum, model dimensions, explicit ErrorCode exports, step-token result text, diagnostics token id, and model-free state are the seed of any future local model ABI.
+  model_admission: Future trained or converted models must pass native .slm validation before browser/runtime claims.
+  model_provenance: Every generated or converted model should carry a line-based sidecar binding checksum, shape, source kind, admission status, and quality-claim boundary before UI/runtime claims.
+  model_quality_gate: Runtime-smoke claims can pass deterministic-smoke evidence; assistant-quality claims require converted-trained provenance plus a matching passed evaluation sidecar with task-eval, safety-review, case totals, and exact per-case output evidence.
+  trained_source_boundary: Converted-trained artifacts must originate from a validated raw-f32 source manifest with safe tensor paths, exact shapes and byte counts, source checksums, finite bounded values, and nonzero tensor payloads; f32, q8_0, and q4_0 converted outputs now have direct standing test and Visual Studio gate coverage.
+  quantized_storage_boundary: Runtime q8_0 and q4_0 tensors stay in native compact storage and reject borrowed f32 slices; only explicit copy methods dequantize rows or full small vectors into runtime-owned reusable scratch.
+  allocation_boundary: Generation scratch, logits, and tensor routing are established with the loaded model and reused across prompt generation and step-token calls; top-k diagnostics and stochastic sampling scan into fixed arrays.
+  modular_future: Multi-model routing, adapters, skill packages, speculative decoding, WebGPU, OPFS, workers, and persistence are future lanes after TinyLM-16M correctness and benchmark proof.
+  teleodynamic_translation: Treat resource-bounded ideas as measurable states: context length, scratch arena, KV length, load phase, reset behavior, failure recovery, and latency.
+  brand_boundary: Position TinyRustLM as a transparent browser-local Rust/WASM SLM runtime; do not claim trained-quality assistant behavior, GGUF import, or Mini Browser orchestration yet.
+productive_tensions:
+  - More crawlable memory versus pointer-only discipline: hot .uai files need synthesis; long-term ledger stays routed and checksummed.
+  - General model compatibility versus auditability: stabilize one .slm path before broad import or routing behavior.
+  - Runtime richness versus local-only proof: every new browser capability must preserve local-origin smoke evidence.
+  - Philosophy versus engineering: teleodynamic ideas must become metrics, states, tests, or UI recovery behavior.
+  - Token ids versus ABI errors: browser-callable exports should return explicit ErrorCode values and route payload details through result buffers or diagnostics.

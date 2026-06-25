@@ -1,0 +1,25 @@
+[workspace]
+members = [
+    "tinyrustlm/runtime",
+    "tinyrustlm/tools/browser_harness",
+    "tinyrustlm/tools/local_server",
+    "tinyrustlm/tools/slm_pack",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Proprietary"
+authors = ["GGUF.MiRust.com maintainers"]
+repository = "https://gguf.mirust.com/"
+
+[workspace.lints.rust]
+missing_docs = "deny"
+unsafe_code = "warn"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "z"
+panic = "abort"

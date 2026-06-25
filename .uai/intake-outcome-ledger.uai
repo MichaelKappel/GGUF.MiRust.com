@@ -1,0 +1,132 @@
+profile: gguf-mirust.intake-outcome-ledger.v3
+updated_utc: 2026-06-25T00:00:00Z
+active_scan:
+  content_bucket: agent-file-handoff/Content/
+  improvement_bucket: agent-file-handoff/Improvement/
+  content_non_placeholder_files: 0
+  improvement_non_placeholder_files: 0
+  result: all_reports_processed_and_source_bucket_cleared
+shared_disposition_context:
+  disposition: preserved-to-durable-memory
+  actual_source_work: Processed 23 Improvement reports into distributed long-term LLM Wiki memory under wiki/gguf-mirust/reports/, preserved exact originals under raw/gguf-mirust/report-intake-2026-06-25/, updated report navigation, and cleared processed source copies from the active handoff bucket.
+  hot_memory_update: .uai/short-term-memory.uai, .uai/file-handoff.uai, .uai/intake-outcome-ledger.uai, .uai/long-term-memory.uai, .uai/receiver-brief.uai, and wiki/gguf-mirust routing files updated.
+  durable_preservation_evidence: raw/gguf-mirust/MANIFEST.md and wiki/gguf-mirust/reports/report-intake-index-2026-06-25.md record all source files, checksums, duplicate relationships, and thematic synthesis routes.
+  checks: live bucket scan, raw copy count 23, source-to-raw SHA256 verification, report synthesis file creation, wiki route update, stale scaffold wording scan, exact filename correction for curly-apostrophe report.
+  blockers: none_current
+  source_site_removal_or_keep_active_reason: Removed processed report copies from agent-file-handoff/Improvement/ after exact originals were preserved in raw evidence and durable synthesis records were created.
+entries:
+  - source_path: agent-file-handoff/Improvement/best practices and governance guidelines for enterprise Rust adoption.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/best practices and governance guidelines for enterprise Rust adoption.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/enterprise-rust-governance-memory-2026-06-25.md
+    routing_summary: Enterprise Rust governance guidance distilled into trust-boundary, zero-dependency, test, supply-chain, unsafe-code, and maintainability pressure for TinyRustLM.
+  - source_path: agent-file-handoff/Improvement/Branding MiRust.com.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Branding MiRust.com.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/brand-product-positioning-memory-2026-06-25.md
+    routing_summary: Brand guidance distilled into local-runtime positioning, smoke-model honesty, and TinyRustLM copy boundaries.
+  - source_path: agent-file-handoff/Improvement/Building a lightweight AI runtime in the browser with Rust.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Building a lightweight AI runtime in the browser with Rust.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/browser-local-runtime-memory-2026-06-25.md
+    routing_summary: Browser-local runtime guidance distilled into local fetch, WASM boundary, diagnostics, memory pressure, and local-only validation.
+  - source_path: agent-file-handoff/Improvement/Building Custom Rust SML Runtime.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Building Custom Rust SML Runtime.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/browser-local-runtime-memory-2026-06-25.md
+    routing_summary: VM and embedded TinyLM ideas distilled as typed-boundary and arena-discipline inspiration, not a current SML runtime task.
+  - source_path: agent-file-handoff/Improvement/Building Rust AI Runtime for Web.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Building Rust AI Runtime for Web.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/browser-local-runtime-memory-2026-06-25.md
+    routing_summary: Web AI runtime report distilled into browser constraints and future comparison points while quarantining forbidden framework recommendations.
+  - source_path: agent-file-handoff/Improvement/Enterprise Rust Best Practices.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Enterprise Rust Best Practices.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/enterprise-rust-governance-memory-2026-06-25.md
+    routing_summary: Enterprise Rust guidance distilled into onboarding, workspace, error, CI, security, and release discipline for the no-crate runtime.
+  - source_path: agent-file-handoff/Improvement/Machine Inteligence framwork for rust.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Machine Inteligence framwork for rust.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/brand-product-positioning-memory-2026-06-25.md
+    routing_summary: Duplicate brand guidance preserved by checksum and routed to product positioning memory instead of duplicating long-term narrative.
+  - source_path: agent-file-handoff/Improvement/Modular AI in Browser.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Modular AI in Browser.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/tinylm-modular-architecture-memory-2026-06-25.md
+    routing_summary: Modular browser AI guidance distilled into future skill composition, routing, and WebGPU comparison pressure.
+  - source_path: agent-file-handoff/Improvement/Modular Tiny Language Models Architecture.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Modular Tiny Language Models Architecture.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/tinylm-modular-architecture-memory-2026-06-25.md
+    routing_summary: Modular tiny model guidance distilled into future model ABI, packaging, permissions, routing, and evaluation concerns.
+  - source_path: agent-file-handoff/Improvement/Multiple Tiny Language Models Architectures and Trends.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Multiple Tiny Language Models Architectures and Trends.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/tinylm-modular-architecture-memory-2026-06-25.md
+    routing_summary: Multi-model trends distilled into routing, cascades, ensemble trade-offs, failure modes, and future benchmark questions.
+  - source_path: agent-file-handoff/Improvement/Rust Browser Tiny LLM Architecture.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Rust Browser Tiny LLM Architecture.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/tinylm-modular-architecture-memory-2026-06-25.md
+    routing_summary: Browser-native modular tiny LLM guidance distilled into future LoRA, OPFS, WebGPU, and concurrency comparison boundaries.
+  - source_path: agent-file-handoff/Improvement/Rust Design Patterns and SOLID Principles.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Rust Design Patterns and SOLID Principles.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/enterprise-rust-governance-memory-2026-06-25.md
+    routing_summary: Rust pattern guidance distilled into enums, typestate, newtypes, explicit errors, and warnings against object-oriented overfitting.
+  - source_path: agent-file-handoff/Improvement/Rust In-Browser Teleodynamic AI Plan.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Rust In-Browser Teleodynamic AI Plan.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/teleodynamic-resource-bounded-memory-2026-06-25.md
+    routing_summary: Teleodynamic plan distilled into resource-bounded diagnostics, phase states, and future adaptive-loop questions.
+  - source_path: agent-file-handoff/Improvement/Rust ownership model and type system naturally embody many SOLID concepts.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Rust ownership model and type system naturally embody many SOLID concepts.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/enterprise-rust-governance-memory-2026-06-25.md
+    routing_summary: Rust ownership/SOLID mapping distilled into cohesive module and ownership guidance for maintainable runtime code.
+  - source_path: agent-file-handoff/Improvement/Rust WebAssembly Teleodynamic AI Architecture.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Rust WebAssembly Teleodynamic AI Architecture.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/teleodynamic-resource-bounded-memory-2026-06-25.md
+    routing_summary: Teleodynamic WASM architecture distilled into browser resource limits, future persistence, and adaptive behavior caution.
+  - source_path: agent-file-handoff/Improvement/Teleodynamic AI in the Browser.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Teleodynamic AI in the Browser.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/teleodynamic-resource-bounded-memory-2026-06-25.md
+    routing_summary: Browser teleodynamic report distilled into local agent constraints, runtime comparison, roadmap pressure, and UI resource signals.
+  - source_path: agent-file-handoff/Improvement/Teleodynamic AI is an approach where a system’s structure and parameters co-evolve.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Teleodynamic AI is an approach where a system’s structure and parameters co-evolve.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/tinylm-modular-architecture-memory-2026-06-25.md
+    routing_summary: Modular teleodynamic skill-system guidance distilled into future composition, provenance, deployment, and benchmark questions.
+  - source_path: agent-file-handoff/Improvement/Teleodynamic AI is an approach.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Teleodynamic AI is an approach.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/tinylm-modular-architecture-memory-2026-06-25.md
+    routing_summary: Duplicate modular teleodynamic skill-system guidance preserved by checksum and routed without duplicating narrative memory.
+  - source_path: agent-file-handoff/Improvement/Teleodynamic AI refers to resource-bounded.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Teleodynamic AI refers to resource-bounded.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/teleodynamic-resource-bounded-memory-2026-06-25.md
+    routing_summary: Resource-bounded AI report distilled into budgeted browser behavior, local privacy, and CI/deployment caution.
+  - source_path: agent-file-handoff/Improvement/Teleodynamic Tiny Language Model Architecture.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Teleodynamic Tiny Language Model Architecture.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/teleodynamic-resource-bounded-memory-2026-06-25.md
+    routing_summary: Teleodynamic tiny model report distilled into swarm, security, coherence, and constraint-maintaining ideas for later architecture.
+  - source_path: agent-file-handoff/Improvement/Teleodynamics is a theoretical framework .md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Teleodynamics is a theoretical framework .md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/teleodynamic-resource-bounded-memory-2026-06-25.md
+    routing_summary: Teleodynamic ensemble report distilled into multi-model patterns, robustness, evaluation, and alignment-risk questions.
+  - source_path: agent-file-handoff/Improvement/Tiny Language Models Architecture.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Tiny Language Models Architecture.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/tinylm-modular-architecture-memory-2026-06-25.md
+    routing_summary: Multi-SLM ecosystem report distilled into routing, cascades, speculative decoding, cache reuse, standards, and security implications.
+  - source_path: agent-file-handoff/Improvement/To run a TinyLM-16M transformer in-browser.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/To run a TinyLM-16M transformer in-browser.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/browser-local-runtime-memory-2026-06-25.md
+    routing_summary: TinyLM-16M implementation report distilled into model dimensions, .slm layout, tokenizer, quantization, browser bootstrap, and performance planning.
