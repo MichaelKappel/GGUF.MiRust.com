@@ -1,5 +1,5 @@
 profile: gguf-mirust.coding-standards.v2
-updated_utc: 2026-06-25T13:16:41Z
+updated_utc: 2026-06-25T13:35:24Z
 rust:
   edition: 2021
   dependency_policy: No third-party Rust crates in TinyRustLM runtime or packer.
@@ -9,6 +9,7 @@ rust:
   error_handling: use explicit ErrorCode values across runtime and WASM boundaries; do not add anyhow, thiserror, serde, rand, tokenizer, ML, or web framework crates.
   generation_memory: allocate generation scratch, logits, and tensor routing with the loaded model, reuse them across token work, and do not add vocab-sized per-token diagnostic/sampling vectors or per-token layer-name formatting.
   generation_state: each generate request starts from clean prompt/cache diagnostics, errors must not preserve stale generated counts or KV length, and successful generation must extend token state for generate_next_token.
+  output_result_boundary: generated result decode must stay capped, OutputBufferExceeded must not replace a caller's previous decoded output, and full generate overflow must clear stale generation state.
   tokenizer_support: custom tokenizer work must include native .slm validation plus a runtime fixture proving tokenizer diagnostics, not parser-only tests.
   public_docs: every public Rust function should carry a doc comment before completion.
 browser_runtime:

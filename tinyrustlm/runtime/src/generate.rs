@@ -11,6 +11,8 @@ use crate::sampler::{sample_with_rng, validate_config, SamplingConfig};
 use crate::tokenizer::{Tokenizer, EOS};
 use core::fmt::Write as _;
 
+const MAX_RESULT_BYTES: usize = 64 * 1024;
+
 /// Runtime state shared by browser exports.
 pub struct Runtime {
     model: Option<Model>,
@@ -132,16 +134,12 @@ impl Runtime {
             return self.finish(ErrorCode::ModelNotLoaded);
         }
         if max_new_tokens == 0 {
-            self.clear_generation_state();
-            self.set_result(ErrorCode::InvalidLength.message());
-            return self.finish(ErrorCode::InvalidLength);
+            return self.finish_generation_error(ErrorCode::InvalidLength);
         }
         self.clear_generation_state();
         let encode_result = self.tokenizer.encode(prompt, &mut self.tokens);
         if let Err(error) = encode_result {
-            self.clear_generation_state();
-            self.set_result(error.message());
-            return self.finish(error);
+            return self.finish_generation_error(error);
         }
         let prompt_tokens = prompt_tokens_without_eos(&self.tokens);
         let prompt_count = prompt_tokens.len();
@@ -168,10 +166,12 @@ impl Runtime {
         match result {
             Ok(()) => {
                 let mut decoded = String::new();
-                if let Err(error) = self.tokenizer.decode(&self.generated_tokens, &mut decoded) {
-                    self.clear_generation_state();
-                    self.set_result(error.message());
-                    return self.finish(error);
+                if let Err(error) = self.tokenizer.decode_with_limit(
+                    &self.generated_tokens,
+                    &mut decoded,
+                    MAX_RESULT_BYTES,
+                ) {
+                    return self.finish_generation_error(error);
                 }
                 self.tokens.truncate(prompt_context_len);
                 self.tokens.extend_from_slice(&self.generated_tokens);
@@ -180,11 +180,7 @@ impl Runtime {
                 self.set_result(&decoded);
                 self.finish(ErrorCode::Ok)
             }
-            Err(error) => {
-                self.clear_generation_state();
-                self.set_result(error.message());
-                self.finish(error)
-            }
+            Err(error) => self.finish_generation_error(error),
         }
     }
 
@@ -196,7 +192,10 @@ impl Runtime {
                     self.set_result("");
                 } else {
                     let mut decoded = String::new();
-                    if let Err(error) = self.tokenizer.decode(&[next], &mut decoded) {
+                    if let Err(error) =
+                        self.tokenizer
+                            .decode_with_limit(&[next], &mut decoded, MAX_RESULT_BYTES)
+                    {
                         self.set_result(error.message());
                         return self.finish(error);
                     }
@@ -272,6 +271,12 @@ impl Runtime {
     fn set_result(&mut self, text: &str) {
         self.last_result.clear();
         self.last_result.extend_from_slice(text.as_bytes());
+    }
+
+    fn finish_generation_error(&mut self, error: ErrorCode) -> ErrorCode {
+        self.clear_generation_state();
+        self.set_result(error.message());
+        self.finish(error)
     }
 
     fn finish(&mut self, code: ErrorCode) -> ErrorCode {
@@ -829,6 +834,35 @@ mod tests {
             diagnostics.contains("\"tokenizer_output\": \"256,261\""),
             "{diagnostics}"
         );
+    }
+
+    #[test]
+    fn runtime_reports_output_buffer_exceeded_without_stale_generation_state() {
+        let mut runtime = Runtime::new();
+        runtime.tokens.push(101);
+        runtime
+            .generated_tokens
+            .resize(MAX_RESULT_BYTES + 1, b'x' as u32);
+        runtime.diagnostics.generated_token_count = runtime.generated_tokens.len() as u32;
+        let mut decoded = String::new();
+        let error = runtime
+            .tokenizer
+            .decode_with_limit(&runtime.generated_tokens, &mut decoded, MAX_RESULT_BYTES)
+            .unwrap_err();
+        assert_eq!(error, ErrorCode::OutputBufferExceeded);
+        assert_eq!(
+            runtime.finish_generation_error(error),
+            ErrorCode::OutputBufferExceeded
+        );
+        assert_eq!(
+            core::str::from_utf8(runtime.last_result()).unwrap(),
+            "output buffer exceeded"
+        );
+        assert!(runtime.tokens.is_empty());
+        assert!(runtime.generated_tokens.is_empty());
+        let diagnostics = core::str::from_utf8(runtime.diagnostics()).unwrap();
+        assert!(diagnostics.contains("\"last_error\": \"output buffer exceeded\""));
+        assert!(diagnostics.contains("\"generated_token_count\": 0"));
     }
 
     #[test]

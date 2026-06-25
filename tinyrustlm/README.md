@@ -40,6 +40,7 @@ Implemented source slice:
 - q8_0 and q4_0 tensors stay in native compact storage without full decoded f32 shadow copies; embedding rows and norm vectors dequantize into scratch on demand.
 - Model load pre-resolves top-level and per-layer tensor indices, and the checked-in tied-output fixture proves projection flags route output logits through token embeddings when `output.weight` is omitted.
 - Runtime generation allocates reusable scratch buffers and logits with the loaded model, then reuses them across prompt generation and single-token stepping; stochastic sampling uses a fixed candidate buffer instead of a vocab-sized per-token vector.
+- Generated result decoding is capped at 64 KiB; byte and BPE decode paths return `OutputBufferExceeded` before replacing `last_result`, and full `generate` failures clear stale token/cache diagnostics.
 - Runtime diagnostics with tokenizer output, logits summary, selected token, top-k candidates, KV cache length, quantization mode, and active sampling configuration.
 - Handwritten diagnostics JSON escaping for quotes, backslashes, control characters, line separators, and paragraph separators before browser parsing.
 - Browser model selector for TinyLM-16M q8_0, TinyLM-16M q4_0, TinyLM-16M f32, f32/q8_0/q4_0 tiny fixtures, the tiny BPE fixture, and the tiny tied-output fixture.
@@ -168,7 +169,7 @@ WASM ABI boundary smoke:
 node .\tinyrustlm\tools\wasm-abi-smoke.js
 ```
 
-The ABI smoke also checks `set_sampling_config`, rejects invalid stochastic settings, restores greedy defaults, verifies diagnostics still report `temperature=0`, `top_k=1`, `top_p=1`, and `seed=1` after recovery generation, requires `generate_next_token` to return an explicit `ErrorCode` while exposing token text through `last_result`, and requires `free_model` to clear loaded-model diagnostics before later generation returns `ModelNotLoaded`.
+The ABI smoke also checks `set_sampling_config`, rejects invalid stochastic settings, restores greedy defaults, verifies diagnostics still report `temperature=0`, `top_k=1`, `top_p=1`, and `seed=1` after recovery generation, requires `generate_next_token` to return an explicit `ErrorCode` while exposing token text through `last_result`, and requires `free_model` to clear loaded-model diagnostics before later generation returns `ModelNotLoaded`. Unit tests cover the 64 KiB generated-result cap for byte and BPE decode paths plus runtime `OutputBufferExceeded` diagnostics.
 
 The browser runtime ships only static HTML, CSS, JS, WASM, and local `.slm` files. The current browser milestone defaults to `tinylm16-q8.slm` and keeps TinyLM-16M q4_0, f32, tiny byte-tokenizer fixtures, the tiny BPE fixture, and the tiny tied-output fixture available for regression checks.
 

@@ -1,6 +1,10 @@
 profile: gguf-mirust.short-term-memory.v2
-updated_utc: 2026-06-25T13:16:41Z
+updated_utc: 2026-06-25T13:35:24Z
 current_state:
+  - 2026-06-25 hardened generated-result output buffering: Runtime now caps decoded generated output at 64 KiB and surfaces ErrorCode::OutputBufferExceeded through last_result plus diagnostics.
+  - Byte and BPE tokenizers now expose bounded decode paths that fail before replacing the caller's existing output string, and full generate overflow failures clear stale token/generated-token state.
+  - Verification passed for the output-buffer slice: cargo fmt --all -- --check, cargo test --workspace with 102 tests, strict rustdoc gates, rebuilt WASM, WASM ABI smoke, Rust browser harness, and tools/vs/Test-TinyRustLM.ps1.
+  - Rebuilt tinyrustlm/runtime/tinyrustlm.wasm after output-buffer hardening; current sha256 is D81E95E5E596EF040A2258752FAB8A7B84B32E6729DD0CF600CFF37DD3EFADAF.
   - 2026-06-25 promoted tied-output trained-source conversion: source-template supports tiny-fixture-tied and tinylm16-tied, source.manifest declares tied_output=true, validation requires tied model_shape agreement, and tied bundles omit output.weight.
   - convert-trained now emits tied f32, q8_0, and q4_0 .slm artifacts with the v1 tied-output flag, converted-trained manifests, and runtime-smoke quality gates while keeping assistant-quality evidence reserved for reviewed eval sidecars.
   - Verification passed for the tied-source conversion slice: cargo fmt --all -- --check, node --check app.js/browser-smoke.js/wasm-abi-smoke.js, Test-TinyRustLM.ps1 parse check, focused trained_source tests 8 passed, cargo test --workspace with 99 tests, Rust browser harness 8 checks, and tools/vs/Test-TinyRustLM.ps1.
@@ -31,7 +35,7 @@ current_state:
   - Replaced vocab-sized top-k diagnostic candidate Vec allocation with fixed-array top-k selection.
   - Added unit coverage for generation buffer pointer stability across generate and repeated step-token calls, plus top-k summary correctness without vector sorting.
   - Verification passed after reusable generation buffer hardening and is superseded by the current public-doc-gated workspace run: node --check tinyrustlm/tools/wasm-abi-smoke.js, cargo fmt --all -- --check, cargo test --workspace, WASM release build/copy, node tinyrustlm/tools/wasm-abi-smoke.js, cargo run -p tinyrustlm-browser-harness -- tinyrustlm with 8 checks, and tools/vs/Test-TinyRustLM.ps1.
-  - Rebuilt tinyrustlm/runtime/tinyrustlm.wasm after tensor-routing hardening; current sha256 is 86D4D6E256A648ED07FE7250FB4F58D6CBF552D364382B951CA77D9325BFE638.
+  - Rebuilt tinyrustlm/runtime/tinyrustlm.wasm after tensor-routing hardening; this hash is superseded by the output-buffer rebuild recorded above.
   - 2026-06-25 hardened the WASM step/free ABI: generate_next_token now returns explicit ErrorCode values, writes decoded token text to last_result, records selected token id in diagnostics, and free_model leaves post-free generation returning ModelNotLoaded.
   - Added runtime unit coverage for generate_next_token continuing current q8 context with generated_token_count 2, KV cache length 5, selected token 101, and q8_0 diagnostics.
   - Added runtime unit coverage for free_model clearing model_loaded, switching active_quantization_mode to none, and causing later generate_next_token to fail with model not loaded.
@@ -51,7 +55,7 @@ current_state:
   - 2026-06-25 added tinyrustlm/tools/browser_harness as a no-crate Rust mini browser contract harness for static app crawl, required UI ids, local-only marker scanning, WASM boundary markers, model route declarations, manifest sidecars, trained-quality non-claims, and optional loopback content-type checks.
   - tools/vs/Test-TinyRustLM.ps1 now runs tinyrustlm-browser-harness in the default static test path and again with --http when BrowserSmoke or PerformanceSoak starts or reuses a local TinyRustLM server.
   - Rust browser harness static audit passed with 7 checks; loopback audit passed with 8 checks against the Rust local server on port 18315.
-  - cargo test --workspace now covers 99 tests: 6 browser-harness tests, 5 local-server tests, 60 runtime tests, and 28 slm_pack tests.
+  - cargo test --workspace now covers 102 tests: 6 browser-harness tests, 5 local-server tests, 63 runtime tests, and 28 slm_pack tests.
   - tools/vs/Test-TinyRustLM.ps1 -PerformanceSoak -PerformanceSoakCycles 2 -PerformanceSoakTokens 2 -BrowserSmokePort 18320 -PortSearchLimit 5 passed after the Rust browser harness integration, with only the recurring temporary Chrome profile cleanup warning.
   - 2026-06-25 focused tools/vs/Test-TinyRustLM.ps1 -PerformanceSoak -PerformanceSoakCycles 1 -PerformanceSoakTokens 1 -BrowserSmokePort 18291 -PortSearchLimit 5 completed through the Rust local server path; browser-smoke clamps soak minimums to two cycles and two tokens, and only a temporary Chrome profile cleanup warning remained.
   - 2026-06-25 added tinyrustlm/tools/local_server as a no-crate Rust loopback static server for TinyRustLM app, WASM, .slm, and .slm.manifest hosting.
@@ -182,7 +186,7 @@ current_state:
   - Static server now emits explicit busy-port diagnostics for direct Node use.
   - Current no-dependency Node static server is running at http://127.0.0.1:8080/app/ with PID 67428.
   - HTTP checks returned 200 for /app/, /runtime/tinyrustlm.wasm, /models/tiny-test-model.slm, /models/tiny-test-model-q8.slm, /models/tiny-test-model-q4.slm, /models/tinylm16-f32.slm, /models/tinylm16-q8.slm, /models/tinylm16-q4.slm, and /app/app.js.
-  - Current WASM sha256 is 86D4D6E256A648ED07FE7250FB4F58D6CBF552D364382B951CA77D9325BFE638.
+  - Current WASM sha256 is D81E95E5E596EF040A2258752FAB8A7B84B32E6729DD0CF600CFF37DD3EFADAF.
   - Current tiny f32 model sha256 is 17D79EE766578729D2B69090547E819E011D76115519514E19AC3754DE610A1A.
   - Current tiny q8 model sha256 is 6AF985853325EAA6D3EAAA8AADD3511DA9596EB542FB2D03A9BC9DC1F4377ADF.
   - Current tiny q4 model sha256 is 4004E2152F0B6382C6043A15084DE6DC4AE6AE6B6C5BA43ABDE8812ED0174CF6.
@@ -199,6 +203,7 @@ active_next_steps:
   - Preserve reusable generation memory: scratch/logits are model-loaded Runtime buffers, top-k diagnostics must not reintroduce vocab-sized per-token allocation, and free_model must clear loaded buffers.
   - Preserve fixed-buffer stochastic sampling: temperature/top-k/top-p/seed decoding must not reintroduce vocab-sized candidate Vec allocation, BPE top_k 262 must remain valid, and top_k above 1024 must remain invalid.
   - Preserve generation request state: context errors and other failed generate calls must clear prompt/cache diagnostics and must not leave stale tokens for generate_next_token.
+  - Preserve the output-buffer boundary: generated result decode stays capped at 64 KiB, over-limit byte/BPE decode must return OutputBufferExceeded before replacing last_result, and full generate overflow must clear stale generation state.
   - Preserve the WASM step/free ABI: browser-callable exports return explicit ErrorCode values, payload text stays in last_result, token ids stay in diagnostics, and post-free generation must fail ModelNotLoaded.
   - Carry the UAIX dogfood finding back into UAIX.org guidance/spec/wizard when working in the UAIX.org source tree: report batches need hot .uai synthesis, not just durable wiki pointers.
   - Preserve transcript semantics during browser UI work: local transcript state is DOM-safe text, Reset does not clear history, and Clear clears only history.

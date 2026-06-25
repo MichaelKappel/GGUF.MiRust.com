@@ -56,9 +56,23 @@ impl Tokenizer {
     /// `out` is cleared before decoded text is written. Unknown token ids
     /// outside the tokenizer vocabulary return an explicit error.
     pub fn decode(&self, tokens: &[u32], out: &mut String) -> Result<(), ErrorCode> {
+        self.decode_with_limit(tokens, out, usize::MAX)
+    }
+
+    /// Decodes model token ids while enforcing a maximum output byte count.
+    ///
+    /// `max_bytes` is the decoded UTF-8 byte budget. If decoded output would
+    /// exceed the budget, `ErrorCode::OutputBufferExceeded` is returned and
+    /// `out` is not replaced.
+    pub fn decode_with_limit(
+        &self,
+        tokens: &[u32],
+        out: &mut String,
+        max_bytes: usize,
+    ) -> Result<(), ErrorCode> {
         match self {
-            Self::Byte(tokenizer) => tokenizer.decode(tokens, out),
-            Self::Bpe(tokenizer) => tokenizer.decode(tokens, out),
+            Self::Byte(tokenizer) => tokenizer.decode_with_limit(tokens, out, max_bytes),
+            Self::Bpe(tokenizer) => tokenizer.decode_with_limit(tokens, out, max_bytes),
         }
     }
 
@@ -126,12 +140,22 @@ impl ByteTokenizer {
 
     /// Decodes byte tokens into UTF-8 text while ignoring BOS, EOS, and PAD.
     pub fn decode(&self, tokens: &[u32], out: &mut String) -> Result<(), ErrorCode> {
-        let mut bytes = Vec::with_capacity(tokens.len());
+        self.decode_with_limit(tokens, out, usize::MAX)
+    }
+
+    /// Decodes byte tokens into UTF-8 text with an output byte limit.
+    pub fn decode_with_limit(
+        &self,
+        tokens: &[u32],
+        out: &mut String,
+        max_bytes: usize,
+    ) -> Result<(), ErrorCode> {
+        let mut bytes = Vec::with_capacity(tokens.len().min(max_bytes));
         for token in tokens {
             match *token {
-                0..=255 => bytes.push(*token as u8),
+                0..=255 => push_limited_byte(&mut bytes, *token as u8, max_bytes)?,
                 BOS | EOS | PAD => {}
-                UNK => bytes.push(b'?'),
+                UNK => push_limited_byte(&mut bytes, b'?', max_bytes)?,
                 _ => return Err(ErrorCode::InvalidLength),
             }
         }
@@ -287,22 +311,32 @@ impl CustomBpeTokenizer {
     /// Special tokens are skipped, UNK decodes to `?`, and invalid token ids
     /// return an explicit error.
     pub fn decode(&self, tokens: &[u32], out: &mut String) -> Result<(), ErrorCode> {
-        let mut bytes = Vec::with_capacity(tokens.len());
+        self.decode_with_limit(tokens, out, usize::MAX)
+    }
+
+    /// Decodes byte fallback and token-table ids with an output byte limit.
+    pub fn decode_with_limit(
+        &self,
+        tokens: &[u32],
+        out: &mut String,
+        max_bytes: usize,
+    ) -> Result<(), ErrorCode> {
+        let mut bytes = Vec::with_capacity(tokens.len().min(max_bytes));
         for token in tokens {
             if *token == self.bos || *token == self.eos || *token == self.pad {
                 continue;
             }
             if *token == self.unk {
-                bytes.push(b'?');
+                push_limited_byte(&mut bytes, b'?', max_bytes)?;
                 continue;
             }
             match *token {
-                0..=255 => bytes.push(*token as u8),
+                0..=255 => push_limited_byte(&mut bytes, *token as u8, max_bytes)?,
                 _ if *token < self.vocab_size => {
                     let Some(entry) = self.tokens.iter().find(|entry| entry.id == *token) else {
                         return Err(ErrorCode::InvalidLength);
                     };
-                    bytes.extend_from_slice(&entry.bytes);
+                    extend_limited_bytes(&mut bytes, &entry.bytes, max_bytes)?;
                 }
                 _ => return Err(ErrorCode::InvalidLength),
             }
@@ -342,6 +376,30 @@ impl CustomBpeTokenizer {
         }
         best
     }
+}
+
+fn push_limited_byte(bytes: &mut Vec<u8>, byte: u8, max_bytes: usize) -> Result<(), ErrorCode> {
+    if bytes.len() >= max_bytes {
+        return Err(ErrorCode::OutputBufferExceeded);
+    }
+    bytes.push(byte);
+    Ok(())
+}
+
+fn extend_limited_bytes(
+    bytes: &mut Vec<u8>,
+    source: &[u8],
+    max_bytes: usize,
+) -> Result<(), ErrorCode> {
+    let next_len = bytes
+        .len()
+        .checked_add(source.len())
+        .ok_or(ErrorCode::OutputBufferExceeded)?;
+    if next_len > max_bytes {
+        return Err(ErrorCode::OutputBufferExceeded);
+    }
+    bytes.extend_from_slice(source);
+    Ok(())
 }
 
 fn read_u32(bytes: &[u8], offset: usize) -> Result<u32, ErrorCode> {
@@ -396,6 +454,19 @@ mod tests {
     }
 
     #[test]
+    fn byte_tokenizer_decode_reports_output_buffer_limit() {
+        let tokenizer = ByteTokenizer::new();
+        let mut decoded = String::from("previous");
+        assert_eq!(
+            tokenizer
+                .decode_with_limit(&[BOS, 104, 105, EOS], &mut decoded, 1)
+                .unwrap_err(),
+            ErrorCode::OutputBufferExceeded
+        );
+        assert_eq!(decoded, "previous");
+    }
+
+    #[test]
     fn utf8_prompt_handling() {
         let tokenizer = ByteTokenizer::new();
         let mut tokens = Vec::new();
@@ -415,6 +486,19 @@ mod tests {
         let mut decoded = String::new();
         tokenizer.decode(&tokens, &mut decoded).unwrap();
         assert_eq!(decoded, "the");
+    }
+
+    #[test]
+    fn custom_bpe_decode_reports_output_buffer_limit() {
+        let tokenizer = Tokenizer::from_section(&tiny_bpe_section()).unwrap();
+        let mut decoded = String::from("previous");
+        assert_eq!(
+            tokenizer
+                .decode_with_limit(&[BOS, 261, EOS], &mut decoded, 2)
+                .unwrap_err(),
+            ErrorCode::OutputBufferExceeded
+        );
+        assert_eq!(decoded, "previous");
     }
 
     #[test]

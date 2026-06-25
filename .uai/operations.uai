@@ -1,5 +1,5 @@
 profile: gguf-mirust.operations.v2
-updated_utc: 2026-06-25T13:16:41Z
+updated_utc: 2026-06-25T13:35:24Z
 local_development:
   active_product: TinyRustLM
   app_url: http://127.0.0.1:8080/app/
@@ -16,6 +16,7 @@ toolchain:
   rustup: C:\Users\AI\.cargo\bin\rustup.exe
   node: required_for_javascript_execution_smoke_tools_only
 current_verified_checks:
+  - 2026-06-25 output_buffer_boundary_verified: generated result decode is capped at 64 KiB, byte/BPE bounded decode fails with OutputBufferExceeded before replacing caller output, full generate overflow clears stale token/generated-token diagnostics, rebuilt WASM sha256 is D81E95E5E596EF040A2258752FAB8A7B84B32E6729DD0CF600CFF37DD3EFADAF, and tools/vs/Test-TinyRustLM.ps1 passed.
   - 2026-06-25 milestone_29_tied_output_trained_source_conversion_verified: source-template supports tiny-fixture-tied and tinylm16-tied, validate-source accepts tied_output=true only with tied shape names, tied sources omit output.weight, and convert-trained emits f32/q8_0/q4_0 .slm artifacts with the v1 tied-output flag.
   - 2026-06-25 milestone_28_tied_output_slm_fixture_verified: tiny-test-model-tied.slm omits output.weight under the v1 tied-output flag, validates with its manifest, loads/generates through tok_embeddings projection, and browser/static contracts expose the fixture.
   - Runtime model loading now pre-resolves top-level and per-layer tensor indices, generation uses those indices without per-token layer-name formatting, and the tied-output projection flag routes logits through tok_embeddings when output.weight is absent.
@@ -28,7 +29,7 @@ current_verified_checks:
   - WASM generate_next_token now returns explicit ErrorCode values, writes stepped token text to last_result, exposes selected token id through diagnostics, and free_model clears loaded-model state before post-free generation returns ModelNotLoaded.
   - Local conversation transcript is implemented in the static browser app; Generate appends User/TinyRustLM entries with DOM-safe text, Reset preserves history while clearing runtime context/output, and Clear empties history.
   - Cargo workspace now denies missing public Rust docs, and strict rustdoc gates passed for tinyrustlm-runtime plus the slm_pack, local_server, and browser_harness binaries.
-  - cargo test --workspace passed with 99 tests, including 60 runtime tests, 28 slm_pack tests, 6 Rust browser-harness tests, and 5 Rust local-server tests; runtime coverage includes direct core math ops, pre-resolved tensor indices, artifact-backed tied-output projection, tensor view contracts, tiny BPE runtime generation, BPE stochastic top_k 262, reusable generation buffer pointer stability, allocation-free top-k diagnostic selection, fixed-buffer stochastic sampling, context-boundary state cleanup, generate_next_token context continuation, free_model post-free rejection, checksum mismatch rejection, native .slm admission validation, provenance manifest validation, assistant-quality case-ledger validation, all-quantization untied and tied trained-source validation/conversion tests, tied_output/model_shape disagreement rejection, quantized tensor f32-borrow rejection, and diagnostics JSON escaping.
+  - cargo test --workspace passed with 102 tests, including 63 runtime tests, 28 slm_pack tests, 6 Rust browser-harness tests, and 5 Rust local-server tests; runtime coverage includes direct core math ops, pre-resolved tensor indices, artifact-backed tied-output projection, tensor view contracts, byte/BPE bounded decode overflow, runtime OutputBufferExceeded cleanup, tiny BPE runtime generation, BPE stochastic top_k 262, reusable generation buffer pointer stability, allocation-free top-k diagnostic selection, fixed-buffer stochastic sampling, context-boundary state cleanup, generate_next_token context continuation, free_model post-free rejection, checksum mismatch rejection, native .slm admission validation, provenance manifest validation, assistant-quality case-ledger validation, all-quantization untied and tied trained-source validation/conversion tests, tied_output/model_shape disagreement rejection, quantized tensor f32-borrow rejection, and diagnostics JSON escaping.
   - Rust mini browser harness static contract audit passed with 8 checks; loopback HTTP audit previously passed with 8 checks against the Rust local server.
   - Rust local server direct HTTP smoke passed for /app/, /runtime/tinyrustlm.wasm, /models/tinylm16-q8.slm, and /models/tinylm16-q8.slm.manifest with the trained-quality non-claim visible.
   - Quantized q8_0/q4_0 runtime tensors no longer keep full decoded f32 shadow copies; runtime generation uses reusable scratch through copy_tensor_f32 or copy_tensor_row_f32 for dequantization when needed.
@@ -63,6 +64,7 @@ security_boundary:
   browser_transcript_display: app_js_may_render_local_conversation_history_with_dom_text_nodes; Reset must not imply transcript deletion, and Clear must not imply runtime reset.
   wasm_step_token_abi: generate_next_token_returns_error_code_last_result_carries_decoded_token_text_diagnostics_carry_selected_token_id_and_free_model_must_make_post_free_generation_fail_model_not_loaded
   generation_allocation_boundary: scratch_logits_and_tensor_indices_are_model_loaded_runtime_state_reused_across_generate_and_generate_next_token_top_k_diagnostics_and_stochastic_sampling_do_not_allocate_vocab_sized_candidate_vectors
+  output_result_boundary: generated_result_decode_is_capped_at_64_kib_and_output_buffer_exceeded_must_not_replace_previous_decode_output_or_leave_stale_full_generate_state
   generation_state_boundary: failed_generate_requests_clear_prompt_cache_diagnostics_and_successful_generate_extends_tokens_for_step_token_continuation
   source_weights: raw_f32_source_manifest_layout_required_before_convert_trained_safe_relative_paths_exact_shapes_checksums_finite_bounded_nonzero_weights_and_tied_output_model_shape_agreement
   quality_gates: runtime-smoke allowed for execution evidence; assistant-quality requires converted-trained provenance plus a matching passed eval sidecar with positive case count, zero failures, and exact per-case expected/actual matches.
@@ -76,6 +78,7 @@ operations_notes:
   - Use the strict rustdoc gates after changing public Rust APIs or Visual Studio test wrapper behavior; missing_docs is a workspace error, not a soft style warning.
   - Use sampler unit tests and WASM ABI smoke after changing temperature/top-k/top-p/seed behavior; stochastic sampling must stay fixed-buffer and reject oversized top_k values.
   - Use context-boundary and step-token tests after changing Runtime.generate; failed requests must not leak stale diagnostics or stale token state.
+  - Use output-buffer tests after changing tokenizer decode or Runtime.generate result handling; OutputBufferExceeded must keep caller output stable and clear full-generate stale state.
   - Use wasm-abi-smoke after changing WASM exports, generation state, model-free behavior, diagnostics, memory transfer, or Visual Studio test wrapper behavior; step-token and post-free semantics are part of the ABI contract.
   - Use browser-smoke ui-audit after app HTML/CSS/JS changes that affect product identity, layout, panels, controls, diagnostics, or benchmark visibility.
   - Use browser-smoke ui-audit after conversation transcript changes; it must verify empty ready state, generated entries, Clear-click removal, response preservation, and Clear-button state on desktop and mobile.

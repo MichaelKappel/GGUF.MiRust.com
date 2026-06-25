@@ -1,5 +1,5 @@
 profile: gguf-mirust.long-term-memory-ledger.v2
-updated_utc: 2026-06-25T13:16:41Z
+updated_utc: 2026-06-25T13:35:24Z
 storage_mode: hybrid
 ledger_rule:
   pointer_only_not_context_free: true
@@ -12,15 +12,15 @@ records:
     path: tinyrustlm/README.md
     target_location: tinyrustlm/README.md
     label: Required For TinyRustLM Build And Run Instructions
-    summary: Routes agents to tensor routing, BPE and tied fixtures, tied source conversion, validation, Rust server, provenance, rustdoc, sampling, buffers, ABI, smokes, Visual Studio, and limits.
+    summary: Routes agents to tensor routing, BPE and tied fixtures, source conversion, output cap, validation, Rust server, provenance, rustdoc, sampling, buffers, ABI, smokes, Visual Studio, and limits.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed implementation doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before building, testing, serving, or claiming TinyRustLM runtime support.
-    checksum_hash: sha256:161FC8843A941DD98B11686ED4C725E1C5C7AB3DAAF9E2A3019C4D9DAE079F6E
-    last_reviewed_utc: 2026-06-25T13:16:41Z
+    checksum_hash: sha256:84E1875DB34D8CF89F448657B033FCB728F900752C1CE9C16F43A2424D92FD5B
+    last_reviewed_utc: 2026-06-25T13:35:24Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; durable build detail lives in the target file.
   - stable_id: gguf_mirust_root_readme
@@ -29,15 +29,15 @@ records:
     path: README.md
     target_location: README.md
     label: Required For Workspace Entry Commands
-    summary: Routes agents to setup, commands, tensor routing, strict rustdoc gates, local server, BPE and tied generation, tied source conversion, Visual Studio, and current boundary.
+    summary: Routes agents to setup, commands, tensor routing, strict rustdoc, local server, BPE and tied generation, output cap, source conversion, Visual Studio, and current boundary.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed workspace doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before orienting from the repository root or changing top-level commands.
-    checksum_hash: sha256:040E496A2DAF4C8809E1CE058144DC58360CE1273E4857DD62D488E4416E1083
-    last_reviewed_utc: 2026-06-25T13:16:41Z
+    checksum_hash: sha256:0EFBECC818DA2D2FB8AE488DA083B83D9DC6CE3E2BB9E38D462B33FCC42DBA5D
+    last_reviewed_utc: 2026-06-25T13:35:24Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; root command detail lives in the target file.
   - stable_id: tinyrustlm_workspace_cargo
@@ -108,6 +108,23 @@ records:
     last_reviewed_utc: 2026-06-25T11:46:02Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; tokenizer detail lives in the target file.
+  - stable_id: tinyrustlm_tokenizer_source
+    memory_domain: tinyrustlm.tokenizer_source
+    pointer_type: local_rs
+    path: tinyrustlm/runtime/src/tokenizer.rs
+    target_location: tinyrustlm/runtime/src/tokenizer.rs
+    label: Required For Runtime Tokenizer Source
+    summary: Routes agents to byte and BPE encode/decode, bounded decode overflow, tokenizer section validation, and tokenizer unit tests.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed runtime source
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing tokenizer decode, BPE merge behavior, tokenizer validation, or output-buffer boundaries.
+    checksum_hash: sha256:AB51E0EDA9F89E1567D5A3610DD97902390F8E8E9B22283137A089659FB13750
+    last_reviewed_utc: 2026-06-25T13:35:24Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; tokenizer implementation lives in the target file.
   - stable_id: tinyrustlm_quantization
     memory_domain: tinyrustlm.quantization
     pointer_type: local_md
@@ -131,15 +148,15 @@ records:
     path: tinyrustlm/docs/browser-runtime.md
     target_location: tinyrustlm/docs/browser-runtime.md
     label: Required For Browser Runtime Work
-    summary: Routes agents to Rust hosting, JS responsibilities, transcript/Clear, model/manifest policy, tied fixture selector, sampling ABI, step-token ABI, provenance, failures, validation, and local-only rules.
+    summary: Routes agents to Rust hosting, JS responsibilities, transcript/Clear, model/manifest policy, output cap, sampling ABI, step-token ABI, provenance, failures, validation, and local-only rules.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed browser runtime doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing app.js, app.css, app HTML, local fetch paths, or browser diagnostics.
-    checksum_hash: sha256:3DC5A9F23BC49E3E5D5BF3728058DF6F2A4CC0EC26227D418A4377DD23460A19
-    last_reviewed_utc: 2026-06-25T12:58:04Z
+    checksum_hash: sha256:6FA11B56D89775311DD5209AC07157C946768E35D428180553F31B4AE48FB556
+    last_reviewed_utc: 2026-06-25T13:35:24Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; browser runtime detail lives in the target file.
   - stable_id: tinyrustlm_browser_app_html
@@ -216,15 +233,15 @@ records:
     path: tinyrustlm/docs/testing.md
     target_location: tinyrustlm/docs/testing.md
     label: Required For TinyRustLM Test Coverage
-    summary: Routes agents to tensor-routing tests, tied artifact and source tests, core ops, BPE proof, rustdoc, fixed-buffer sampling, context checks, conversion, ABI, and smokes.
+    summary: Routes agents to tensor-routing tests, tied artifact/source tests, core ops, BPE proof, output-buffer checks, rustdoc, fixed-buffer sampling, context checks, conversion, ABI, and smokes.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed testing doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before adding tests, accepting runtime behavior, or claiming milestone completion.
-    checksum_hash: sha256:DFF8CF4E6E3814583913B5BB325CAE1A5BC6820E85D035A99DC302071158A65C
-    last_reviewed_utc: 2026-06-25T13:16:41Z
+    checksum_hash: sha256:0ABF0A80627254ED2A4FAA120AAEA4B44FD9BAC4F604C821CEDFAD30F0C33E3C
+    last_reviewed_utc: 2026-06-25T13:35:24Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; testing detail lives in the target file.
   - stable_id: tinyrustlm_ops_source
@@ -250,15 +267,15 @@ records:
     path: tinyrustlm/docs/performance.md
     target_location: tinyrustlm/docs/performance.md
     label: Required For TinyRustLM Performance Work
-    summary: Routes agents to performance constraints, model-load tensor routing, context state, reusable scratch/logits, 1024-cap sampling, diagnostics, browser smoke evidence, model sizes, and optimization order.
+    summary: Routes agents to performance constraints, tensor routing, context state, reusable scratch/logits, 1024-cap sampling, output cap, diagnostics, browser smoke evidence, model sizes, and optimization order.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed performance doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before optimizing kernels, adding benchmarks, or claiming tokens-per-second numbers.
-    checksum_hash: sha256:356B62F303997E3C95604D96C6E3097E3E728DDC6F5FB7BA7B60A8F7ACCE5970
-    last_reviewed_utc: 2026-06-25T12:22:29Z
+    checksum_hash: sha256:E65CF98AFD05226E8D8F5A11ADB859824DF3C06C1589FA922FC3876559D10B01
+    last_reviewed_utc: 2026-06-25T13:35:24Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; performance detail lives in the target file.
   - stable_id: tinyrustlm_models_readme
@@ -335,15 +352,15 @@ records:
     path: tinyrustlm/runtime/src/generate.rs
     target_location: tinyrustlm/runtime/src/generate.rs
     label: Required For Runtime Generation And Scratch Use
-    summary: Routes agents to generation state, pre-resolved tensor-index use, BPE diagnostics, context cleanup, reusable scratch/logits, step-token ABI, model-free state, and KV updates.
+    summary: Routes agents to generation state, tensor-index use, BPE diagnostics, context cleanup, output cap, reusable scratch/logits, step-token ABI, model-free state, and KV updates.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed runtime source
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing generation loops, scratch allocation, diagnostics counters, or quantized embedding/norm access.
-    checksum_hash: sha256:9ED6696D8679341046ED00A8D7F26C339AB6A7716EDEB24BDEAAE3C960D54F2D
-    last_reviewed_utc: 2026-06-25T12:22:29Z
+    checksum_hash: sha256:84669EB22638850F376D260B266999135D83021B791378B7771C5C16CB1F7372
+    last_reviewed_utc: 2026-06-25T13:35:24Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; generation implementation lives in the target file.
   - stable_id: tinyrustlm_sampler_source
@@ -556,15 +573,15 @@ records:
     path: tinyrustlm/runtime/tinyrustlm.wasm
     target_location: tinyrustlm/runtime/tinyrustlm.wasm
     label: Required For TinyRustLM Browser WASM Runtime Artifact
-    summary: Routes agents to the rebuilt browser-loaded WASM artifact with tensor-index routing, reusable buffers, fixed-buffer sampling, ErrorCode step-token behavior, and model-free ABI handling.
+    summary: Routes agents to the rebuilt browser-loaded WASM artifact with tensor-index routing, reusable buffers, output cap, fixed-buffer sampling, ErrorCode step-token, and model-free ABI handling.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: locally built release artifact
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Check after rebuilding runtime exports or before browser/runtime smoke claims.
-    checksum_hash: sha256:86D4D6E256A648ED07FE7250FB4F58D6CBF552D364382B951CA77D9325BFE638
-    last_reviewed_utc: 2026-06-25T12:22:29Z
+    checksum_hash: sha256:D81E95E5E596EF040A2258752FAB8A7B84B32E6729DD0CF600CFF37DD3EFADAF
+    last_reviewed_utc: 2026-06-25T13:35:24Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; source authority is runtime/src plus the build/test records.
   - stable_id: tinyrustlm_static_server_tool

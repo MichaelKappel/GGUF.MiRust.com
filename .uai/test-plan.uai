@@ -1,5 +1,5 @@
 profile: gguf-mirust.test-plan.v2
-updated_utc: 2026-06-25T13:16:41Z
+updated_utc: 2026-06-25T13:35:24Z
 available_now:
   - node --check tinyrustlm/app/app.js passed after local transcript edits.
   - node --check tinyrustlm/tools/static-server.js passed.
@@ -12,6 +12,7 @@ toolchain_now_available:
   - C:\Users\AI\.cargo\bin\rustc.exe
   - C:\Users\AI\.cargo\bin\rustup.exe
 completed_toolchain_checks:
+  - 2026-06-25 cargo fmt --all -- --check, cargo test --workspace, strict rustdoc gates, WASM rebuild/copy, WASM ABI smoke, Rust browser harness, and tools/vs/Test-TinyRustLM.ps1 passed after output-buffer hardening; workspace coverage is 102 tests with 63 runtime tests.
   - 2026-06-25 cargo fmt --all -- --check, node --check tinyrustlm/app/app.js, node --check tinyrustlm/tools/browser-smoke.js, node --check tinyrustlm/tools/wasm-abi-smoke.js, and tools/vs/Test-TinyRustLM.ps1 parse check passed after tied-output trained-source conversion work.
   - 2026-06-25 cargo test -p tinyrustlm-slm-pack trained_source -- --nocapture passed with 8 tests, including tied source manifest validation, tied_output/model_shape disagreement rejection, and f32/q8_0/q4_0 tied conversion manifest validation.
   - 2026-06-25 cargo test --workspace passed with 99 tests after tied-output trained-source conversion coverage: 6 browser-harness tests, 5 local-server tests, 60 runtime tests, and 28 slm_pack tests.
@@ -63,6 +64,7 @@ completed_build_artifact_checks:
   - cargo run -p tinyrustlm-slm-pack -- validate-manifest tinyrustlm/models/tiny-test-model-tied.slm tinyrustlm/models/tiny-test-model-tied.slm.manifest passed with source_kind deterministic-smoke.
   - cargo build -p tinyrustlm-runtime --release --target wasm32-unknown-unknown passed.
   - copied target/wasm32-unknown-unknown/release/tinyrustlm_runtime.wasm to tinyrustlm/runtime/tinyrustlm.wasm.
+  - current tinyrustlm/runtime/tinyrustlm.wasm sha256 is D81E95E5E596EF040A2258752FAB8A7B84B32E6729DD0CF600CFF37DD3EFADAF after output-buffer hardening.
   - cargo run -p tinyrustlm-slm-pack -- tinyrustlm/models/tiny-test-model.slm tiny-fixture passed.
   - cargo run -p tinyrustlm-slm-pack -- tinyrustlm/models/tiny-test-model-q8.slm tiny-fixture-q8 passed.
   - cargo run -p tinyrustlm-slm-pack -- tinyrustlm/models/tiny-test-model-q4.slm tiny-fixture-q4 passed.
@@ -115,6 +117,7 @@ completed_build_artifact_checks:
 required_rust_tests:
   - byte tokenizer round-trip
   - UTF-8 prompt handling
+  - byte and BPE bounded decode reject over-limit result text before replacing caller output
   - TensorView and MutableTensorView shape validation and row-major flat indexing
   - dot known output and shape mismatch rejection
   - RMSNorm known vector
@@ -168,6 +171,7 @@ required_rust_tests:
   - custom BPE tiny fixture loads from .slm and records merged tokenizer output 256,261 for prompt the before generation
   - generation scratch and logits buffers are allocated on model load and reused across generate plus repeated generate_next_token calls
   - generate request state clears prompt/cache diagnostics before errors can preserve stale counts, and successful generation extends token state for step-token continuation
+  - generated result output buffer overflow returns OutputBufferExceeded and clears full-generate stale token/generated-token diagnostics
   - eval-case files reject zero case_count, empty exact prompt/output fields, and stray case keys outside declared case_count
   - top-k diagnostic summary selects candidates without allocating a vocab-sized vector
   - generate_next_token returns ErrorCode Ok on success, writes decoded token text to last_result, and records selected token id in diagnostics
