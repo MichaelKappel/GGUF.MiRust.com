@@ -18,6 +18,7 @@ Implemented source slice:
 - Generated `models/tiny-test-model.slm`.
 - Generated `models/tiny-test-model-q8.slm` and `models/tiny-test-model-q4.slm`.
 - Generated `models/tiny-test-model-bpe.slm` custom BPE fixture.
+- Generated `models/tiny-test-model-tied.slm` tied-output fixture.
 - Generated `models/tinylm16-f32.slm`.
 - Generated `models/tinylm16-q8.slm`.
 - Generated `models/tinylm16-q4.slm`.
@@ -37,11 +38,11 @@ Implemented source slice:
 - Greedy local generation over the TinyLM-16M-shaped q8_0 model using direct q8_0 matvec dispatch.
 - Greedy local generation over the TinyLM-16M-shaped q4_0 model using direct q4_0 matvec dispatch.
 - q8_0 and q4_0 tensors stay in native compact storage without full decoded f32 shadow copies; embedding rows and norm vectors dequantize into scratch on demand.
-- Model load pre-resolves top-level and per-layer tensor indices, and tied-output projection flags route output logits through token embeddings.
+- Model load pre-resolves top-level and per-layer tensor indices, and the checked-in tied-output fixture proves projection flags route output logits through token embeddings when `output.weight` is omitted.
 - Runtime generation allocates reusable scratch buffers and logits with the loaded model, then reuses them across prompt generation and single-token stepping; stochastic sampling uses a fixed candidate buffer instead of a vocab-sized per-token vector.
 - Runtime diagnostics with tokenizer output, logits summary, selected token, top-k candidates, KV cache length, quantization mode, and active sampling configuration.
 - Handwritten diagnostics JSON escaping for quotes, backslashes, control characters, line separators, and paragraph separators before browser parsing.
-- Browser model selector for TinyLM-16M q8_0, TinyLM-16M q4_0, TinyLM-16M f32, f32/q8_0/q4_0 tiny fixtures, and the tiny BPE fixture.
+- Browser model selector for TinyLM-16M q8_0, TinyLM-16M q4_0, TinyLM-16M f32, f32/q8_0/q4_0 tiny fixtures, the tiny BPE fixture, and the tiny tied-output fixture.
 - Browser conversation transcript that appends local User and TinyRustLM turns, keeps text insertion DOM-safe, persists across runtime Reset, and clears through the Clear control.
 - Browser product shell footer exposing TinyRustLM, GGUF.MiRust.com, browser-local Rust/WASM identity, and local `.slm` model scope.
 - Browser smoke tool for headless Chrome or Edge UI verification.
@@ -51,7 +52,7 @@ Implemented source slice:
 - WASM ABI smoke tool for invalid UTF-8, null pointer, invalid length, recovery-after-error, step-token, and model-free verification.
 - Visual Studio 2022 solution wrapper in `../TinyRustLM.sln`.
 
-The runtime now proves local generation for f32, q8_0, and q4_0 tiny fixtures, a custom BPE tiny fixture with merged token diagnostics, and real-shaped TinyLM-16M f32, q8_0, and q4_0 models. Quantized runtime storage no longer carries full decoded f32 shadows for q8_0 or q4_0 tensors, and the generation loop uses model-load-time tensor indices instead of per-token layer-name formatting. The packer can validate and convert raw source-weight bundles into f32, q8_0, and q4_0 artifacts, and the native eval runner can produce scoped fixture evidence for each converted mode. The project still needs real trained weights and broader review before it can claim product assistant quality.
+The runtime now proves local generation for f32, q8_0, and q4_0 tiny fixtures, a custom BPE tiny fixture with merged token diagnostics, a tied-output tiny fixture without `output.weight`, and real-shaped TinyLM-16M f32, q8_0, and q4_0 models. Quantized runtime storage no longer carries full decoded f32 shadows for q8_0 or q4_0 tensors, and the generation loop uses model-load-time tensor indices instead of per-token layer-name formatting. The packer can validate and convert raw source-weight bundles into f32, q8_0, and q4_0 artifacts, and the native eval runner can produce scoped fixture evidence for each converted mode. The project still needs real trained weights and broader review before it can claim product assistant quality.
 
 ## Build Commands
 
@@ -85,6 +86,7 @@ cargo run -p tinyrustlm-slm-pack -- .\tinyrustlm\models\tiny-test-model.slm tiny
 cargo run -p tinyrustlm-slm-pack -- .\tinyrustlm\models\tiny-test-model-q8.slm tiny-fixture-q8
 cargo run -p tinyrustlm-slm-pack -- .\tinyrustlm\models\tiny-test-model-q4.slm tiny-fixture-q4
 cargo run -p tinyrustlm-slm-pack -- .\tinyrustlm\models\tiny-test-model-bpe.slm tiny-fixture-bpe
+cargo run -p tinyrustlm-slm-pack -- .\tinyrustlm\models\tiny-test-model-tied.slm tiny-fixture-tied
 cargo run -p tinyrustlm-slm-pack -- .\tinyrustlm\models\tinylm16-f32.slm tinylm16-f32
 cargo run -p tinyrustlm-slm-pack -- .\tinyrustlm\models\tinylm16-q8.slm tinylm16-q8
 cargo run -p tinyrustlm-slm-pack -- .\tinyrustlm\models\tinylm16-q4.slm tinylm16-q4
@@ -163,7 +165,7 @@ node .\tinyrustlm\tools\wasm-abi-smoke.js
 
 The ABI smoke also checks `set_sampling_config`, rejects invalid stochastic settings, restores greedy defaults, verifies diagnostics still report `temperature=0`, `top_k=1`, `top_p=1`, and `seed=1` after recovery generation, requires `generate_next_token` to return an explicit `ErrorCode` while exposing token text through `last_result`, and requires `free_model` to clear loaded-model diagnostics before later generation returns `ModelNotLoaded`.
 
-The browser runtime ships only static HTML, CSS, JS, WASM, and local `.slm` files. The current browser milestone defaults to `tinylm16-q8.slm` and keeps TinyLM-16M q4_0, f32, tiny byte-tokenizer fixtures, and the tiny BPE fixture available for regression checks.
+The browser runtime ships only static HTML, CSS, JS, WASM, and local `.slm` files. The current browser milestone defaults to `tinylm16-q8.slm` and keeps TinyLM-16M q4_0, f32, tiny byte-tokenizer fixtures, the tiny BPE fixture, and the tiny tied-output fixture available for regression checks.
 
 ## Current Fixture Behavior
 

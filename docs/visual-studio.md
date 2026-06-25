@@ -20,7 +20,7 @@ The build script:
 - Runs `cargo build --workspace`.
 - Builds the release WASM runtime.
 - Copies `target/wasm32-unknown-unknown/release/tinyrustlm_runtime.wasm` to `tinyrustlm/runtime/tinyrustlm.wasm`.
-- Ensures the local `.slm` model artifacts and `.slm.manifest` provenance sidecars exist, including TinyLM-16M f32, q8_0, and q4_0.
+- Ensures the local `.slm` model artifacts and `.slm.manifest` provenance sidecars exist, including TinyLM-16M f32, q8_0, q4_0, the BPE fixture, and the tied-output fixture.
 - Keeps the generated WASM and local model files in the locations used by the static browser app and smoke tests.
 
 ## Run
@@ -53,7 +53,7 @@ From a PowerShell terminal at the repository root:
 .\tools\vs\Test-TinyRustLM.ps1
 ```
 
-The default test path builds the workspace, runs Cargo tests, checks handwritten JavaScript syntax, runs the Rust mini browser harness over the static app contract, validates every local `.slm` artifact with the native packer admission gate, validates each `.slm.manifest` provenance sidecar, validates the tiny raw-f32 trained-source fixture, converts it into f32, q8_0, and q4_0 `.slm` artifacts, gates each converted artifact for `runtime-smoke`, runs `tinyrustlm-eval` over the scoped fixture cases for each converted mode, gates each eval sidecar for fixture-scoped `assistant-quality`, and runs the WASM ABI smoke for invalid UTF-8 prompt bytes, null pointers, invalid lengths, and recovery generation.
+The default test path builds the workspace, runs Cargo tests, checks handwritten JavaScript syntax, runs the Rust mini browser harness over the static app contract, validates every local `.slm` artifact with the native packer admission gate, validates each `.slm.manifest` provenance sidecar, validates the BPE and tied-output fixture routes, validates the tiny raw-f32 trained-source fixture, converts it into f32, q8_0, and q4_0 `.slm` artifacts, gates each converted artifact for `runtime-smoke`, runs `tinyrustlm-eval` over the scoped fixture cases for each converted mode, gates each eval sidecar for fixture-scoped `assistant-quality`, and runs the WASM ABI smoke for invalid UTF-8 prompt bytes, null pointers, invalid lengths, and recovery generation.
 
 To include headless browser smoke for q8_0 and q4_0:
 

@@ -14,7 +14,7 @@ The core data structures are `SlmHeader`, `TensorEntry`, typed tensor storage, p
 
 ## Binary Formats
 
-The `.slm` model file is little-endian and starts with `SLM1`. It contains a fixed v1 header, tokenizer section, tensor directory, 64-byte-aligned tensor data, and aligned scale sections for quantized tensors. Model loading parses the tokenizer section and selects either the fixed byte tokenizer (`BTOK`) or the custom BPE tokenizer (`BPE1`) before generation.
+The `.slm` model file is little-endian and starts with `SLM1`. It contains a fixed v1 header, tokenizer section, tensor directory, 64-byte-aligned tensor data, and aligned scale sections for quantized tensors. Model loading parses the tokenizer section and selects either the fixed byte tokenizer (`BTOK`) or the custom BPE tokenizer (`BPE1`) before generation. A v1 tied-output flag permits `output.weight` to be omitted only when logits can project through `tok_embeddings.weight`; the checked-in tied fixture keeps that contract artifact-backed.
 
 ## Failure Cases
 
@@ -30,4 +30,4 @@ The Rust mini browser harness runs before heavy browser automation. Static mode 
 
 ## Future Expansion Path
 
-Milestones continue from verified tiny fixtures, TinyLM-16M f32/q8_0/q4_0 smoke models, raw-f32 trained-source conversion, structural `BPE1` tokenizer support, and fixture-scoped eval execution into real trained weights, larger reviewed BPE tables, broader evaluation fixtures, and product-quality evidence review. TinyLM-64M and TinyLM-135M stay out of scope until the 16M path is correct.
+Milestones continue from verified tiny fixtures, TinyLM-16M f32/q8_0/q4_0 smoke models, raw-f32 trained-source conversion, structural `BPE1` tokenizer support, artifact-backed tied-output validation, and fixture-scoped eval execution into real trained weights, larger reviewed BPE tables, broader evaluation fixtures, and product-quality evidence review. TinyLM-64M and TinyLM-135M stay out of scope until the 16M path is correct.

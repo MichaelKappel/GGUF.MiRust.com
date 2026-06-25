@@ -1,5 +1,5 @@
 profile: gguf-mirust.test-plan.v2
-updated_utc: 2026-06-25T12:22:29Z
+updated_utc: 2026-06-25T12:58:04Z
 available_now:
   - node --check tinyrustlm/app/app.js passed after local transcript edits.
   - node --check tinyrustlm/tools/static-server.js passed.
@@ -12,7 +12,11 @@ toolchain_now_available:
   - C:\Users\AI\.cargo\bin\rustc.exe
   - C:\Users\AI\.cargo\bin\rustup.exe
 completed_toolchain_checks:
-  - cargo test --workspace passed with 92 tests total after model tensor routing hardening: 6 browser-harness tests, 5 local-server tests, 58 runtime tests, and 23 slm_pack tests. Runtime coverage now includes pre-resolved top-level/per-layer tensor index tests and tied-output projection fallback tests alongside direct core math ops and existing runtime gates.
+  - cargo fmt --all -- --check, node --check tinyrustlm/app/app.js, and node --check tinyrustlm/tools/browser-smoke.js passed after tied-output docs and route guidance updates.
+  - cargo run -p tinyrustlm-browser-harness -- tinyrustlm passed with 8 checks, including the tied-output model route and manifest contract.
+  - cargo test --workspace passed with 96 tests after artifact-backed tied-output fixture coverage: 6 browser-harness tests, 5 local-server tests, 60 runtime tests, and 25 slm_pack tests.
+  - tools/vs/Test-TinyRustLM.ps1 passed after tied-output fixture promotion; it rebuilt WASM, ran 96 Cargo tests, strict rustdoc gates, static browser harness, all eight model/manifest checks, converted-source gates, fixture-scoped eval gates, and WASM ABI smoke.
+  - Superseded by the 96-test tied-output fixture run: cargo test --workspace previously passed with 92 tests total after model tensor routing hardening.
   - tools/vs/Test-TinyRustLM.ps1 passed after tensor index routing hardening; it rebuilt WASM, ran 92 Cargo tests, strict rustdoc gates, Rust browser-harness static contract, all model/manifest checks, converted-source gates, fixture-scoped eval gates, and WASM ABI step/free smoke.
   - cargo fmt --all -- --check passed after transcript edits.
   - cargo run -p tinyrustlm-browser-harness -- tinyrustlm passed after adding clearChatButton and conversation to the required static UI contract.
@@ -21,7 +25,7 @@ completed_toolchain_checks:
   - cargo test --workspace passed with 90 tests total after core math coverage growth; this evidence is superseded by the current 92-test model tensor routing run.
   - tools/vs/Build-TinyRustLM.ps1 -Configuration Debug passed.
   - tools/vs/Test-TinyRustLM.ps1 passed with Cargo tests, JS syntax checks, strict rustdoc missing_docs gates, WASM release build, Rust browser-harness static contract, model/manifest gates, converted-source gates, reusable generation buffer tests, and WASM ABI step/free smoke.
-  - tools/vs/Test-TinyRustLM.ps1 validates all seven local .slm artifacts, their .slm.manifest sidecars, the tiny trained-source fixture, converted-trained f32/q8_0/q4_0 outputs, converted manifests, runtime-smoke gates, fixture-scoped assistant-quality eval gates, and WASM ABI step/free smoke.
+  - tools/vs/Test-TinyRustLM.ps1 validates all eight local .slm artifacts, their .slm.manifest sidecars, the tiny trained-source fixture, converted-trained f32/q8_0/q4_0 outputs, converted manifests, runtime-smoke gates, fixture-scoped assistant-quality eval gates, and WASM ABI step/free smoke.
   - cargo test -p tinyrustlm-runtime runtime_generates_from_tiny_bpe_fixture passed, proving prompt the becomes tokenizer_output 256,261 before generation.
   - cargo test -p tinyrustlm-runtime runtime_accepts_stochastic_bpe_top_k_above_byte_vocab passed, proving BPE top_k 262 through runtime generation.
   - cargo test -p tinyrustlm-runtime stochastic_sampler_accepts_bpe_vocab_above_byte_tokenizer_size passed, proving sampler selection beyond the byte-tokenizer vocabulary size.
@@ -50,6 +54,8 @@ completed_toolchain_checks:
 pending_build_artifact_checks:
   - none_for_current_source_slice
 completed_build_artifact_checks:
+  - cargo run -p tinyrustlm-slm-pack -- validate tinyrustlm/models/tiny-test-model-tied.slm passed with 11 tensors, 2744 parameters, f32 quantization, and checksum 0x7d62cfbfde480fed.
+  - cargo run -p tinyrustlm-slm-pack -- validate-manifest tinyrustlm/models/tiny-test-model-tied.slm tinyrustlm/models/tiny-test-model-tied.slm.manifest passed with source_kind deterministic-smoke.
   - cargo build -p tinyrustlm-runtime --release --target wasm32-unknown-unknown passed.
   - copied target/wasm32-unknown-unknown/release/tinyrustlm_runtime.wasm to tinyrustlm/runtime/tinyrustlm.wasm.
   - cargo run -p tinyrustlm-slm-pack -- tinyrustlm/models/tiny-test-model.slm tiny-fixture passed.
@@ -59,10 +65,10 @@ completed_build_artifact_checks:
   - cargo run -p tinyrustlm-slm-pack -- tinyrustlm/models/tinylm16-f32.slm tinylm16-f32 passed.
   - cargo run -p tinyrustlm-slm-pack -- tinyrustlm/models/tinylm16-q8.slm tinylm16-q8 passed.
   - cargo run -p tinyrustlm-slm-pack -- tinyrustlm/models/tinylm16-q4.slm tinylm16-q4 passed.
-  - The seven .slm artifacts carry nonzero checksums after packer/runtime checksum enforcement.
-  - tinyrustlm-slm-pack validate passed for tiny-test-model.slm, tiny-test-model-q8.slm, tiny-test-model-q4.slm, tiny-test-model-bpe.slm, tinylm16-f32.slm, tinylm16-q8.slm, and tinylm16-q4.slm.
-  - tinyrustlm-slm-pack manifest generated deterministic-smoke sidecars for all seven current .slm artifacts.
-  - tinyrustlm-slm-pack validate-manifest passed for all seven current .slm.manifest sidecars.
+  - The eight .slm artifacts carry nonzero checksums after packer/runtime checksum enforcement.
+  - tinyrustlm-slm-pack validate passed for tiny-test-model.slm, tiny-test-model-tied.slm, tiny-test-model-q8.slm, tiny-test-model-q4.slm, tiny-test-model-bpe.slm, tinylm16-f32.slm, tinylm16-q8.slm, and tinylm16-q4.slm.
+  - tinyrustlm-slm-pack manifest generated deterministic-smoke sidecars for all eight current .slm artifacts.
+  - tinyrustlm-slm-pack validate-manifest passed for all eight current .slm.manifest sidecars.
   - Manifest unit tests passed for generated fixture round-trip, checksum mismatch rejection, and converted-trained quality-overclaim rejection.
   - Quality-gate unit tests passed for runtime-smoke admission, deterministic-smoke assistant-quality rejection, converted-trained assistant-quality rejection without eval evidence, pending eval template rejection, and converted-trained passed-eval admission.
   - CLI quality-gate smoke passed for tinylm16-q8 runtime-smoke.
@@ -73,7 +79,7 @@ completed_build_artifact_checks:
   - CLI quality-gate runtime-smoke passed for converted-trained f32, q8_0, and q4_0 fixture artifacts.
   - CLI tinyrustlm-eval passed the scoped fixture cases for converted-trained f32, q8_0, and q4_0 artifacts.
   - CLI quality-gate assistant-quality passed only for the declared tiny-converted-source-fixture-only scope for converted-trained f32, q8_0, and q4_0 artifacts.
-  - Build-TinyRustLM.ps1 -RegenerateModels includes all seven .slm artifacts plus deterministic-smoke sidecars, including tiny-test-model-bpe.slm.
+  - Build-TinyRustLM.ps1 -RegenerateModels includes all eight .slm artifacts plus deterministic-smoke sidecars, including tiny-test-model-bpe.slm and tiny-test-model-tied.slm.
   - Node WASM smoke test instantiated WASM, loaded f32/q8_0/q4_0 tiny fixtures, generated eeeeeeeeeeeee through the tiny transformer path, and read diagnostics with code 0 for each fixture.
   - Node WASM smoke test instantiated WASM, loaded tinylm16-f32.slm, generated e from prompt hi with max_new_tokens 1, and read diagnostics with code 0.
   - Node WASM smoke test instantiated WASM, loaded tinylm16-q8.slm, generated e from prompt hi with max_new_tokens 1, and read q8_0 diagnostics with code 0.
@@ -149,6 +155,9 @@ required_rust_tests:
   - q8_0/q4_0 tensors reject borrowed f32 slices and require explicit copy buffers for decoded reference paths
   - model loading exposes pre-resolved top-level and per-layer tensor indices
   - tied-output projection flags route output projection to tok_embeddings
+  - tied-output fixture validates without output.weight only when the v1 tied-output flag is set
+  - missing output.weight without the tied-output flag is rejected
+  - tiny tied-output fixture runtime generation succeeds through tok_embeddings projection
   - custom BPE tiny fixture loads from .slm and records merged tokenizer output 256,261 for prompt the before generation
   - generation scratch and logits buffers are allocated on model load and reused across generate plus repeated generate_next_token calls
   - generate request state clears prompt/cache diagnostics before errors can preserve stale counts, and successful generation extends token state for step-token continuation

@@ -20,11 +20,11 @@ Header fields start with four bytes `SLM1`, followed by u32/u64/f32 fields in li
 
 ## Failure Cases
 
-Invalid magic, short files, unsupported versions, zero checksum, checksum mismatch, zero dimensions, attention shape mismatch, out-of-range offsets, malformed tokenizer sections, malformed tensor directory entries, unsupported dtype, missing scale payloads, invalid q4 block sizes, and missing required tensors are fatal loader errors.
+Invalid magic, short files, unsupported versions, zero checksum, checksum mismatch, zero dimensions, attention shape mismatch, out-of-range offsets, malformed tokenizer sections, malformed tensor directory entries, unsupported dtype, missing scale payloads, invalid q4 block sizes, missing required tensors, and an omitted `output.weight` without the v1 tied-output flag are fatal loader errors.
 
 ## Validation Rules
 
-The parser validates the file has enough bytes before every read. Header length must be at least the v1 minimum. Tensor data offset must be 64-byte aligned. A v1 file must carry a nonzero checksum, and the parser recomputes the checksum with bytes 100..108 treated as zero before accepting the header. Each tensor payload range must fit inside the file. The model loader validates dtype-specific byte lengths and scale counts before decoding tensors.
+The parser validates the file has enough bytes before every read. Header length must be at least the v1 minimum. Tensor data offset must be 64-byte aligned. A v1 file must carry a nonzero checksum, and the parser recomputes the checksum with bytes 100..108 treated as zero before accepting the header. Each tensor payload range must fit inside the file. The model loader validates dtype-specific byte lengths and scale counts before decoding tensors. The v1 tied-output flag is `flags & 1 != 0`; when set, `output.weight` may be omitted and output projection uses `tok_embeddings.weight`. Without that flag, `output.weight` remains required.
 
 The native packer also exposes `tinyrustlm-slm-pack validate <input.slm>` as an admission gate for generated or future converted models. That command verifies checksum, byte-tokenizer or BPE metadata, required tensor names and shapes, dtype-specific payload lengths, quantization scale ranges, finite f32 payload values, duplicate tensor hashes, and reports the accepted shape, tensor count, parameter count, quantization mode, and checksum.
 
@@ -40,4 +40,4 @@ Quality admission is a separate gate. `tinyrustlm-slm-pack quality-gate <input.s
 
 ## Future Expansion Path
 
-The first format path supports f32, q8_0, and q4_0 tiny byte-tokenizer fixtures, a tiny f32 BPE fixture with a checked runtime merge proof, and real-shaped TinyLM-16M f32, q8_0, and q4_0 models. The first trained-source conversion path is raw f32 by design so quantization stays local and reviewable. Current `BPE1` support gives trained models a custom tokenizer table and merge table without external formats. Later versions can add richer trained conversion metadata, optional tied output flags, embedded provenance sections, stronger checksums, and paging metadata without changing the v1 parser contract.
+The first format path supports f32, q8_0, and q4_0 tiny byte-tokenizer fixtures, a tiny f32 BPE fixture with a checked runtime merge proof, a tied-output tiny fixture that omits `output.weight`, and real-shaped TinyLM-16M f32, q8_0, and q4_0 models. The first trained-source conversion path is raw f32 by design so quantization stays local and reviewable. Current `BPE1` support gives trained models a custom tokenizer table and merge table without external formats. Later versions can add richer trained conversion metadata, embedded provenance sections, stronger checksums, and paging metadata without changing the v1 parser contract.

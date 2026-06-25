@@ -1,7 +1,7 @@
 profile: gguf-mirust.workspace.v2
 project_name: GGUF.MiRust.com
 canonical_root: E:\Source\Rust\GGUF.MiRust.com
-updated_utc: 2026-06-25T12:22:29Z
+updated_utc: 2026-06-25T12:58:04Z
 version_authority:
   current_version: 0.1.0
   next_version: 0.1.0
@@ -16,7 +16,7 @@ memory_authority:
   aiwikis_public_namespace: https://aiwikis.org/gguf-mirust/
   file_handoff_root: agent-file-handoff/
 support_boundary:
-  status: milestone_27_model_tensor_index_routing_verified
+  status: milestone_28_tied_output_slm_fixture_verified
   static_browser_shell: implemented_source
   wasm_exports: implemented_source_with_explicit_error_code_generate_next_token_and_free_model
   byte_tokenizer: implemented_source
@@ -29,7 +29,7 @@ support_boundary:
   tinylm16_q4_forward: implemented_for_real_shaped_deterministic_smoke_model_with_native_quant_storage_and_reusable_scratch_row_dequantization
   slm_checksum_validation: packer_writes_nonzero_zeroed_field_checksum_and_runtime_rejects_zero_or_mismatched_checksum
   slm_admission_validation: native_packer_validate_command_verifies_header_checksum_tokenizer_required_shapes_payload_lengths_finite_f32_and_quant_scales
-  slm_provenance_manifest_validation: generated_and_validated_for_all_seven_local_models_with_deterministic_smoke_quality_boundary_and_trained_quality_nonclaim
+  slm_provenance_manifest_validation: generated_and_validated_for_all_eight_local_models_with_deterministic_smoke_quality_boundary_and_trained_quality_nonclaim
   slm_quality_gate: runtime_smoke_gate_verified_for_existing_tinylm16_q8_manifest_and_for_f32_q8_q4_converted_fixture_outputs; assistant_quality_gate_rejects_pending_eval_templates_missing_case_evidence_zero_case_eval_files_stray_case_keys_and_per_case_expected_actual_mismatches
   slm_trained_source_conversion: raw_f32_source_manifest_layout_validates_safe_paths_checksums_exact_shapes_finite_bounded_nonzero_weights_and_converts_tiny_source_fixture_to_f32_q8_q4_converted_trained_slm_artifacts_with_manifests
   slm_eval_runner: native_tinyrustlm_eval_executes_scoped_fixture_cases_against_converted_f32_q8_q4_slm_artifacts_rejects_zero_case_or_stray_case_eval_files_and_generates_case_ledger_sidecars_that_pass_assistant_quality_gate_only_for_tiny_converted_source_fixture_scope
@@ -38,7 +38,7 @@ support_boundary:
   direct_q8_matvec: implemented_for_named_model_matrix_dispatch
   direct_q4_matvec: implemented_for_named_model_matrix_dispatch
   model_tensor_routing: model_load_pre_resolves_top_level_and_layer_tensor_indices_generation_uses_indices_without_per_token_layer_name_formatting
-  tied_output_projection: tied_output_flag_routes_output_projection_to_tok_embeddings_and_is_unit_tested
+  tied_output_projection: artifact_backed_tiny_tied_slm_fixture_omits_output_weight_sets_v1_flag_routes_projection_to_tok_embeddings_and_has_positive_and_negative_validation_tests
   quantized_decoded_shadow_storage: removed_for_q8_q4_runtime_tensors; quantized_tensor_f32_borrow_rejected_and_copy_to_runtime_owned_reusable_f32_buffers_verified
   reusable_generation_buffers: runtime_allocates_forward_scratch_and_logits_on_model_load_reuses_them_across_generate_and_generate_next_token_and_top_k_diagnostics_scan_without_vocab_sized_candidate_vec
   fixed_buffer_stochastic_sampling: temperature_top_k_top_p_seed_sampling_scans_logits_into_fixed_1024_candidate_buffers_accepts_bpe_top_k_262_and_rejects_oversized_top_k_without_vocab_sized_candidate_vec
@@ -47,7 +47,7 @@ support_boundary:
   greedy_generation: implemented_for_tiny_f32_q8_0_q4_0_fixtures
   tinylm16_f32_generation: passed_node_wasm_and_headless_browser_smoke
   tinylm16_q8_generation: passed_node_wasm_and_headless_browser_smoke
-  browser_model_selector: implemented_for_tinylm16_q8_tinylm16_q4_tinylm16_f32_tiny_f32_q8_0_q4_0_and_tiny_bpe_fixtures
+  browser_model_selector: implemented_for_tinylm16_q8_tinylm16_q4_tinylm16_f32_tiny_f32_q8_0_q4_0_tiny_bpe_and_tiny_tied_output_fixtures
   browser_conversation_transcript: implemented_for_local_user_and_tinyrustlm_turns_with_dom_safe_text_rendering_reset_context_separate_from_clear_transcript_clear_click_removal_and_headless_browser_assertions
   browser_smoke: passed_headless_chrome_tinylm16_q8_default_tinylm16_q4_selected_reload_reset_model_switch_loop_malformed_model_context_overflow_missing_model_desktop_mobile_ui_audit_with_model_provenance_conversation_transcript_clear_button_state_endurance_performance_and_performance_soak
   wasm_abi_smoke: passed_invalid_utf8_null_pointer_invalid_length_zero_generation_length_invalid_sampling_recovery_generate_next_token_free_model_and_post_free_model_not_loaded_against_tinylm16_q8
@@ -57,7 +57,7 @@ support_boundary:
   visual_studio_solution: TinyRustLM.sln_build_test_run_wrapper_model_admission_manifest_validation_all_quantization_converted_source_gate_ui_audit_rust_local_server_reuse_browser_harness_and_busy_port_fallback_verified
   public_rust_doc_gate: workspace_missing_docs_denied_and_runtime_slm_pack_local_server_browser_harness_strict_rustdoc_verified
   static_server: rust_local_server_streams_files_supports_head_requests_and_keeps_node_server_as_fallback_tooling
-  cargo_tests: passed_92_tests
+  cargo_tests: passed_96_tests
   wasm_artifact: tinyrustlm/runtime/tinyrustlm.wasm
   wasm_artifact_sha256: 86D4D6E256A648ED07FE7250FB4F58D6CBF552D364382B951CA77D9325BFE638
   slm_model_artifact: tinyrustlm/models/tiny-test-model.slm
@@ -69,6 +69,10 @@ support_boundary:
   slm_model_bpe_artifact: tinyrustlm/models/tiny-test-model-bpe.slm
   slm_model_bpe_artifact_sha256: 31B27903C1588A1F246281DEF8027094C0D3862635FA7D3761AA1327471F3E82
   slm_model_bpe_manifest_sha256: AE28DDD62E91834A1F7F6D29BE186CB9EA81A92FAEBC0A5AF3E5A4897DC15B52
+  slm_model_tied_artifact: tinyrustlm/models/tiny-test-model-tied.slm
+  slm_model_tied_bytes: 11968
+  slm_model_tied_artifact_sha256: 9D68DC80CD2CCC2366344B92A497629AF1D693350F92B3B0EE383D4B30E08B7C
+  slm_model_tied_manifest_sha256: 469A78D503B010323709EEAF6731DC8AFE05F0DE442BC16BC63F58C636A1490C
   slm_model_tinylm16_f32_artifact: tinyrustlm/models/tinylm16-f32.slm
   slm_model_tinylm16_f32_bytes: 68194944
   slm_model_tinylm16_f32_artifact_sha256: 70E9765080247FE859506534E87330D73FF50B66B8A48DC627C307069BB0DC5B
@@ -79,4 +83,4 @@ support_boundary:
   slm_model_tinylm16_q4_bytes: 10657728
   slm_model_tinylm16_q4_artifact_sha256: 5AC2BD957113732BE9AB2AADFA2D2EFD54C3131E7E6C97BE424FAC6E72BB365B
   local_static_server: http://127.0.0.1:8080/app/
-  public_claim: tiny fixture local generation is verified for f32, q8_0, q4_0, and a custom BPE f32 fixture whose runtime diagnostics prove prompt the merges to tokenizer output 256,261; TinyLM-16M f32, q8_0, and q4_0 deterministic smoke generation are verified; core math now has direct tests for dot, matvec, matmul, RMSNorm, softmax, SiLU, SwiGLU, and shape failures; .slm checksum generation, mismatch rejection, native admission validation, seven provenance manifests, runtime-smoke quality gating, assistant-quality rejection for pending eval templates, raw-f32 trained-source validation, converted-trained source conversion for f32/q8_0/q4_0, and fixture-scoped native eval sidecar generation for f32/q8_0/q4_0 are verified; assistant-quality evidence gates require positive eval case totals, zero failed cases, and exact per-case expected/actual matches while rejecting zero-case files, stray case keys, and missing case evidence; q8_0 and q4_0 matrix dispatch use direct quantized matvec and no longer keep full decoded f32 shadow tensors; model loading pre-resolves top-level and per-layer tensor indices, the token loop no longer formats layer tensor names, and tied-output projection flags route logits through token embeddings; runtime generation reuses model-loaded scratch/logits across prompt generation and step-token calls, top-k diagnostics do not allocate a vocab-sized candidate vector, stochastic sampling uses fixed 1024-candidate buffers, accepts BPE top_k 262, and rejects oversized top-k without a vocab-sized candidate vector; context-boundary generation accepts the last prompt slot and rejects full-context prompts with clean diagnostics, and successful generation extends token state for step-token continuation; the browser UI keeps a local User/TinyRustLM conversation transcript with Clear separate from runtime Reset and smoke-tested desktop/mobile Clear-click behavior; the WASM ABI returns explicit ErrorCode values for generate_next_token, exposes stepped token text through last_result and selected token through diagnostics, verifies free_model, and rejects post-free generation as ModelNotLoaded; the no-crate Rust local server serves app/WASM/model/manifest routes and Visual Studio F5 reuses verified Rust-hosted servers; the no-crate Rust mini browser harness verifies static app contract, Rust WASM export definitions, and loopback route content types; browser reload/reset/model-switch, missing-model, malformed-model, context-overflow, desktop/mobile UI audit with visible local model provenance, endurance, WASM ABI invalid-boundary, benchmark-panel performance smoke and performance soak, and Visual Studio busy-port fallback coverage are verified; do not claim product trained-model quality yet.
+  public_claim: tiny fixture local generation is verified for f32, q8_0, q4_0, a custom BPE f32 fixture whose runtime diagnostics prove prompt the merges to tokenizer output 256,261, and a tied-output f32 fixture that omits output.weight only under the v1 tied-output flag; TinyLM-16M f32, q8_0, and q4_0 deterministic smoke generation are verified; core math now has direct tests for dot, matvec, matmul, RMSNorm, softmax, SiLU, SwiGLU, and shape failures; .slm checksum generation, mismatch rejection, native admission validation, eight provenance manifests, runtime-smoke quality gating, assistant-quality rejection for pending eval templates, raw-f32 trained-source validation, converted-trained source conversion for f32/q8_0/q4_0, and fixture-scoped native eval sidecar generation for f32/q8_0/q4_0 are verified; assistant-quality evidence gates require positive eval case totals, zero failed cases, and exact per-case expected/actual matches while rejecting zero-case files, stray case keys, and missing case evidence; q8_0 and q4_0 matrix dispatch use direct quantized matvec and no longer keep full decoded f32 shadow tensors; model loading pre-resolves top-level and per-layer tensor indices, the token loop no longer formats layer tensor names, and tied-output projection flags route logits through token embeddings; runtime generation reuses model-loaded scratch/logits across prompt generation and step-token calls, top-k diagnostics do not allocate a vocab-sized candidate vector, stochastic sampling uses fixed 1024-candidate buffers, accepts BPE top_k 262, and rejects oversized top-k without a vocab-sized candidate vector; context-boundary generation accepts the last prompt slot and rejects full-context prompts with clean diagnostics, and successful generation extends token state for step-token continuation; the browser UI keeps a local User/TinyRustLM conversation transcript with Clear separate from runtime Reset and smoke-tested desktop/mobile Clear-click behavior; the WASM ABI returns explicit ErrorCode values for generate_next_token, exposes stepped token text through last_result and selected token through diagnostics, verifies free_model, and rejects post-free generation as ModelNotLoaded; the no-crate Rust local server serves app/WASM/model/manifest routes and Visual Studio F5 reuses verified Rust-hosted servers; the no-crate Rust mini browser harness verifies static app contract, Rust WASM export definitions, and loopback route content types; browser reload/reset/model-switch, missing-model, malformed-model, context-overflow, desktop/mobile UI audit with visible local model provenance, endurance, WASM ABI invalid-boundary, benchmark-panel performance smoke and performance soak, and Visual Studio busy-port fallback coverage are verified; do not claim product trained-model quality yet.

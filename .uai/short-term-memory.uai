@@ -1,9 +1,12 @@
 profile: gguf-mirust.short-term-memory.v2
-updated_utc: 2026-06-25T12:22:29Z
+updated_utc: 2026-06-25T12:58:04Z
 current_state:
+  - 2026-06-25 promoted the tied-output path from fallback-only to artifact-backed fixture: tiny-test-model-tied.slm omits output.weight, sets the v1 tied-output flag, validates with 11 tensors and checksum 0x7d62cfbfde480fed, and generates through tok_embeddings projection.
+  - Browser, docs, Visual Studio guidance, and the Rust mini browser harness now include the Tiny Fixture tied-output f32 selector route and deterministic-smoke manifest.
+  - Verification passed for the tied-output fixture slice: cargo fmt --all -- --check, node --check app.js, node --check browser-smoke.js, Rust browser harness 8 checks, tied .slm validation, tied manifest validation, cargo test --workspace with 96 tests, and tools/vs/Test-TinyRustLM.ps1.
   - 2026-06-25 promoted model tensor routing: tinyrustlm/runtime/src/model.rs now resolves top-level and per-layer tensor indices on model load, including tied-output projection fallback to tok_embeddings.
   - tinyrustlm/runtime/src/generate.rs now uses pre-resolved tensor indices in the token loop instead of formatting layer tensor names or looking up tensors by stable name during every forward pass.
-  - Verification passed for the tensor-routing slice: focused model tests 6 passed, focused generate tests 13 passed, cargo fmt --all -- --check passed, cargo test --workspace passed with 92 tests, strict runtime rustdoc passed, and tools/vs/Test-TinyRustLM.ps1 passed after rebuilding WASM.
+  - Verification passed for the tensor-routing slice and is superseded by the 96-test tied-output fixture run: focused model tests 6 passed, focused generate tests 13 passed, fmt passed, workspace tests passed, strict runtime rustdoc passed, and tools/vs/Test-TinyRustLM.ps1 passed.
   - 2026-06-25 promoted Milestone 5 math evidence: tinyrustlm/runtime/src/ops.rs now directly tests dot known output and shape mismatch, matvec known output and mismatch, matmul known output and mismatch, RMSNorm, softmax sum plus empty rejection, SiLU known values, and SwiGLU known output plus mismatch.
   - Verification passed for the core-ops slice and is superseded by the current tensor-routing run: cargo fmt --all, cargo test -p tinyrustlm-runtime ops::tests with 12 ops tests, cargo fmt --all -- --check, and cargo test --workspace with 90 tests total.
   - 2026-06-25 promoted custom BPE from structural support to an end-to-end runtime fixture: tinyrustlm-slm-pack tiny-fixture-bpe writes BPE1 vocab 262, tiny-test-model-bpe.slm validates, and runtime generation for prompt the records tokenizer_output 256,261.
@@ -45,7 +48,7 @@ current_state:
   - 2026-06-25 added tinyrustlm/tools/browser_harness as a no-crate Rust mini browser contract harness for static app crawl, required UI ids, local-only marker scanning, WASM boundary markers, model route declarations, manifest sidecars, trained-quality non-claims, and optional loopback content-type checks.
   - tools/vs/Test-TinyRustLM.ps1 now runs tinyrustlm-browser-harness in the default static test path and again with --http when BrowserSmoke or PerformanceSoak starts or reuses a local TinyRustLM server.
   - Rust browser harness static audit passed with 7 checks; loopback audit passed with 8 checks against the Rust local server on port 18315.
-  - cargo test --workspace now covers 92 tests: 6 browser-harness tests, 5 local-server tests, 58 runtime tests, and 23 slm_pack tests.
+  - cargo test --workspace now covers 96 tests: 6 browser-harness tests, 5 local-server tests, 60 runtime tests, and 25 slm_pack tests.
   - tools/vs/Test-TinyRustLM.ps1 -PerformanceSoak -PerformanceSoakCycles 2 -PerformanceSoakTokens 2 -BrowserSmokePort 18320 -PortSearchLimit 5 passed after the Rust browser harness integration, with only the recurring temporary Chrome profile cleanup warning.
   - 2026-06-25 focused tools/vs/Test-TinyRustLM.ps1 -PerformanceSoak -PerformanceSoakCycles 1 -PerformanceSoakTokens 1 -BrowserSmokePort 18291 -PortSearchLimit 5 completed through the Rust local server path; browser-smoke clamps soak minimums to two cycles and two tokens, and only a temporary Chrome profile cleanup warning remained.
   - 2026-06-25 added tinyrustlm/tools/local_server as a no-crate Rust loopback static server for TinyRustLM app, WASM, .slm, and .slm.manifest hosting.
@@ -111,7 +114,7 @@ current_state:
   - tools/vs/Test-TinyRustLM.ps1 -BrowserSmoke now runs ui-audit after the q8, q4, loop, malformed model, context-overflow, missing-model, endurance, and performance smokes.
   - .slm packer now writes a nonzero simple checksum with the checksum field treated as zero during calculation.
   - .slm runtime parser now rejects zero checksums and mismatched checksums before accepting model files.
-  - Earlier checksum enforcement regenerated the pre-BPE local .slm artifact set; current artifact count is seven including the BPE fixture.
+  - Earlier checksum enforcement regenerated the pre-BPE local .slm artifact set; current artifact count is eight including the BPE fixture and tied-output fixture.
   - Full Visual Studio browser helper passed again after checksum-bearing artifact regeneration with -BrowserSmoke -PerformanceSoak -PerformanceSoakCycles 3 -PerformanceSoakTokens 4.
   - Added tinyrustlm-slm-pack validate <input.slm> as a no-crate native model admission gate for generated or future converted .slm files.
   - Native SLM validation checks header bounds, nonzero checksum match, byte-tokenizer metadata, duplicate tensor hashes, required tensor names and shapes, dtype-specific byte lengths, finite f32 payload values, and quantization scale ranges.
@@ -133,7 +136,7 @@ current_state:
   - cargo fmt --all -- --check passed after all-quantization trained-source gate edits.
   - node --check passed for tinyrustlm/app/app.js, tinyrustlm/tools/browser-smoke.js, and tinyrustlm/tools/wasm-abi-smoke.js after the gate edits.
   - cargo test --workspace passed with 44 tests: 26 runtime tests and 18 slm_pack tests, including trained_source::tests::converts_source_fixture_to_all_supported_slm_quantizations and model::tests::quantized_tensor_f32_borrow_is_rejected.
-  - tools/vs/Test-TinyRustLM.ps1 passed after the BPE fixture promotion; the helper built the workspace, validated all seven local .slm artifacts and manifests, converted f32/q8_0/q4_0 source-fixture outputs, passed runtime-smoke and fixture-scoped assistant-quality gates for each converted output, and ran WASM ABI smoke successfully.
+  - tools/vs/Test-TinyRustLM.ps1 passed after the tied-output fixture promotion; the helper built the workspace, validated all eight local .slm artifacts and manifests, converted f32/q8_0/q4_0 source-fixture outputs, passed runtime-smoke and fixture-scoped assistant-quality gates for each converted output, and ran WASM ABI smoke successfully.
   - 2026-06-25 removed full decoded f32 shadow storage from q8_0 and q4_0 runtime tensors in tinyrustlm/runtime/src/model.rs.
   - q8_0 and q4_0 runtime tensors now keep native compact payloads plus scales; generation dequantizes embeddings and norm vectors into runtime-owned reusable scratch via copy_tensor_row_f32 and copy_tensor_f32.
   - Model::tensor_f32 now returns borrowed slices only for native f32 tensors and returns UnsupportedDType for quantized tensors; the new unit test model::tests::quantized_tensor_f32_borrow_is_rejected protects that contract.

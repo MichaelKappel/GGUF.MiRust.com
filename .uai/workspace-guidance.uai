@@ -1,5 +1,5 @@
 profile: gguf-mirust.workspace-guidance.v2
-updated_utc: 2026-06-25T12:22:29Z
+updated_utc: 2026-06-25T12:58:04Z
 canonical_root: E:\Source\Rust\GGUF.MiRust.com
 startup_rule: Read AGENTS.md, workspace.uai, and local .uai startup files before broad loading.
 memory_strategy:
@@ -20,7 +20,7 @@ file_handoff_rule:
   completion_gate: live bucket scan, disposition ledger, actual work outcome, hot-memory update, durable preservation evidence, checks, blockers, removal or keep-active reason.
   report_processing_gate: For large report batches, preserve raw originals, create distributed durable synthesis, populate typed .uai summaries, update pointer ledger, then clear source copies.
 implementation_rule:
-  status: milestone_27_model_tensor_index_routing_verified
+  status: milestone_28_tied_output_slm_fixture_verified
   active_product: TinyRustLM
   active_root: tinyrustlm/
   dependency_rule: zero third-party Rust crates and zero third-party browser runtime dependencies.
@@ -33,7 +33,8 @@ implementation_rule:
   tinylm16_q8_forward: verified_with_deterministic_real_shaped_smoke_model_and_direct_q8_matvec
   tinylm16_q4_forward: verified_with_deterministic_real_shaped_smoke_model_and_direct_q4_matvec
   quantized_tensor_storage: verified_without_full_decoded_f32_shadow_copies_using_runtime_owned_reusable_scratch_for_row_and_vector_dequantization
-  model_tensor_routing: verified_for_model_load_pre_resolved_tensor_indices_tied_output_projection_fallback_and_generation_without_per_token_layer_name_formatting
+  model_tensor_routing: verified_for_model_load_pre_resolved_tensor_indices_artifact_backed_tied_output_fixture_and_generation_without_per_token_layer_name_formatting
+  tiny_tied_output_fixture: verified_for_missing_output_weight_with_v1_tied_flag_runtime_generation_manifest_validation_and_missing_output_without_flag_rejection
   reusable_generation_buffers: verified_for_model_loaded_scratch_and_logits_reuse_across_generate_and_generate_next_token_plus_top_k_without_vocab_sized_candidate_vec
   fixed_buffer_stochastic_sampling: verified_for_temperature_top_k_top_p_seed_sampling_with_fixed_1024_candidate_buffers_bpe_top_k_262_and_oversized_top_k_rejection_without_vocab_sized_candidate_vec
   context_boundary_state: verified_for_last_prompt_slot_acceptance_full_context_rejection_clean_failed_request_diagnostics_and_step_token_state_continuation
@@ -53,3 +54,4 @@ implementation_rule:
   slm_model_artifact: tinyrustlm/models/tinylm16-q8.slm
   slm_model_q4_artifact: tinyrustlm/models/tinylm16-q4.slm
   slm_model_bpe_artifact: tinyrustlm/models/tiny-test-model-bpe.slm
+  slm_model_tied_artifact: tinyrustlm/models/tiny-test-model-tied.slm
