@@ -48,7 +48,16 @@ cargo run -p tinyrustlm-runtime --bin tinyrustlm-eval -- .\target\trained-source
 cargo run -p tinyrustlm-slm-pack -- quality-gate .\target\trained-source-smoke\tiny-converted-q8.slm .\target\trained-source-smoke\tiny-converted-q8.slm.manifest assistant-quality .\target\trained-source-smoke\tiny-converted-q8.eval
 ```
 
-`convert-trained` reads `source.manifest` plus raw f32 tensor files under `tensors/`, rejects unsafe paths, checksum drift, wrong byte counts, wrong shapes, non-finite values, out-of-range weights, and all-zero tensors, then writes a checksum-bearing `.slm` plus a `converted-trained` manifest. `tinyrustlm-eval` executes exact cases through the Rust runtime and writes a scoped eval sidecar. The checked-in eval cases prove only the tiny converted-source fixture scope; they are not a product assistant-quality claim.
+Generate a tied-output source bundle when the trained source intentionally shares token embeddings with the output projection:
+
+```powershell
+cargo run -p tinyrustlm-slm-pack -- source-template .\target\trained-source-smoke\source-tiny-tied tiny-fixture-tied
+cargo run -p tinyrustlm-slm-pack -- validate-source .\target\trained-source-smoke\source-tiny-tied
+cargo run -p tinyrustlm-slm-pack -- convert-trained .\target\trained-source-smoke\source-tiny-tied .\target\trained-source-smoke\tiny-tied-converted-q8.slm q8_0
+cargo run -p tinyrustlm-slm-pack -- validate .\target\trained-source-smoke\tiny-tied-converted-q8.slm
+```
+
+`convert-trained` reads `source.manifest` plus raw f32 tensor files under `tensors/`, rejects unsafe paths, checksum drift, wrong byte counts, wrong shapes, non-finite values, out-of-range weights, and all-zero tensors, then writes a checksum-bearing `.slm` plus a `converted-trained` manifest. A source manifest can declare `tied_output=true` only with a tied shape such as `tiny-fixture-tied` or `tinylm16-tied`; that layout omits `output.weight` and conversion sets the v1 tied-output flag. `tinyrustlm-eval` executes exact cases through the Rust runtime and writes a scoped eval sidecar. The checked-in eval cases prove only the tiny converted-source fixture scope; they are not a product assistant-quality claim.
 
 Check the explicit quality gate before making a claim about an artifact:
 

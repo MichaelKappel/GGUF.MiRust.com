@@ -1,5 +1,5 @@
 profile: gguf-mirust.workspace-guidance.v2
-updated_utc: 2026-06-25T12:58:04Z
+updated_utc: 2026-06-25T13:16:41Z
 canonical_root: E:\Source\Rust\GGUF.MiRust.com
 startup_rule: Read AGENTS.md, workspace.uai, and local .uai startup files before broad loading.
 memory_strategy:
@@ -20,7 +20,7 @@ file_handoff_rule:
   completion_gate: live bucket scan, disposition ledger, actual work outcome, hot-memory update, durable preservation evidence, checks, blockers, removal or keep-active reason.
   report_processing_gate: For large report batches, preserve raw originals, create distributed durable synthesis, populate typed .uai summaries, update pointer ledger, then clear source copies.
 implementation_rule:
-  status: milestone_28_tied_output_slm_fixture_verified
+  status: milestone_29_tied_output_trained_source_conversion_verified
   active_product: TinyRustLM
   active_root: tinyrustlm/
   dependency_rule: zero third-party Rust crates and zero third-party browser runtime dependencies.
@@ -44,7 +44,7 @@ implementation_rule:
   slm_checksum_gate: verified_for_nonzero_checksum_generation_and_mismatch_rejection
   slm_admission_gate: verified_for_header_checksum_tokenizer_required_shapes_payload_lengths_finite_f32_and_quant_scale_validation
   slm_quality_gate: verified_for_runtime_smoke_admission_pending_assistant_quality_eval_rejection_fixture_scoped_assistant_quality_for_converted_f32_q8_q4_outputs_and_exact_case_ledger_requirements
-  slm_trained_source_conversion: verified_for_raw_f32_source_layout_validation_f32_q8_q4_conversion_converted_trained_manifests_runtime_smoke_and_fixture_scoped_eval_gates
+  slm_trained_source_conversion: verified_for_raw_f32_source_layout_validation_tied_output_source_manifest_shape_agreement_f32_q8_q4_untied_conversion_converted_trained_manifests_runtime_smoke_fixture_scoped_eval_gates_and_f32_q8_q4_tied_conversion_runtime_smoke_gates
   rust_local_server: verified_for_loopback_app_wasm_slm_manifest_routes_get_head_content_length_and_visual_studio_reuse_path
   rust_mini_browser_harness: verified_for_static_app_contract_local_only_markers_required_ui_ids_js_wasm_boundary_calls_rust_wasm_export_definitions_model_manifest_presence_and_loopback_content_types
   performance_smoke: verified_for_q8_q4_four_token_generation_benchmark_fields_47104_scratch_bytes_reset_recovery_and_local_only_requests

@@ -1,5 +1,5 @@
 profile: gguf-mirust.test-plan.v2
-updated_utc: 2026-06-25T12:58:04Z
+updated_utc: 2026-06-25T13:16:41Z
 available_now:
   - node --check tinyrustlm/app/app.js passed after local transcript edits.
   - node --check tinyrustlm/tools/static-server.js passed.
@@ -12,9 +12,14 @@ toolchain_now_available:
   - C:\Users\AI\.cargo\bin\rustc.exe
   - C:\Users\AI\.cargo\bin\rustup.exe
 completed_toolchain_checks:
+  - 2026-06-25 cargo fmt --all -- --check, node --check tinyrustlm/app/app.js, node --check tinyrustlm/tools/browser-smoke.js, node --check tinyrustlm/tools/wasm-abi-smoke.js, and tools/vs/Test-TinyRustLM.ps1 parse check passed after tied-output trained-source conversion work.
+  - 2026-06-25 cargo test -p tinyrustlm-slm-pack trained_source -- --nocapture passed with 8 tests, including tied source manifest validation, tied_output/model_shape disagreement rejection, and f32/q8_0/q4_0 tied conversion manifest validation.
+  - 2026-06-25 cargo test --workspace passed with 99 tests after tied-output trained-source conversion coverage: 6 browser-harness tests, 5 local-server tests, 60 runtime tests, and 28 slm_pack tests.
+  - 2026-06-25 cargo run -p tinyrustlm-browser-harness -- tinyrustlm passed with 8 static app contract checks.
+  - 2026-06-25 tools/vs/Test-TinyRustLM.ps1 passed after tied-output trained-source conversion; it rebuilt WASM, ran 99 Cargo tests, strict rustdoc gates, static browser harness, all eight model/manifest checks, untied converted-source eval gates, tied f32/q8_0/q4_0 runtime-smoke gates, and WASM ABI smoke.
   - cargo fmt --all -- --check, node --check tinyrustlm/app/app.js, and node --check tinyrustlm/tools/browser-smoke.js passed after tied-output docs and route guidance updates.
   - cargo run -p tinyrustlm-browser-harness -- tinyrustlm passed with 8 checks, including the tied-output model route and manifest contract.
-  - cargo test --workspace passed with 96 tests after artifact-backed tied-output fixture coverage: 6 browser-harness tests, 5 local-server tests, 60 runtime tests, and 25 slm_pack tests.
+  - Superseded by the 99-test tied-source conversion run: cargo test --workspace previously passed with 96 tests after artifact-backed tied-output fixture coverage.
   - tools/vs/Test-TinyRustLM.ps1 passed after tied-output fixture promotion; it rebuilt WASM, ran 96 Cargo tests, strict rustdoc gates, static browser harness, all eight model/manifest checks, converted-source gates, fixture-scoped eval gates, and WASM ABI smoke.
   - Superseded by the 96-test tied-output fixture run: cargo test --workspace previously passed with 92 tests total after model tensor routing hardening.
   - tools/vs/Test-TinyRustLM.ps1 passed after tensor index routing hardening; it rebuilt WASM, ran 92 Cargo tests, strict rustdoc gates, Rust browser-harness static contract, all model/manifest checks, converted-source gates, fixture-scoped eval gates, and WASM ABI step/free smoke.
@@ -140,6 +145,8 @@ required_rust_tests:
   - .slm quality gate rejects assistant-quality sidecars without case totals or with mismatched per-case actual text
   - trained-source validator accepts generated raw-f32 source fixture
   - trained-source converter builds f32, q8_0, and q4_0 .slm artifacts with converted-trained manifests
+  - tied trained-source validator accepts generated tiny-fixture-tied source fixture without output.weight
+  - tied trained-source converter builds f32, q8_0, and q4_0 .slm artifacts with the v1 tied-output flag and converted-trained manifests
   - trained-source validator rejects source checksum drift
   - trained-source validator rejects unsafe tensor path traversal
   - trained-source validator rejects non-finite source weights even when source checksum is refreshed

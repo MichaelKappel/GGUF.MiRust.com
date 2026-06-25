@@ -242,6 +242,36 @@ try {
         }
     }
 
+    $tiedSourceFixture = Join-Path $convertedDir "source-tiny-tied"
+    & $Cargo run -p tinyrustlm-slm-pack -- source-template $tiedSourceFixture tiny-fixture-tied
+    if ($LASTEXITCODE -ne 0) {
+        throw "SLM tied trained-source template generation failed with exit code $LASTEXITCODE"
+    }
+    & $Cargo run -p tinyrustlm-slm-pack -- validate-source $tiedSourceFixture
+    if ($LASTEXITCODE -ne 0) {
+        throw "SLM tied trained-source validation failed with exit code $LASTEXITCODE"
+    }
+    foreach ($conversionMode in $conversionModes) {
+        $convertedModel = Join-Path $convertedDir "tiny-tied-converted-$($conversionMode.Suffix).slm"
+        $convertedManifest = "$convertedModel.manifest"
+        & $Cargo run -p tinyrustlm-slm-pack -- convert-trained $tiedSourceFixture $convertedModel $conversionMode.Quantization
+        if ($LASTEXITCODE -ne 0) {
+            throw "SLM tied trained-source $($conversionMode.Quantization) conversion failed with exit code $LASTEXITCODE"
+        }
+        & $Cargo run -p tinyrustlm-slm-pack -- validate $convertedModel
+        if ($LASTEXITCODE -ne 0) {
+            throw "Converted tied $($conversionMode.Quantization) SLM validation failed with exit code $LASTEXITCODE"
+        }
+        & $Cargo run -p tinyrustlm-slm-pack -- validate-manifest $convertedModel $convertedManifest
+        if ($LASTEXITCODE -ne 0) {
+            throw "Converted tied $($conversionMode.Quantization) SLM manifest validation failed with exit code $LASTEXITCODE"
+        }
+        & $Cargo run -p tinyrustlm-slm-pack -- quality-gate $convertedModel $convertedManifest runtime-smoke
+        if ($LASTEXITCODE -ne 0) {
+            throw "Converted tied $($conversionMode.Quantization) SLM runtime-smoke gate failed with exit code $LASTEXITCODE"
+        }
+    }
+
     node "tinyrustlm\tools\wasm-abi-smoke.js"
     if ($LASTEXITCODE -ne 0) {
         throw "WASM ABI smoke failed with exit code $LASTEXITCODE"

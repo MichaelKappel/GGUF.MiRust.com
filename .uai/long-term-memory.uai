@@ -1,5 +1,5 @@
 profile: gguf-mirust.long-term-memory-ledger.v2
-updated_utc: 2026-06-25T12:58:04Z
+updated_utc: 2026-06-25T13:16:41Z
 storage_mode: hybrid
 ledger_rule:
   pointer_only_not_context_free: true
@@ -12,15 +12,15 @@ records:
     path: tinyrustlm/README.md
     target_location: tinyrustlm/README.md
     label: Required For TinyRustLM Build And Run Instructions
-    summary: Routes agents to tensor routing, BPE and tied fixtures, validation, Rust server, provenance, strict rustdoc, fixed-buffer sampling, reusable buffers, ABI, source conversion, smokes, Visual Studio, and limits.
+    summary: Routes agents to tensor routing, BPE and tied fixtures, tied source conversion, validation, Rust server, provenance, rustdoc, sampling, buffers, ABI, smokes, Visual Studio, and limits.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed implementation doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before building, testing, serving, or claiming TinyRustLM runtime support.
-    checksum_hash: sha256:2ED8B8B3D91C44DF1F3382DBA30A8FC764E9E02FD7A5DAF532D3A0C7BD207D51
-    last_reviewed_utc: 2026-06-25T12:58:04Z
+    checksum_hash: sha256:161FC8843A941DD98B11686ED4C725E1C5C7AB3DAAF9E2A3019C4D9DAE079F6E
+    last_reviewed_utc: 2026-06-25T13:16:41Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; durable build detail lives in the target file.
   - stable_id: gguf_mirust_root_readme
@@ -29,15 +29,15 @@ records:
     path: README.md
     target_location: README.md
     label: Required For Workspace Entry Commands
-    summary: Routes agents to setup, commands, tensor-routing boundary, strict rustdoc gates, local server, BPE and tied model generation, Visual Studio, and current product boundary.
+    summary: Routes agents to setup, commands, tensor routing, strict rustdoc gates, local server, BPE and tied generation, tied source conversion, Visual Studio, and current boundary.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed workspace doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before orienting from the repository root or changing top-level commands.
-    checksum_hash: sha256:E571DB56204573A62F070E25F3D1A2D811D4682C0227060040EB80EFE5D70510
-    last_reviewed_utc: 2026-06-25T12:58:04Z
+    checksum_hash: sha256:040E496A2DAF4C8809E1CE058144DC58360CE1273E4857DD62D488E4416E1083
+    last_reviewed_utc: 2026-06-25T13:16:41Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; root command detail lives in the target file.
   - stable_id: tinyrustlm_workspace_cargo
@@ -63,15 +63,15 @@ records:
     path: tinyrustlm/docs/architecture.md
     target_location: tinyrustlm/docs/architecture.md
     label: Required For TinyRustLM Architecture
-    summary: Routes agents to tensor routing, tied-output fixture boundary, 1024-cap sampling, browser harness, transcript, source conversion, exact eval sidecars, quality gates, validation, and expansion.
+    summary: Routes agents to tensor routing, tied-output fixture and source boundaries, 1024-cap sampling, browser harness, transcript, eval sidecars, quality gates, validation, and expansion.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed architecture doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing runtime boundaries, app responsibilities, model loading, or future milestone order.
-    checksum_hash: sha256:E4C005A8D108854138CA12A97040AFBF1312BC63AAAA3470A6FF3F0D05386CAB
-    last_reviewed_utc: 2026-06-25T12:58:04Z
+    checksum_hash: sha256:D0FA1A2715C0235B490982711B6A45BBB64B169C84B6723DDA5B3C99CE4AE40D
+    last_reviewed_utc: 2026-06-25T13:16:41Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; architecture detail lives in the target file.
   - stable_id: tinyrustlm_slm_format
@@ -80,15 +80,15 @@ records:
     path: tinyrustlm/docs/slm-format.md
     target_location: tinyrustlm/docs/slm-format.md
     label: Required For SLM Format Work
-    summary: Routes agents to v1 .slm layout, tied-output flag, BPE tokenizer section, trained-source conversion, native validation, exact eval sidecars, quality gates, failures, and expansion.
+    summary: Routes agents to v1 .slm layout, tied-output flag, BPE tokenizer section, tied trained-source conversion, native validation, eval sidecars, quality gates, failures, and expansion.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed format doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing model_format.rs, slm_pack, fixtures, or model validation.
-    checksum_hash: sha256:40DBC020493D76D13E84F425BFD99596ABC4C22AD9BBD6AAB2315ED33DD808C8
-    last_reviewed_utc: 2026-06-25T12:58:04Z
+    checksum_hash: sha256:E7300477DAB4448B5CB6B1ECA27B522AD8CA19BB6E163C201F5F27CAD37AB711
+    last_reviewed_utc: 2026-06-25T13:16:41Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; format detail lives in the target file.
   - stable_id: tinyrustlm_tokenizer
@@ -216,15 +216,15 @@ records:
     path: tinyrustlm/docs/testing.md
     target_location: tinyrustlm/docs/testing.md
     label: Required For TinyRustLM Test Coverage
-    summary: Routes agents to tensor-routing tests, tied-output artifact tests, core-op tests, BPE proof, strict rustdoc, fixed-buffer sampling, context checks, source conversion, ABI, and smokes.
+    summary: Routes agents to tensor-routing tests, tied artifact and source tests, core ops, BPE proof, rustdoc, fixed-buffer sampling, context checks, conversion, ABI, and smokes.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed testing doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before adding tests, accepting runtime behavior, or claiming milestone completion.
-    checksum_hash: sha256:FCC96BA7C01BF1DEA0267ECF078CBC5C6D41DCBE2E99DC417F3310C0BFA89505
-    last_reviewed_utc: 2026-06-25T12:58:04Z
+    checksum_hash: sha256:DFF8CF4E6E3814583913B5BB325CAE1A5BC6820E85D035A99DC302071158A65C
+    last_reviewed_utc: 2026-06-25T13:16:41Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; testing detail lives in the target file.
   - stable_id: tinyrustlm_ops_source
@@ -267,15 +267,15 @@ records:
     path: tinyrustlm/models/README.md
     target_location: tinyrustlm/models/README.md
     label: Required For TinyRustLM Model Artifact Commands
-    summary: Routes agents to local model artifact commands, BPE and tied fixture commands, source conversion, validation, quality gates, hashes, and current TinyLM-16M smoke artifacts.
+    summary: Routes agents to model commands, BPE and tied fixture commands, tied source conversion, validation, quality gates, hashes, and current TinyLM-16M smoke artifacts.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed model artifact note
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before regenerating, deleting, or claiming model artifacts under tinyrustlm/models/.
-    checksum_hash: sha256:2DE29D733D98883134F0BCEC181BC3E523E272D4481308FC6638BD9DE91E9F9B
-    last_reviewed_utc: 2026-06-25T12:58:04Z
+    checksum_hash: sha256:550496F02C89F5DE2674D2177306E76101F57D176FDE4E29F995BF37658A9187
+    last_reviewed_utc: 2026-06-25T13:16:41Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; model command detail lives in the target file.
   - stable_id: tinyrustlm_model_format_source
@@ -386,15 +386,15 @@ records:
     path: tinyrustlm/tools/slm_pack/src/main.rs
     target_location: tinyrustlm/tools/slm_pack/src/main.rs
     label: Required For SLM Packer And Artifact Generation
-    summary: Routes agents to CLI dispatch for deterministic artifacts, tiny BPE fixture generation, source conversion, validation, manifest commands, eval templates, quality gates, and checksums.
+    summary: Routes agents to CLI dispatch for deterministic artifacts, BPE fixtures, tied source-template modes, source conversion, validation, manifests, eval templates, quality gates, and checksums.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed packer source
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before regenerating artifacts or changing tensor writer/checksum behavior.
-    checksum_hash: sha256:7564FB5768DA32EE1E1B74B8324C87FE15DBC336D8EF968496D401CC92CA7AD5
-    last_reviewed_utc: 2026-06-25T11:46:02Z
+    checksum_hash: sha256:4094C6F9217B1743BFF3B788B94321E5F775D770766C7F35065BAD391EDA03CC
+    last_reviewed_utc: 2026-06-25T13:16:41Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; packer implementation lives in the target file.
   - stable_id: tinyrustlm_tokenizer_writer_source
@@ -471,15 +471,15 @@ records:
     path: tinyrustlm/tools/slm_pack/src/trained_source.rs
     target_location: tinyrustlm/tools/slm_pack/src/trained_source.rs
     label: Required For Trained Source Conversion
-    summary: Routes agents to raw-f32 source manifest validation, safe tensor paths, source checksums, finite bounded weights, conversion commands, and converted-trained manifests.
+    summary: Routes agents to raw-f32 source validation, tied_output agreement, safe tensor paths, checksums, bounded weights, conversion commands, and converted-trained manifests.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed packer source
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing validate-source, source-template, convert-trained, or trained-source quality boundaries.
-    checksum_hash: sha256:55EE622B58C2B2116BED5E451DA81EF66B33B53F75EC2FE17108A26B1BCBF2D4
-    last_reviewed_utc: 2026-06-25T00:00:00Z
+    checksum_hash: sha256:0EC78D46A40C6532FFE47FDCE6EC846F8A9491B2FE542A2E38C5E465859C5FE5
+    last_reviewed_utc: 2026-06-25T13:16:41Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; source conversion implementation lives in the target file.
   - stable_id: tinyrustlm_trained_source_fixture_manifest
@@ -845,15 +845,15 @@ records:
     path: docs/visual-studio.md
     target_location: docs/visual-studio.md
     label: Required For Visual Studio Setup
-    summary: Routes agents to Visual Studio prerequisites, TinyRustLM.sln, Rust server F5 hosting, Rust browser harness, tied fixture checks, source conversion, ABI, soak, and ports.
+    summary: Routes agents to Visual Studio prerequisites, TinyRustLM.sln, Rust server F5 hosting, browser harness, tied fixture and source checks, ABI, soak, and ports.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed Visual Studio setup doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing Visual Studio solution, NMake project, or tools/vs helper scripts.
-    checksum_hash: sha256:6CE66B7C2BCB314D0E217301F28CFCF0F4660F76EA697E2D9DFD735609E81B02
-    last_reviewed_utc: 2026-06-25T12:58:04Z
+    checksum_hash: sha256:6F2F5544C1C4122E8F092B8D9450D8F1CD0799AA7397BC2FAF3465F329548736
+    last_reviewed_utc: 2026-06-25T13:16:41Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; setup detail lives in the target file.
   - stable_id: gguf_mirust_visual_studio_solution
@@ -913,15 +913,15 @@ records:
     path: tools/vs/Test-TinyRustLM.ps1
     target_location: tools/vs/Test-TinyRustLM.ps1
     label: Required For Visual Studio TinyRustLM Test Helper
-    summary: Routes agents to the VS test wrapper for Cargo, strict rustdoc, JS, .slm validation, source conversion, ABI, Rust browser harness, BrowserSmoke, soak, and ports.
+    summary: Routes agents to VS tests for Cargo, rustdoc, JS, .slm validation, tied source conversion, ABI, Rust browser harness, BrowserSmoke, soak, and ports.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed Visual Studio test helper
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing Visual Studio test behavior or IDE validation claims.
-    checksum_hash: sha256:E5A8749C4887367F5BEFE0F77331F1581D49871942412D82E92D628D76B104B6
-    last_reviewed_utc: 2026-06-25T11:46:02Z
+    checksum_hash: sha256:5693E21A6B200F4C33618406FCCF48701AF0E558A4CF07167A37961DA5E351B4
+    last_reviewed_utc: 2026-06-25T13:16:41Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; executable test behavior lives in the target file.
   - stable_id: gguf_mirust_aiwikis_namespace

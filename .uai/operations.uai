@@ -1,5 +1,5 @@
 profile: gguf-mirust.operations.v2
-updated_utc: 2026-06-25T12:58:04Z
+updated_utc: 2026-06-25T13:16:41Z
 local_development:
   active_product: TinyRustLM
   app_url: http://127.0.0.1:8080/app/
@@ -16,6 +16,7 @@ toolchain:
   rustup: C:\Users\AI\.cargo\bin\rustup.exe
   node: required_for_javascript_execution_smoke_tools_only
 current_verified_checks:
+  - 2026-06-25 milestone_29_tied_output_trained_source_conversion_verified: source-template supports tiny-fixture-tied and tinylm16-tied, validate-source accepts tied_output=true only with tied shape names, tied sources omit output.weight, and convert-trained emits f32/q8_0/q4_0 .slm artifacts with the v1 tied-output flag.
   - 2026-06-25 milestone_28_tied_output_slm_fixture_verified: tiny-test-model-tied.slm omits output.weight under the v1 tied-output flag, validates with its manifest, loads/generates through tok_embeddings projection, and browser/static contracts expose the fixture.
   - Runtime model loading now pre-resolves top-level and per-layer tensor indices, generation uses those indices without per-token layer-name formatting, and the tied-output projection flag routes logits through tok_embeddings when output.weight is absent.
   - Core math ops now have direct unit coverage for dot known output and mismatch rejection, matvec known output and mismatch rejection, matmul known output and mismatch rejection, RMSNorm, softmax sum and empty rejection, SiLU known values, and SwiGLU known output plus mismatch rejection.
@@ -27,14 +28,15 @@ current_verified_checks:
   - WASM generate_next_token now returns explicit ErrorCode values, writes stepped token text to last_result, exposes selected token id through diagnostics, and free_model clears loaded-model state before post-free generation returns ModelNotLoaded.
   - Local conversation transcript is implemented in the static browser app; Generate appends User/TinyRustLM entries with DOM-safe text, Reset preserves history while clearing runtime context/output, and Clear empties history.
   - Cargo workspace now denies missing public Rust docs, and strict rustdoc gates passed for tinyrustlm-runtime plus the slm_pack, local_server, and browser_harness binaries.
-  - cargo test --workspace passed with 96 tests, including 60 runtime tests, 25 slm_pack tests, 6 Rust browser-harness tests, and 5 Rust local-server tests; runtime coverage includes direct core math ops, pre-resolved tensor indices, artifact-backed tied-output projection, tensor view contracts, tiny BPE runtime generation, BPE stochastic top_k 262, reusable generation buffer pointer stability, allocation-free top-k diagnostic selection, fixed-buffer stochastic sampling, context-boundary state cleanup, generate_next_token context continuation, free_model post-free rejection, checksum mismatch rejection, native .slm admission validation, provenance manifest validation, assistant-quality case-ledger validation, all-quantization trained-source validation/conversion tests, quantized tensor f32-borrow rejection, and diagnostics JSON escaping.
+  - cargo test --workspace passed with 99 tests, including 60 runtime tests, 28 slm_pack tests, 6 Rust browser-harness tests, and 5 Rust local-server tests; runtime coverage includes direct core math ops, pre-resolved tensor indices, artifact-backed tied-output projection, tensor view contracts, tiny BPE runtime generation, BPE stochastic top_k 262, reusable generation buffer pointer stability, allocation-free top-k diagnostic selection, fixed-buffer stochastic sampling, context-boundary state cleanup, generate_next_token context continuation, free_model post-free rejection, checksum mismatch rejection, native .slm admission validation, provenance manifest validation, assistant-quality case-ledger validation, all-quantization untied and tied trained-source validation/conversion tests, tied_output/model_shape disagreement rejection, quantized tensor f32-borrow rejection, and diagnostics JSON escaping.
   - Rust mini browser harness static contract audit passed with 8 checks; loopback HTTP audit previously passed with 8 checks against the Rust local server.
   - Rust local server direct HTTP smoke passed for /app/, /runtime/tinyrustlm.wasm, /models/tinylm16-q8.slm, and /models/tinylm16-q8.slm.manifest with the trained-quality non-claim visible.
   - Quantized q8_0/q4_0 runtime tensors no longer keep full decoded f32 shadow copies; runtime generation uses reusable scratch through copy_tensor_f32 or copy_tensor_row_f32 for dequantization when needed.
   - CLI quality-gate passed runtime-smoke for the current tinylm16-q8 deterministic-smoke manifest.
   - CLI eval-template generated a pending assistant-quality sidecar for a converted-trained tiny fixture manifest, and quality-gate rejected it until reviewed task-eval, safety-review, quality-boundary, and exact case-ledger evidence is supplied.
   - CLI source-template generated tinyrustlm/tests/fixtures/trained-source-tiny, validate-source accepted it, convert-trained emitted target/trained-source-smoke/tiny-converted-f32.slm, tiny-converted-q8.slm, and tiny-converted-q4.slm plus converted-trained manifests, and quality-gate accepted runtime-smoke plus fixture-scoped assistant-quality for each converted artifact.
-  - Default Visual Studio test helper validates strict rustdoc public-doc gates, the static app contract through the Rust browser harness, all eight local .slm artifacts, their .slm.manifest sidecars, the tiny trained-source fixture, converted-trained f32/q8_0/q4_0 outputs, converted manifests, runtime-smoke gates, fixture-scoped assistant-quality eval gates, and WASM ABI step/free smoke.
+  - CLI source-template generated target/trained-source-smoke/source-tiny-tied, validate-source accepted tied_output=true with tensor_count 11 and no output.weight, convert-trained emitted tied f32/q8_0/q4_0 .slm artifacts with manifests, and quality-gate accepted runtime-smoke for each tied converted artifact.
+  - Default Visual Studio test helper validates strict rustdoc public-doc gates, the static app contract through the Rust browser harness, all eight local .slm artifacts, their .slm.manifest sidecars, the tiny untied trained-source fixture, converted-trained f32/q8_0/q4_0 outputs, converted manifests, runtime-smoke gates, fixture-scoped assistant-quality eval gates, the tied trained-source fixture, tied converted f32/q8_0/q4_0 runtime-smoke gates, and WASM ABI step/free smoke.
   - Build helper regenerates deterministic-smoke .slm.manifest sidecars whenever local models are regenerated or sidecars are missing.
   - node --check passed for app.js, static-server.js, and browser-smoke.js.
   - BrowserSmoke verifies q8 default, q4 selected, transcript entries and Clear-button state, reload/reset/model switch loop, malformed model, missing model, context overflow, desktop/mobile UI audit with Model Provenance sidecar fields, endurance, 47,104-byte scratch-backed q8/q4 generation, and local-only requests.
@@ -62,7 +64,7 @@ security_boundary:
   wasm_step_token_abi: generate_next_token_returns_error_code_last_result_carries_decoded_token_text_diagnostics_carry_selected_token_id_and_free_model_must_make_post_free_generation_fail_model_not_loaded
   generation_allocation_boundary: scratch_logits_and_tensor_indices_are_model_loaded_runtime_state_reused_across_generate_and_generate_next_token_top_k_diagnostics_and_stochastic_sampling_do_not_allocate_vocab_sized_candidate_vectors
   generation_state_boundary: failed_generate_requests_clear_prompt_cache_diagnostics_and_successful_generate_extends_tokens_for_step_token_continuation
-  source_weights: raw_f32_source_manifest_layout_required_before_convert_trained_safe_relative_paths_exact_shapes_checksums_finite_bounded_nonzero_weights
+  source_weights: raw_f32_source_manifest_layout_required_before_convert_trained_safe_relative_paths_exact_shapes_checksums_finite_bounded_nonzero_weights_and_tied_output_model_shape_agreement
   quality_gates: runtime-smoke allowed for execution evidence; assistant-quality requires converted-trained provenance plus a matching passed eval sidecar with positive case count, zero failures, and exact per-case expected/actual matches.
   network: no_remote_inference_no_cdn_no_telemetry
   report_guidance: design_pressure_only_until_converted_to_source_change_or_testable_invariant
@@ -81,6 +83,7 @@ operations_notes:
   - Use tinyrustlm-slm-pack validate on every generated or converted .slm file before serving it through the browser app.
   - Use tinyrustlm-slm-pack validate-manifest on every generated or converted .slm sidecar before treating an artifact as admitted.
   - Use tinyrustlm-slm-pack validate-source before convert-trained; do not treat unchecked source weights as eligible for converted-trained provenance.
+  - Use tied source-template and runtime-smoke conversion gates after changing output-head layout behavior; tied conversion omits output.weight and does not imply assistant-quality evidence.
   - Use tinyrustlm-slm-pack quality-gate runtime-smoke for execution-only claims and quality-gate assistant-quality with a passed eval sidecar before any trained assistant-quality claim.
   - After quality-gate or eval-runner changes, run focused provenance/eval tests, cargo test --workspace, and tools/vs/Test-TinyRustLM.ps1 so converted f32/q8_0/q4_0 eval sidecars are regenerated and revalidated.
   - Do not revive legacy Axum or GGUF scaffold commands from older memory.

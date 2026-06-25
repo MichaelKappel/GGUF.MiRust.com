@@ -8,26 +8,30 @@ use std::path::{Component, Path, PathBuf};
 use crate::provenance;
 use crate::slm_validate;
 use crate::tensor_writer::{
-    tensors_for_shape, ModelShape, TensorSpec, DTYPE_F32, DTYPE_Q4_0, DTYPE_Q8_0,
+    tensors_for_shape, tensors_for_shape_with_tied_output, ModelShape, TensorSpec, DTYPE_F32,
+    DTYPE_Q4_0, DTYPE_Q8_0,
 };
 use crate::tokenizer_writer::ByteTokenizerSection;
-use crate::{build_model_file_from_values, fixture_value};
+use crate::{build_model_file_from_values_with_flags, fixture_value};
 
 const SOURCE_MANIFEST_NAME: &str = "source.manifest";
 const SOURCE_VERSION: &str = "1";
 const SOURCE_LAYOUT: &str = "raw-f32-tensor-files-v1";
 const MAX_ABS_SOURCE_WEIGHT: f32 = 64.0;
+const FLAG_TIED_OUTPUT: u32 = 1;
 
 struct SourceBundle {
     shape: ModelShape,
+    tied_output: bool,
     tensors: Vec<TensorSpec>,
     values: Vec<Vec<f32>>,
 }
 
 /// Writes a reviewable raw-f32 trained-source fixture directory.
 pub fn write_source_template_path(output_dir: &Path, shape_name: &str) -> io::Result<()> {
-    let shape = shape_for_name(shape_name)?;
-    let tensors = tensors_for_shape(&shape, DTYPE_F32);
+    let (shape, tied_output) = shape_for_name(shape_name)?;
+    let tensors = tensors_for_shape_and_output(&shape, DTYPE_F32, tied_output);
+    let tensor_names = tensor_names_for_shape(&shape, tied_output);
     let tensor_dir = output_dir.join("tensors");
     fs::create_dir_all(&tensor_dir)?;
 
@@ -40,6 +44,11 @@ pub fn write_source_template_path(output_dir: &Path, shape_name: &str) -> io::Re
     push_line(&mut manifest, "model_family", "tinyrustlm");
     push_line(&mut manifest, "layout", SOURCE_LAYOUT);
     push_line(&mut manifest, "model_shape", shape_name);
+    push_line(
+        &mut manifest,
+        "tied_output",
+        if tied_output { "true" } else { "false" },
+    );
     push_line(&mut manifest, "tokenizer", "byte-v1");
     push_line(&mut manifest, "source_dtype", "f32");
     push_line(&mut manifest, "source_kind", "trained-source-fixture");
@@ -63,7 +72,7 @@ pub fn write_source_template_path(output_dir: &Path, shape_name: &str) -> io::Re
     push_line(&mut manifest, "tensor_count", &tensors.len().to_string());
 
     for (index, tensor) in tensors.iter().enumerate() {
-        let tensor_name = tensor_name_for_spec(&shape, index)?;
+        let tensor_name = &tensor_names[index];
         let relative_file = format!("tensors/{}", tensor_file_name(&tensor_name));
         let file_path = output_dir.join(&relative_file);
         let bytes = source_tensor_bytes(tensor)?;
@@ -113,6 +122,7 @@ pub fn validate_source_path(source_dir: &Path) -> io::Result<()> {
     );
     println!("tensor_count: {}", bundle.tensors.len());
     println!("source_dtype: f32");
+    println!("tied_output: {}", bundle.tied_output);
     Ok(())
 }
 
@@ -124,10 +134,20 @@ pub fn convert_trained_path(
 ) -> io::Result<()> {
     let bundle = read_source_bundle(source_dir)?;
     let dtype = dtype_for_output(output_quantization)?;
-    let output_tensors = tensors_for_shape(&bundle.shape, dtype);
+    let output_tensors = tensors_for_shape_and_output(&bundle.shape, dtype, bundle.tied_output);
     let tokenizer = ByteTokenizerSection::phase_one();
-    let bytes =
-        build_model_file_from_values(&bundle.shape, &output_tensors, &tokenizer, &bundle.values)?;
+    let flags = if bundle.tied_output {
+        FLAG_TIED_OUTPUT
+    } else {
+        0
+    };
+    let bytes = build_model_file_from_values_with_flags(
+        &bundle.shape,
+        &output_tensors,
+        &tokenizer,
+        &bundle.values,
+        flags,
+    )?;
 
     if let Some(parent) = output_slm.parent() {
         fs::create_dir_all(parent)?;
@@ -152,14 +172,17 @@ fn read_source_bundle(source_dir: &Path) -> io::Result<SourceBundle> {
     let fields = parse_key_value_manifest(&manifest)?;
     validate_source_header(&fields)?;
     let shape = shape_from_fields(&fields)?;
-    let expected_tensors = tensors_for_shape(&shape, DTYPE_F32);
+    let tied_output = tied_output_from_fields(&fields)?;
+    validate_shape_name_and_tied_output(&fields, &shape, tied_output)?;
+    let expected_tensors = tensors_for_shape_and_output(&shape, DTYPE_F32, tied_output);
+    let expected_names = tensor_names_for_shape(&shape, tied_output);
     require_equal(&fields, "tensor_count", &expected_tensors.len().to_string())?;
 
     let mut values = Vec::with_capacity(expected_tensors.len());
     for (index, expected) in expected_tensors.iter().enumerate() {
-        let name = tensor_name_for_spec(&shape, index)?;
+        let name = &expected_names[index];
         let prefix = format!("tensor.{index}");
-        require_equal(&fields, &format!("{prefix}.name"), &name)?;
+        require_equal(&fields, &format!("{prefix}.name"), name)?;
         require_equal(
             &fields,
             &format!("{prefix}.rank"),
@@ -184,6 +207,7 @@ fn read_source_bundle(source_dir: &Path) -> io::Result<SourceBundle> {
 
     Ok(SourceBundle {
         shape,
+        tied_output,
         tensors: expected_tensors,
         values,
     })
@@ -210,12 +234,14 @@ fn validate_source_header(fields: &HashMap<String, String>) -> io::Result<()> {
     Ok(())
 }
 
-fn shape_for_name(shape_name: &str) -> io::Result<ModelShape> {
+fn shape_for_name(shape_name: &str) -> io::Result<(ModelShape, bool)> {
     match shape_name {
-        "tiny-fixture" => Ok(ModelShape::tiny_fixture()),
-        "tinylm16" => Ok(ModelShape::tinylm16()),
+        "tiny-fixture" => Ok((ModelShape::tiny_fixture(), false)),
+        "tiny-fixture-tied" => Ok((ModelShape::tiny_fixture(), true)),
+        "tinylm16" => Ok((ModelShape::tinylm16(), false)),
+        "tinylm16-tied" => Ok((ModelShape::tinylm16(), true)),
         _ => Err(invalid(
-            "source-template shape must be tiny-fixture or tinylm16",
+            "source-template shape must be tiny-fixture, tiny-fixture-tied, tinylm16, or tinylm16-tied",
         )),
     }
 }
@@ -254,15 +280,64 @@ fn shape_from_fields(fields: &HashMap<String, String>) -> io::Result<ModelShape>
         return Err(invalid("source kv_head_count must divide head_count"));
     }
     let shape_name = require_key(fields, "model_shape")?;
-    if shape_name == "tiny-fixture" && !shape_matches(&shape, &ModelShape::tiny_fixture()) {
+    if matches!(shape_name, "tiny-fixture" | "tiny-fixture-tied")
+        && !shape_matches(&shape, &ModelShape::tiny_fixture())
+    {
         return Err(invalid(
             "model_shape=tiny-fixture does not match dimensions",
         ));
     }
-    if shape_name == "tinylm16" && !shape_matches(&shape, &ModelShape::tinylm16()) {
+    if matches!(shape_name, "tinylm16" | "tinylm16-tied")
+        && !shape_matches(&shape, &ModelShape::tinylm16())
+    {
         return Err(invalid("model_shape=tinylm16 does not match dimensions"));
     }
+    if !matches!(
+        shape_name,
+        "tiny-fixture" | "tiny-fixture-tied" | "tinylm16" | "tinylm16-tied"
+    ) {
+        return Err(invalid(
+            "model_shape must be tiny-fixture, tiny-fixture-tied, tinylm16, or tinylm16-tied",
+        ));
+    }
     Ok(shape)
+}
+
+fn tied_output_from_fields(fields: &HashMap<String, String>) -> io::Result<bool> {
+    match fields.get("tied_output").map(String::as_str) {
+        Some("true") => Ok(true),
+        Some("false") | None => Ok(false),
+        Some(_) => Err(invalid(
+            "source manifest key tied_output must be true or false",
+        )),
+    }
+}
+
+fn validate_shape_name_and_tied_output(
+    fields: &HashMap<String, String>,
+    _shape: &ModelShape,
+    tied_output: bool,
+) -> io::Result<()> {
+    let shape_name = require_key(fields, "model_shape")?;
+    let shape_name_is_tied = matches!(shape_name, "tiny-fixture-tied" | "tinylm16-tied");
+    if shape_name_is_tied != tied_output {
+        return Err(invalid(
+            "source manifest model_shape and tied_output must agree",
+        ));
+    }
+    Ok(())
+}
+
+fn tensors_for_shape_and_output(
+    shape: &ModelShape,
+    dtype: u32,
+    tied_output: bool,
+) -> Vec<TensorSpec> {
+    if tied_output {
+        tensors_for_shape_with_tied_output(shape, dtype)
+    } else {
+        tensors_for_shape(shape, dtype)
+    }
 }
 
 fn read_raw_f32_values(bytes: &[u8], tensor: &TensorSpec) -> io::Result<Vec<f32>> {
@@ -330,38 +405,32 @@ fn dtype_for_output(output_quantization: &str) -> io::Result<u32> {
     }
 }
 
-fn tensor_name_for_spec(shape: &ModelShape, index: usize) -> io::Result<String> {
-    if index == 0 {
-        return Ok("tok_embeddings.weight".to_string());
-    }
-    if index == 1 {
-        return Ok("norm.weight".to_string());
-    }
-    if index == 2 {
-        return Ok("output.weight".to_string());
+fn tensor_names_for_shape(shape: &ModelShape, tied_output: bool) -> Vec<String> {
+    let mut names = vec![
+        "tok_embeddings.weight".to_string(),
+        "norm.weight".to_string(),
+    ];
+    if !tied_output {
+        names.push("output.weight".to_string());
     }
     let per_layer = 9usize;
-    let layer_index = index
-        .checked_sub(3)
-        .ok_or_else(|| invalid("tensor index underflow"))?;
-    let layer = layer_index / per_layer;
-    let within = layer_index % per_layer;
-    if layer >= shape.layer_count as usize {
-        return Err(invalid("tensor index exceeds model shape"));
+    names.reserve(shape.layer_count as usize * per_layer);
+    for layer in 0..shape.layer_count {
+        for suffix in [
+            "attention_norm.weight",
+            "ffn_norm.weight",
+            "wq.weight",
+            "wk.weight",
+            "wv.weight",
+            "wo.weight",
+            "w1.weight",
+            "w2.weight",
+            "w3.weight",
+        ] {
+            names.push(format!("layers.{layer}.{suffix}"));
+        }
     }
-    let suffix = match within {
-        0 => Ok("attention_norm.weight"),
-        1 => Ok("ffn_norm.weight"),
-        2 => Ok("wq.weight"),
-        3 => Ok("wk.weight"),
-        4 => Ok("wv.weight"),
-        5 => Ok("wo.weight"),
-        6 => Ok("w1.weight"),
-        7 => Ok("w2.weight"),
-        8 => Ok("w3.weight"),
-        _ => Err(invalid("invalid tensor index")),
-    }?;
-    Ok(format!("layers.{layer}.{suffix}"))
+    names
 }
 
 fn tensor_file_name(name: &str) -> String {
@@ -506,6 +575,7 @@ fn invalid(message: &str) -> io::Error {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tensor_writer::name_hash;
 
     #[test]
     fn validates_generated_source_fixture() {
@@ -525,6 +595,60 @@ mod tests {
             let output = dir.join(format!("converted-{quantization}.slm"));
             convert_trained_path(&dir, &output, quantization).unwrap();
             slm_validate::validate_path(&output).unwrap();
+            provenance::validate_manifest_path(&output, &sidecar_manifest_path(&output)).unwrap();
+        }
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn validates_generated_tied_source_fixture_without_output_tensor() {
+        let dir = temp_path("source-tied-fixture");
+        write_source_template_path(&dir, "tiny-fixture-tied").unwrap();
+
+        let manifest = fs::read_to_string(dir.join(SOURCE_MANIFEST_NAME)).unwrap();
+        assert!(manifest.contains("model_shape=tiny-fixture-tied"));
+        assert!(manifest.contains("tied_output=true"));
+        assert!(manifest.contains("tensor_count=11"));
+        assert!(!manifest.contains("output.weight"));
+        assert!(!dir.join("tensors").join("output_weight.f32").exists());
+        validate_source_path(&dir).unwrap();
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn rejects_tied_output_manifest_shape_disagreement() {
+        let dir = temp_path("source-tied-disagreement");
+        write_source_template_path(&dir, "tiny-fixture").unwrap();
+        let manifest_path = dir.join(SOURCE_MANIFEST_NAME);
+        let manifest = fs::read_to_string(&manifest_path)
+            .unwrap()
+            .replace("tied_output=false", "tied_output=true");
+        fs::write(&manifest_path, manifest).unwrap();
+
+        let error = validate_source_path(&dir).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("model_shape and tied_output"));
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn converts_tied_source_fixture_to_all_supported_slm_quantizations() {
+        let dir = temp_path("source-tied-convert");
+        write_source_template_path(&dir, "tiny-fixture-tied").unwrap();
+
+        for quantization in ["f32", "q8_0", "q4_0"] {
+            let output = dir.join(format!("tied-converted-{quantization}.slm"));
+            convert_trained_path(&dir, &output, quantization).unwrap();
+            let bytes = fs::read(&output).unwrap();
+            let report =
+                slm_validate::validate_bytes(&bytes, &output.display().to_string()).unwrap();
+            assert_eq!(read_u32_le(&bytes, 16) & FLAG_TIED_OUTPUT, FLAG_TIED_OUTPUT);
+            assert_eq!(report.tensor_count(), 11);
+            assert!(!contains_tensor_hash(&bytes, name_hash("output.weight")));
+            assert!(contains_tensor_hash(
+                &bytes,
+                name_hash("tok_embeddings.weight")
+            ));
             provenance::validate_manifest_path(&output, &sidecar_manifest_path(&output)).unwrap();
         }
         cleanup(&dir);
@@ -591,6 +715,34 @@ mod tests {
             }
         }
         fs::write(manifest_path, updated).unwrap();
+    }
+
+    fn read_u32_le(bytes: &[u8], offset: usize) -> u32 {
+        u32::from_le_bytes([
+            bytes[offset],
+            bytes[offset + 1],
+            bytes[offset + 2],
+            bytes[offset + 3],
+        ])
+    }
+
+    fn read_u64_le(bytes: &[u8], offset: usize) -> u64 {
+        u64::from_le_bytes([
+            bytes[offset],
+            bytes[offset + 1],
+            bytes[offset + 2],
+            bytes[offset + 3],
+            bytes[offset + 4],
+            bytes[offset + 5],
+            bytes[offset + 6],
+            bytes[offset + 7],
+        ])
+    }
+
+    fn contains_tensor_hash(bytes: &[u8], hash: u64) -> bool {
+        let directory = read_u64_le(bytes, 80) as usize;
+        let count = read_u32_le(bytes, 88) as usize;
+        (0..count).any(|index| read_u64_le(bytes, directory + index * 64) == hash)
     }
 
     fn temp_path(name: &str) -> PathBuf {

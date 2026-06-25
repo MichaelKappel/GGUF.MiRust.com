@@ -1,5 +1,5 @@
 profile: gguf-mirust.coding-standards.v2
-updated_utc: 2026-06-25T12:22:29Z
+updated_utc: 2026-06-25T13:16:41Z
 rust:
   edition: 2021
   dependency_policy: No third-party Rust crates in TinyRustLM runtime or packer.
@@ -30,7 +30,7 @@ report_derived_rust_rules:
   - Treat unsafe as a named boundary with validation and tests, not a convenience.
   - Do not translate SOLID into object-oriented scaffolding; use ownership, cohesive modules, and explicit interfaces.
   - Keep deterministic smoke models clearly separated from trained-quality model claims.
-  - Keep trained-source conversion explicit: raw f32 source manifests, safe relative tensor paths, checksums, finite bounded weights, and converted-trained provenance before any runtime or quality claim.
+  - Keep trained-source conversion explicit: raw f32 source manifests, tied_output/model_shape agreement, safe relative tensor paths, checksums, finite bounded weights, and converted-trained provenance before any runtime or quality claim.
   - Keep assistant-quality evidence exact: eval cases need positive declared counts, nonempty exact prompts/expected text, no stray case keys, and quality sidecars need matching per-case actual text.
   - Add abstractions only when they reduce real runtime complexity or protect a verified boundary.
 report_derived_testing_rules:

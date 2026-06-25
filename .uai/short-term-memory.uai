@@ -1,9 +1,12 @@
 profile: gguf-mirust.short-term-memory.v2
-updated_utc: 2026-06-25T12:58:04Z
+updated_utc: 2026-06-25T13:16:41Z
 current_state:
+  - 2026-06-25 promoted tied-output trained-source conversion: source-template supports tiny-fixture-tied and tinylm16-tied, source.manifest declares tied_output=true, validation requires tied model_shape agreement, and tied bundles omit output.weight.
+  - convert-trained now emits tied f32, q8_0, and q4_0 .slm artifacts with the v1 tied-output flag, converted-trained manifests, and runtime-smoke quality gates while keeping assistant-quality evidence reserved for reviewed eval sidecars.
+  - Verification passed for the tied-source conversion slice: cargo fmt --all -- --check, node --check app.js/browser-smoke.js/wasm-abi-smoke.js, Test-TinyRustLM.ps1 parse check, focused trained_source tests 8 passed, cargo test --workspace with 99 tests, Rust browser harness 8 checks, and tools/vs/Test-TinyRustLM.ps1.
   - 2026-06-25 promoted the tied-output path from fallback-only to artifact-backed fixture: tiny-test-model-tied.slm omits output.weight, sets the v1 tied-output flag, validates with 11 tensors and checksum 0x7d62cfbfde480fed, and generates through tok_embeddings projection.
   - Browser, docs, Visual Studio guidance, and the Rust mini browser harness now include the Tiny Fixture tied-output f32 selector route and deterministic-smoke manifest.
-  - Verification passed for the tied-output fixture slice: cargo fmt --all -- --check, node --check app.js, node --check browser-smoke.js, Rust browser harness 8 checks, tied .slm validation, tied manifest validation, cargo test --workspace with 96 tests, and tools/vs/Test-TinyRustLM.ps1.
+  - Verification passed for the tied-output fixture slice and is superseded by the 99-test tied-source conversion run: cargo fmt --all -- --check, node checks, Rust browser harness, .slm validation, workspace tests, and tools/vs/Test-TinyRustLM.ps1.
   - 2026-06-25 promoted model tensor routing: tinyrustlm/runtime/src/model.rs now resolves top-level and per-layer tensor indices on model load, including tied-output projection fallback to tok_embeddings.
   - tinyrustlm/runtime/src/generate.rs now uses pre-resolved tensor indices in the token loop instead of formatting layer tensor names or looking up tensors by stable name during every forward pass.
   - Verification passed for the tensor-routing slice and is superseded by the 96-test tied-output fixture run: focused model tests 6 passed, focused generate tests 13 passed, fmt passed, workspace tests passed, strict runtime rustdoc passed, and tools/vs/Test-TinyRustLM.ps1 passed.
@@ -48,7 +51,7 @@ current_state:
   - 2026-06-25 added tinyrustlm/tools/browser_harness as a no-crate Rust mini browser contract harness for static app crawl, required UI ids, local-only marker scanning, WASM boundary markers, model route declarations, manifest sidecars, trained-quality non-claims, and optional loopback content-type checks.
   - tools/vs/Test-TinyRustLM.ps1 now runs tinyrustlm-browser-harness in the default static test path and again with --http when BrowserSmoke or PerformanceSoak starts or reuses a local TinyRustLM server.
   - Rust browser harness static audit passed with 7 checks; loopback audit passed with 8 checks against the Rust local server on port 18315.
-  - cargo test --workspace now covers 96 tests: 6 browser-harness tests, 5 local-server tests, 60 runtime tests, and 25 slm_pack tests.
+  - cargo test --workspace now covers 99 tests: 6 browser-harness tests, 5 local-server tests, 60 runtime tests, and 28 slm_pack tests.
   - tools/vs/Test-TinyRustLM.ps1 -PerformanceSoak -PerformanceSoakCycles 2 -PerformanceSoakTokens 2 -BrowserSmokePort 18320 -PortSearchLimit 5 passed after the Rust browser harness integration, with only the recurring temporary Chrome profile cleanup warning.
   - 2026-06-25 focused tools/vs/Test-TinyRustLM.ps1 -PerformanceSoak -PerformanceSoakCycles 1 -PerformanceSoakTokens 1 -BrowserSmokePort 18291 -PortSearchLimit 5 completed through the Rust local server path; browser-smoke clamps soak minimums to two cycles and two tokens, and only a temporary Chrome profile cleanup warning remained.
   - 2026-06-25 added tinyrustlm/tools/local_server as a no-crate Rust loopback static server for TinyRustLM app, WASM, .slm, and .slm.manifest hosting.
@@ -201,6 +204,6 @@ active_next_steps:
   - Preserve transcript semantics during browser UI work: local transcript state is DOM-safe text, Reset does not clear history, and Clear clears only history.
   - Preserve Visual Studio F5/server busy-port behavior during future helper edits.
   - Measure the new scratch-backed q8_0/q4_0 row/vector dequantization path across longer prompts and broader browser performance soaks.
-  - Move next from all-quantization trained-source conversion plumbing, fixture-scoped eval execution, and Rust browser harness contract coverage into real trained weights and broader assistant-quality evidence review.
+  - Move next from all-quantization untied and tied trained-source conversion plumbing, fixture-scoped eval execution, and Rust browser harness contract coverage into real trained weights and broader assistant-quality evidence review.
   - 2026-06-25 widened fixed-buffer stochastic sampling from byte-vocab 260 to a 1024-candidate cap, preserving no vocab-sized per-token candidate allocation while allowing the BPE fixture to use top_k 262.
   - Verification passed after BPE stochastic cap widening and is superseded by later core-ops and tensor-routing runs: focused sampler and runtime BPE top_k tests, node --check app.js, cargo fmt --all -- --check, Rust browser harness, cargo test --workspace, and tools/vs/Test-TinyRustLM.ps1.

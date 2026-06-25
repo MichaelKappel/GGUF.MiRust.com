@@ -27,7 +27,7 @@ Implemented source slice:
 - Browser model provenance panel that fetches the selected local `.slm.manifest` after Rust accepts the model and renders source kind, admission status, quality claim, trained-quality claim, checksum, and required next gate.
 - Browser decoding controls for temperature, top-k, top-p, and deterministic seed, defaulting to greedy decoding for repeatable smoke tests.
 - Packer-side `eval-template` and `quality-gate` commands that separate runtime smoke admission from future assistant-quality admission.
-- Packer-side raw-f32 trained-source layout validation and `convert-trained` command for converting checked source weights into f32/q8_0/q4_0 `.slm` artifacts.
+- Packer-side raw-f32 trained-source layout validation and `convert-trained` command for converting checked source weights into f32/q8_0/q4_0 `.slm` artifacts, including explicit tied-output source manifests that omit `output.weight`.
 - Tiny trained-source fixture under `tests/fixtures/trained-source-tiny/` and scoped eval cases under `tests/fixtures/assistant-quality-eval-cases.txt`.
 - Native no-crate `tinyrustlm-eval` runner for executing scoped eval cases against a local `.slm` and writing an eval sidecar.
 - No-crate Rust local static server in `tools/local_server/`, plus the older no-dependency Node server script retained for narrow tooling fallback.
@@ -52,7 +52,7 @@ Implemented source slice:
 - WASM ABI smoke tool for invalid UTF-8, null pointer, invalid length, recovery-after-error, step-token, and model-free verification.
 - Visual Studio 2022 solution wrapper in `../TinyRustLM.sln`.
 
-The runtime now proves local generation for f32, q8_0, and q4_0 tiny fixtures, a custom BPE tiny fixture with merged token diagnostics, a tied-output tiny fixture without `output.weight`, and real-shaped TinyLM-16M f32, q8_0, and q4_0 models. Quantized runtime storage no longer carries full decoded f32 shadows for q8_0 or q4_0 tensors, and the generation loop uses model-load-time tensor indices instead of per-token layer-name formatting. The packer can validate and convert raw source-weight bundles into f32, q8_0, and q4_0 artifacts, and the native eval runner can produce scoped fixture evidence for each converted mode. The project still needs real trained weights and broader review before it can claim product assistant quality.
+The runtime now proves local generation for f32, q8_0, and q4_0 tiny fixtures, a custom BPE tiny fixture with merged token diagnostics, a tied-output tiny fixture without `output.weight`, and real-shaped TinyLM-16M f32, q8_0, and q4_0 models. Quantized runtime storage no longer carries full decoded f32 shadows for q8_0 or q4_0 tensors, and the generation loop uses model-load-time tensor indices instead of per-token layer-name formatting. The packer can validate and convert raw source-weight bundles into f32, q8_0, and q4_0 artifacts, including tied source bundles where `tied_output=true` agrees with a tied shape name and conversion sets the v1 tied-output flag. The native eval runner can produce scoped fixture evidence for each converted mode. The project still needs real trained weights and broader review before it can claim product assistant quality.
 
 ## Build Commands
 
@@ -116,12 +116,17 @@ cargo run -p tinyrustlm-slm-pack -- validate-source .\tinyrustlm\tests\fixtures\
 cargo run -p tinyrustlm-slm-pack -- convert-trained .\tinyrustlm\tests\fixtures\trained-source-tiny .\target\trained-source-smoke\tiny-converted-f32.slm f32
 cargo run -p tinyrustlm-slm-pack -- convert-trained .\tinyrustlm\tests\fixtures\trained-source-tiny .\target\trained-source-smoke\tiny-converted-q8.slm q8_0
 cargo run -p tinyrustlm-slm-pack -- convert-trained .\tinyrustlm\tests\fixtures\trained-source-tiny .\target\trained-source-smoke\tiny-converted-q4.slm q4_0
+cargo run -p tinyrustlm-slm-pack -- source-template .\target\trained-source-smoke\source-tiny-tied tiny-fixture-tied
+cargo run -p tinyrustlm-slm-pack -- validate-source .\target\trained-source-smoke\source-tiny-tied
+cargo run -p tinyrustlm-slm-pack -- convert-trained .\target\trained-source-smoke\source-tiny-tied .\target\trained-source-smoke\tiny-tied-converted-f32.slm f32
+cargo run -p tinyrustlm-slm-pack -- convert-trained .\target\trained-source-smoke\source-tiny-tied .\target\trained-source-smoke\tiny-tied-converted-q8.slm q8_0
+cargo run -p tinyrustlm-slm-pack -- convert-trained .\target\trained-source-smoke\source-tiny-tied .\target\trained-source-smoke\tiny-tied-converted-q4.slm q4_0
 cargo run -p tinyrustlm-slm-pack -- quality-gate .\target\trained-source-smoke\tiny-converted-q8.slm .\target\trained-source-smoke\tiny-converted-q8.slm.manifest runtime-smoke
 cargo run -p tinyrustlm-runtime --bin tinyrustlm-eval -- .\target\trained-source-smoke\tiny-converted-q8.slm .\target\trained-source-smoke\tiny-converted-q8.slm.manifest .\tinyrustlm\tests\fixtures\assistant-quality-eval-cases.txt .\target\trained-source-smoke\tiny-converted-q8.eval
 cargo run -p tinyrustlm-slm-pack -- quality-gate .\target\trained-source-smoke\tiny-converted-q8.slm .\target\trained-source-smoke\tiny-converted-q8.slm.manifest assistant-quality .\target\trained-source-smoke\tiny-converted-q8.eval
 ```
 
-The source layout is line metadata plus raw little-endian f32 tensor files under `tensors/`. Validation requires safe relative paths, exact byte counts, matching source checksums, expected tensor names and shapes, finite f32 values, bounded absolute weights, and nonzero tensor payloads. `convert-trained` writes a converted-trained manifest automatically. The standing unit and Visual Studio gates convert the fixture to f32, q8_0, and q4_0 so each advertised output mode is admitted directly. `tinyrustlm-eval` runs exact fixture cases through the runtime and writes a scoped eval sidecar. The checked-in cases prove only `tiny-converted-source-fixture-only`, not product assistant quality.
+The source layout is line metadata plus raw little-endian f32 tensor files under `tensors/`. Validation requires safe relative paths, exact byte counts, matching source checksums, expected tensor names and shapes, finite f32 values, bounded absolute weights, nonzero tensor payloads, and agreement between `model_shape` and `tied_output`. Tied source bundles omit `output.weight` and converted `.slm` artifacts carry the v1 tied-output flag. `convert-trained` writes a converted-trained manifest automatically. The standing unit and Visual Studio gates convert the fixture to f32, q8_0, and q4_0 so each advertised output mode is admitted directly; tied-output source conversion is also smoke-gated across f32, q8_0, and q4_0. `tinyrustlm-eval` runs exact fixture cases through the runtime and writes a scoped eval sidecar. The checked-in cases prove only `tiny-converted-source-fixture-only`, not product assistant quality.
 
 Local static server using the no-crate Rust server:
 
