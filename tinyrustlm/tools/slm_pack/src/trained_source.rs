@@ -11,7 +11,7 @@ use crate::tensor_writer::{
     tensors_for_shape, tensors_for_shape_with_tied_output, ModelShape, TensorSpec, DTYPE_F32,
     DTYPE_Q4_0, DTYPE_Q8_0,
 };
-use crate::tokenizer_writer::ByteTokenizerSection;
+use crate::tokenizer_writer::{BpeMergeSpec, BpeTokenSpec, TokenizerSection};
 use crate::{build_model_file_from_values_with_flags, fixture_value};
 
 const SOURCE_MANIFEST_NAME: &str = "source.manifest";
@@ -23,13 +23,28 @@ const FLAG_TIED_OUTPUT: u32 = 1;
 struct SourceBundle {
     shape: ModelShape,
     tied_output: bool,
+    tokenizer: TokenizerSection,
     tensors: Vec<TensorSpec>,
     values: Vec<Vec<f32>>,
 }
 
+#[derive(Clone, Copy)]
+enum SourceTokenizerTemplate {
+    Byte,
+    TinyBpeDemo,
+}
+
+struct SourceTemplate {
+    shape: ModelShape,
+    tied_output: bool,
+    tokenizer: SourceTokenizerTemplate,
+}
+
 /// Writes a reviewable raw-f32 trained-source fixture directory.
 pub fn write_source_template_path(output_dir: &Path, shape_name: &str) -> io::Result<()> {
-    let (shape, tied_output) = shape_for_name(shape_name)?;
+    let template = template_for_name(shape_name)?;
+    let shape = template.shape;
+    let tied_output = template.tied_output;
     let tensors = tensors_for_shape_and_output(&shape, DTYPE_F32, tied_output);
     let tensor_names = tensor_names_for_shape(&shape, tied_output);
     let tensor_dir = output_dir.join("tensors");
@@ -49,7 +64,7 @@ pub fn write_source_template_path(output_dir: &Path, shape_name: &str) -> io::Re
         "tied_output",
         if tied_output { "true" } else { "false" },
     );
-    push_line(&mut manifest, "tokenizer", "byte-v1");
+    push_tokenizer_template_lines(&mut manifest, template.tokenizer);
     push_line(&mut manifest, "source_dtype", "f32");
     push_line(&mut manifest, "source_kind", "trained-source-fixture");
     push_line(
@@ -135,7 +150,6 @@ pub fn convert_trained_path(
     let bundle = read_source_bundle(source_dir)?;
     let dtype = dtype_for_output(output_quantization)?;
     let output_tensors = tensors_for_shape_and_output(&bundle.shape, dtype, bundle.tied_output);
-    let tokenizer = ByteTokenizerSection::phase_one();
     let flags = if bundle.tied_output {
         FLAG_TIED_OUTPUT
     } else {
@@ -144,7 +158,7 @@ pub fn convert_trained_path(
     let bytes = build_model_file_from_values_with_flags(
         &bundle.shape,
         &output_tensors,
-        &tokenizer,
+        &bundle.tokenizer,
         &bundle.values,
         flags,
     )?;
@@ -174,6 +188,8 @@ fn read_source_bundle(source_dir: &Path) -> io::Result<SourceBundle> {
     let shape = shape_from_fields(&fields)?;
     let tied_output = tied_output_from_fields(&fields)?;
     validate_shape_name_and_tied_output(&fields, &shape, tied_output)?;
+    validate_shape_name_and_tokenizer(&fields)?;
+    let tokenizer = tokenizer_from_fields(&fields, &shape)?;
     let expected_tensors = tensors_for_shape_and_output(&shape, DTYPE_F32, tied_output);
     let expected_names = tensor_names_for_shape(&shape, tied_output);
     require_equal(&fields, "tensor_count", &expected_tensors.len().to_string())?;
@@ -208,6 +224,7 @@ fn read_source_bundle(source_dir: &Path) -> io::Result<SourceBundle> {
     Ok(SourceBundle {
         shape,
         tied_output,
+        tokenizer,
         tensors: expected_tensors,
         values,
     })
@@ -217,7 +234,10 @@ fn validate_source_header(fields: &HashMap<String, String>) -> io::Result<()> {
     require_equal(fields, "tinyrustlm_trained_source_version", SOURCE_VERSION)?;
     require_equal(fields, "model_family", "tinyrustlm")?;
     require_equal(fields, "layout", SOURCE_LAYOUT)?;
-    require_equal(fields, "tokenizer", "byte-v1")?;
+    match require_key(fields, "tokenizer")? {
+        "byte-v1" | "bpe-v1" => {}
+        _ => return Err(invalid("source tokenizer must be byte-v1 or bpe-v1")),
+    }
     require_equal(fields, "source_dtype", "f32")?;
     match require_key(fields, "source_kind")? {
         "trained-source-fixture" | "trained-export" => {}
@@ -234,15 +254,43 @@ fn validate_source_header(fields: &HashMap<String, String>) -> io::Result<()> {
     Ok(())
 }
 
-fn shape_for_name(shape_name: &str) -> io::Result<(ModelShape, bool)> {
+fn template_for_name(shape_name: &str) -> io::Result<SourceTemplate> {
     match shape_name {
-        "tiny-fixture" => Ok((ModelShape::tiny_fixture(), false)),
-        "tiny-fixture-tied" => Ok((ModelShape::tiny_fixture(), true)),
-        "tinylm16" => Ok((ModelShape::tinylm16(), false)),
-        "tinylm16-tied" => Ok((ModelShape::tinylm16(), true)),
+        "tiny-fixture" => Ok(SourceTemplate {
+            shape: ModelShape::tiny_fixture(),
+            tied_output: false,
+            tokenizer: SourceTokenizerTemplate::Byte,
+        }),
+        "tiny-fixture-tied" => Ok(SourceTemplate {
+            shape: ModelShape::tiny_fixture(),
+            tied_output: true,
+            tokenizer: SourceTokenizerTemplate::Byte,
+        }),
+        "tiny-fixture-bpe" => Ok(SourceTemplate {
+            shape: tiny_bpe_fixture_shape(),
+            tied_output: false,
+            tokenizer: SourceTokenizerTemplate::TinyBpeDemo,
+        }),
+        "tinylm16" => Ok(SourceTemplate {
+            shape: ModelShape::tinylm16(),
+            tied_output: false,
+            tokenizer: SourceTokenizerTemplate::Byte,
+        }),
+        "tinylm16-tied" => Ok(SourceTemplate {
+            shape: ModelShape::tinylm16(),
+            tied_output: true,
+            tokenizer: SourceTokenizerTemplate::Byte,
+        }),
         _ => Err(invalid(
-            "source-template shape must be tiny-fixture, tiny-fixture-tied, tinylm16, or tinylm16-tied",
+            "source-template shape must be tiny-fixture, tiny-fixture-tied, tiny-fixture-bpe, tinylm16, or tinylm16-tied",
         )),
+    }
+}
+
+fn tiny_bpe_fixture_shape() -> ModelShape {
+    ModelShape {
+        vocab_size: 262,
+        ..ModelShape::tiny_fixture()
     }
 }
 
@@ -287,17 +335,33 @@ fn shape_from_fields(fields: &HashMap<String, String>) -> io::Result<ModelShape>
             "model_shape=tiny-fixture does not match dimensions",
         ));
     }
+    if shape_name == "tiny-fixture-bpe" && !shape_matches(&shape, &tiny_bpe_fixture_shape()) {
+        return Err(invalid(
+            "model_shape=tiny-fixture-bpe does not match dimensions",
+        ));
+    }
     if matches!(shape_name, "tinylm16" | "tinylm16-tied")
         && !shape_matches(&shape, &ModelShape::tinylm16())
     {
         return Err(invalid("model_shape=tinylm16 does not match dimensions"));
     }
+    if shape_name == "tinylm16-bpe" && !shape_matches_except_vocab(&shape, &ModelShape::tinylm16())
+    {
+        return Err(invalid(
+            "model_shape=tinylm16-bpe must match TinyLM-16M dimensions except vocab_size",
+        ));
+    }
     if !matches!(
         shape_name,
-        "tiny-fixture" | "tiny-fixture-tied" | "tinylm16" | "tinylm16-tied"
+        "tiny-fixture"
+            | "tiny-fixture-tied"
+            | "tiny-fixture-bpe"
+            | "tinylm16"
+            | "tinylm16-tied"
+            | "tinylm16-bpe"
     ) {
         return Err(invalid(
-            "model_shape must be tiny-fixture, tiny-fixture-tied, tinylm16, or tinylm16-tied",
+            "model_shape must be tiny-fixture, tiny-fixture-tied, tiny-fixture-bpe, tinylm16, tinylm16-tied, or tinylm16-bpe",
         ));
     }
     Ok(shape)
@@ -326,6 +390,88 @@ fn validate_shape_name_and_tied_output(
         ));
     }
     Ok(())
+}
+
+fn validate_shape_name_and_tokenizer(fields: &HashMap<String, String>) -> io::Result<()> {
+    let shape_name = require_key(fields, "model_shape")?;
+    let tokenizer = require_key(fields, "tokenizer")?;
+    let shape_name_is_bpe = matches!(shape_name, "tiny-fixture-bpe" | "tinylm16-bpe");
+    if shape_name_is_bpe && tokenizer != "bpe-v1" {
+        return Err(invalid("BPE source model_shape requires tokenizer=bpe-v1"));
+    }
+    if !shape_name_is_bpe && tokenizer == "bpe-v1" {
+        return Err(invalid(
+            "tokenizer=bpe-v1 requires a BPE source model_shape",
+        ));
+    }
+    Ok(())
+}
+
+fn tokenizer_from_fields(
+    fields: &HashMap<String, String>,
+    shape: &ModelShape,
+) -> io::Result<TokenizerSection> {
+    match require_key(fields, "tokenizer")? {
+        "byte-v1" => Ok(TokenizerSection::phase_one()),
+        "bpe-v1" => bpe_tokenizer_from_fields(fields, shape.vocab_size),
+        _ => Err(invalid("source tokenizer must be byte-v1 or bpe-v1")),
+    }
+}
+
+fn bpe_tokenizer_from_fields(
+    fields: &HashMap<String, String>,
+    vocab_size: u32,
+) -> io::Result<TokenizerSection> {
+    let token_count = parse_usize_key(fields, "bpe_token_count")?;
+    let merge_count = parse_usize_key(fields, "bpe_merge_count")?;
+    if token_count == 0 || merge_count == 0 {
+        return Err(invalid(
+            "BPE source tokenizer requires at least one token and one merge",
+        ));
+    }
+    let mut tokens = Vec::with_capacity(token_count);
+    for index in 0..token_count {
+        let prefix = format!("bpe.token.{index}");
+        let id = parse_u32_key(fields, &format!("{prefix}.id"))?;
+        let bytes = parse_hex_bytes(require_key(fields, &format!("{prefix}.bytes_hex"))?)?;
+        if id < 260 || id >= vocab_size || bytes.is_empty() {
+            return Err(invalid(
+                "BPE token entry is outside the declared vocabulary",
+            ));
+        }
+        if tokens.iter().any(|token: &BpeTokenSpec| token.id == id) {
+            return Err(invalid("BPE token ids must be unique"));
+        }
+        tokens.push(BpeTokenSpec { id, bytes });
+    }
+
+    let mut merges = Vec::with_capacity(merge_count);
+    for index in 0..merge_count {
+        let prefix = format!("bpe.merge.{index}");
+        let left = parse_u32_key(fields, &format!("{prefix}.left"))?;
+        let right = parse_u32_key(fields, &format!("{prefix}.right"))?;
+        let output = parse_u32_key(fields, &format!("{prefix}.output"))?;
+        let rank = parse_u32_key(fields, &format!("{prefix}.rank"))?;
+        if left >= vocab_size || right >= vocab_size || output >= vocab_size || output < 260 {
+            return Err(invalid("BPE merge ids must stay inside vocabulary"));
+        }
+        if !tokens.iter().any(|token| token.id == output) {
+            return Err(invalid("BPE merge output must reference a declared token"));
+        }
+        if merges.iter().any(|merge: &BpeMergeSpec| merge.rank == rank) {
+            return Err(invalid("BPE merge ranks must be unique"));
+        }
+        merges.push(BpeMergeSpec {
+            left,
+            right,
+            output,
+            rank,
+        });
+    }
+    reject_extra_bpe_keys(fields, token_count, merge_count)?;
+    Ok(TokenizerSection::bpe_from_parts(
+        vocab_size, &tokens, &merges,
+    ))
 }
 
 fn tensors_for_shape_and_output(
@@ -473,9 +619,81 @@ fn push_shape_lines(text: &mut String, shape: &ModelShape) {
     push_line(text, "max_context", &shape.max_context.to_string());
 }
 
+fn push_tokenizer_template_lines(text: &mut String, tokenizer: SourceTokenizerTemplate) {
+    match tokenizer {
+        SourceTokenizerTemplate::Byte => {
+            push_line(text, "tokenizer", "byte-v1");
+        }
+        SourceTokenizerTemplate::TinyBpeDemo => {
+            push_line(text, "tokenizer", "bpe-v1");
+            let tokens = tiny_bpe_token_specs();
+            let merges = tiny_bpe_merge_specs();
+            push_line(text, "bpe_token_count", &tokens.len().to_string());
+            push_line(text, "bpe_merge_count", &merges.len().to_string());
+            for (index, token) in tokens.iter().enumerate() {
+                let prefix = format!("bpe.token.{index}");
+                push_line(text, &format!("{prefix}.id"), &token.id.to_string());
+                push_line(
+                    text,
+                    &format!("{prefix}.bytes_hex"),
+                    &hex_bytes(&token.bytes),
+                );
+            }
+            for (index, merge) in merges.iter().enumerate() {
+                let prefix = format!("bpe.merge.{index}");
+                push_line(text, &format!("{prefix}.left"), &merge.left.to_string());
+                push_line(text, &format!("{prefix}.right"), &merge.right.to_string());
+                push_line(text, &format!("{prefix}.output"), &merge.output.to_string());
+                push_line(text, &format!("{prefix}.rank"), &merge.rank.to_string());
+            }
+        }
+    }
+}
+
+fn tiny_bpe_token_specs() -> Vec<BpeTokenSpec> {
+    vec![
+        BpeTokenSpec {
+            id: 260,
+            bytes: b"th".to_vec(),
+        },
+        BpeTokenSpec {
+            id: 261,
+            bytes: b"the".to_vec(),
+        },
+    ]
+}
+
+fn tiny_bpe_merge_specs() -> Vec<BpeMergeSpec> {
+    vec![
+        BpeMergeSpec {
+            left: 116,
+            right: 104,
+            output: 260,
+            rank: 0,
+        },
+        BpeMergeSpec {
+            left: 260,
+            right: 101,
+            output: 261,
+            rank: 1,
+        },
+    ]
+}
+
 fn shape_matches(a: &ModelShape, b: &ModelShape) -> bool {
     a.vocab_size == b.vocab_size
         && a.special_token_count == b.special_token_count
+        && a.hidden_size == b.hidden_size
+        && a.layer_count == b.layer_count
+        && a.head_count == b.head_count
+        && a.kv_head_count == b.kv_head_count
+        && a.head_dim == b.head_dim
+        && a.ffn_size == b.ffn_size
+        && a.max_context == b.max_context
+}
+
+fn shape_matches_except_vocab(a: &ModelShape, b: &ModelShape) -> bool {
+    a.special_token_count == b.special_token_count
         && a.hidden_size == b.hidden_size
         && a.layer_count == b.layer_count
         && a.head_count == b.head_count
@@ -533,6 +751,88 @@ fn parse_u32_key(fields: &HashMap<String, String>, key: &str) -> io::Result<u32>
     require_key(fields, key)?
         .parse::<u32>()
         .map_err(|_| invalid(&format!("source manifest key {key} must be a u32")))
+}
+
+fn parse_usize_key(fields: &HashMap<String, String>, key: &str) -> io::Result<usize> {
+    require_key(fields, key)?
+        .parse::<usize>()
+        .map_err(|_| invalid(&format!("source manifest key {key} must be a usize")))
+}
+
+fn reject_extra_bpe_keys(
+    fields: &HashMap<String, String>,
+    token_count: usize,
+    merge_count: usize,
+) -> io::Result<()> {
+    for key in fields.keys() {
+        if let Some(rest) = key.strip_prefix("bpe.token.") {
+            let Some((index_text, field_name)) = rest.split_once('.') else {
+                return Err(invalid(&format!("BPE token key {key} is malformed")));
+            };
+            let index = index_text
+                .parse::<usize>()
+                .map_err(|_| invalid(&format!("BPE token key {key} has invalid index")))?;
+            if index >= token_count {
+                return Err(invalid(&format!(
+                    "BPE token key {key} is outside declared bpe_token_count"
+                )));
+            }
+            match field_name {
+                "id" | "bytes_hex" => {}
+                _ => return Err(invalid(&format!("BPE token key {key} has unknown field"))),
+            }
+        }
+        if let Some(rest) = key.strip_prefix("bpe.merge.") {
+            let Some((index_text, field_name)) = rest.split_once('.') else {
+                return Err(invalid(&format!("BPE merge key {key} is malformed")));
+            };
+            let index = index_text
+                .parse::<usize>()
+                .map_err(|_| invalid(&format!("BPE merge key {key} has invalid index")))?;
+            if index >= merge_count {
+                return Err(invalid(&format!(
+                    "BPE merge key {key} is outside declared bpe_merge_count"
+                )));
+            }
+            match field_name {
+                "left" | "right" | "output" | "rank" => {}
+                _ => return Err(invalid(&format!("BPE merge key {key} has unknown field"))),
+            }
+        }
+    }
+    Ok(())
+}
+
+fn parse_hex_bytes(value: &str) -> io::Result<Vec<u8>> {
+    if value.len() % 2 != 0 {
+        return Err(invalid("BPE token bytes_hex must have even length"));
+    }
+    let mut bytes = Vec::with_capacity(value.len() / 2);
+    for pair in value.as_bytes().chunks_exact(2) {
+        let high = hex_nibble(pair[0])?;
+        let low = hex_nibble(pair[1])?;
+        bytes.push((high << 4) | low);
+    }
+    Ok(bytes)
+}
+
+fn hex_nibble(byte: u8) -> io::Result<u8> {
+    match byte {
+        b'0'..=b'9' => Ok(byte - b'0'),
+        b'a'..=b'f' => Ok(byte - b'a' + 10),
+        b'A'..=b'F' => Ok(byte - b'A' + 10),
+        _ => Err(invalid("BPE token bytes_hex contains a non-hex digit")),
+    }
+}
+
+fn hex_bytes(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut text = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        text.push(HEX[(byte >> 4) as usize] as char);
+        text.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    text
 }
 
 fn require_key<'a>(fields: &'a HashMap<String, String>, key: &str) -> io::Result<&'a str> {
@@ -651,6 +951,68 @@ mod tests {
             ));
             provenance::validate_manifest_path(&output, &sidecar_manifest_path(&output)).unwrap();
         }
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn validates_generated_bpe_source_fixture() {
+        let dir = temp_path("source-bpe-fixture");
+        write_source_template_path(&dir, "tiny-fixture-bpe").unwrap();
+
+        let manifest = fs::read_to_string(dir.join(SOURCE_MANIFEST_NAME)).unwrap();
+        assert!(manifest.contains("model_shape=tiny-fixture-bpe"));
+        assert!(manifest.contains("tokenizer=bpe-v1"));
+        assert!(manifest.contains("vocab_size=262"));
+        assert!(manifest.contains("bpe.token.1.bytes_hex=746865"));
+        validate_source_path(&dir).unwrap();
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn converts_bpe_source_fixture_to_bpe_slm() {
+        let dir = temp_path("source-bpe-convert");
+        write_source_template_path(&dir, "tiny-fixture-bpe").unwrap();
+        let output = dir.join("bpe-converted-q8.slm");
+
+        convert_trained_path(&dir, &output, "q8_0").unwrap();
+
+        let bytes = fs::read(&output).unwrap();
+        let report = slm_validate::validate_bytes(&bytes, &output.display().to_string()).unwrap();
+        assert!(report.shape_summary().starts_with("vocab=262,"));
+        assert_eq!(bytes[108..112], *b"BPE1");
+        provenance::validate_manifest_path(&output, &sidecar_manifest_path(&output)).unwrap();
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn rejects_bpe_source_manifest_without_matching_shape() {
+        let dir = temp_path("source-bpe-shape-mismatch");
+        write_source_template_path(&dir, "tiny-fixture").unwrap();
+        let manifest_path = dir.join(SOURCE_MANIFEST_NAME);
+        let manifest = fs::read_to_string(&manifest_path)
+            .unwrap()
+            .replace("tokenizer=byte-v1", "tokenizer=bpe-v1");
+        fs::write(&manifest_path, manifest).unwrap();
+
+        let error = validate_source_path(&dir).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("BPE source model_shape"));
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn rejects_bpe_source_merge_outside_vocab() {
+        let dir = temp_path("source-bpe-merge-output");
+        write_source_template_path(&dir, "tiny-fixture-bpe").unwrap();
+        let manifest_path = dir.join(SOURCE_MANIFEST_NAME);
+        let manifest = fs::read_to_string(&manifest_path)
+            .unwrap()
+            .replace("bpe.merge.1.output=261", "bpe.merge.1.output=300");
+        fs::write(&manifest_path, manifest).unwrap();
+
+        let error = validate_source_path(&dir).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("inside vocabulary"));
         cleanup(&dir);
     }
 

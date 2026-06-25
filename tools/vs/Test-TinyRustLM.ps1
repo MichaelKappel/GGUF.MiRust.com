@@ -272,6 +272,34 @@ try {
         }
     }
 
+    $bpeSourceFixture = Join-Path $convertedDir "source-tiny-bpe"
+    & $Cargo run -p tinyrustlm-slm-pack -- source-template $bpeSourceFixture tiny-fixture-bpe
+    if ($LASTEXITCODE -ne 0) {
+        throw "SLM BPE trained-source template generation failed with exit code $LASTEXITCODE"
+    }
+    & $Cargo run -p tinyrustlm-slm-pack -- validate-source $bpeSourceFixture
+    if ($LASTEXITCODE -ne 0) {
+        throw "SLM BPE trained-source validation failed with exit code $LASTEXITCODE"
+    }
+    $bpeConvertedModel = Join-Path $convertedDir "tiny-bpe-converted-q8.slm"
+    $bpeConvertedManifest = "$bpeConvertedModel.manifest"
+    & $Cargo run -p tinyrustlm-slm-pack -- convert-trained $bpeSourceFixture $bpeConvertedModel q8_0
+    if ($LASTEXITCODE -ne 0) {
+        throw "SLM BPE trained-source q8_0 conversion failed with exit code $LASTEXITCODE"
+    }
+    & $Cargo run -p tinyrustlm-slm-pack -- validate $bpeConvertedModel
+    if ($LASTEXITCODE -ne 0) {
+        throw "Converted BPE q8_0 SLM validation failed with exit code $LASTEXITCODE"
+    }
+    & $Cargo run -p tinyrustlm-slm-pack -- validate-manifest $bpeConvertedModel $bpeConvertedManifest
+    if ($LASTEXITCODE -ne 0) {
+        throw "Converted BPE q8_0 SLM manifest validation failed with exit code $LASTEXITCODE"
+    }
+    & $Cargo run -p tinyrustlm-slm-pack -- quality-gate $bpeConvertedModel $bpeConvertedManifest runtime-smoke
+    if ($LASTEXITCODE -ne 0) {
+        throw "Converted BPE q8_0 SLM runtime-smoke gate failed with exit code $LASTEXITCODE"
+    }
+
     node "tinyrustlm\tools\wasm-abi-smoke.js"
     if ($LASTEXITCODE -ne 0) {
         throw "WASM ABI smoke failed with exit code $LASTEXITCODE"
