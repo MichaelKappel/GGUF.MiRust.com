@@ -61,7 +61,7 @@ To include headless browser smoke for q8_0 and q4_0:
 .\tools\vs\Test-TinyRustLM.ps1 -BrowserSmoke
 ```
 
-That browser path also runs the Rust mini browser harness against the loopback server, then runs loop, malformed local model, context-overflow, missing-model, endurance, benchmark-panel performance smoke, and the desktop/mobile UI audit. Like the F5 runner, it reuses a verified TinyRustLM server or starts on the first free loopback port from the requested browser-smoke port.
+That browser path also runs the Rust mini browser harness against the loopback server, then runs loop, malformed local model, context-overflow, missing-model, endurance, benchmark-panel performance smoke, Step Token click-through smoke, and the desktop/mobile UI audit. Like the F5 runner, it reuses a verified TinyRustLM server or starts on the first free loopback port from the requested browser-smoke port.
 
 ```powershell
 .\tools\vs\Test-TinyRustLM.ps1 -BrowserSmoke -BrowserSmokePort 8090 -PortSearchLimit 10

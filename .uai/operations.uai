@@ -1,5 +1,5 @@
 profile: gguf-mirust.operations.v2
-updated_utc: 2026-06-25T13:35:24Z
+updated_utc: 2026-06-25T13:59:11Z
 local_development:
   active_product: TinyRustLM
   app_url: http://127.0.0.1:8080/app/
@@ -16,6 +16,8 @@ toolchain:
   rustup: C:\Users\AI\.cargo\bin\rustup.exe
   node: required_for_javascript_execution_smoke_tools_only
 current_verified_checks:
+  - 2026-06-25 browser_step_token_control_verified: app HTML/CSS/JS now exposes a Step Token button that is disabled until generation context exists, calls generate_next_token, appends decoded text to response and latest TinyRustLM transcript turn, logs generate_next_token in the console, updates benchmark/diagnostics, disables after Reset/context errors/model failures, and stays enabled after transcript Clear.
+  - Verification passed for browser_step_token_control: node --check app.js, node --check browser-smoke.js, cargo fmt --all -- --check, cargo test --workspace with 102 tests, Rust browser harness static contract with 8 checks, focused browser-smoke step-token on port 18450, and tools/vs/Test-TinyRustLM.ps1 -BrowserSmoke -BrowserSmokePort 18460 -PortSearchLimit 5.
   - 2026-06-25 output_buffer_boundary_verified: generated result decode is capped at 64 KiB, byte/BPE bounded decode fails with OutputBufferExceeded before replacing caller output, full generate overflow clears stale token/generated-token diagnostics, rebuilt WASM sha256 is D81E95E5E596EF040A2258752FAB8A7B84B32E6729DD0CF600CFF37DD3EFADAF, and tools/vs/Test-TinyRustLM.ps1 passed.
   - 2026-06-25 milestone_29_tied_output_trained_source_conversion_verified: source-template supports tiny-fixture-tied and tinylm16-tied, validate-source accepts tied_output=true only with tied shape names, tied sources omit output.weight, and convert-trained emits f32/q8_0/q4_0 .slm artifacts with the v1 tied-output flag.
   - 2026-06-25 milestone_28_tied_output_slm_fixture_verified: tiny-test-model-tied.slm omits output.weight under the v1 tied-output flag, validates with its manifest, loads/generates through tok_embeddings projection, and browser/static contracts expose the fixture.
@@ -40,7 +42,7 @@ current_verified_checks:
   - Default Visual Studio test helper validates strict rustdoc public-doc gates, the static app contract through the Rust browser harness, all eight local .slm artifacts, their .slm.manifest sidecars, the tiny untied trained-source fixture, converted-trained f32/q8_0/q4_0 outputs, converted manifests, runtime-smoke gates, fixture-scoped assistant-quality eval gates, the tied trained-source fixture, tied converted f32/q8_0/q4_0 runtime-smoke gates, and WASM ABI step/free smoke.
   - Build helper regenerates deterministic-smoke .slm.manifest sidecars whenever local models are regenerated or sidecars are missing.
   - node --check passed for app.js, static-server.js, and browser-smoke.js.
-  - BrowserSmoke verifies q8 default, q4 selected, transcript entries and Clear-button state, reload/reset/model switch loop, malformed model, missing model, context overflow, desktop/mobile UI audit with Model Provenance sidecar fields, endurance, 47,104-byte scratch-backed q8/q4 generation, and local-only requests.
+  - BrowserSmoke verifies q8 default, q4 selected, Step Token click-through, transcript entries and Clear-button state, reload/reset/model switch loop, malformed model, missing model, context overflow, desktop/mobile UI audit with Model Provenance sidecar fields, endurance, 47,104-byte scratch-backed q8/q4 generation, and local-only requests.
   - BrowserSmoke passed after diagnostics JSON escape hardening, so handwritten diagnostics remain parseable in browser benchmark and developer panels.
   - PerformanceSoak verifies repeated q8/q4 four-token UI generation, benchmark counts, token speed, scratch bytes, KV length, reset recovery, and local-only requests.
   - BrowserSmoke port helper passed verified-server reuse at 8080 after helper hardening.
@@ -62,6 +64,7 @@ security_boundary:
   model_manifests: line_based_sidecars_required_for_local_artifacts_with_deterministic_smoke_or_converted_trained_quality_boundaries
   browser_manifest_display: app_js_may_parse_line_based_local_slm_manifest_sidecars_after_rust_accepts_the_model_but_must_not_parse_slm_model_bytes_or_replace_runtime_admission
   browser_transcript_display: app_js_may_render_local_conversation_history_with_dom_text_nodes; Reset must not imply transcript deletion, and Clear must not imply runtime reset.
+  browser_step_token_display: app_js_may_call_generate_next_token_only_after_generation_context_exists; Step Token must append decoded local text to response/transcript/console and must disable after Reset or failed generation.
   wasm_step_token_abi: generate_next_token_returns_error_code_last_result_carries_decoded_token_text_diagnostics_carry_selected_token_id_and_free_model_must_make_post_free_generation_fail_model_not_loaded
   generation_allocation_boundary: scratch_logits_and_tensor_indices_are_model_loaded_runtime_state_reused_across_generate_and_generate_next_token_top_k_diagnostics_and_stochastic_sampling_do_not_allocate_vocab_sized_candidate_vectors
   output_result_boundary: generated_result_decode_is_capped_at_64_kib_and_output_buffer_exceeded_must_not_replace_previous_decode_output_or_leave_stale_full_generate_state
@@ -80,6 +83,7 @@ operations_notes:
   - Use context-boundary and step-token tests after changing Runtime.generate; failed requests must not leak stale diagnostics or stale token state.
   - Use output-buffer tests after changing tokenizer decode or Runtime.generate result handling; OutputBufferExceeded must keep caller output stable and clear full-generate stale state.
   - Use wasm-abi-smoke after changing WASM exports, generation state, model-free behavior, diagnostics, memory transfer, or Visual Studio test wrapper behavior; step-token and post-free semantics are part of the ABI contract.
+  - Use browser-smoke step-token after changing app.js control state, response rendering, transcript continuation, benchmark timing, or generate_next_token browser wiring.
   - Use browser-smoke ui-audit after app HTML/CSS/JS changes that affect product identity, layout, panels, controls, diagnostics, or benchmark visibility.
   - Use browser-smoke ui-audit after conversation transcript changes; it must verify empty ready state, generated entries, Clear-click removal, response preservation, and Clear-button state on desktop and mobile.
   - Use browser-smoke ui-audit after manifest/provenance UI changes; the audit must keep `.slm.manifest` requests same-origin and keep trained-quality non-claim visible until real evidence exists.

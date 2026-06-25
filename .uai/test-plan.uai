@@ -1,7 +1,7 @@
 profile: gguf-mirust.test-plan.v2
-updated_utc: 2026-06-25T13:35:24Z
+updated_utc: 2026-06-25T13:59:11Z
 available_now:
-  - node --check tinyrustlm/app/app.js passed after local transcript edits.
+  - node --check tinyrustlm/app/app.js passed after browser Step Token edits.
   - node --check tinyrustlm/tools/static-server.js passed.
   - node --check tinyrustlm/tools/browser-smoke.js passed after transcript smoke assertions were added.
   - node --check tinyrustlm/tools/wasm-abi-smoke.js passed after WASM step/free ABI edits.
@@ -12,6 +12,7 @@ toolchain_now_available:
   - C:\Users\AI\.cargo\bin\rustc.exe
   - C:\Users\AI\.cargo\bin\rustup.exe
 completed_toolchain_checks:
+  - 2026-06-25 node --check tinyrustlm/app/app.js, node --check tinyrustlm/tools/browser-smoke.js, cargo fmt --all -- --check, cargo test --workspace with 102 tests, cargo run -p tinyrustlm-browser-harness -- tinyrustlm, focused browser-smoke step-token, and tools/vs/Test-TinyRustLM.ps1 -BrowserSmoke -BrowserSmokePort 18460 -PortSearchLimit 5 passed after adding the browser Step Token control.
   - 2026-06-25 cargo fmt --all -- --check, cargo test --workspace, strict rustdoc gates, WASM rebuild/copy, WASM ABI smoke, Rust browser harness, and tools/vs/Test-TinyRustLM.ps1 passed after output-buffer hardening; workspace coverage is 102 tests with 63 runtime tests.
   - 2026-06-25 cargo fmt --all -- --check, node --check tinyrustlm/app/app.js, node --check tinyrustlm/tools/browser-smoke.js, node --check tinyrustlm/tools/wasm-abi-smoke.js, and tools/vs/Test-TinyRustLM.ps1 parse check passed after tied-output trained-source conversion work.
   - 2026-06-25 cargo test -p tinyrustlm-slm-pack trained_source -- --nocapture passed with 8 tests, including tied source manifest validation, tied_output/model_shape disagreement rejection, and f32/q8_0/q4_0 tied conversion manifest validation.
@@ -186,6 +187,7 @@ required_rust_tests:
   - Rust local server unit tests cover request-line parsing, directory index resolution, traversal rejection, percent decoding, and WASM content type
   - Rust mini browser harness unit tests cover loopback URL parsing, remote URL rejection, manifest parsing, HTTP response parsing, and remote marker rejection
   - browser transcript smokes cover empty ready state, generated User/TinyRustLM entries, Clear-click removal, response preservation after Clear, Clear-button state, and DOM-safe text rendering expectations
+  - browser Step Token smoke covers disabled-before-context state, enabled-after-generate state, hi -> e -> ee continuation, transcript assistant-turn extension, console logging, generated_token_count 2, KV cache length 5, and local-only requests
 future_browser_tests:
   - longer performance soak across more than three cycles and more models when quality-model artifacts exist
   - server-port race test that starts a local service between port resolution and Rust local-server launch

@@ -1,5 +1,5 @@
 profile: gguf-mirust.coding-standards.v2
-updated_utc: 2026-06-25T13:35:24Z
+updated_utc: 2026-06-25T13:59:11Z
 rust:
   edition: 2021
   dependency_policy: No third-party Rust crates in TinyRustLM runtime or packer.
@@ -21,6 +21,7 @@ browser_runtime:
     - Browser smoke must keep checking local-only network requests as a privacy claim verifier.
     - JS must not parse .slm, own tensor logic, or make quality claims.
     - Conversation transcript text must be inserted with DOM text nodes, remain browser-local, and keep runtime Reset separate from transcript Clear behavior.
+    - Browser Step Token controls may call generate_next_token only after context exists, must append local decoded text to response/transcript/console, and must disable after Reset or failed generation.
 memory:
   rule: Do not store durable implementation reports inside .uai/long-term-memory.uai; point to docs or wiki files instead.
   report_synthesis_rule: Do store compact report-derived operating memory in typed .uai files so cold-start agents can route and reason without bulk-loading every report.

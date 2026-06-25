@@ -45,6 +45,7 @@ Implemented source slice:
 - Handwritten diagnostics JSON escaping for quotes, backslashes, control characters, line separators, and paragraph separators before browser parsing.
 - Browser model selector for TinyLM-16M q8_0, TinyLM-16M q4_0, TinyLM-16M f32, f32/q8_0/q4_0 tiny fixtures, the tiny BPE fixture, and the tiny tied-output fixture.
 - Browser conversation transcript that appends local User and TinyRustLM turns, keeps text insertion DOM-safe, persists across runtime Reset, and clears through the Clear control.
+- Browser Step Token control that calls `generate_next_token` after generation context exists, appends one decoded token to the response and latest TinyRustLM transcript turn, and records the action in the token console.
 - Browser product shell footer exposing TinyRustLM, GGUF.MiRust.com, browser-local Rust/WASM identity, and local `.slm` model scope.
 - Browser smoke tool for headless Chrome or Edge UI verification.
 - Browser UI audit mode for desktop/mobile structure, local-only notice, footer identity, model controls, panel coverage, diagnostics/developer mirror, benchmark fields, layout overflow, and local-only requests.
@@ -161,6 +162,7 @@ node .\tinyrustlm\tools\browser-smoke.js http://127.0.0.1:8080/app/ 9231 tinylm1
 node .\tinyrustlm\tools\browser-smoke.js http://127.0.0.1:8080/app/ 9232 tinylm16q8 performance 4
 node .\tinyrustlm\tools\browser-smoke.js http://127.0.0.1:8080/app/ 9233 tinylm16q8 performance-soak 3 4
 node .\tinyrustlm\tools\browser-smoke.js http://127.0.0.1:8080/app/ 9234 tinylm16q8 ui-audit
+node .\tinyrustlm\tools\browser-smoke.js http://127.0.0.1:8080/app/ 9235 tinylm16q8 step-token
 ```
 
 WASM ABI boundary smoke:

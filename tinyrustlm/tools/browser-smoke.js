@@ -176,7 +176,8 @@ async function runPageSmoke(client, modelKey) {
         benchGeneratedTokens: byId("benchGeneratedTokens").textContent,
         benchTokensPerSecond: byId("benchTokensPerSecond").textContent,
         benchScratch: byId("benchScratch").textContent,
-        selectedModel: byId("modelSelect").value
+        selectedModel: byId("modelSelect").value,
+        stepTokenDisabled: byId("stepTokenButton").disabled
       });
     })()
   `;
@@ -185,6 +186,87 @@ async function runPageSmoke(client, modelKey) {
     awaitPromise: true,
     returnByValue: true,
     timeout: 90000
+  });
+  return JSON.parse(result.result.value);
+}
+
+async function runPageStepTokenSmoke(client, modelKey) {
+  const expression = `
+    (async () => {
+      const expectedModel = ${JSON.stringify(modelKey)};
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const byId = (id) => document.getElementById(id);
+      const parseDiagnostics = () => {
+        try {
+          return JSON.parse(byId("diagnostics").textContent);
+        } catch (_error) {
+          return {};
+        }
+      };
+      for (let index = 0; index < 600; index += 1) {
+        if (byId("generateButton") && !byId("generateButton").disabled && byId("runtimeStatus").textContent === "Ready") {
+          break;
+        }
+        await sleep(100);
+      }
+      if (byId("modelSelect").value !== expectedModel) {
+        byId("modelSelect").value = expectedModel;
+        byId("modelSelect").dispatchEvent(new Event("change", { bubbles: true }));
+        for (let index = 0; index < 600; index += 1) {
+          if (byId("modelSelect").value === expectedModel && !byId("generateButton").disabled && byId("runtimeStatus").textContent === "Ready") {
+            break;
+          }
+          await sleep(100);
+        }
+      }
+      const readyStepDisabled = byId("stepTokenButton").disabled;
+      byId("maxTokens").value = "1";
+      byId("prompt").value = "hi";
+      byId("generateButton").click();
+      for (let index = 0; index < 600; index += 1) {
+        if (byId("response").textContent === "e" || byId("errorState").textContent !== "none") {
+          break;
+        }
+        await sleep(100);
+      }
+      const afterGenerateStepDisabled = byId("stepTokenButton").disabled;
+      byId("stepTokenButton").click();
+      for (let index = 0; index < 600; index += 1) {
+        if (byId("response").textContent === "ee" || byId("errorState").textContent !== "none") {
+          break;
+        }
+        await sleep(100);
+      }
+      return JSON.stringify({
+        runtimeStatus: byId("runtimeStatus").textContent,
+        modelState: byId("modelState").textContent,
+        errorState: byId("errorState").textContent,
+        response: byId("response").textContent,
+        conversationItems: Array.from(document.querySelectorAll("#conversation .message")).map((node) => ({
+          role: node.querySelector(".message-role") ? node.querySelector(".message-role").textContent.trim() : "",
+          text: node.querySelector(".message-text") ? node.querySelector(".message-text").textContent : "",
+          isError: node.classList.contains("error")
+        })),
+        console: byId("console").textContent,
+        diagnostics: parseDiagnostics(),
+        diagnosticsText: byId("diagnostics").textContent,
+        benchPromptTokens: byId("benchPromptTokens").textContent,
+        benchGeneratedTokens: byId("benchGeneratedTokens").textContent,
+        selectedModel: byId("modelSelect").value,
+        readyStepDisabled,
+        afterGenerateStepDisabled,
+        stepTokenDisabled: byId("stepTokenButton").disabled,
+        generateDisabled: byId("generateButton").disabled,
+        resetDisabled: byId("resetButton").disabled,
+        modelSelectDisabled: byId("modelSelect").disabled
+      });
+    })()
+  `;
+  const result = await client.send("Runtime.evaluate", {
+    expression,
+    awaitPromise: true,
+    returnByValue: true,
+    timeout: 120000
   });
   return JSON.parse(result.result.value);
 }
@@ -215,6 +297,7 @@ async function runPageLoopSmoke(client) {
         benchGeneratedTokens: byId("benchGeneratedTokens").textContent,
         selectedModel: byId("modelSelect").value,
         generateDisabled: byId("generateButton").disabled,
+        stepTokenDisabled: byId("stepTokenButton").disabled,
         resetDisabled: byId("resetButton").disabled,
         modelSelectDisabled: byId("modelSelect").disabled
       });
@@ -310,6 +393,7 @@ async function runPageModelErrorSmoke(client) {
         console: byId("console").textContent,
         selectedModel: byId("modelSelect").value,
         generateDisabled: byId("generateButton").disabled,
+        stepTokenDisabled: byId("stepTokenButton").disabled,
         resetDisabled: byId("resetButton").disabled,
         modelSelectDisabled: byId("modelSelect").disabled
       });
@@ -354,6 +438,7 @@ async function runPageMissingModelSmoke(client) {
         console: byId("console").textContent,
         selectedModel: byId("modelSelect").value,
         generateDisabled: byId("generateButton").disabled,
+        stepTokenDisabled: byId("stepTokenButton").disabled,
         resetDisabled: byId("resetButton").disabled,
         modelSelectDisabled: byId("modelSelect").disabled
       });
@@ -406,6 +491,7 @@ async function runPageContextErrorSmoke(client) {
         diagnosticsText: byId("diagnostics").textContent,
         selectedModel: byId("modelSelect").value,
         generateDisabled: byId("generateButton").disabled,
+        stepTokenDisabled: byId("stepTokenButton").disabled,
         resetDisabled: byId("resetButton").disabled,
         modelSelectDisabled: byId("modelSelect").disabled
       });
@@ -446,6 +532,7 @@ async function runPageEnduranceSmoke(client, cycles) {
         benchGeneratedTokens: byId("benchGeneratedTokens").textContent,
         selectedModel: byId("modelSelect").value,
         generateDisabled: byId("generateButton").disabled,
+        stepTokenDisabled: byId("stepTokenButton").disabled,
         resetDisabled: byId("resetButton").disabled,
         modelSelectDisabled: byId("modelSelect").disabled
       });
@@ -551,6 +638,7 @@ async function runPagePerformanceSmoke(client, maxTokens) {
         benchScratchValue: parseBenchmarkNumber("benchScratch"),
         selectedModel: byId("modelSelect").value,
         generateDisabled: byId("generateButton").disabled,
+        stepTokenDisabled: byId("stepTokenButton").disabled,
         resetDisabled: byId("resetButton").disabled,
         modelSelectDisabled: byId("modelSelect").disabled
       });
@@ -656,6 +744,7 @@ async function runPagePerformanceSoak(client, cycles, maxTokens) {
         benchScratchValue: parseBenchmarkNumber("benchScratch"),
         selectedModel: byId("modelSelect").value,
         generateDisabled: byId("generateButton").disabled,
+        stepTokenDisabled: byId("stepTokenButton").disabled,
         resetDisabled: byId("resetButton").disabled,
         modelSelectDisabled: byId("modelSelect").disabled
       });
@@ -801,6 +890,7 @@ async function runPageUiAudit(client) {
           topPValue: byId("topP").value,
           seedValue: byId("seed").value,
           generateDisabled: byId("generateButton").disabled,
+          stepTokenDisabled: byId("stepTokenButton").disabled,
           resetDisabled: byId("resetButton").disabled,
           clearChatDisabled: byId("clearChatButton").disabled,
           modelSelectDisabled: byId("modelSelect").disabled,
@@ -923,6 +1013,9 @@ function assertSmoke(result, modelKey) {
   if (result.response !== "e") {
     failures.push(`response was ${JSON.stringify(result.response)}`);
   }
+  if (result.stepTokenDisabled) {
+    failures.push("step-token control stayed disabled after generation");
+  }
   if (!Array.isArray(result.conversationItems) || result.conversationItems.length !== 2) {
     failures.push(`conversation item count was ${result.conversationItems ? result.conversationItems.length : "missing"}`);
   } else {
@@ -944,6 +1037,91 @@ function assertSmoke(result, modelKey) {
   }
 }
 
+function assertStepTokenSmoke(result, modelKey, networkRequests) {
+  const failures = [];
+  const quantization = expectedQuantization[modelKey];
+  if (!quantization) {
+    failures.push(`unknown expected model ${modelKey}`);
+  }
+  if (result.selectedModel !== modelKey) {
+    failures.push(`selected model was ${result.selectedModel}`);
+  }
+  if (result.runtimeStatus !== "Ready") {
+    failures.push(`runtime status was ${result.runtimeStatus}`);
+  }
+  if (result.errorState !== "none") {
+    failures.push(`error state was ${result.errorState}`);
+  }
+  if (!result.readyStepDisabled) {
+    failures.push("step-token control was enabled before generation context existed");
+  }
+  if (result.afterGenerateStepDisabled) {
+    failures.push("step-token control stayed disabled after the first generation");
+  }
+  if (result.stepTokenDisabled) {
+    failures.push("step-token control was disabled after stepping");
+  }
+  if (result.generateDisabled || result.resetDisabled || result.modelSelectDisabled) {
+    failures.push("primary controls were unexpectedly disabled after stepping");
+  }
+  if (result.response !== "ee") {
+    failures.push(`response was ${JSON.stringify(result.response)}`);
+  }
+  if (!Array.isArray(result.conversationItems) || result.conversationItems.length !== 2) {
+    failures.push(`conversation item count was ${result.conversationItems ? result.conversationItems.length : "missing"}`);
+  } else {
+    if (result.conversationItems[0].role !== "User" || result.conversationItems[0].text !== "hi") {
+      failures.push(`conversation user item was ${JSON.stringify(result.conversationItems[0])}`);
+    }
+    if (result.conversationItems[1].role !== "TinyRustLM" || result.conversationItems[1].text !== "ee" || result.conversationItems[1].isError) {
+      failures.push(`conversation assistant item was ${JSON.stringify(result.conversationItems[1])}`);
+    }
+  }
+  if (!String(result.console).includes("generate(max_new_tokens=1, temperature=0, top_k=1, top_p=1, seed=1) -> 0")) {
+    failures.push("console did not include the initial generate call");
+  }
+  if (!String(result.console).includes("generate_next_token(temperature=0, top_k=1, top_p=1, seed=1) -> 0")) {
+    failures.push("console did not include the step-token call");
+  }
+  if (!result.diagnostics || result.diagnostics.last_error !== "ok") {
+    failures.push("diagnostics last_error was not ok");
+  }
+  if (result.diagnostics && result.diagnostics.generated_token_count !== 2) {
+    failures.push(`generated token count was ${result.diagnostics.generated_token_count}`);
+  }
+  if (result.diagnostics && result.diagnostics.prompt_token_count !== 3) {
+    failures.push(`prompt token count was ${result.diagnostics.prompt_token_count}`);
+  }
+  if (result.diagnostics && result.diagnostics.kv_cache_length !== 5) {
+    failures.push(`kv cache length was ${result.diagnostics.kv_cache_length}`);
+  }
+  if (result.diagnostics && result.diagnostics.selected_next_token !== 101) {
+    failures.push(`selected token was ${result.diagnostics.selected_next_token}`);
+  }
+  if (quantization && (!result.diagnostics || result.diagnostics.active_quantization_mode !== quantization)) {
+    failures.push(`diagnostics did not report ${quantization} mode`);
+  }
+  if (result.benchPromptTokens !== "3 tokens") {
+    failures.push(`benchmark prompt tokens were ${result.benchPromptTokens}`);
+  }
+  if (result.benchGeneratedTokens !== "2 tokens") {
+    failures.push(`benchmark generated tokens were ${result.benchGeneratedTokens}`);
+  }
+  const allowedOrigin = new URL(appUrl).origin;
+  for (const requestUrl of networkRequests) {
+    if (!requestUrl.startsWith("http://") && !requestUrl.startsWith("https://")) {
+      continue;
+    }
+    const origin = new URL(requestUrl).origin;
+    if (origin !== allowedOrigin) {
+      failures.push(`remote request observed: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
 function assertStepHealthy(step) {
   const failures = [];
   if (step.runtimeStatus !== "Ready") {
@@ -954,6 +1132,15 @@ function assertStepHealthy(step) {
   }
   if (step.generateDisabled || step.resetDisabled || step.modelSelectDisabled) {
     failures.push(`${step.label} controls were unexpectedly disabled`);
+  }
+  if (Object.prototype.hasOwnProperty.call(step, "stepTokenDisabled")) {
+    const label = String(step.label || "");
+    if (label.includes("generate") && step.stepTokenDisabled) {
+      failures.push(`${step.label} step-token control was disabled after generation`);
+    }
+    if ((label.includes("ready") || label.includes("reset") || label === "reload-ready") && !step.stepTokenDisabled) {
+      failures.push(`${step.label} step-token control was enabled without generation context`);
+    }
   }
   if (!step.diagnostics || step.diagnostics.last_error !== "ok") {
     failures.push(`${step.label} diagnostics last_error was not ok`);
@@ -1077,6 +1264,9 @@ function assertModelErrorSmoke(result, networkRequests) {
   if (!result.generateDisabled || !result.resetDisabled) {
     failures.push("generate/reset controls were not disabled after rejected model");
   }
+  if (!result.stepTokenDisabled) {
+    failures.push("step-token control was not disabled after rejected model");
+  }
   if (result.modelSelectDisabled) {
     failures.push("model selector was disabled after rejected model");
   }
@@ -1111,6 +1301,9 @@ function assertMissingModelSmoke(result, networkRequests) {
   }
   if (!result.generateDisabled || !result.resetDisabled) {
     failures.push("generate/reset controls were not disabled after missing model");
+  }
+  if (!result.stepTokenDisabled) {
+    failures.push("step-token control was not disabled after missing model");
   }
   if (result.modelSelectDisabled) {
     failures.push("model selector was disabled after missing model");
@@ -1161,6 +1354,9 @@ function assertContextErrorSmoke(result, networkRequests) {
   }
   if (result.generateDisabled || result.resetDisabled || result.modelSelectDisabled) {
     failures.push("controls were unexpectedly disabled after context error");
+  }
+  if (!result.stepTokenDisabled) {
+    failures.push("step-token control was enabled after context error");
   }
   const allowedOrigin = new URL(appUrl).origin;
   for (const requestUrl of networkRequests) {
@@ -1533,6 +1729,9 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
     if (!snapshot.clearChatDisabled) {
       failures.push(`${prefix} clear chat control was enabled before transcript content`);
     }
+    if (!snapshot.stepTokenDisabled) {
+      failures.push(`${prefix} step-token control was enabled before generation context`);
+    }
     if (Array.isArray(snapshot.conversationItems) && snapshot.conversationItems.length !== 0) {
       failures.push(`${prefix} conversation was not empty before generation`);
     }
@@ -1540,6 +1739,9 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
   if (phase === "generated") {
     if (snapshot.clearChatDisabled) {
       failures.push(`${prefix} clear chat control stayed disabled after transcript content`);
+    }
+    if (snapshot.stepTokenDisabled) {
+      failures.push(`${prefix} step-token control stayed disabled after generation`);
     }
     if (!Array.isArray(snapshot.conversationItems) || snapshot.conversationItems.length !== 2) {
       failures.push(`${prefix} conversation item count was ${snapshot.conversationItems ? snapshot.conversationItems.length : "missing"}`);
@@ -1555,6 +1757,9 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
   if (phase === "cleared") {
     if (!snapshot.clearChatDisabled) {
       failures.push(`${prefix} clear chat control stayed enabled after transcript clear`);
+    }
+    if (snapshot.stepTokenDisabled) {
+      failures.push(`${prefix} step-token control was disabled after transcript clear`);
     }
     if (Array.isArray(snapshot.conversationItems) && snapshot.conversationItems.length !== 0) {
       failures.push(`${prefix} conversation was not empty after transcript clear`);
@@ -1886,6 +2091,21 @@ async function main() {
       }
       result = { desktop, mobile, networkRequests };
       assertUiAudit(result, networkRequests);
+    } else if (smokeMode === "step-token") {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageStepTokenSmoke(client, expectedModel);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertStepTokenSmoke(result, expectedModel, networkRequests);
+      result.networkRequests = networkRequests;
     } else if (smokeMode === "model-error") {
       await client.send("Page.reload", { ignoreCache: true });
       for (let attempt = 0; attempt < 3; attempt += 1) {

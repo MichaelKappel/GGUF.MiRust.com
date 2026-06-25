@@ -46,8 +46,10 @@
     decoder: new TextDecoder(),
     modelLoadMs: 0,
     lastGenerateMs: 0,
+    lastMeasuredTokens: 0,
     modelLoadSequence: 0,
     modelManifest: null,
+    hasContext: false,
     messages: []
   };
 
@@ -69,6 +71,7 @@
     seed: document.getElementById("seed"),
     modelSelect: document.getElementById("modelSelect"),
     generateButton: document.getElementById("generateButton"),
+    stepTokenButton: document.getElementById("stepTokenButton"),
     resetButton: document.getElementById("resetButton"),
     clearChatButton: document.getElementById("clearChatButton"),
     conversation: document.getElementById("conversation"),
@@ -139,8 +142,9 @@
     const promptTokens = diagnostics ? diagnostics.prompt_token_count : 0;
     const generatedTokens = diagnostics ? diagnostics.generated_token_count : 0;
     const scratchBytes = diagnostics ? diagnostics.peak_scratch_arena_usage : 0;
-    const measuredSpeed = generatedTokens > 0 && state.lastGenerateMs > 0
-      ? generatedTokens / (state.lastGenerateMs / 1000)
+    const measuredTokens = state.lastMeasuredTokens > 0 ? state.lastMeasuredTokens : generatedTokens;
+    const measuredSpeed = measuredTokens > 0 && state.lastGenerateMs > 0
+      ? measuredTokens / (state.lastGenerateMs / 1000)
       : 0;
     const reportedSpeed = diagnostics ? diagnostics.tokens_per_second : 0;
     const speed = measuredSpeed || reportedSpeed || 0;
@@ -177,6 +181,25 @@
       isError: Boolean(isError)
     });
     renderConversation();
+  }
+
+  function extendAssistantMessage(text) {
+    if (!text) {
+      return;
+    }
+    const last = state.messages[state.messages.length - 1];
+    if (last && last.role === "assistant" && !last.isError) {
+      last.text += text;
+      renderConversation();
+      return;
+    }
+    appendMessage("assistant", text, false);
+  }
+
+  function appendConsole(text) {
+    el.console.textContent = el.console.textContent
+      ? `${el.console.textContent}\n${text}`
+      : text;
   }
 
   function errorMessage(error) {
@@ -279,6 +302,7 @@
 
   function setControls(canGenerate, canSelectModel) {
     el.generateButton.disabled = !canGenerate;
+    el.stepTokenButton.disabled = !canGenerate || !state.hasContext;
     el.resetButton.disabled = !canGenerate;
     el.modelSelect.disabled = !canSelectModel || !state.exports;
   }
@@ -291,6 +315,8 @@
     el.modelSelect.value = selectedModel;
     const modelPath = model.path;
     el.maxTokens.value = String(model.maxTokens);
+    state.hasContext = false;
+    state.lastMeasuredTokens = 0;
     setInteractive(false);
     el.response.textContent = "";
     el.console.textContent = "";
@@ -312,6 +338,8 @@
       }
       state.modelLoadMs = Math.round(performance.now() - started);
       state.lastGenerateMs = 0;
+      state.hasContext = false;
+      state.lastMeasuredTokens = 0;
       setText(el.modelState, "fetch error", true);
       setText(el.runtimeStatus, "Model load failed", true);
       setText(el.errorState, errorMessage(error), true);
@@ -331,6 +359,8 @@
     }
     state.modelLoadMs = Math.round(performance.now() - started);
     state.lastGenerateMs = 0;
+    state.hasContext = false;
+    state.lastMeasuredTokens = 0;
     setText(el.modelState, loadCode === 0 ? `loaded (${state.modelLoadMs} ms)` : `error ${loadCode}`, loadCode !== 0);
     setText(el.runtimeStatus, loadCode === 0 ? "Ready" : "Model rejected", loadCode !== 0);
     setText(el.errorState, loadCode === 0 ? "none" : readLastResult(), loadCode !== 0);
@@ -399,14 +429,56 @@
     const started = performance.now();
     const code = state.exports.generate(ptr, bytes.length, maxTokens);
     state.lastGenerateMs = Math.round(performance.now() - started);
+    state.lastMeasuredTokens = 0;
     release(ptr, bytes.length);
     const text = readLastResult();
+    state.hasContext = code === 0;
     setText(el.response, text, code !== 0);
     el.console.textContent = `generate(max_new_tokens=${maxTokens}, temperature=${sampling.temperature}, top_k=${sampling.topK}, top_p=${sampling.topP}, seed=${sampling.seed}) -> ${code} in ${state.lastGenerateMs} ms\n${text}`;
     setText(el.errorState, code === 0 ? "none" : text, code !== 0);
     appendMessage("user", el.prompt.value, false);
     appendMessage("assistant", text, code !== 0);
     renderDiagnostics();
+    setControls(true, true);
+  });
+
+  el.stepTokenButton.addEventListener("click", function () {
+    if (!state.exports || !state.hasContext) {
+      return;
+    }
+    let sampling = null;
+    try {
+      sampling = applySamplingConfig();
+    } catch (error) {
+      const text = errorMessage(error);
+      setText(el.errorState, text, true);
+      appendConsole(text);
+      renderDiagnostics();
+      setControls(true, true);
+      return;
+    }
+    const started = performance.now();
+    const code = state.exports.generate_next_token();
+    state.lastGenerateMs = Math.round(performance.now() - started);
+    const text = readLastResult();
+    const resultText = text || `generate_next_token failed (${code})`;
+    const consoleText = `generate_next_token(temperature=${sampling.temperature}, top_k=${sampling.topK}, top_p=${sampling.topP}, seed=${sampling.seed}) -> ${code} in ${state.lastGenerateMs} ms\n${resultText}`;
+    state.lastMeasuredTokens = code === 0 ? 1 : 0;
+    state.hasContext = code === 0;
+    appendConsole(consoleText);
+    if (code === 0) {
+      setText(el.response, `${el.response.textContent}${text}`, false);
+      setText(el.errorState, "none", false);
+      extendAssistantMessage(text);
+    } else {
+      setText(el.errorState, resultText, true);
+      if (!el.response.textContent) {
+        setText(el.response, resultText, true);
+      }
+      appendMessage("assistant", resultText, true);
+    }
+    renderDiagnostics();
+    setControls(true, true);
   });
 
   el.modelSelect.addEventListener("change", function () {
@@ -425,9 +497,12 @@
     if (state.exports) {
       state.exports.reset_context();
       state.lastGenerateMs = 0;
+      state.lastMeasuredTokens = 0;
+      state.hasContext = false;
       el.response.textContent = "";
       el.console.textContent = "context reset";
       renderDiagnostics();
+      setControls(true, true);
     }
   });
 

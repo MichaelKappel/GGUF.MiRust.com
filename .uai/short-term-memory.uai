@@ -1,6 +1,10 @@
 profile: gguf-mirust.short-term-memory.v2
-updated_utc: 2026-06-25T13:35:24Z
+updated_utc: 2026-06-25T13:59:11Z
 current_state:
+  - 2026-06-25 promoted browser Step Token control: tinyrustlm/app now exposes a disabled-until-context Step Token button wired to WASM generate_next_token.
+  - Step Token appends one decoded token to the response and latest TinyRustLM transcript turn, appends a generate_next_token console entry, refreshes diagnostics/benchmark, stays enabled after transcript Clear, and disables after runtime Reset, context errors, missing models, and rejected models.
+  - Browser smoke now has a step-token mode that verifies hi -> e -> ee, generated_token_count 2, KV cache length 5, selected token 101, q8_0 diagnostics, benchmark generated count 2, and local-only requests.
+  - Verification passed for the Step Token control slice: node --check app.js/browser-smoke.js, cargo fmt --all -- --check, cargo test --workspace with 102 tests, Rust browser harness static contract, focused step-token smoke on port 18450, and tools/vs/Test-TinyRustLM.ps1 -BrowserSmoke -BrowserSmokePort 18460 -PortSearchLimit 5.
   - 2026-06-25 hardened generated-result output buffering: Runtime now caps decoded generated output at 64 KiB and surfaces ErrorCode::OutputBufferExceeded through last_result plus diagnostics.
   - Byte and BPE tokenizers now expose bounded decode paths that fail before replacing the caller's existing output string, and full generate overflow failures clear stale token/generated-token state.
   - Verification passed for the output-buffer slice: cargo fmt --all -- --check, cargo test --workspace with 102 tests, strict rustdoc gates, rebuilt WASM, WASM ABI smoke, Rust browser harness, and tools/vs/Test-TinyRustLM.ps1.
@@ -207,6 +211,7 @@ active_next_steps:
   - Preserve the WASM step/free ABI: browser-callable exports return explicit ErrorCode values, payload text stays in last_result, token ids stay in diagnostics, and post-free generation must fail ModelNotLoaded.
   - Carry the UAIX dogfood finding back into UAIX.org guidance/spec/wizard when working in the UAIX.org source tree: report batches need hot .uai synthesis, not just durable wiki pointers.
   - Preserve transcript semantics during browser UI work: local transcript state is DOM-safe text, Reset does not clear history, and Clear clears only history.
+  - Preserve browser Step Token semantics during UI work: disabled before context, enabled after successful generate, appends to response/latest assistant transcript turn, stays enabled after Clear, and disables after Reset or failed generation.
   - Preserve Visual Studio F5/server busy-port behavior during future helper edits.
   - Measure the new scratch-backed q8_0/q4_0 row/vector dequantization path across longer prompts and broader browser performance soaks.
   - Move next from all-quantization untied and tied trained-source conversion plumbing, fixture-scoped eval execution, and Rust browser harness contract coverage into real trained weights and broader assistant-quality evidence review.

@@ -336,6 +336,10 @@ try {
                 if ($LASTEXITCODE -ne 0) {
                     throw "browser performance smoke failed with exit code $LASTEXITCODE"
                 }
+                node "tinyrustlm\tools\browser-smoke.js" $target.Url 9235 tinylm16q8 step-token
+                if ($LASTEXITCODE -ne 0) {
+                    throw "browser step-token smoke failed with exit code $LASTEXITCODE"
+                }
                 node "tinyrustlm\tools\browser-smoke.js" $target.Url 9234 tinylm16q8 ui-audit
                 if ($LASTEXITCODE -ne 0) {
                     throw "browser UI audit failed with exit code $LASTEXITCODE"
