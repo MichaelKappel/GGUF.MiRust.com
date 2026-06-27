@@ -412,10 +412,11 @@ async function runPageStepTokenSmoke(client, modelKey) {
   return parseEvaluateValue(result);
 }
 
-async function runPageAdapterSidecarSmoke(client, modelKey) {
+async function runPageAdapterSidecarSmoke(client, modelKey, expectAutoAssembly) {
   const expression = `
     (async () => {
       const expectedModel = ${JSON.stringify(modelKey)};
+      const expectAutoAssembly = ${expectAutoAssembly ? "true" : "false"};
       const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       const byId = (id) => document.getElementById(id);
       const parseDiagnostics = () => {
@@ -426,7 +427,9 @@ async function runPageAdapterSidecarSmoke(client, modelKey) {
         }
       };
       for (let index = 0; index < 600; index += 1) {
-        if (byId("generateButton") && !byId("generateButton").disabled && byId("runtimeStatus").textContent === "Ready") {
+        const ready = byId("generateButton") && !byId("generateButton").disabled && byId("runtimeStatus").textContent === "Ready";
+        const assembled = byId("adapterState") && byId("adapterState").textContent === "applied";
+        if (ready && (!expectAutoAssembly || assembled)) {
           break;
         }
         await sleep(100);
@@ -440,7 +443,9 @@ async function runPageAdapterSidecarSmoke(client, modelKey) {
         byId("modelSelect").value = expectedModel;
         byId("modelSelect").dispatchEvent(new Event("change", { bubbles: true }));
         for (let index = 0; index < 600; index += 1) {
-          if (byId("modelSelect").value === expectedModel && !byId("generateButton").disabled && byId("runtimeStatus").textContent === "Ready") {
+          const ready = byId("modelSelect").value === expectedModel && !byId("generateButton").disabled && byId("runtimeStatus").textContent === "Ready";
+          const assembled = byId("adapterState") && byId("adapterState").textContent === "applied";
+          if (ready && (!expectAutoAssembly || assembled)) {
             break;
           }
           await sleep(100);
@@ -453,6 +458,10 @@ async function runPageAdapterSidecarSmoke(client, modelKey) {
       const selectedAdapterBeforeApply = byId("adapterSelect").value;
       const adapterSelectDisabledBefore = byId("adapterSelect").disabled;
       const applyDisabledBefore = byId("applyAdapterButton").disabled;
+      const adapterStateBeforeGenerate = byId("adapterState").textContent;
+      const diagnosticsBeforeGenerate = parseDiagnostics();
+      const consoleBeforeGenerate = byId("console").textContent;
+      const autoAppliedBeforeGenerate = adapterStateBeforeGenerate === "applied";
       byId("maxTokens").value = "1";
       byId("prompt").value = "hi";
       byId("generateButton").click();
@@ -462,16 +471,21 @@ async function runPageAdapterSidecarSmoke(client, modelKey) {
         }
         await sleep(100);
       }
-      const beforeApplyDiagnostics = parseDiagnostics();
-      const stepDisabledBeforeApply = byId("stepTokenButton").disabled;
-      byId("applyAdapterButton").click();
-      for (let index = 0; index < 600; index += 1) {
-        if (byId("adapterState").textContent === "applied" || byId("errorState").textContent !== "none") {
-          break;
+      const afterGenerateDiagnostics = parseDiagnostics();
+      const stepDisabledAfterGenerate = byId("stepTokenButton").disabled;
+      let beforeApplyDiagnostics = afterGenerateDiagnostics;
+      let stepDisabledBeforeApply = stepDisabledAfterGenerate;
+      let afterApplyDiagnostics = diagnosticsBeforeGenerate;
+      if (!expectAutoAssembly) {
+        byId("applyAdapterButton").click();
+        for (let index = 0; index < 600; index += 1) {
+          if (byId("adapterState").textContent === "applied" || byId("errorState").textContent !== "none") {
+            break;
+          }
+          await sleep(100);
         }
-        await sleep(100);
+        afterApplyDiagnostics = parseDiagnostics();
       }
-      const afterApplyDiagnostics = parseDiagnostics();
       return JSON.stringify({
         runtimeStatus: byId("runtimeStatus").textContent,
         modelState: byId("modelState").textContent,
@@ -492,6 +506,12 @@ async function runPageAdapterSidecarSmoke(client, modelKey) {
         selectedAdapterBeforeApply,
         adapterSelectDisabledBefore,
         applyDisabledBefore,
+        adapterStateBeforeGenerate,
+        autoAppliedBeforeGenerate,
+        diagnosticsBeforeGenerate,
+        consoleBeforeGenerate,
+        afterGenerateDiagnostics,
+        stepDisabledAfterGenerate,
         stepDisabledBeforeApply,
         stepDisabledAfterApply: byId("stepTokenButton").disabled,
         generateDisabledAfterApply: byId("generateButton").disabled,
@@ -1317,6 +1337,32 @@ function assertMultiParentRegistrySmoke(result, modelKey, networkRequests) {
   }
 }
 
+function assertSelectorBudgetSmoke(result, networkRequests) {
+  assertSmoke(result, "tinylm16q8");
+  const failures = [];
+  const modelOptionValues = Array.isArray(result.modelOptions)
+    ? result.modelOptions.map((option) => option.value)
+    : [];
+  if (modelOptionValues.includes("oversized-browser-parent")) {
+    failures.push("oversized registry entry was accepted");
+  }
+  if (!modelOptionValues.includes("tinylm16q8") || !modelOptionValues.includes("tinylm16q4")) {
+    failures.push(`fallback model options were ${JSON.stringify(result.modelOptions)}`);
+  }
+  if (!networkRequests.some((requestUrl) => requestUrl.includes("/models/selector.registry"))) {
+    failures.push("selector registry route was not requested");
+  }
+  if (networkRequests.some((requestUrl) => requestUrl.includes("/models/oversized-browser-parent.slm"))) {
+    failures.push("oversized model route was requested");
+  }
+  if (!networkRequests.some((requestUrl) => requestUrl.includes("/models/tinylm16-q8.slm"))) {
+    failures.push("fallback q8 model route was not requested");
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
 function assertStepTokenSmoke(result, modelKey, networkRequests) {
   const failures = [];
   const quantization = expectedQuantization[modelKey];
@@ -1402,7 +1448,7 @@ function assertStepTokenSmoke(result, modelKey, networkRequests) {
   }
 }
 
-function assertAdapterSidecarSmoke(result, modelKey, networkRequests) {
+function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAutoAssembly) {
   const failures = [];
   if (result.selectedModel !== modelKey) {
     failures.push(`selected model was ${result.selectedModel}`);
@@ -1444,38 +1490,67 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests) {
   if (result.adapterSelectDisabledBefore || result.applyDisabledBefore) {
     failures.push("adapter controls were disabled before apply");
   }
-  if (result.stepDisabledBeforeApply) {
-    failures.push("step-token control was disabled before adapter apply");
-  }
-  if (!result.stepDisabledAfterApply) {
-    failures.push("step-token control stayed enabled after adapter apply");
-  }
   if (result.generateDisabledAfterApply || result.applyDisabledAfterApply) {
     failures.push("primary adapter controls were disabled after apply");
   }
   if (result.adapterState !== "applied") {
     failures.push(`adapter state was ${result.adapterState}`);
   }
-  if (result.response !== "adapter applied") {
-    failures.push(`response was ${JSON.stringify(result.response)}`);
-  }
-  if (!String(result.console || "").includes("apply_adapter_delta")) {
-    failures.push("console did not include apply_adapter_delta");
-  }
-  const before = result.beforeApplyDiagnostics || {};
-  const after = result.afterApplyDiagnostics || {};
-  if (before.generated_token_count !== 1 || before.kv_cache_length < 1) {
-    failures.push(`pre-apply diagnostics were ${JSON.stringify(before)}`);
-  }
-  if (after.last_error !== "ok") {
-    failures.push(`post-apply last_error was ${after.last_error}`);
-  }
   const expectedMode = expectedQuantization[modelKey] || "f32";
-  if (after.active_quantization_mode !== expectedMode) {
-    failures.push(`post-apply quantization mode was ${after.active_quantization_mode}`);
-  }
-  if (after.generated_token_count !== 0 || after.kv_cache_length !== 0 || after.selected_next_token !== 0) {
-    failures.push(`post-apply reset diagnostics were ${JSON.stringify(after)}`);
+  if (expectAutoAssembly) {
+    if (!String(result.consoleBeforeGenerate || "").includes("apply_adapter_delta")) {
+      failures.push("pre-generation console did not include apply_adapter_delta");
+    }
+    if (!result.autoAppliedBeforeGenerate) {
+      failures.push(`auto assembly state before generation was ${result.adapterStateBeforeGenerate}`);
+    }
+    if (result.response !== "e") {
+      failures.push(`response was ${JSON.stringify(result.response)}`);
+    }
+    if (result.stepDisabledAfterGenerate) {
+      failures.push("step-token control was disabled after assembled generation");
+    }
+    const reset = result.diagnosticsBeforeGenerate || {};
+    if (reset.last_error !== "ok" || reset.active_quantization_mode !== expectedMode) {
+      failures.push(`auto-assembly diagnostics were ${JSON.stringify(reset)}`);
+    }
+    if (reset.generated_token_count !== 0 || reset.kv_cache_length !== 0 || reset.selected_next_token !== 0) {
+      failures.push(`auto-assembly reset diagnostics were ${JSON.stringify(reset)}`);
+    }
+    const generated = result.afterGenerateDiagnostics || {};
+    if (generated.generated_token_count !== 1 || generated.kv_cache_length < 1) {
+      failures.push(`assembled generation diagnostics were ${JSON.stringify(generated)}`);
+    }
+    if (generated.active_quantization_mode !== expectedMode) {
+      failures.push(`assembled generation quantization mode was ${generated.active_quantization_mode}`);
+    }
+  } else {
+    if (!String(result.console || "").includes("apply_adapter_delta")) {
+      failures.push("console did not include apply_adapter_delta");
+    }
+    if (result.stepDisabledBeforeApply) {
+      failures.push("step-token control was disabled before adapter apply");
+    }
+    if (!result.stepDisabledAfterApply) {
+      failures.push("step-token control stayed enabled after adapter apply");
+    }
+    if (result.response !== "adapter applied") {
+      failures.push(`response was ${JSON.stringify(result.response)}`);
+    }
+    const before = result.beforeApplyDiagnostics || {};
+    const after = result.afterApplyDiagnostics || {};
+    if (before.generated_token_count !== 1 || before.kv_cache_length < 1) {
+      failures.push(`pre-apply diagnostics were ${JSON.stringify(before)}`);
+    }
+    if (after.last_error !== "ok") {
+      failures.push(`post-apply last_error was ${after.last_error}`);
+    }
+    if (after.active_quantization_mode !== expectedMode) {
+      failures.push(`post-apply quantization mode was ${after.active_quantization_mode}`);
+    }
+    if (after.generated_token_count !== 0 || after.kv_cache_length !== 0 || after.selected_next_token !== 0) {
+      failures.push(`post-apply reset diagnostics were ${JSON.stringify(after)}`);
+    }
   }
   const allowedOrigin = new URL(appUrl).origin;
   for (const requestUrl of networkRequests) {
@@ -2455,6 +2530,7 @@ function installMultiParentRegistryInterceptor(client) {
         "selector_id=browser-local-selector",
         "registry_scope=browser-local-model-selector",
         "registry_status=admitted-records-only",
+        "selector_model_byte_budget=33554432",
         "entry_count=1",
         "admission_set_checksum=0x0000000000000049",
         "entry.0.candidate_id=multi-parent-sign-merge-q8",
@@ -2502,6 +2578,63 @@ function installMultiParentRegistryInterceptor(client) {
   });
 }
 
+function installSelectorBudgetRegistryInterceptor(client) {
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    if (requestUrl.includes("/models/selector.registry")) {
+      const body = Buffer.from([
+        "tinyrustlm_selector_registry_version=1",
+        "selector_id=browser-local-selector",
+        "registry_scope=browser-local-model-selector",
+        "registry_status=admitted-records-only",
+        "selector_model_byte_budget=33554432",
+        "entry_count=1",
+        "admission_set_checksum=0x0000000000000081",
+        "entry.0.candidate_id=oversized-browser-parent",
+        "entry.0.display_name=Oversized browser parent q4_0",
+        "entry.0.model_path=../models/oversized-browser-parent.slm",
+        "entry.0.manifest_path=../models/oversized-browser-parent.slm.manifest",
+        "entry.0.artifact_path=tinyrustlm/models/oversized-browser-parent.slm",
+        "entry.0.max_tokens=8",
+        "entry.0.model_bytes=33554433",
+        "entry.0.slm_checksum=0x0000000000000082",
+        "entry.0.model_shape=vocab=260,hidden=512,layers=4,heads=8,kv_heads=8,head_dim=64,ffn=2048,context=512",
+        "entry.0.quantization=q4_0",
+        "entry.0.output_contract=separate-output-weight",
+        "entry.0.admission_checksum=0x0000000000000083",
+        "entry.0.promotion_manifest_checksum=0x0000000000000084",
+        "entry.0.runtime_smoke_manifest_checksum=0x0000000000000085",
+        "entry.0.eval_manifest_checksum=0x0000000000000086",
+        "entry.0.quality_scope=tiny-fixture-runtime-eval-only",
+        "entry.0.quality_boundary=fixture-runtime-and-eval-plumbing-not-product-assistant-quality",
+        "entry.0.eval_dataset=tinyrustlm/tests/fixtures/assistant-quality-eval-cases.txt",
+        "entry.0.cases_passed=1",
+        "entry.0.selector_status=admitted",
+        "entry.0.public_claim_status=bound-to-eval-scope",
+        "required_next_gate=browser-loads-selector-registry-entry-models",
+        ""
+      ].join("\n"), "utf8");
+      client.send("Fetch.fulfillRequest", {
+        requestId: params.requestId,
+        responseCode: 200,
+        responseHeaders: [
+          { name: "content-type", value: "text/plain; charset=utf-8" },
+          { name: "content-length", value: String(body.length) }
+        ],
+        body: body.toString("base64")
+      }).catch((error) => {
+        console.error(error);
+      });
+      return;
+    }
+    client.send("Fetch.continueRequest", {
+      requestId: params.requestId
+    }).catch((error) => {
+      console.error(error);
+    });
+  });
+}
+
 function installQuantizedAdapterRegistryInterceptor(client) {
   client.on("Fetch.requestPaused", (params) => {
     const requestUrl = params.request && params.request.url ? params.request.url : "";
@@ -2511,6 +2644,7 @@ function installQuantizedAdapterRegistryInterceptor(client) {
         "selector_id=browser-local-selector",
         "registry_scope=browser-local-model-selector",
         "registry_status=admitted-records-only",
+        "selector_model_byte_budget=33554432",
         "entry_count=1",
         "admission_set_checksum=0x0000000000000061",
         "entry.0.candidate_id=tinyq8",
@@ -2519,7 +2653,7 @@ function installQuantizedAdapterRegistryInterceptor(client) {
         "entry.0.manifest_path=../models/tiny-test-model-q8.slm.manifest",
         "entry.0.artifact_path=tinyrustlm/models/tiny-test-model-q8.slm",
         "entry.0.max_tokens=8",
-        "entry.0.model_bytes=12000",
+        "entry.0.model_bytes=8832",
         "entry.0.slm_checksum=0x6bde8aa244a5c10d",
         "entry.0.model_shape=vocab=260,hidden=16,layers=1,heads=2,kv_heads=2,head_dim=8,ffn=32,context=32",
         "entry.0.quantization=q8_0",
@@ -2600,7 +2734,7 @@ async function main() {
     await client.send("Page.enable", {});
     await client.send("Runtime.enable", {});
     await client.send("Network.enable", {});
-    if (smokeMode === "model-error" || smokeMode === "missing-model" || smokeMode === "multi-parent-registry" || smokeMode === "adapter-sidecar-registry-q8" || smokeMode === "adapter-sidecar-checksum-mismatch") {
+    if (smokeMode === "model-error" || smokeMode === "missing-model" || smokeMode === "multi-parent-registry" || smokeMode === "selector-budget" || smokeMode === "adapter-sidecar-registry-q8" || smokeMode === "adapter-sidecar-checksum-mismatch") {
       if (smokeMode === "model-error") {
         installMalformedModelInterceptor(client);
       } else if (smokeMode === "missing-model") {
@@ -2609,6 +2743,8 @@ async function main() {
         installCorruptAdapterInterceptor(client);
       } else if (smokeMode === "adapter-sidecar-registry-q8") {
         installQuantizedAdapterRegistryInterceptor(client);
+      } else if (smokeMode === "selector-budget") {
+        installSelectorBudgetRegistryInterceptor(client);
       } else {
         installMultiParentRegistryInterceptor(client);
       }
@@ -2743,7 +2879,11 @@ async function main() {
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
           await sleep(500);
-          result = await runPageAdapterSidecarSmoke(client, expectedModel);
+          result = await runPageAdapterSidecarSmoke(
+            client,
+            expectedModel,
+            smokeMode === "adapter-sidecar-registry-file"
+          );
           break;
         } catch (error) {
           if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
@@ -2754,8 +2894,28 @@ async function main() {
       if (smokeMode === "adapter-sidecar-checksum-mismatch") {
         assertAdapterChecksumMismatchSmoke(result, expectedModel, networkRequests);
       } else {
-        assertAdapterSidecarSmoke(result, expectedModel, networkRequests);
+        assertAdapterSidecarSmoke(
+          result,
+          expectedModel,
+          networkRequests,
+          smokeMode === "adapter-sidecar-registry-file"
+        );
       }
+      result.networkRequests = networkRequests;
+    } else if (smokeMode === "selector-budget") {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageSmoke(client, expectedModel);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertSelectorBudgetSmoke(result, networkRequests);
       result.networkRequests = networkRequests;
     } else if (smokeMode === "multi-parent-registry" || smokeMode === "multi-parent-registry-file") {
       await client.send("Page.reload", { ignoreCache: true });

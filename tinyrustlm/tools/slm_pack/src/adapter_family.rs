@@ -13,6 +13,9 @@ const ADAPTER_FAMILY_RECEIPT_VERSION: &str = "1";
 const ADAPTER_FAMILY_KIND: &str = "browser-local-adapter-family";
 const ADAPTER_FAMILY_STATUS: &str = "validated";
 const ADAPTER_FAMILY_STRATEGY: &str = "single-adapter-selection";
+const ADAPTER_AUTO_APPLY_STATUS: &str = "enabled";
+const ADAPTER_AUTO_APPLY_STRATEGY: &str = "receipt-preferred-compatible";
+const ADAPTER_AUTO_APPLY_BYTE_BUDGET: u64 = 1024 * 1024;
 const ADAPTER_ARTIFACT_VERSION: &str = "1";
 const ADAPTER_ARTIFACT_KIND: &str = "raw-f32-task-delta-v1";
 const SPARSE_ADAPTER_ARTIFACT_KIND: &str = "sparse-f32-task-delta-v1";
@@ -68,6 +71,9 @@ pub(crate) fn write_receipt_path(
         strategy: ADAPTER_FAMILY_STRATEGY.to_string(),
         receipt_checksum: hex64(provenance::text_checksum(receipt.as_bytes())),
         adapter_count: inputs.len(),
+        auto_apply_status: ADAPTER_AUTO_APPLY_STATUS.to_string(),
+        auto_apply_strategy: ADAPTER_AUTO_APPLY_STRATEGY.to_string(),
+        auto_apply_byte_budget: ADAPTER_AUTO_APPLY_BYTE_BUDGET,
     };
     selector::validate_registry_adapter_family_route(&route)?;
     println!(

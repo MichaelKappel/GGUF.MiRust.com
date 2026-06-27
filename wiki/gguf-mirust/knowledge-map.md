@@ -3,7 +3,7 @@ title: GGUF.MiRust.com Knowledge Map
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/knowledge-map/
 status: planned_pending_publication
-reviewed_utc: 2026-06-27T15:17:51Z
+reviewed_utc: 2026-06-27T16:36:46Z
 ---
 
 # Knowledge Map
@@ -33,6 +33,10 @@ reviewed_utc: 2026-06-27T15:17:51Z
 - Browser sparse adapter route memory: `wiki/gguf-mirust/reports/browser-sparse-adapter-route-memory-2026-06-27.md`
 - Browser preferred adapter route memory: `wiki/gguf-mirust/reports/browser-preferred-adapter-route-memory-2026-06-27.md`
 - Browser multi quant selector root memory: `wiki/gguf-mirust/reports/browser-multi-quant-selector-root-memory-2026-06-27.md`
+- Browser frugal selector default memory: `wiki/gguf-mirust/reports/browser-frugal-selector-default-memory-2026-06-27.md`
+- Browser selector budget memory: `wiki/gguf-mirust/reports/browser-selector-budget-memory-2026-06-27.md`
+- Browser selector budget contract memory: `wiki/gguf-mirust/reports/browser-selector-budget-contract-memory-2026-06-27.md`
+- Browser auto assembly memory: `wiki/gguf-mirust/reports/browser-auto-assembly-memory-2026-06-27.md`
 - Model breeding reference ideas: `wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md`
 - Raw report evidence: `raw/gguf-mirust/report-intake-2026-06-25/`
 - Raw model-breeding evidence: `raw/gguf-mirust/report-intake-2026-06-26/`
@@ -43,5 +47,5 @@ reviewed_utc: 2026-06-27T15:17:51Z
 - `docs/architecture/browser-harness.md` defines implementation boundaries.
 - `wiki/gguf-mirust/source-memory-guide.md` is the public routing record for future agents.
 - Report synthesis records distribute active handoff reports by theme so agents can load governance, browser runtime, modular model, teleodynamic, or brand context without bulk-loading every original report.
-- Model breeding records route compatible merge, adapter, lineage, sparse-mask receipt metadata, sparse ASP1 adapter packages, population objective-vector fields, parent relatedness recipe/receipt/manifest fields, runtime f32/q8_0/q4_0 ADP1/ASP1 adapter apply, checked browser f32/q8_0/q4_0 ADP1 sidecars, registry-carried f32/q8_0/q4_0 ADP1/ASP1 sidecars, registry-carried adapter families, adapter-family receipts with preferred member fields, generated f32/q8_0/q4_0 bundle roots, one combined f32/q8_0/q4_0 selector root, assembly receipts with evidence-file fetches, and candidate-evaluation research into future TinyRustLM work without changing current quality authority.
+- Model breeding records route compatible merge, adapter, lineage, sparse-mask receipt metadata, sparse ASP1 adapter packages, population objective-vector fields, parent relatedness recipe/receipt/manifest fields, runtime f32/q8_0/q4_0 ADP1/ASP1 adapter apply, checked browser f32/q8_0/q4_0 ADP1 sidecars, registry-carried f32/q8_0/q4_0 ADP1/ASP1 sidecars, registry-carried adapter families, adapter-family receipts with preferred member fields, registry-controlled auto assembly, generated f32/q8_0/q4_0 bundle roots, one q4-defaulted combined f32/q8_0/q4_0 selector root, browser selector byte-budget intake, the `selector_model_byte_budget=33554432` registry contract, assembly receipts with evidence-file fetches, and candidate-evaluation research into future TinyRustLM work without changing current quality authority.
 - Raw evidence preserves exact report bytes with checksums; synthesis records carry reviewed interpretation, not source replacement authority.

@@ -1,5 +1,5 @@
 profile: gguf-mirust.taboo.v3
-updated_utc: 2026-06-27T10:55:00Z
+updated_utc: 2026-06-27T15:54:11Z
 scope: public_site_voice_and_project_copy
 purpose: Keep GGUF.MiRust.com focused on constructive local-model craft, verifiable Rust/WASM execution, model lineage, research momentum, and user agency.
 authority:
@@ -8,6 +8,7 @@ authority:
   human_update_2026_06_27: This website should not spend public copy on caution-centered or worry-centered AI messaging; keep that content on other sites.
   human_update_2026_06_27_site_rule: GGUF.MiRust.com pages should not be organized around warnings, cautions, worry, or alarm messaging; use proof, craft, lineage, local agency, and implementation-boundary language instead.
   human_update_2026_06_27_strategy_rule: Model-breeding, mutualist, tiny-ecology, and UAIX memory-strategy copy for this site should route away from warning/caution/worry messaging and toward proof, craft, lineage, fit, agency, and evidence.
+  human_update_2026_06_27_no_meta_topic_rule: Do not make the absence of caution-centered messaging a public site topic; simply write in the proof, craft, lineage, fit, local-agency, and evidence voice.
 public_site_voice:
   preferred_emphasis:
     - browser-local Rust/WASM execution

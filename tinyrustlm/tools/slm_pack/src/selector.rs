@@ -16,10 +16,14 @@ const ENTRY_STATUS: &str = "admitted";
 const PUBLIC_CLAIM_STATUS: &str = "bound-to-eval-scope";
 const REQUIRED_NEXT_GATE: &str = "browser-loads-selector-registry-entry-models";
 const SELECTOR_DEFAULT_STRATEGY: &str = "browser-frugal-quantized";
+const SELECTOR_MODEL_BYTE_BUDGET: u64 = 32 * 1024 * 1024;
 const ADAPTER_APPLY_STATUS_F32: &str = "runtime-f32-compatible-or-fuse-to-slm";
 const ADAPTER_APPLY_STATUS_QUANTIZED: &str = "runtime-q8-q4-compatible-or-fuse-to-slm";
 const ADAPTER_FAMILY_STATUS: &str = "receipt-validated";
 const ADAPTER_FAMILY_STRATEGY: &str = "single-adapter-selection";
+const ADAPTER_AUTO_APPLY_STATUS: &str = "enabled";
+const ADAPTER_AUTO_APPLY_STRATEGY: &str = "receipt-preferred-compatible";
+const ADAPTER_AUTO_APPLY_BYTE_BUDGET: u64 = 1024 * 1024;
 const ASSEMBLY_RECEIPT_STATUS: &str = "receipt-validated";
 const ASSEMBLY_RECEIPT_KIND: &str = "browser-local-assembly-evidence";
 const ADAPTER_KEY_SUFFIXES: &[&str] = &[
@@ -38,6 +42,9 @@ const ADAPTER_FAMILY_KEY_SUFFIXES: &[&str] = &[
     "adapter_family_status",
     "adapter_family_strategy",
     "adapter_family_adapter_count",
+    "adapter_auto_apply_status",
+    "adapter_auto_apply_strategy",
+    "adapter_auto_apply_byte_budget",
 ];
 const ASSEMBLY_RECEIPT_KEY_SUFFIXES: &[&str] = &[
     "assembly_receipt_path",
@@ -94,6 +101,9 @@ pub(crate) struct RegistryAdapterFamilyRoute {
     pub(crate) strategy: String,
     pub(crate) receipt_checksum: String,
     pub(crate) adapter_count: usize,
+    pub(crate) auto_apply_status: String,
+    pub(crate) auto_apply_strategy: String,
+    pub(crate) auto_apply_byte_budget: u64,
 }
 
 /// Optional browser-local assembly evidence receipt metadata for a selector entry.
@@ -216,6 +226,11 @@ pub(crate) fn build_registry_text_with_adapter_family_and_assembly_routes(
     push_line(&mut text, "selector_id", &selector_id);
     push_line(&mut text, "registry_scope", REGISTRY_SCOPE);
     push_line(&mut text, "registry_status", REGISTRY_STATUS);
+    push_line(
+        &mut text,
+        "selector_model_byte_budget",
+        &SELECTOR_MODEL_BYTE_BUDGET.to_string(),
+    );
     push_line(&mut text, "entry_count", &entries.len().to_string());
     push_line(
         &mut text,
@@ -437,6 +452,21 @@ pub(crate) fn build_registry_text_with_adapter_family_and_assembly_routes(
                 &format!("{prefix}.adapter_family_adapter_count"),
                 &family.adapter_count.to_string(),
             );
+            push_line(
+                &mut text,
+                &format!("{prefix}.adapter_auto_apply_status"),
+                &family.auto_apply_status,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.adapter_auto_apply_strategy"),
+                &family.auto_apply_strategy,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.adapter_auto_apply_byte_budget"),
+                &family.auto_apply_byte_budget.to_string(),
+            );
         }
         if let Some(assembly) = &entry.assembly {
             push_line(
@@ -499,6 +529,11 @@ fn validate_registry_text(registry_text: &str, admission_texts: &[String]) -> io
     )?;
     require_equal(&actual, "registry_scope", REGISTRY_SCOPE)?;
     require_equal(&actual, "registry_status", REGISTRY_STATUS)?;
+    require_equal(
+        &actual,
+        "selector_model_byte_budget",
+        &SELECTOR_MODEL_BYTE_BUDGET.to_string(),
+    )?;
     require_equal(&actual, "required_next_gate", REQUIRED_NEXT_GATE)?;
     for (key, expected_value) in &expected {
         require_equal(&actual, key, expected_value)?;
@@ -566,6 +601,7 @@ fn entries_from_admissions(admission_texts: &[String]) -> io::Result<Vec<Registr
         let model_path = browser_model_path(&artifact_path)?;
         let manifest_path = format!("{model_path}.manifest");
         let model_shape = require_key(&fields, "candidate_model_shape")?.to_string();
+        let model_bytes = selector_model_bytes(require_key(&fields, "candidate_artifact_bytes")?)?;
         entries.push(RegistryEntry {
             candidate_id: candidate_id.clone(),
             display_name: display_name(
@@ -576,7 +612,7 @@ fn entries_from_admissions(admission_texts: &[String]) -> io::Result<Vec<Registr
             model_path,
             manifest_path,
             max_tokens: default_max_tokens(&model_shape).to_string(),
-            model_bytes: require_key(&fields, "candidate_artifact_bytes")?.to_string(),
+            model_bytes: model_bytes.to_string(),
             slm_checksum,
             model_shape,
             quantization: require_key(&fields, "candidate_quantization")?.to_string(),
@@ -787,6 +823,19 @@ fn adapter_family_routes_from_registry(
             adapter_count: require_key(fields, &format!("{prefix}.adapter_family_adapter_count"))?
                 .parse::<usize>()
                 .map_err(|_| invalid("selector registry adapter family count is invalid"))?,
+            auto_apply_status: require_key(fields, &format!("{prefix}.adapter_auto_apply_status"))?
+                .to_string(),
+            auto_apply_strategy: require_key(
+                fields,
+                &format!("{prefix}.adapter_auto_apply_strategy"),
+            )?
+            .to_string(),
+            auto_apply_byte_budget: require_key(
+                fields,
+                &format!("{prefix}.adapter_auto_apply_byte_budget"),
+            )?
+            .parse::<u64>()
+            .map_err(|_| invalid("selector registry adapter auto apply byte budget is invalid"))?,
         };
         validate_registry_adapter_family_route(&route)?;
         routes.push(route);
@@ -949,6 +998,23 @@ pub(crate) fn validate_registry_adapter_family_route(
     if route.adapter_count < 2 || route.adapter_count > 16 {
         return Err(invalid("selector registry adapter family count is invalid"));
     }
+    if route.auto_apply_status != ADAPTER_AUTO_APPLY_STATUS {
+        return Err(invalid(
+            "selector registry adapter auto apply status is invalid",
+        ));
+    }
+    if route.auto_apply_strategy != ADAPTER_AUTO_APPLY_STRATEGY {
+        return Err(invalid(
+            "selector registry adapter auto apply strategy is invalid",
+        ));
+    }
+    if route.auto_apply_byte_budget == 0
+        || route.auto_apply_byte_budget > ADAPTER_AUTO_APPLY_BYTE_BUDGET
+    {
+        return Err(invalid(
+            "selector registry adapter auto apply byte budget is invalid",
+        ));
+    }
     validate_hex64(&route.receipt_checksum, "adapter family receipt checksum")?;
     Ok(())
 }
@@ -1029,6 +1095,18 @@ fn validate_model_route_rest(rest: &str) -> io::Result<()> {
         }
     }
     Ok(())
+}
+
+fn selector_model_bytes(value: &str) -> io::Result<u64> {
+    let bytes = value
+        .parse::<u64>()
+        .map_err(|_| invalid("selector registry model bytes are invalid"))?;
+    if bytes == 0 || bytes > SELECTOR_MODEL_BYTE_BUDGET || bytes.to_string() != value {
+        return Err(invalid(
+            "selector registry model bytes exceed the browser selector budget",
+        ));
+    }
+    Ok(bytes)
 }
 
 fn validate_adapter_route_path(path: &str) -> io::Result<()> {
@@ -1238,6 +1316,7 @@ mod tests {
 
         validate_registry_text(&registry, &[admission]).unwrap();
         assert!(registry.contains("registry_status=admitted-records-only"));
+        assert!(registry.contains("selector_model_byte_budget=33554432"));
         assert!(registry.contains("selector_default_strategy=browser-frugal-quantized"));
         assert!(registry.contains("selector_default_candidate_id=tiny-q8-candidate"));
         assert!(registry.contains("selector_default_quantization=q8_0"));
@@ -1286,6 +1365,7 @@ mod tests {
 
         validate_registry_text(&registry, &[f32_admission, q8_admission, q4_admission]).unwrap();
         assert!(registry.contains("entry_count=3"));
+        assert!(registry.contains("selector_model_byte_budget=33554432"));
         assert!(registry.contains("selector_default_candidate_id=tiny-q4-candidate"));
         assert!(registry.contains("selector_default_quantization=q4_0"));
     }
@@ -1382,6 +1462,73 @@ mod tests {
         ));
         assert!(registry.contains("entry.0.adapter_family_status=receipt-validated"));
         assert!(registry.contains("entry.0.adapter_family_adapter_count=2"));
+        assert!(registry.contains("entry.0.adapter_auto_apply_status=enabled"));
+        assert!(
+            registry.contains("entry.0.adapter_auto_apply_strategy=receipt-preferred-compatible")
+        );
+        assert!(registry.contains("entry.0.adapter_auto_apply_byte_budget=1048576"));
+    }
+
+    #[test]
+    fn rejects_adapter_auto_apply_strategy_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let registry = build_registry_text_with_adapter_families(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.adapter_auto_apply_strategy=receipt-preferred-compatible",
+            "entry.0.adapter_auto_apply_strategy=manual-only",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("adapter auto apply strategy"));
+    }
+
+    #[test]
+    fn rejects_adapter_auto_apply_byte_budget_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let registry = build_registry_text_with_adapter_families(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.adapter_auto_apply_byte_budget=1048576",
+            "entry.0.adapter_auto_apply_byte_budget=1048577",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("adapter auto apply byte budget"));
     }
 
     #[test]
@@ -1517,6 +1664,20 @@ mod tests {
     }
 
     #[test]
+    fn rejects_selector_registry_model_bytes_over_budget() {
+        let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm")
+            .replace(
+                "candidate_artifact_bytes=8832",
+                "candidate_artifact_bytes=33554433",
+            );
+
+        let error = build_registry_text(&[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("browser selector budget"));
+    }
+
+    #[test]
     fn rejects_registry_entry_drift() {
         let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
         let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
@@ -1528,6 +1689,20 @@ mod tests {
 
         assert_eq!(error.kind(), io::ErrorKind::InvalidData);
         assert!(error.to_string().contains("selector_status"));
+    }
+
+    #[test]
+    fn rejects_selector_registry_budget_drift() {
+        let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
+        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
+            "selector_model_byte_budget=33554432",
+            "selector_model_byte_budget=33554431",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("selector_model_byte_budget"));
     }
 
     #[test]
@@ -1627,6 +1802,9 @@ mod tests {
             strategy: ADAPTER_FAMILY_STRATEGY.to_string(),
             receipt_checksum: "0x00000000000000ee".to_string(),
             adapter_count,
+            auto_apply_status: ADAPTER_AUTO_APPLY_STATUS.to_string(),
+            auto_apply_strategy: ADAPTER_AUTO_APPLY_STRATEGY.to_string(),
+            auto_apply_byte_budget: ADAPTER_AUTO_APPLY_BYTE_BUDGET,
         }
     }
 

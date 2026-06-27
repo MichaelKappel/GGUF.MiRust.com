@@ -86,9 +86,13 @@
   ]);
   const registryAdapterFamilyStatus = "receipt-validated";
   const registryAdapterFamilyStrategy = "single-adapter-selection";
+  const registryAdapterAutoApplyStatus = "enabled";
+  const registryAdapterAutoApplyStrategy = "receipt-preferred-compatible";
+  const registryAdapterAutoApplyByteBudget = 1024 * 1024;
   const registryAssemblyStatus = "receipt-validated";
   const registryAssemblyKind = "browser-local-assembly-evidence";
   const selectorDefaultStrategy = "browser-frugal-quantized";
+  const selectorModelByteBudget = 32 * 1024 * 1024;
   const adapterFamilyReceiptStatus = "validated";
   const assemblyReceiptStatus = "validated";
   const assemblyReceiptStrategy = "multi-parent-sign-merge";
@@ -617,7 +621,10 @@
       "adapter_family_label",
       "adapter_family_status",
       "adapter_family_strategy",
-      "adapter_family_adapter_count"
+      "adapter_family_adapter_count",
+      "adapter_auto_apply_status",
+      "adapter_auto_apply_strategy",
+      "adapter_auto_apply_byte_budget"
     ];
     const hasFamily = keys.some((key) => fields[`${prefix}.${key}`]);
     if (!hasFamily) {
@@ -626,6 +633,9 @@
     const receiptPath = fields[`${prefix}.adapter_family_receipt_path`];
     const receiptChecksum = fields[`${prefix}.adapter_family_receipt_checksum`];
     const familyCount = Number.parseInt(fields[`${prefix}.adapter_family_adapter_count`] || "0", 10);
+    const autoApplyByteBudget = registryAdapterAutoApplyBudget(
+      fields[`${prefix}.adapter_auto_apply_byte_budget`]
+    );
     if (!isSafeRegistryAdapterFamilyReceiptPath(receiptPath) || !isRegistryHex64(receiptChecksum)) {
       return null;
     }
@@ -633,6 +643,15 @@
       return null;
     }
     if (fields[`${prefix}.adapter_family_strategy`] !== registryAdapterFamilyStrategy) {
+      return null;
+    }
+    if (fields[`${prefix}.adapter_auto_apply_status`] !== registryAdapterAutoApplyStatus) {
+      return null;
+    }
+    if (fields[`${prefix}.adapter_auto_apply_strategy`] !== registryAdapterAutoApplyStrategy) {
+      return null;
+    }
+    if (autoApplyByteBudget === null) {
       return null;
     }
     if (!Number.isInteger(familyCount) || familyCount !== adapterCount || familyCount < 2 || familyCount > 16) {
@@ -643,7 +662,10 @@
       path: receiptPath,
       checksum: receiptChecksum,
       strategy: fields[`${prefix}.adapter_family_strategy`],
-      count: familyCount
+      count: familyCount,
+      autoApplyStatus: fields[`${prefix}.adapter_auto_apply_status`],
+      autoApplyStrategy: fields[`${prefix}.adapter_auto_apply_strategy`],
+      autoApplyByteBudget
     };
   }
 
@@ -686,6 +708,10 @@
     if (fields.registry_status !== "admitted-records-only") {
       return null;
     }
+    const registryByteBudget = registrySelectorModelByteBudget(fields.selector_model_byte_budget);
+    if (registryByteBudget === null) {
+      return null;
+    }
     const entryCount = Number.parseInt(fields.entry_count || "0", 10);
     if (!Number.isInteger(entryCount) || entryCount < 1 || entryCount > 64) {
       return null;
@@ -708,6 +734,10 @@
         return null;
       }
       const maxTokens = clampInteger(fields[`${prefix}.max_tokens`], 1, 512, 8);
+      const modelBytes = registryModelBytes(fields[`${prefix}.model_bytes`], registryByteBudget);
+      if (modelBytes === null) {
+        return null;
+      }
       const quantization = fields[`${prefix}.quantization`] || "";
       const adapters = registryAdapterEntries(fields, prefix, quantization);
       if (!adapters) {
@@ -724,10 +754,12 @@
       models[candidateId] = {
         label: fields[`${prefix}.display_name`] || candidateId,
         path: modelPath,
+        modelBytes,
         maxTokens,
         quantization,
         adapters,
         adapterFamily: adapterFamily || null,
+        autoApplyPreferredAdapter: Boolean(adapterFamily),
         assembly: assembly || null
       };
     }
@@ -736,6 +768,45 @@
       return null;
     }
     return { models, defaultModelKey };
+  }
+
+  function registrySelectorModelByteBudget(value) {
+    const byteBudget = registryDecimalByteCount(value);
+    if (byteBudget === null || byteBudget > selectorModelByteBudget) {
+      return null;
+    }
+    return byteBudget;
+  }
+
+  function registryModelBytes(value, byteBudget) {
+    const modelBytes = registryDecimalByteCount(value);
+    if (modelBytes === null || modelBytes > byteBudget) {
+      return null;
+    }
+    return modelBytes;
+  }
+
+  function registryAdapterAutoApplyBudget(value) {
+    const byteBudget = registryDecimalByteCount(value);
+    if (byteBudget === null || byteBudget > registryAdapterAutoApplyByteBudget) {
+      return null;
+    }
+    return byteBudget;
+  }
+
+  function registryDecimalByteCount(value) {
+    if (!value) {
+      return null;
+    }
+    const bytes = Number.parseInt(value, 10);
+    if (
+      !Number.isSafeInteger(bytes) ||
+      String(bytes) !== value ||
+      bytes < 1
+    ) {
+      return null;
+    }
+    return bytes;
   }
 
   function registryDefaultModelKey(fields, models) {
@@ -812,11 +883,19 @@
   function selectedAdapter() {
     const model = paths.models[state.activeModelKey];
     const adapters = modelAdapters(model);
+    const index = selectedAdapterIndex(adapters);
+    if (index === null) {
+      return null;
+    }
+    return adapters[index];
+  }
+
+  function selectedAdapterIndex(adapters) {
     const index = Number.parseInt(el.adapterSelect.value, 10);
     if (!Number.isInteger(index) || index < 0 || index >= adapters.length) {
       return null;
     }
-    return adapters[index];
+    return index;
   }
 
   function renderAdapterOptions(model, status, isError) {
@@ -923,6 +1002,7 @@
       adapter.artifactChecksum,
       `adapter ${index} artifact`
     );
+    adapterManifestArtifactBytes(fields, source);
     const receiptPrefix = `adapter.${index}`;
     const expectedManifestBytes = Number.parseInt(
       requireManifestField(receiptFields, `${receiptPrefix}.manifest_bytes`),
@@ -941,6 +1021,16 @@
       );
     }
     return fields;
+  }
+
+  function adapterManifestArtifactBytes(fields, source) {
+    const artifactBytes = registryDecimalByteCount(
+      requireManifestField(fields, "adapter_artifact_bytes", source || "adapter manifest")
+    );
+    if (artifactBytes === null) {
+      throw new Error("Adapter artifact byte count mismatch");
+    }
+    return artifactBytes;
   }
 
   async function loadAdapterFamilyReceipt(model) {
@@ -967,6 +1057,13 @@
       }
       const manifestText = await manifestResponse.text();
       manifestFields.push(validateAdapterManifest(adapter, manifestText, receiptFields, index));
+    }
+    if (model.autoApplyPreferredAdapter) {
+      const preferredManifest = manifestFields[preferredIndex];
+      const preferredBytes = adapterManifestArtifactBytes(preferredManifest, "Adapter manifest");
+      if (preferredBytes > model.adapterFamily.autoApplyByteBudget) {
+        throw new Error("Adapter auto assembly byte budget exceeded");
+      }
     }
     model.adapterFamilyReceipt = receiptFields;
     model.adapterFamilyManifests = manifestFields;
@@ -1133,6 +1230,7 @@
       model.adapterFamilyVerified = false;
       model.adapterFamilyReceipt = null;
       model.adapterFamilyManifests = null;
+      model.autoAssemblyApplied = false;
     }
     if (model.assembly) {
       model.assemblyVerified = false;
@@ -1157,6 +1255,9 @@
         throw new Error(`Unable to fetch local .slm model (${response.status})`);
       }
       modelBytes = new Uint8Array(await response.arrayBuffer());
+      if (Number.isSafeInteger(model.modelBytes) && modelBytes.length !== model.modelBytes) {
+        throw new Error("Selector model byte count mismatch");
+      }
     } catch (error) {
       if (loadId !== state.modelLoadSequence) {
         return false;
@@ -1213,6 +1314,14 @@
         appendConsole(adapterStatus);
       }
       renderAdapterOptions(model, adapterStatus || undefined, adapterStatusIsError);
+      if (
+        !adapterStatusIsError &&
+        model.autoApplyPreferredAdapter &&
+        model.adapterFamilyVerified &&
+        loadId === state.modelLoadSequence
+      ) {
+        model.autoAssemblyApplied = await applySelectedAdapter("auto");
+      }
     } else {
       renderProvenance("model rejected", null, true);
       renderAssembly("model rejected", null, true);
@@ -1223,19 +1332,23 @@
     return loadCode === 0;
   }
 
-  async function applySelectedAdapter() {
+  async function applySelectedAdapter(mode) {
     if (!state.exports || !state.modelLoaded) {
-      return;
+      return false;
     }
-    const adapter = selectedAdapter();
-    if (!adapter) {
-      return;
+    const model = paths.models[state.activeModelKey];
+    const adapters = modelAdapters(model);
+    const selectedIndex = selectedAdapterIndex(adapters);
+    if (selectedIndex === null) {
+      return false;
     }
+    const adapter = adapters[selectedIndex];
     if (typeof state.exports.apply_adapter_delta !== "function") {
       throw new Error("WASM runtime does not expose adapter apply");
     }
     setControls(false, true);
-    setText(el.runtimeStatus, "Applying adapter");
+    const isAutoAssembly = mode === "auto";
+    setText(el.runtimeStatus, isAutoAssembly ? "Assembling modules" : "Applying adapter");
     setText(el.adapterState, "loading");
     let adapterBytes = null;
     try {
@@ -1244,6 +1357,22 @@
         throw new Error(`Unable to fetch local adapter (${response.status})`);
       }
       adapterBytes = new Uint8Array(await response.arrayBuffer());
+      const manifestFields = Array.isArray(model.adapterFamilyManifests)
+        ? model.adapterFamilyManifests[selectedIndex]
+        : null;
+      if (manifestFields) {
+        const expectedBytes = adapterManifestArtifactBytes(manifestFields, "Adapter manifest");
+        if (adapterBytes.length !== expectedBytes) {
+          throw new Error("Adapter artifact byte count mismatch");
+        }
+        if (
+          isAutoAssembly &&
+          model.adapterFamily &&
+          adapterBytes.length > model.adapterFamily.autoApplyByteBudget
+        ) {
+          throw new Error("Adapter auto assembly byte budget exceeded");
+        }
+      }
       if (adapter.artifactChecksum) {
         requireChecksumEqual(
           adapterArtifactChecksumHex(adapterBytes),
@@ -1259,7 +1388,7 @@
       appendConsole(text);
       renderDiagnostics();
       setControls(state.modelLoaded, true);
-      return;
+      return false;
     }
     const ptr = allocCopy(adapterBytes);
     const code = state.exports.apply_adapter_delta(ptr, adapterBytes.length);
@@ -1282,6 +1411,7 @@
     appendConsole(`apply_adapter_delta(${adapter.label || adapter.path}) -> ${code}\n${text}`);
     renderDiagnostics();
     setControls(state.modelLoaded, true);
+    return code === 0;
   }
 
   async function boot() {

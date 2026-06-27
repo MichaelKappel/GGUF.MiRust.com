@@ -806,6 +806,7 @@ mod tests {
 
         let registry = fs::read_to_string(root.join("models").join("selector.registry")).unwrap();
         assert!(registry.contains("entry.0.candidate_id=multi-parent-sign-merge-f32"));
+        assert!(registry.contains("selector_model_byte_budget=33554432"));
         assert!(registry.contains("entry.0.model_path=../models/multi-parent-sign-merge-f32.slm"));
         assert!(registry
             .contains("entry.0.adapter_path=../models/multi-parent-sign-merge-f32-self.adp1"));
@@ -826,6 +827,11 @@ mod tests {
         ));
         assert!(registry.contains("entry.0.adapter_family_status=receipt-validated"));
         assert!(registry.contains("entry.0.adapter_family_adapter_count=3"));
+        assert!(registry.contains("entry.0.adapter_auto_apply_status=enabled"));
+        assert!(
+            registry.contains("entry.0.adapter_auto_apply_strategy=receipt-preferred-compatible")
+        );
+        assert!(registry.contains("entry.0.adapter_auto_apply_byte_budget=1048576"));
         let family_receipt = fs::read_to_string(
             root.join("models")
                 .join("multi-parent-sign-merge-f32.adapter-family.receipt"),
@@ -909,6 +915,7 @@ mod tests {
             let registry =
                 fs::read_to_string(root.join("models").join("selector.registry")).unwrap();
             assert!(registry.contains(&format!("entry.0.candidate_id={id}")));
+            assert!(registry.contains("selector_model_byte_budget=33554432"));
             assert!(registry.contains(&format!("entry.0.quantization={quantization}")));
             assert!(registry.contains(&format!("entry.0.model_path=../models/{id}.slm")));
             assert!(registry.contains(&format!("entry.0.adapter_path=../models/{id}-self.adp1")));
@@ -924,6 +931,10 @@ mod tests {
                 "entry.0.adapter_family_receipt_path=../models/{id}.adapter-family.receipt"
             )));
             assert!(registry.contains("entry.0.adapter_family_adapter_count=3"));
+            assert!(registry.contains("entry.0.adapter_auto_apply_status=enabled"));
+            assert!(registry
+                .contains("entry.0.adapter_auto_apply_strategy=receipt-preferred-compatible"));
+            assert!(registry.contains("entry.0.adapter_auto_apply_byte_budget=1048576"));
             assert!(registry.contains(&format!(
                 "entry.0.assembly_receipt_path=../models/{id}.assembly.receipt"
             )));
@@ -964,6 +975,7 @@ mod tests {
 
         let registry = fs::read_to_string(root.join("models").join("selector.registry")).unwrap();
         assert!(registry.contains("entry_count=3"));
+        assert!(registry.contains("selector_model_byte_budget=33554432"));
         assert!(registry.contains("selector_default_strategy=browser-frugal-quantized"));
         assert!(registry.contains("selector_default_candidate_id=multi-parent-sign-merge-q4"));
         assert!(registry.contains("selector_default_quantization=q4_0"));
@@ -980,6 +992,13 @@ mod tests {
             )));
             assert!(registry.contains(&format!(
                 "entry.{index}.adapter_family_receipt_path=../models/{id}.adapter-family.receipt"
+            )));
+            assert!(registry.contains(&format!("entry.{index}.adapter_auto_apply_status=enabled")));
+            assert!(registry.contains(&format!(
+                "entry.{index}.adapter_auto_apply_strategy=receipt-preferred-compatible"
+            )));
+            assert!(registry.contains(&format!(
+                "entry.{index}.adapter_auto_apply_byte_budget=1048576"
             )));
             assert!(registry.contains(&format!(
                 "entry.{index}.assembly_receipt_path=../models/{id}.assembly.receipt"

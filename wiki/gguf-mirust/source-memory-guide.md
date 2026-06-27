@@ -3,7 +3,7 @@ title: GGUF.MiRust.com Source Memory Guide
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/source-memory-guide/
 status: planned_pending_publication
-reviewed_utc: 2026-06-27T15:17:51Z
+reviewed_utc: 2026-06-27T16:36:46Z
 ---
 
 # GGUF.MiRust.com Source Memory Guide
@@ -29,6 +29,14 @@ For browser sparse adapter routing, load `reports/browser-sparse-adapter-route-m
 For browser preferred adapter routing, load `reports/browser-preferred-adapter-route-memory-2026-06-27.md` when adapter-family receipt preferred fields, browser default adapter selection, generated sparse ASP1 preference, or smoke assertions around `selectedAdapterBeforeApply` are in scope.
 
 For combined generated selector roots, load `reports/browser-multi-quant-selector-root-memory-2026-06-27.md` when `browser-multi-parent-bundle all`, one-root f32/q8_0/q4_0 selector fan-in, or same-served-root adapter-sidecar smokes are in scope.
+
+For browser frugal selector defaults, load `reports/browser-frugal-selector-default-memory-2026-06-27.md` when selector default metadata, q4_0 initial selection, combined-root first load behavior, or default-selection smoke assertions are in scope.
+
+For browser selector byte budgets, load `reports/browser-selector-budget-memory-2026-06-27.md` when `entry.N.model_bytes`, registry fallback behavior, pre-WASM model byte transfer checks, or `selector-budget` smoke assertions are in scope.
+
+For browser selector budget contracts, load `reports/browser-selector-budget-contract-memory-2026-06-27.md` when `selector_model_byte_budget`, registry-level budget validation, generated bundle registry fields, or selector-budget contract smoke evidence is in scope.
+
+For browser auto assembly, load `reports/browser-auto-assembly-memory-2026-06-27.md` when selector adapter auto-apply fields, generated adapter-family startup apply, receipt-preferred sparse ASP1 auto selection, or `adapter-sidecar-registry-file` pre-generation assembly proof is in scope.
 
 Model-breeding references live under `wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md`; open it for sparse-mask breadcrumbs, population objective-vector metadata, parent relatedness metadata, evolutionary recipes, adaptive search, and multi-objective fitness routing.
 
