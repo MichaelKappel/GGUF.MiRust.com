@@ -3,7 +3,7 @@ title: GGUF.MiRust.com Knowledge Map
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/knowledge-map/
 status: planned_pending_publication
-reviewed_utc: 2026-06-27T16:36:46Z
+reviewed_utc: 2026-06-27T22:07:39Z
 ---
 
 # Knowledge Map
@@ -37,6 +37,21 @@ reviewed_utc: 2026-06-27T16:36:46Z
 - Browser selector budget memory: `wiki/gguf-mirust/reports/browser-selector-budget-memory-2026-06-27.md`
 - Browser selector budget contract memory: `wiki/gguf-mirust/reports/browser-selector-budget-contract-memory-2026-06-27.md`
 - Browser auto assembly memory: `wiki/gguf-mirust/reports/browser-auto-assembly-memory-2026-06-27.md`
+- Browser auto assembly budget memory: `wiki/gguf-mirust/reports/browser-auto-assembly-budget-memory-2026-06-27.md`
+- Browser text sidecar budget memory: `wiki/gguf-mirust/reports/browser-text-sidecar-budget-memory-2026-06-27.md`
+- Browser text sidecar contract memory: `wiki/gguf-mirust/reports/browser-text-sidecar-contract-memory-2026-06-27.md`
+- Browser runtime manifest memory: `wiki/gguf-mirust/reports/browser-runtime-manifest-memory-2026-06-27.md`
+- Browser adapter stack memory: `wiki/gguf-mirust/reports/browser-adapter-stack-memory-2026-06-27.md`
+- Browser module plan memory: `wiki/gguf-mirust/reports/browser-module-plan-memory-2026-06-27.md`
+- Browser module plan resource memory: `wiki/gguf-mirust/reports/browser-module-plan-resource-memory-2026-06-27.md`
+- Browser module plan resource drift memory: `wiki/gguf-mirust/reports/browser-module-plan-resource-drift-memory-2026-06-27.md`
+- Browser module plan graph drift memory: `wiki/gguf-mirust/reports/browser-module-plan-graph-drift-memory-2026-06-27.md`
+- Browser module plan stack drift memory: `wiki/gguf-mirust/reports/browser-module-plan-stack-drift-memory-2026-06-27.md`
+- Browser module plan role drift memory: `wiki/gguf-mirust/reports/browser-module-plan-role-drift-memory-2026-06-27.md`
+- Browser module plan display memory: `wiki/gguf-mirust/reports/browser-module-plan-display-memory-2026-06-27.md`
+- Browser module plan budget display memory: `wiki/gguf-mirust/reports/browser-module-plan-budget-display-memory-2026-06-27.md`
+- Browser module plan role display memory: `wiki/gguf-mirust/reports/browser-module-plan-role-display-memory-2026-06-27.md`
+- Browser module plan slots memory: `wiki/gguf-mirust/reports/browser-module-plan-slots-memory-2026-06-27.md`
 - Model breeding reference ideas: `wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md`
 - Raw report evidence: `raw/gguf-mirust/report-intake-2026-06-25/`
 - Raw model-breeding evidence: `raw/gguf-mirust/report-intake-2026-06-26/`
@@ -47,5 +62,5 @@ reviewed_utc: 2026-06-27T16:36:46Z
 - `docs/architecture/browser-harness.md` defines implementation boundaries.
 - `wiki/gguf-mirust/source-memory-guide.md` is the public routing record for future agents.
 - Report synthesis records distribute active handoff reports by theme so agents can load governance, browser runtime, modular model, teleodynamic, or brand context without bulk-loading every original report.
-- Model breeding records route compatible merge, adapter, lineage, sparse-mask receipt metadata, sparse ASP1 adapter packages, population objective-vector fields, parent relatedness recipe/receipt/manifest fields, runtime f32/q8_0/q4_0 ADP1/ASP1 adapter apply, checked browser f32/q8_0/q4_0 ADP1 sidecars, registry-carried f32/q8_0/q4_0 ADP1/ASP1 sidecars, registry-carried adapter families, adapter-family receipts with preferred member fields, registry-controlled auto assembly, generated f32/q8_0/q4_0 bundle roots, one q4-defaulted combined f32/q8_0/q4_0 selector root, browser selector byte-budget intake, the `selector_model_byte_budget=33554432` registry contract, assembly receipts with evidence-file fetches, and candidate-evaluation research into future TinyRustLM work without changing current quality authority.
+- Model breeding records route compatible merge, adapter, lineage, sparse-mask receipt metadata, sparse ASP1 adapter packages, population objective-vector fields, parent relatedness recipe/receipt/manifest fields, runtime f32/q8_0/q4_0 ADP1/ASP1 adapter apply, checked browser f32/q8_0/q4_0 ADP1 sidecars, registry-carried f32/q8_0/q4_0 ADP1/ASP1 sidecars, registry-carried adapter families, adapter-family receipts with preferred member and stack fields, registry-controlled auto assembly with `adapter_auto_apply_byte_budget=1048576`, generated f32/q8_0/q4_0 bundle roots, one q4-defaulted combined f32/q8_0/q4_0 selector root, browser selector byte-budget intake, browser text-sidecar byte envelopes and registry-declared contract fields, runtime WASM manifests before instantiation, selector-declared module-plan receipts with resource envelopes, role fields, and assembly slots, resource/graph/stack/role/slot drift smokes before generated model or stack artifact fetch, Module Plan display fields, visible budget rows, slot summaries, and role summaries from verified receipts, the `selector_model_byte_budget=33554432` registry contract, assembly receipts with evidence-file fetches, and candidate-evaluation research into future TinyRustLM work without changing current quality authority.
 - Raw evidence preserves exact report bytes with checksums; synthesis records carry reviewed interpretation, not source replacement authority.

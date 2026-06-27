@@ -15,6 +15,8 @@ const ADAPTER_FAMILY_STATUS: &str = "validated";
 const ADAPTER_FAMILY_STRATEGY: &str = "single-adapter-selection";
 const ADAPTER_AUTO_APPLY_STATUS: &str = "enabled";
 const ADAPTER_AUTO_APPLY_STRATEGY: &str = "receipt-preferred-compatible";
+const ADAPTER_AUTO_APPLY_STACK_STATUS: &str = "enabled";
+const ADAPTER_AUTO_APPLY_STACK_STRATEGY: &str = "receipt-declared-compatible-stack";
 const ADAPTER_AUTO_APPLY_BYTE_BUDGET: u64 = 1024 * 1024;
 const ADAPTER_ARTIFACT_VERSION: &str = "1";
 const ADAPTER_ARTIFACT_KIND: &str = "raw-f32-task-delta-v1";
@@ -73,6 +75,9 @@ pub(crate) fn write_receipt_path(
         adapter_count: inputs.len(),
         auto_apply_status: ADAPTER_AUTO_APPLY_STATUS.to_string(),
         auto_apply_strategy: ADAPTER_AUTO_APPLY_STRATEGY.to_string(),
+        auto_apply_stack_status: ADAPTER_AUTO_APPLY_STACK_STATUS.to_string(),
+        auto_apply_stack_strategy: ADAPTER_AUTO_APPLY_STACK_STRATEGY.to_string(),
+        auto_apply_stack_count: auto_apply_stack_indexes(inputs.len()).len(),
         auto_apply_byte_budget: ADAPTER_AUTO_APPLY_BYTE_BUDGET,
     };
     selector::validate_registry_adapter_family_route(&route)?;
@@ -150,6 +155,7 @@ fn build_receipt_text(
     push_line(&mut text, "adapter_count", &members.len().to_string());
     let preferred_index = preferred_member_index(&members);
     let preferred = &members[preferred_index];
+    let auto_apply_indexes = auto_apply_stack_indexes(members.len());
     push_line(
         &mut text,
         "adapter_family_preferred_adapter_index",
@@ -165,6 +171,40 @@ fn build_receipt_text(
         "adapter_family_preferred_manifest_path",
         preferred.route.manifest_path.as_str(),
     );
+    push_line(
+        &mut text,
+        "adapter_family_auto_apply_stack_status",
+        ADAPTER_AUTO_APPLY_STACK_STATUS,
+    );
+    push_line(
+        &mut text,
+        "adapter_family_auto_apply_stack_strategy",
+        ADAPTER_AUTO_APPLY_STACK_STRATEGY,
+    );
+    push_line(
+        &mut text,
+        "adapter_family_auto_apply_stack_count",
+        &auto_apply_indexes.len().to_string(),
+    );
+    for (stack_index, adapter_index) in auto_apply_indexes.iter().enumerate() {
+        let member = &members[*adapter_index];
+        let prefix = format!("adapter_family_auto_apply_stack.{stack_index}");
+        push_line(
+            &mut text,
+            &format!("{prefix}.adapter_index"),
+            &adapter_index.to_string(),
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.adapter_path"),
+            member.route.adapter_path.as_str(),
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.manifest_path"),
+            member.route.manifest_path.as_str(),
+        );
+    }
     for key in SHARED_IDENTITY_KEYS {
         push_line(
             &mut text,
@@ -305,6 +345,14 @@ fn preferred_member_index(members: &[AdapterFamilyMember<'_>]) -> usize {
         .iter()
         .position(|member| member.route.adapter_path.ends_with(".asp1"))
         .unwrap_or(0)
+}
+
+fn auto_apply_stack_indexes(member_count: usize) -> Vec<usize> {
+    if member_count >= 3 {
+        (1..member_count).collect()
+    } else {
+        (0..member_count).collect()
+    }
 }
 
 fn push_member_lines(
@@ -457,9 +505,22 @@ mod tests {
         assert!(receipt.contains("adapter_family_preferred_adapter_path=../models/second.asp1"));
         assert!(receipt
             .contains("adapter_family_preferred_manifest_path=../models/second.asp1.manifest"));
+        assert!(receipt.contains("adapter_family_auto_apply_stack_status=enabled"));
+        assert!(receipt.contains(
+            "adapter_family_auto_apply_stack_strategy=receipt-declared-compatible-stack"
+        ));
+        assert!(receipt.contains("adapter_family_auto_apply_stack_count=2"));
+        assert!(receipt.contains("adapter_family_auto_apply_stack.0.adapter_index=0"));
+        assert!(
+            receipt.contains("adapter_family_auto_apply_stack.0.adapter_path=../models/first.adp1")
+        );
+        assert!(receipt.contains("adapter_family_auto_apply_stack.1.adapter_index=1"));
+        assert!(receipt
+            .contains("adapter_family_auto_apply_stack.1.adapter_path=../models/second.asp1"));
         assert!(receipt.contains("adapter.1.path=../models/second.asp1"));
         assert!(receipt.contains("family.adapter_tensor_layout_checksum=0x00000000000000f1"));
         assert_eq!(receipt_route.adapter_count, 2);
+        assert_eq!(receipt_route.auto_apply_stack_count, 2);
         assert_eq!(receipt_route.status, "receipt-validated");
 
         fs::remove_dir_all(dir).unwrap();
@@ -524,6 +585,7 @@ mod tests {
         let receipt = fs::read_to_string(&receipt_path).unwrap();
         assert!(receipt.contains("family.adapter_base_quantization=q8_0"));
         assert!(receipt.contains("adapter_family_preferred_adapter_index=0"));
+        assert!(receipt.contains("adapter_family_auto_apply_stack_count=2"));
         assert!(receipt.contains("adapter.1.apply_status=runtime-q8-q4-compatible-or-fuse-to-slm"));
 
         fs::remove_dir_all(dir).unwrap();

@@ -3,7 +3,7 @@ title: GGUF.MiRust.com LLM Wiki Index
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/
 status: planned_pending_publication
-reviewed_utc: 2026-06-27T16:36:46Z
+reviewed_utc: 2026-06-27T22:07:39Z
 ---
 
 # GGUF.MiRust.com
@@ -40,10 +40,25 @@ This local LLM Wiki namespace routes durable memory for the GGUF.MiRust.com Rust
 - [Browser Selector Budget Memory](reports/browser-selector-budget-memory-2026-06-27.md)
 - [Browser Selector Budget Contract Memory](reports/browser-selector-budget-contract-memory-2026-06-27.md)
 - [Browser Auto Assembly Memory](reports/browser-auto-assembly-memory-2026-06-27.md)
+- [Browser Auto Assembly Budget Memory](reports/browser-auto-assembly-budget-memory-2026-06-27.md)
+- [Browser Text Sidecar Budget Memory](reports/browser-text-sidecar-budget-memory-2026-06-27.md)
+- [Browser Text Sidecar Contract Memory](reports/browser-text-sidecar-contract-memory-2026-06-27.md)
+- [Browser Runtime Manifest Memory](reports/browser-runtime-manifest-memory-2026-06-27.md)
+- [Browser Adapter Stack Memory](reports/browser-adapter-stack-memory-2026-06-27.md)
+- [Browser Module Plan Memory](reports/browser-module-plan-memory-2026-06-27.md)
+- [Browser Module Plan Resource Memory](reports/browser-module-plan-resource-memory-2026-06-27.md)
+- [Browser Module Plan Resource Drift Memory](reports/browser-module-plan-resource-drift-memory-2026-06-27.md)
+- [Browser Module Plan Graph Drift Memory](reports/browser-module-plan-graph-drift-memory-2026-06-27.md)
+- [Browser Module Plan Stack Drift Memory](reports/browser-module-plan-stack-drift-memory-2026-06-27.md)
+- [Browser Module Plan Role Drift Memory](reports/browser-module-plan-role-drift-memory-2026-06-27.md)
+- [Browser Module Plan Display Memory](reports/browser-module-plan-display-memory-2026-06-27.md)
+- [Browser Module Plan Budget Display Memory](reports/browser-module-plan-budget-display-memory-2026-06-27.md)
+- [Browser Module Plan Role Display Memory](reports/browser-module-plan-role-display-memory-2026-06-27.md)
+- [Browser Module Plan Slots Memory](reports/browser-module-plan-slots-memory-2026-06-27.md)
 - [Model Breeding Reference Ideas](research/model-breeding-reference-ideas-2026-06-26.md)
 
 ## Boundary
 
 This namespace is a source memory plan for TinyRustLM. Current implementation claims must still be verified through `workspace.uai`, `.uai/test-plan.uai`, source files, and local test output before being repeated publicly.
 
-Latest route: generated selector registries now explicitly opt adapter families into receipt-preferred auto assembly, and the browser applies the verified sparse ASP1 module before generation only after the model, manifest, assembly receipt, evidence files, adapter-family receipt, and adapter manifests verify.
+Latest route: browser-smoke `module-plan-slot-drift` now proves checksum-consistent `.module-plan.receipt` assembly-slot drift stops before generated model, stack adapter, or stack manifest fetches; load the slots report for that proof path.

@@ -82,6 +82,10 @@ try {
     }
 
     Copy-Item -LiteralPath "target\wasm32-unknown-unknown\release\tinyrustlm_runtime.wasm" -Destination "tinyrustlm\runtime\tinyrustlm.wasm" -Force
+    & $Cargo run -p tinyrustlm-slm-pack -- runtime-wasm-manifest "tinyrustlm\runtime\tinyrustlm.wasm" "tinyrustlm\runtime\tinyrustlm.wasm.manifest"
+    if ($LASTEXITCODE -ne 0) {
+        throw "runtime WASM manifest generation failed with exit code $LASTEXITCODE"
+    }
 
     $models = @(
         @{ Path = "tinyrustlm\models\tiny-test-model.slm"; Mode = "tiny-fixture" },

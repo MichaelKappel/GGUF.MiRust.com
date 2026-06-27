@@ -1,5 +1,5 @@
 profile: gguf-mirust.file-handoff.v5
-updated_utc: 2026-06-27T16:08:47Z
+updated_utc: 2026-06-27T22:07:39Z
 handoff_root: agent-file-handoff/
 active_buckets:
   content: agent-file-handoff/Content/
@@ -35,9 +35,9 @@ strategy_refresh_2026_06_27:
   research_memory_rule: Research/reference bodies stay under wiki/gguf-mirust/research/; hot .uai files carry routing, implementation boundaries, and next-step prompts; long-term memory carries checksum pointers.
   voice_memory_rule: Public-copy voice routes through .uai/taboo.uai before model-breeding, mutualist, tiny-ecology, or UAIX strategy copy is published.
 current_scan:
-  scanned_utc: 2026-06-27T16:08:47Z
+  scanned_utc: 2026-06-27T22:07:39Z
   content_bucket_non_placeholder_files: 0
   improvement_bucket_non_placeholder_files: 0
   misplaced_root_files: 0
   status: all_reports_processed
-  action: 23 Improvement reports were preserved on 2026-06-25 and 26 model-breeding reports were preserved on 2026-06-26, synthesized into wiki/gguf-mirust/, recorded in .uai/intake-outcome-ledger.uai, and removed from the active source bucket.
+  action: Active buckets were empty for the browser Module Plan assembly-slot bead; 23 Improvement reports were preserved on 2026-06-25 and 26 model-breeding reports were preserved on 2026-06-26, synthesized into wiki/gguf-mirust/, recorded in .uai/intake-outcome-ledger.uai, and removed from the active source bucket.

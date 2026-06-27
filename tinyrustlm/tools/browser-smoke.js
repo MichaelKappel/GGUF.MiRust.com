@@ -4,17 +4,20 @@
 const childProcess = require("child_process");
 const fs = require("fs");
 const http = require("http");
+const https = require("https");
 const os = require("os");
 const path = require("path");
 
 const appUrl = process.argv[2] || "http://127.0.0.1:8080/app/";
 const port = Number(process.argv[3] || 9223);
 const smokeMode = process.argv[5] || "single";
-const expectedModel = process.argv[4] || (smokeMode === "multi-parent-registry" ? "multi-parent-sign-merge-q8" : smokeMode === "adapter-sidecar-registry-q8" ? "tinyq8" : smokeMode === "multi-parent-registry-file" || smokeMode === "adapter-sidecar-registry-file" ? "multi-parent-sign-merge-f32" : smokeMode === "adapter-sidecar" || smokeMode === "adapter-sidecar-checksum-mismatch" ? "tinyf32" : "tinylm16q8");
+const expectedModel = process.argv[4] || (smokeMode === "multi-parent-registry" ? "multi-parent-sign-merge-q8" : smokeMode === "adapter-sidecar-registry-q8" ? "tinyq8" : smokeMode === "adapter-manifest-budget" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-dependency-drift" ? "multi-parent-sign-merge-q4" : smokeMode === "multi-parent-registry-file" || smokeMode === "adapter-sidecar-registry-file" ? "multi-parent-sign-merge-f32" : smokeMode === "adapter-sidecar" || smokeMode === "adapter-sidecar-checksum-mismatch" ? "tinyf32" : "tinylm16q8");
 const enduranceCycles = Math.max(2, Math.min(20, Number.parseInt(process.argv[6] || "4", 10) || 4));
 const performanceTokens = Math.max(2, Math.min(8, Number.parseInt(process.argv[6] || "4", 10) || 4));
 const performanceSoakCycles = Math.max(2, Math.min(10, Number.parseInt(process.argv[6] || "3", 10) || 3));
 const performanceSoakTokens = Math.max(2, Math.min(8, Number.parseInt(process.argv[7] || "4", 10) || 4));
+const checksumMask64 = (1n << 64n) - 1n;
+const checksumPrime64 = 0x100000001b3n;
 
 const expectedQuantization = {
   tinylm16q8: "q8_0",
@@ -74,6 +77,21 @@ const expectedAdapterRoutes = {
   "multi-parent-sign-merge-f32": "/models/multi-parent-sign-merge-f32-sparse.asp1"
 };
 
+const expectedAdapterStackRoutes = {
+  "multi-parent-sign-merge-q8": [
+    "/models/multi-parent-sign-merge-q8-family.adp1",
+    "/models/multi-parent-sign-merge-q8-sparse.asp1"
+  ],
+  "multi-parent-sign-merge-q4": [
+    "/models/multi-parent-sign-merge-q4-family.adp1",
+    "/models/multi-parent-sign-merge-q4-sparse.asp1"
+  ],
+  "multi-parent-sign-merge-f32": [
+    "/models/multi-parent-sign-merge-f32-family.adp1",
+    "/models/multi-parent-sign-merge-f32-sparse.asp1"
+  ]
+};
+
 const expectedAdapterFamilyReceiptRoutes = {
   "multi-parent-sign-merge-q8": "/models/multi-parent-sign-merge-q8.adapter-family.receipt",
   "multi-parent-sign-merge-q4": "/models/multi-parent-sign-merge-q4.adapter-family.receipt",
@@ -85,6 +103,27 @@ const expectedAssemblyReceiptRoutes = {
   "multi-parent-sign-merge-q4": "/models/multi-parent-sign-merge-q4.assembly.receipt",
   "multi-parent-sign-merge-f32": "/models/multi-parent-sign-merge-f32.assembly.receipt"
 };
+
+const expectedModulePlanRoutes = {
+  "multi-parent-sign-merge-q8": "/models/multi-parent-sign-merge-q8.module-plan.receipt",
+  "multi-parent-sign-merge-q4": "/models/multi-parent-sign-merge-q4.module-plan.receipt",
+  "multi-parent-sign-merge-f32": "/models/multi-parent-sign-merge-f32.module-plan.receipt"
+};
+
+const expectedModulePlanModelBudgets = {
+  "multi-parent-sign-merge-q8": "8832 bytes",
+  "multi-parent-sign-merge-q4": "6592 bytes",
+  "multi-parent-sign-merge-f32": "20352 bytes"
+};
+
+const expectedModulePlanRoles =
+  "0: runtime-model, 1: model-provenance-manifest, 2: assembly-evidence, 3: adapter-family, 4: adapter-stack-family-delta, 5: adapter-stack-sparse-delta";
+
+const expectedModulePlanSlots =
+  "0: runtime-model, 1: model-manifest, 2: assembly-receipt, 3: adapter-family-receipt, 4: adapter-stack-0, 5: adapter-stack-1";
+
+const expectedModulePlanDependencies =
+  "0: runtime-wasm, 1: module.0, 2: module.1, 3: module.2, 4: module.3, 5: module.4";
 
 const expectedAssemblyEvidenceRoutes = {
   "multi-parent-sign-merge-q8": multiParentEvidenceRoutes("multi-parent-sign-merge-q8"),
@@ -145,6 +184,16 @@ function expectedRouteForModel(modelKey) {
   return expectedModelRoutes[modelKey];
 }
 
+function networkIncludesPath(networkRequests, expectedPath) {
+  return networkRequests.some((requestUrl) => {
+    try {
+      return new URL(requestUrl).pathname === expectedPath;
+    } catch (_error) {
+      return requestUrl === expectedPath;
+    }
+  });
+}
+
 const chromeCandidates = [
   "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
   "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
@@ -172,6 +221,132 @@ function get(url) {
       response.on("end", () => resolve(data));
     }).on("error", reject);
   });
+}
+
+function getBuffer(url) {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const client = parsed.protocol === "https:" ? https : http;
+    const request = client.get(parsed, (response) => {
+      const chunks = [];
+      response.on("data", (chunk) => {
+        chunks.push(Buffer.from(chunk));
+      });
+      response.on("end", () => {
+        if (response.statusCode !== 200) {
+          reject(new Error(`HTTP ${response.statusCode} while fetching ${url}`));
+          return;
+        }
+        resolve(Buffer.concat(chunks));
+      });
+    });
+    request.on("error", reject);
+  });
+}
+
+async function getText(url) {
+  return (await getBuffer(url)).toString("utf8");
+}
+
+function rotateLeft64(value, bits) {
+  return ((value << bits) | (value >> (64n - bits))) & checksumMask64;
+}
+
+function textChecksumHex(text) {
+  const bytes = Buffer.from(text, "utf8");
+  let acc = 0x4d595df4d0f33173n;
+  for (let index = 0; index < bytes.length; index += 1) {
+    acc ^= BigInt(bytes[index]) + (BigInt(index) << 2n);
+    acc = (rotateLeft64(acc, 9n) * checksumPrime64) & checksumMask64;
+  }
+  return `0x${acc.toString(16).padStart(16, "0")}`;
+}
+
+function driftModulePlanResourceEnvelope(receiptText) {
+  const original = "module_plan_adapter_byte_budget=1048576";
+  const drifted = "module_plan_adapter_byte_budget=1048575";
+  if (!receiptText.includes(original)) {
+    throw new Error("module plan adapter byte budget field was not found");
+  }
+  return receiptText.replace(original, drifted);
+}
+
+function driftModulePlanGraph(receiptText) {
+  const pathMatch = receiptText.match(/^module\.0\.path=([^\r\n]+)$/m);
+  if (!pathMatch) {
+    throw new Error("module plan model graph path field was not found");
+  }
+  const originalPath = pathMatch[1];
+  const driftedPath = originalPath.endsWith(".slm")
+    ? originalPath.slice(0, -4) + "-graph-drift.slm"
+    : originalPath + "-graph-drift";
+  return receiptText.replace(pathMatch[0], `module.0.path=${driftedPath}`);
+}
+
+function driftModulePlanStackMember(receiptText) {
+  const pathMatch = receiptText.match(/^module\.4\.adapter_path=([^\r\n]+)$/m);
+  if (!pathMatch) {
+    throw new Error("module plan stack member path field was not found");
+  }
+  const originalPath = pathMatch[1];
+  const driftedPath = originalPath.endsWith(".adp1")
+    ? originalPath.slice(0, -5) + "-stack-drift.adp1"
+    : originalPath + "-stack-drift";
+  return receiptText.replace(pathMatch[0], `module.4.adapter_path=${driftedPath}`);
+}
+
+function driftModulePlanRole(receiptText) {
+  const roleMatch = receiptText.match(/^module\.4\.role=([^\r\n]+)$/m);
+  if (!roleMatch) {
+    throw new Error("module plan stack member role field was not found");
+  }
+  return receiptText.replace(roleMatch[0], "module.4.role=adapter-stack-role-drift");
+}
+
+function driftModulePlanSlot(receiptText) {
+  const slotMatch = receiptText.match(/^module\.4\.assembly_slot=([^\r\n]+)$/m);
+  if (!slotMatch) {
+    throw new Error("module plan stack member assembly slot field was not found");
+  }
+  return receiptText.replace(slotMatch[0], "module.4.assembly_slot=adapter-stack-slot-drift");
+}
+
+function driftModulePlanDependency(receiptText) {
+  const dependencyMatch = receiptText.match(/^module\.4\.depends_on=([^\r\n]+)$/m);
+  if (!dependencyMatch) {
+    throw new Error("module plan stack member dependency field was not found");
+  }
+  return receiptText.replace(dependencyMatch[0], "module.4.depends_on=module.2");
+}
+
+function updateRegistryModulePlanChecksum(registryText, candidateId, checksum) {
+  const candidateMatch = registryText.match(new RegExp(`^entry\\.(\\d+)\\.candidate_id=${candidateId}$`, "m"));
+  if (!candidateMatch) {
+    throw new Error(`selector registry entry was not found for ${candidateId}`);
+  }
+  const prefix = `entry.${candidateMatch[1]}`;
+  const checksumPattern = new RegExp(`^${prefix}\\.module_plan_checksum=0x[0-9a-fA-F]{16}$`, "m");
+  if (!checksumPattern.test(registryText)) {
+    throw new Error(`module plan checksum field was not found for ${candidateId}`);
+  }
+  return registryText.replace(checksumPattern, `${prefix}.module_plan_checksum=${checksum}`);
+}
+
+function fulfillTextRequest(client, requestId, text) {
+  const body = Buffer.from(text, "utf8");
+  return client.send("Fetch.fulfillRequest", {
+    requestId,
+    responseCode: 200,
+    responseHeaders: [
+      { name: "content-type", value: "text/plain; charset=utf-8" },
+      { name: "content-length", value: String(body.length) }
+    ],
+    body: body.toString("base64")
+  });
+}
+
+function continuePausedRequest(client, requestId) {
+  return client.send("Fetch.continueRequest", { requestId });
 }
 
 function parseEvaluateValue(result) {
@@ -502,6 +677,17 @@ async function runPageAdapterSidecarSmoke(client, modelKey, expectAutoAssembly) 
         assemblyOperator: byId("assemblyOperator").textContent,
         assemblyLedger: byId("assemblyLedger").textContent,
         assemblyNextGate: byId("assemblyNextGate").textContent,
+        modulePlanState: byId("modulePlanState").textContent,
+        modulePlanKind: byId("modulePlanKind").textContent,
+        modulePlanResource: byId("modulePlanResource").textContent,
+        modulePlanModules: byId("modulePlanModules").textContent,
+        modulePlanModelBudget: byId("modulePlanModelBudget").textContent,
+        modulePlanAdapterBudget: byId("modulePlanAdapterBudget").textContent,
+        modulePlanSlots: byId("modulePlanSlots").textContent,
+        modulePlanRoles: byId("modulePlanRoles").textContent,
+        modulePlanDepends: byId("modulePlanDepends").textContent,
+        modulePlanModel: byId("modulePlanModel").textContent,
+        modulePlanStack: byId("modulePlanStack").textContent,
         adapterOptions,
         selectedAdapterBeforeApply,
         adapterSelectDisabledBefore,
@@ -519,6 +705,75 @@ async function runPageAdapterSidecarSmoke(client, modelKey, expectAutoAssembly) 
         beforeApplyDiagnostics,
         afterApplyDiagnostics,
         diagnosticsText: byId("diagnostics").textContent
+      });
+    })()
+  `;
+  const result = await client.send("Runtime.evaluate", {
+    expression,
+    awaitPromise: true,
+    returnByValue: true,
+    timeout: 120000
+  });
+  return parseEvaluateValue(result);
+}
+
+async function runPageAdapterLoadStateSmoke(client, modelKey) {
+  const expression = `
+    (async () => {
+      const expectedModel = ${JSON.stringify(modelKey)};
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const byId = (id) => document.getElementById(id);
+      const parseDiagnostics = () => {
+        try {
+          return JSON.parse(byId("diagnostics").textContent);
+        } catch (_error) {
+          return {};
+        }
+      };
+      for (let index = 0; index < 600; index += 1) {
+        const adapterState = byId("adapterState") ? byId("adapterState").textContent : "";
+        const ready = byId("generateButton") && !byId("generateButton").disabled && byId("runtimeStatus").textContent === "Ready";
+        if (ready && adapterState !== "waiting" && adapterState !== "loading") {
+          break;
+        }
+        await sleep(100);
+      }
+      const initialSelectedModel = byId("modelSelect").value;
+      if (byId("modelSelect").value !== expectedModel) {
+        byId("modelSelect").value = expectedModel;
+        byId("modelSelect").dispatchEvent(new Event("change", { bubbles: true }));
+        for (let index = 0; index < 600; index += 1) {
+          const adapterState = byId("adapterState") ? byId("adapterState").textContent : "";
+          const ready = byId("modelSelect").value === expectedModel && !byId("generateButton").disabled && byId("runtimeStatus").textContent === "Ready";
+          if (ready && adapterState !== "waiting" && adapterState !== "loading") {
+            break;
+          }
+          await sleep(100);
+        }
+      }
+      const adapterOptions = Array.from(byId("adapterSelect").options).map((option) => ({
+        value: option.value,
+        label: option.textContent.trim()
+      }));
+      return JSON.stringify({
+        runtimeStatus: byId("runtimeStatus").textContent,
+        modelState: byId("modelState").textContent,
+        errorState: byId("errorState").textContent,
+        response: byId("response").textContent,
+        console: byId("console").textContent,
+        initialSelectedModel,
+        selectedModel: byId("modelSelect").value,
+        adapterState: byId("adapterState").textContent,
+        assemblyState: byId("assemblyState").textContent,
+        assemblyKind: byId("assemblyKind").textContent,
+        assemblyParents: byId("assemblyParents").textContent,
+        assemblyNextGate: byId("assemblyNextGate").textContent,
+        adapterOptions,
+        selectedAdapter: byId("adapterSelect").value,
+        adapterSelectDisabled: byId("adapterSelect").disabled,
+        applyDisabled: byId("applyAdapterButton").disabled,
+        generateDisabled: byId("generateButton").disabled,
+        diagnostics: parseDiagnostics()
       });
     })()
   `;
@@ -1141,6 +1396,17 @@ async function runPageUiAudit(client) {
           assemblyOperator: byId("assemblyOperator").textContent,
           assemblyLedger: byId("assemblyLedger").textContent,
           assemblyNextGate: byId("assemblyNextGate").textContent,
+          modulePlanState: byId("modulePlanState").textContent,
+          modulePlanKind: byId("modulePlanKind").textContent,
+          modulePlanResource: byId("modulePlanResource").textContent,
+          modulePlanModules: byId("modulePlanModules").textContent,
+          modulePlanModelBudget: byId("modulePlanModelBudget").textContent,
+          modulePlanAdapterBudget: byId("modulePlanAdapterBudget").textContent,
+          modulePlanSlots: byId("modulePlanSlots").textContent,
+          modulePlanRoles: byId("modulePlanRoles").textContent,
+          modulePlanDepends: byId("modulePlanDepends").textContent,
+          modulePlanModel: byId("modulePlanModel").textContent,
+          modulePlanStack: byId("modulePlanStack").textContent,
           benchLoadMs: byId("benchLoadMs").textContent,
           benchPromptTokens: byId("benchPromptTokens").textContent,
           benchGeneratedTokens: byId("benchGeneratedTokens").textContent,
@@ -1261,7 +1527,7 @@ function killProfileProcesses(profile) {
   }
 }
 
-function assertSmoke(result, modelKey) {
+function assertSmoke(result, modelKey, networkRequests) {
   const failures = [];
   const quantization = expectedQuantization[modelKey];
   if (result.selectedModel !== modelKey) {
@@ -1295,13 +1561,16 @@ function assertSmoke(result, modelKey) {
   if (quantization && !result.diagnostics.includes(`"active_quantization_mode": "${quantization}"`)) {
     failures.push(`diagnostics did not report ${quantization} mode`);
   }
+  if (networkRequests && !networkIncludesPath(networkRequests, "/runtime/tinyrustlm.wasm.manifest")) {
+    failures.push("runtime WASM manifest route was not requested");
+  }
   if (failures.length > 0) {
     throw new Error(failures.join("; "));
   }
 }
 
 function assertMultiParentRegistrySmoke(result, modelKey, networkRequests) {
-  assertSmoke(result, modelKey);
+  assertSmoke(result, modelKey, networkRequests);
   const failures = [];
   if (!Array.isArray(result.modelOptions) || result.modelOptions.length !== 1) {
     failures.push(`model options were ${JSON.stringify(result.modelOptions)}`);
@@ -1338,7 +1607,7 @@ function assertMultiParentRegistrySmoke(result, modelKey, networkRequests) {
 }
 
 function assertSelectorBudgetSmoke(result, networkRequests) {
-  assertSmoke(result, "tinylm16q8");
+  assertSmoke(result, "tinylm16q8", networkRequests);
   const failures = [];
   const modelOptionValues = Array.isArray(result.modelOptions)
     ? result.modelOptions.map((option) => option.value)
@@ -1357,6 +1626,207 @@ function assertSelectorBudgetSmoke(result, networkRequests) {
   }
   if (!networkRequests.some((requestUrl) => requestUrl.includes("/models/tinylm16-q8.slm"))) {
     failures.push("fallback q8 model route was not requested");
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertSidecarBudgetContractSmoke(result, networkRequests) {
+  assertSmoke(result, "tinylm16q8", networkRequests);
+  const failures = [];
+  const modelOptionValues = Array.isArray(result.modelOptions)
+    ? result.modelOptions.map((option) => option.value)
+    : [];
+  if (modelOptionValues.includes("sidecar-budget-contract-parent")) {
+    failures.push("sidecar-budget registry entry was accepted");
+  }
+  if (!modelOptionValues.includes("tinylm16q8") || !modelOptionValues.includes("tinylm16q4")) {
+    failures.push(`fallback model options were ${JSON.stringify(result.modelOptions)}`);
+  }
+  if (!networkRequests.some((requestUrl) => requestUrl.includes("/models/selector.registry"))) {
+    failures.push("selector registry route was not requested");
+  }
+  if (networkRequests.some((requestUrl) => requestUrl.includes("/models/sidecar-budget-contract-parent.slm"))) {
+    failures.push("sidecar-budget model route was requested");
+  }
+  if (!networkRequests.some((requestUrl) => requestUrl.includes("/models/tinylm16-q8.slm"))) {
+    failures.push("fallback q8 model route was not requested");
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertRuntimeManifestDriftSmoke(result, networkRequests) {
+  const failures = [];
+  if (result.runtimeStatus !== "Boot failed") {
+    failures.push(`runtime status was ${result.runtimeStatus}`);
+  }
+  if (result.wasmState !== "waiting") {
+    failures.push(`wasm state was ${result.wasmState}`);
+  }
+  if (result.modelState !== "boot error") {
+    failures.push(`model state was ${result.modelState}`);
+  }
+  if (!String(result.errorState || "").includes("WASM runtime checksum mismatch")) {
+    failures.push(`error state was ${result.errorState}`);
+  }
+  if (result.generateDisabled !== true || result.resetDisabled !== true) {
+    failures.push("runtime controls were enabled after manifest drift");
+  }
+  if (!networkIncludesPath(networkRequests, "/runtime/tinyrustlm.wasm.manifest")) {
+    failures.push("runtime WASM manifest route was not requested");
+  }
+  if (!networkIncludesPath(networkRequests, "/runtime/tinyrustlm.wasm")) {
+    failures.push("runtime WASM route was not requested");
+  }
+  if (networkRequests.some((requestUrl) => requestUrl.includes("/models/tinylm16-q8.slm"))) {
+    failures.push("model route was requested after runtime manifest drift");
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertModulePlanDriftSmoke(result, modelKey, networkRequests, driftLabel, expectedErrorText) {
+  const failures = [];
+  if (result.selectedModel !== modelKey) {
+    failures.push(`selected model was ${result.selectedModel}`);
+  }
+  if (result.runtimeStatus !== "Model load failed") {
+    failures.push(`runtime status was ${result.runtimeStatus}`);
+  }
+  if (result.modelState !== "fetch error") {
+    failures.push(`model state was ${result.modelState}`);
+  }
+  if (!String(result.errorState || "").includes(expectedErrorText)) {
+    failures.push(`error state was ${result.errorState}`);
+  }
+  if (!result.generateDisabled || !result.resetDisabled || !result.stepTokenDisabled) {
+    failures.push(`runtime controls were enabled after ${driftLabel}`);
+  }
+  if (result.modelSelectDisabled) {
+    failures.push(`model selector was disabled after ${driftLabel}`);
+  }
+  if (!networkIncludesPath(networkRequests, "/models/selector.registry")) {
+    failures.push("selector registry route was not requested");
+  }
+  const expectedModulePlanRoute = expectedModulePlanRoutes[modelKey];
+  if (!expectedModulePlanRoute || !networkIncludesPath(networkRequests, expectedModulePlanRoute)) {
+    failures.push(`module plan route was not requested: ${expectedModulePlanRoute}`);
+  }
+  const expectedModelRoute = expectedRouteForModel(modelKey);
+  if (expectedModelRoute && networkIncludesPath(networkRequests, expectedModelRoute)) {
+    failures.push(`generated model route was requested after ${driftLabel}`);
+  }
+  const allowedOrigin = new URL(appUrl).origin;
+  for (const requestUrl of networkRequests) {
+    if (!requestUrl.startsWith("http://") && !requestUrl.startsWith("https://")) {
+      continue;
+    }
+    const origin = new URL(requestUrl).origin;
+    if (origin !== allowedOrigin) {
+      failures.push(`remote request observed: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertModulePlanResourceDriftSmoke(result, modelKey, networkRequests) {
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan resource drift",
+    "Module plan module plan adapter byte budget mismatch"
+  );
+}
+
+function assertModulePlanGraphDriftSmoke(result, modelKey, networkRequests) {
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan graph drift",
+    "Module plan field module.0.path was"
+  );
+}
+
+function assertModulePlanStackDriftSmoke(result, modelKey, networkRequests) {
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan stack drift",
+    "Module plan field module.4.adapter_path was"
+  );
+  const failures = [];
+  const stackRoutes = expectedAdapterStackRoutes[modelKey] || [];
+  for (const stackRoute of stackRoutes) {
+    if (networkIncludesPath(networkRequests, stackRoute)) {
+      failures.push(`adapter stack route was requested after module plan stack drift: ${stackRoute}`);
+    }
+  }
+  const manifestRoutes = expectedAdapterManifestRoutes[modelKey] || [];
+  for (const manifestRoute of manifestRoutes) {
+    if (networkIncludesPath(networkRequests, manifestRoute)) {
+      failures.push(`adapter manifest route was requested after module plan stack drift: ${manifestRoute}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertModulePlanRoleDriftSmoke(result, modelKey, networkRequests) {
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan role drift",
+    "Module plan field module.4.role was"
+  );
+  const failures = [];
+  const stackRoutes = expectedAdapterStackRoutes[modelKey] || [];
+  for (const stackRoute of stackRoutes) {
+    if (networkIncludesPath(networkRequests, stackRoute)) {
+      failures.push(`adapter stack route was requested after module plan role drift: ${stackRoute}`);
+    }
+  }
+  const manifestRoutes = expectedAdapterManifestRoutes[modelKey] || [];
+  for (const manifestRoute of manifestRoutes) {
+    if (networkIncludesPath(networkRequests, manifestRoute)) {
+      failures.push(`adapter manifest route was requested after module plan role drift: ${manifestRoute}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertModulePlanSlotDriftSmoke(result, modelKey, networkRequests) {
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan slot drift",
+    "Module plan field module.4.assembly_slot was"
+  );
+  const failures = [];
+  const stackRoutes = expectedAdapterStackRoutes[modelKey] || [];
+  for (const stackRoute of stackRoutes) {
+    if (networkIncludesPath(networkRequests, stackRoute)) {
+      failures.push(`adapter stack route was requested after module plan slot drift: ${stackRoute}`);
+    }
+  }
+  const manifestRoutes = expectedAdapterManifestRoutes[modelKey] || [];
+  for (const manifestRoute of manifestRoutes) {
+    if (networkIncludesPath(networkRequests, manifestRoute)) {
+      failures.push(`adapter manifest route was requested after module plan slot drift: ${manifestRoute}`);
+    }
   }
   if (failures.length > 0) {
     throw new Error(failures.join("; "));
@@ -1448,6 +1918,32 @@ function assertStepTokenSmoke(result, modelKey, networkRequests) {
   }
 }
 
+function assertModulePlanDependencyDriftSmoke(result, modelKey, networkRequests) {
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan dependency drift",
+    "Module plan field module.4.depends_on was"
+  );
+  const failures = [];
+  const stackRoutes = expectedAdapterStackRoutes[modelKey] || [];
+  for (const stackRoute of stackRoutes) {
+    if (networkIncludesPath(networkRequests, stackRoute)) {
+      failures.push(`adapter stack route was requested after module plan dependency drift: ${stackRoute}`);
+    }
+  }
+  const manifestRoutes = expectedAdapterManifestRoutes[modelKey] || [];
+  for (const manifestRoute of manifestRoutes) {
+    if (networkIncludesPath(networkRequests, manifestRoute)) {
+      failures.push(`adapter manifest route was requested after module plan dependency drift: ${manifestRoute}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
 function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAutoAssembly) {
   const failures = [];
   if (result.selectedModel !== modelKey) {
@@ -1498,8 +1994,13 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
   }
   const expectedMode = expectedQuantization[modelKey] || "f32";
   if (expectAutoAssembly) {
-    if (!String(result.consoleBeforeGenerate || "").includes("apply_adapter_delta")) {
+    const applyCalls = String(result.consoleBeforeGenerate || "").match(/apply_adapter_delta/g) || [];
+    const expectedStackRoutes = expectedAdapterStackRoutes[modelKey] || [];
+    if (applyCalls.length < Math.max(1, expectedStackRoutes.length)) {
       failures.push("pre-generation console did not include apply_adapter_delta");
+    }
+    if (expectedStackRoutes.length > 1 && !String(result.consoleBeforeGenerate || "").includes("adapter_stack_applied(2)")) {
+      failures.push("pre-generation console did not include adapter stack completion");
     }
     if (!result.autoAppliedBeforeGenerate) {
       failures.push(`auto assembly state before generation was ${result.adapterStateBeforeGenerate}`);
@@ -1563,8 +2064,13 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
     }
   }
   const expectedAdapterRoute = expectedAdapterRoutes[modelKey] || "/models/tiny-test-model-self.adp1";
-  if (!networkRequests.some((requestUrl) => requestUrl.includes(expectedAdapterRoute))) {
+  if (!networkIncludesPath(networkRequests, expectedAdapterRoute)) {
     failures.push("adapter sidecar route was not requested");
+  }
+  for (const expectedStackRoute of expectedAdapterStackRoutes[modelKey] || []) {
+    if (!networkIncludesPath(networkRequests, expectedStackRoute)) {
+      failures.push(`adapter stack route was not requested: ${expectedStackRoute}`);
+    }
   }
   const expectedReceiptRoute = expectedAdapterFamilyReceiptRoutes[modelKey];
   if (expectedReceiptRoute && !networkRequests.some((requestUrl) => requestUrl.includes(expectedReceiptRoute))) {
@@ -1596,6 +2102,50 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
     for (const expectedEvidenceRoute of expectedAssemblyEvidenceRoutes[modelKey] || []) {
       if (!networkRequests.some((requestUrl) => requestUrl.includes(expectedEvidenceRoute))) {
         failures.push(`assembly evidence route was not requested: ${expectedEvidenceRoute}`);
+      }
+    }
+  }
+  const expectedModulePlanRoute = expectedModulePlanRoutes[modelKey];
+  if (expectedModulePlanRoute && !networkRequests.some((requestUrl) => requestUrl.includes(expectedModulePlanRoute))) {
+    failures.push("module plan route was not requested");
+  }
+  if (expectedModulePlanRoute) {
+    if (result.modulePlanState !== "loaded") {
+      failures.push(`module plan state was ${result.modulePlanState}`);
+    }
+    if (result.modulePlanKind !== "browser-local-module-plan") {
+      failures.push(`module plan kind was ${result.modulePlanKind}`);
+    }
+    if (result.modulePlanResource !== "browser-constrained-local-assembly") {
+      failures.push(`module plan resource was ${result.modulePlanResource}`);
+    }
+    const expectedModuleCount = String(4 + (expectedAdapterStackRoutes[modelKey] || []).length);
+    if (result.modulePlanModules !== expectedModuleCount) {
+      failures.push(`module plan module count was ${result.modulePlanModules}`);
+    }
+    const expectedModelBudget = expectedModulePlanModelBudgets[modelKey];
+    if (expectedModelBudget && result.modulePlanModelBudget !== expectedModelBudget) {
+      failures.push(`module plan model budget was ${result.modulePlanModelBudget}`);
+    }
+    if (result.modulePlanAdapterBudget !== "1048576 bytes") {
+      failures.push(`module plan adapter budget was ${result.modulePlanAdapterBudget}`);
+    }
+    if (result.modulePlanSlots !== expectedModulePlanSlots) {
+      failures.push(`module plan slots were ${result.modulePlanSlots}`);
+    }
+    if (result.modulePlanRoles !== expectedModulePlanRoles) {
+      failures.push(`module plan roles were ${result.modulePlanRoles}`);
+    }
+    if (result.modulePlanDepends !== expectedModulePlanDependencies) {
+      failures.push(`module plan dependencies were ${result.modulePlanDepends}`);
+    }
+    const expectedModelRoute = expectedRouteForModel(modelKey);
+    if (expectedModelRoute && result.modulePlanModel !== `..${expectedModelRoute}`) {
+      failures.push(`module plan model route was ${result.modulePlanModel}`);
+    }
+    for (const expectedStackRoute of expectedAdapterStackRoutes[modelKey] || []) {
+      if (!String(result.modulePlanStack || "").includes(`..${expectedStackRoute}`)) {
+        failures.push(`module plan stack did not include ${expectedStackRoute}: ${result.modulePlanStack}`);
       }
     }
   }
@@ -1668,8 +2218,67 @@ function assertAdapterChecksumMismatchSmoke(result, modelKey, networkRequests) {
     }
   }
   const expectedAdapterRoute = expectedAdapterRoutes[modelKey] || "/models/tiny-test-model-self.adp1";
-  if (!networkRequests.some((requestUrl) => requestUrl.includes(expectedAdapterRoute))) {
+  if (!networkIncludesPath(networkRequests, expectedAdapterRoute)) {
     failures.push("adapter sidecar route was not requested");
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertAdapterManifestBudgetSmoke(result, modelKey, networkRequests) {
+  const failures = [];
+  if (result.selectedModel !== modelKey) {
+    failures.push(`selected model was ${result.selectedModel}`);
+  }
+  if (!String(result.modelState || "").startsWith("loaded")) {
+    failures.push(`model state was ${result.modelState}`);
+  }
+  if (result.runtimeStatus !== "Ready") {
+    failures.push(`runtime status was ${result.runtimeStatus}`);
+  }
+  if (result.errorState !== "none") {
+    failures.push(`error state was ${result.errorState}`);
+  }
+  if (!String(result.adapterState || "").includes("Adapter manifest byte budget exceeded")) {
+    failures.push(`adapter state was ${result.adapterState}`);
+  }
+  if (result.assemblyState !== "loaded") {
+    failures.push(`assembly state was ${result.assemblyState}`);
+  }
+  if (result.assemblyKind !== "browser-local-assembly-evidence") {
+    failures.push(`assembly kind was ${result.assemblyKind}`);
+  }
+  if (result.generateDisabled) {
+    failures.push("generate control was disabled after manifest budget rejection");
+  }
+  if (!result.adapterSelectDisabled || !result.applyDisabled) {
+    failures.push("adapter controls were enabled after manifest budget rejection");
+  }
+  if (String(result.console || "").includes("apply_adapter_delta")) {
+    failures.push("console included apply_adapter_delta");
+  }
+  if (!String(result.console || "").includes("Adapter manifest byte budget exceeded")) {
+    failures.push("console did not include manifest budget rejection");
+  }
+  const allowedOrigin = new URL(appUrl).origin;
+  for (const requestUrl of networkRequests) {
+    if (!requestUrl.startsWith("http://") && !requestUrl.startsWith("https://")) {
+      continue;
+    }
+    const origin = new URL(requestUrl).origin;
+    if (origin !== allowedOrigin) {
+      failures.push(`remote request observed: ${requestUrl}`);
+    }
+  }
+  const expectedManifestRoutes = expectedAdapterManifestRoutes[modelKey] || [];
+  const sparseManifestRoute = expectedManifestRoutes[expectedManifestRoutes.length - 1];
+  if (!sparseManifestRoute || !networkRequests.some((requestUrl) => requestUrl.includes(sparseManifestRoute))) {
+    failures.push(`adapter sparse manifest route was not requested: ${sparseManifestRoute}`);
+  }
+  const expectedAdapterRoute = expectedAdapterRoutes[modelKey];
+  if (expectedAdapterRoute && networkIncludesPath(networkRequests, expectedAdapterRoute)) {
+    failures.push("adapter artifact route was requested after manifest budget rejection");
   }
   if (failures.length > 0) {
     throw new Error(failures.join("; "));
@@ -2218,6 +2827,7 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
     "Model Loading",
     "Model Provenance",
     "Assembly Evidence",
+    "Module Plan",
     "Benchmark",
     "Runtime Diagnostics",
     "Token Generation Console",
@@ -2361,6 +2971,27 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
   }
   if (snapshot.provenanceNextGate !== "replace-with-trained-or-evaluated-model-before-product-quality-claim") {
     failures.push(`${prefix} provenance next gate was ${snapshot.provenanceNextGate}`);
+  }
+  if (snapshot.modulePlanState !== "none") {
+    failures.push(`${prefix} module plan state was ${snapshot.modulePlanState}`);
+  }
+  if (snapshot.modulePlanStack !== "unavailable") {
+    failures.push(`${prefix} module plan stack was ${snapshot.modulePlanStack}`);
+  }
+  if (snapshot.modulePlanModelBudget !== "unavailable") {
+    failures.push(`${prefix} module plan model budget was ${snapshot.modulePlanModelBudget}`);
+  }
+  if (snapshot.modulePlanAdapterBudget !== "unavailable") {
+    failures.push(`${prefix} module plan adapter budget was ${snapshot.modulePlanAdapterBudget}`);
+  }
+  if (snapshot.modulePlanSlots !== "unavailable") {
+    failures.push(`${prefix} module plan slots were ${snapshot.modulePlanSlots}`);
+  }
+  if (snapshot.modulePlanRoles !== "unavailable") {
+    failures.push(`${prefix} module plan roles were ${snapshot.modulePlanRoles}`);
+  }
+  if (snapshot.modulePlanDepends !== "unavailable") {
+    failures.push(`${prefix} module plan dependencies were ${snapshot.modulePlanDepends}`);
   }
   if (!(snapshot.benchLoadMsValue > 0)) {
     failures.push(`${prefix} benchmark load value was ${snapshot.benchLoadMs}`);
@@ -2521,6 +3152,32 @@ function installCorruptAdapterInterceptor(client) {
   });
 }
 
+function installAdapterManifestBudgetInterceptor(client) {
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    if (requestUrl.includes("-sparse.asp1.manifest")) {
+      const body = Buffer.alloc((64 * 1024) + 1, "a", "utf8");
+      client.send("Fetch.fulfillRequest", {
+        requestId: params.requestId,
+        responseCode: 200,
+        responseHeaders: [
+          { name: "content-type", value: "text/plain; charset=utf-8" },
+          { name: "content-length", value: String(body.length) }
+        ],
+        body: body.toString("base64")
+      }).catch((error) => {
+        console.error(error);
+      });
+      return;
+    }
+    client.send("Fetch.continueRequest", {
+      requestId: params.requestId
+    }).catch((error) => {
+      console.error(error);
+    });
+  });
+}
+
 function installMultiParentRegistryInterceptor(client) {
   client.on("Fetch.requestPaused", (params) => {
     const requestUrl = params.request && params.request.url ? params.request.url : "";
@@ -2531,6 +3188,10 @@ function installMultiParentRegistryInterceptor(client) {
         "registry_scope=browser-local-model-selector",
         "registry_status=admitted-records-only",
         "selector_model_byte_budget=33554432",
+        "selector_registry_text_byte_budget=262144",
+        "manifest_text_byte_budget=65536",
+        "receipt_text_byte_budget=131072",
+        "evidence_text_byte_budget=131072",
         "entry_count=1",
         "admission_set_checksum=0x0000000000000049",
         "entry.0.candidate_id=multi-parent-sign-merge-q8",
@@ -2588,6 +3249,10 @@ function installSelectorBudgetRegistryInterceptor(client) {
         "registry_scope=browser-local-model-selector",
         "registry_status=admitted-records-only",
         "selector_model_byte_budget=33554432",
+        "selector_registry_text_byte_budget=262144",
+        "manifest_text_byte_budget=65536",
+        "receipt_text_byte_budget=131072",
+        "evidence_text_byte_budget=131072",
         "entry_count=1",
         "admission_set_checksum=0x0000000000000081",
         "entry.0.candidate_id=oversized-browser-parent",
@@ -2635,6 +3300,164 @@ function installSelectorBudgetRegistryInterceptor(client) {
   });
 }
 
+function installSidecarBudgetContractRegistryInterceptor(client) {
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    if (requestUrl.includes("/models/selector.registry")) {
+      const body = Buffer.from([
+        "tinyrustlm_selector_registry_version=1",
+        "selector_id=browser-local-selector",
+        "registry_scope=browser-local-model-selector",
+        "registry_status=admitted-records-only",
+        "selector_model_byte_budget=33554432",
+        "selector_registry_text_byte_budget=262144",
+        "manifest_text_byte_budget=65537",
+        "receipt_text_byte_budget=131072",
+        "evidence_text_byte_budget=131072",
+        "entry_count=1",
+        "admission_set_checksum=0x0000000000000091",
+        "entry.0.candidate_id=sidecar-budget-contract-parent",
+        "entry.0.display_name=Sidecar budget contract parent q4_0",
+        "entry.0.model_path=../models/sidecar-budget-contract-parent.slm",
+        "entry.0.manifest_path=../models/sidecar-budget-contract-parent.slm.manifest",
+        "entry.0.artifact_path=tinyrustlm/models/sidecar-budget-contract-parent.slm",
+        "entry.0.max_tokens=8",
+        "entry.0.model_bytes=6592",
+        "entry.0.slm_checksum=0x0000000000000092",
+        "entry.0.model_shape=vocab=260,hidden=16,layers=1,heads=2,kv_heads=2,head_dim=8,ffn=32,context=32",
+        "entry.0.quantization=q4_0",
+        "entry.0.output_contract=separate-output-weight",
+        "entry.0.admission_checksum=0x0000000000000093",
+        "entry.0.promotion_manifest_checksum=0x0000000000000094",
+        "entry.0.runtime_smoke_manifest_checksum=0x0000000000000095",
+        "entry.0.eval_manifest_checksum=0x0000000000000096",
+        "entry.0.quality_scope=tiny-fixture-runtime-eval-only",
+        "entry.0.quality_boundary=fixture-runtime-and-eval-plumbing-not-product-assistant-quality",
+        "entry.0.eval_dataset=tinyrustlm/tests/fixtures/assistant-quality-eval-cases.txt",
+        "entry.0.cases_passed=1",
+        "entry.0.selector_status=admitted",
+        "entry.0.public_claim_status=bound-to-eval-scope",
+        "required_next_gate=browser-loads-selector-registry-entry-models",
+        ""
+      ].join("\n"), "utf8");
+      client.send("Fetch.fulfillRequest", {
+        requestId: params.requestId,
+        responseCode: 200,
+        responseHeaders: [
+          { name: "content-type", value: "text/plain; charset=utf-8" },
+          { name: "content-length", value: String(body.length) }
+        ],
+        body: body.toString("base64")
+      }).catch((error) => {
+        console.error(error);
+      });
+      return;
+    }
+    client.send("Fetch.continueRequest", {
+      requestId: params.requestId
+    }).catch((error) => {
+      console.error(error);
+    });
+  });
+}
+
+function installRuntimeManifestDriftInterceptor(client) {
+  const runtimeWasmPath = path.join(__dirname, "..", "runtime", "tinyrustlm.wasm");
+  const runtimeWasmBytes = fs.statSync(runtimeWasmPath).size;
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    if (requestUrl.includes("/runtime/tinyrustlm.wasm.manifest")) {
+      const body = Buffer.from([
+        "tinyrustlm_wasm_manifest_version=1",
+        "runtime_kind=tinyrustlm-rust-wasm",
+        "runtime_status=validated-local-runtime",
+        "runtime_wasm_path=../runtime/tinyrustlm.wasm",
+        `runtime_wasm_bytes=${runtimeWasmBytes}`,
+        "runtime_wasm_checksum=0x0000000000000001",
+        "required_next_gate=instantiate-wasm-runtime",
+        ""
+      ].join("\n"), "utf8");
+      client.send("Fetch.fulfillRequest", {
+        requestId: params.requestId,
+        responseCode: 200,
+        responseHeaders: [
+          { name: "content-type", value: "text/plain; charset=utf-8" },
+          { name: "content-length", value: String(body.length) }
+        ],
+        body: body.toString("base64")
+      }).catch((error) => {
+        console.error(error);
+      });
+      return;
+    }
+    client.send("Fetch.continueRequest", {
+      requestId: params.requestId
+    }).catch((error) => {
+      console.error(error);
+    });
+  });
+}
+
+function installModulePlanDriftInterceptor(client, modelKey, driftReceiptText) {
+  const modulePlanRoute = expectedModulePlanRoutes[modelKey];
+  if (!modulePlanRoute) {
+    throw new Error(`no module plan route is known for ${modelKey}`);
+  }
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    (async () => {
+      if (requestUrl.includes("/models/selector.registry")) {
+        const registryText = await getText(requestUrl);
+        const receiptUrl = new URL(modulePlanRoute, requestUrl).toString();
+        const receiptText = await getText(receiptUrl);
+        const driftedReceiptText = driftReceiptText(receiptText);
+        const driftedRegistryText = updateRegistryModulePlanChecksum(
+          registryText,
+          modelKey,
+          textChecksumHex(driftedReceiptText)
+        );
+        await fulfillTextRequest(client, params.requestId, driftedRegistryText);
+        return;
+      }
+      if (requestUrl.includes(modulePlanRoute)) {
+        const receiptText = await getText(requestUrl);
+        await fulfillTextRequest(client, params.requestId, driftReceiptText(receiptText));
+        return;
+      }
+      await continuePausedRequest(client, params.requestId);
+    })().catch((error) => {
+      console.error(error);
+      continuePausedRequest(client, params.requestId).catch((continueError) => {
+        console.error(continueError);
+      });
+    });
+  });
+}
+
+function installModulePlanResourceDriftInterceptor(client, modelKey) {
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanResourceEnvelope);
+}
+
+function installModulePlanGraphDriftInterceptor(client, modelKey) {
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanGraph);
+}
+
+function installModulePlanStackDriftInterceptor(client, modelKey) {
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanStackMember);
+}
+
+function installModulePlanRoleDriftInterceptor(client, modelKey) {
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanRole);
+}
+
+function installModulePlanSlotDriftInterceptor(client, modelKey) {
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanSlot);
+}
+
+function installModulePlanDependencyDriftInterceptor(client, modelKey) {
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanDependency);
+}
+
 function installQuantizedAdapterRegistryInterceptor(client) {
   client.on("Fetch.requestPaused", (params) => {
     const requestUrl = params.request && params.request.url ? params.request.url : "";
@@ -2645,6 +3468,10 @@ function installQuantizedAdapterRegistryInterceptor(client) {
         "registry_scope=browser-local-model-selector",
         "registry_status=admitted-records-only",
         "selector_model_byte_budget=33554432",
+        "selector_registry_text_byte_budget=262144",
+        "manifest_text_byte_budget=65536",
+        "receipt_text_byte_budget=131072",
+        "evidence_text_byte_budget=131072",
         "entry_count=1",
         "admission_set_checksum=0x0000000000000061",
         "entry.0.candidate_id=tinyq8",
@@ -2734,17 +3561,35 @@ async function main() {
     await client.send("Page.enable", {});
     await client.send("Runtime.enable", {});
     await client.send("Network.enable", {});
-    if (smokeMode === "model-error" || smokeMode === "missing-model" || smokeMode === "multi-parent-registry" || smokeMode === "selector-budget" || smokeMode === "adapter-sidecar-registry-q8" || smokeMode === "adapter-sidecar-checksum-mismatch") {
+    if (smokeMode === "model-error" || smokeMode === "missing-model" || smokeMode === "multi-parent-registry" || smokeMode === "selector-budget" || smokeMode === "sidecar-budget-contract" || smokeMode === "runtime-manifest-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-dependency-drift" || smokeMode === "adapter-sidecar-registry-q8" || smokeMode === "adapter-sidecar-checksum-mismatch" || smokeMode === "adapter-manifest-budget") {
       if (smokeMode === "model-error") {
         installMalformedModelInterceptor(client);
       } else if (smokeMode === "missing-model") {
         installMissingModelInterceptor(client);
+      } else if (smokeMode === "runtime-manifest-drift") {
+        installRuntimeManifestDriftInterceptor(client);
+      } else if (smokeMode === "module-plan-resource-drift") {
+        installModulePlanResourceDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-graph-drift") {
+        installModulePlanGraphDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-stack-drift") {
+        installModulePlanStackDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-role-drift") {
+        installModulePlanRoleDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-slot-drift") {
+        installModulePlanSlotDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-dependency-drift") {
+        installModulePlanDependencyDriftInterceptor(client, expectedModel);
       } else if (smokeMode === "adapter-sidecar-checksum-mismatch") {
         installCorruptAdapterInterceptor(client);
+      } else if (smokeMode === "adapter-manifest-budget") {
+        installAdapterManifestBudgetInterceptor(client);
       } else if (smokeMode === "adapter-sidecar-registry-q8") {
         installQuantizedAdapterRegistryInterceptor(client);
       } else if (smokeMode === "selector-budget") {
         installSelectorBudgetRegistryInterceptor(client);
+      } else if (smokeMode === "sidecar-budget-contract") {
+        installSidecarBudgetContractRegistryInterceptor(client);
       } else {
         installMultiParentRegistryInterceptor(client);
       }
@@ -2902,7 +3747,22 @@ async function main() {
         );
       }
       result.networkRequests = networkRequests;
-    } else if (smokeMode === "selector-budget") {
+    } else if (smokeMode === "adapter-manifest-budget") {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageAdapterLoadStateSmoke(client, expectedModel);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertAdapterManifestBudgetSmoke(result, expectedModel, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (smokeMode === "selector-budget" || smokeMode === "sidecar-budget-contract") {
       await client.send("Page.reload", { ignoreCache: true });
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
@@ -2915,7 +3775,11 @@ async function main() {
           }
         }
       }
-      assertSelectorBudgetSmoke(result, networkRequests);
+      if (smokeMode === "selector-budget") {
+        assertSelectorBudgetSmoke(result, networkRequests);
+      } else {
+        assertSidecarBudgetContractSmoke(result, networkRequests);
+      }
       result.networkRequests = networkRequests;
     } else if (smokeMode === "multi-parent-registry" || smokeMode === "multi-parent-registry-file") {
       await client.send("Page.reload", { ignoreCache: true });
@@ -2931,6 +3795,48 @@ async function main() {
         }
       }
       assertMultiParentRegistrySmoke(result, expectedModel, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (smokeMode === "runtime-manifest-drift") {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageModelErrorSmoke(client);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertRuntimeManifestDriftSmoke(result, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-dependency-drift") {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageModelErrorSmoke(client);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      if (smokeMode === "module-plan-resource-drift") {
+        assertModulePlanResourceDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-graph-drift") {
+        assertModulePlanGraphDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-stack-drift") {
+        assertModulePlanStackDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-role-drift") {
+        assertModulePlanRoleDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-slot-drift") {
+        assertModulePlanSlotDriftSmoke(result, expectedModel, networkRequests);
+      } else {
+        assertModulePlanDependencyDriftSmoke(result, expectedModel, networkRequests);
+      }
       result.networkRequests = networkRequests;
     } else if (smokeMode === "model-error") {
       await client.send("Page.reload", { ignoreCache: true });
@@ -2989,7 +3895,8 @@ async function main() {
           }
         }
       }
-      assertSmoke(result, expectedModel);
+      assertSmoke(result, expectedModel, networkRequests);
+      result.networkRequests = networkRequests;
     }
     console.log(JSON.stringify(result, null, 2));
     socket.close();

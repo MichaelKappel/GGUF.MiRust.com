@@ -17,15 +17,25 @@ const PUBLIC_CLAIM_STATUS: &str = "bound-to-eval-scope";
 const REQUIRED_NEXT_GATE: &str = "browser-loads-selector-registry-entry-models";
 const SELECTOR_DEFAULT_STRATEGY: &str = "browser-frugal-quantized";
 const SELECTOR_MODEL_BYTE_BUDGET: u64 = 32 * 1024 * 1024;
+const SELECTOR_REGISTRY_TEXT_BYTE_BUDGET: u64 = 256 * 1024;
+const MANIFEST_TEXT_BYTE_BUDGET: u64 = 64 * 1024;
+const RECEIPT_TEXT_BYTE_BUDGET: u64 = 128 * 1024;
+const EVIDENCE_TEXT_BYTE_BUDGET: u64 = 128 * 1024;
 const ADAPTER_APPLY_STATUS_F32: &str = "runtime-f32-compatible-or-fuse-to-slm";
 const ADAPTER_APPLY_STATUS_QUANTIZED: &str = "runtime-q8-q4-compatible-or-fuse-to-slm";
 const ADAPTER_FAMILY_STATUS: &str = "receipt-validated";
 const ADAPTER_FAMILY_STRATEGY: &str = "single-adapter-selection";
 const ADAPTER_AUTO_APPLY_STATUS: &str = "enabled";
 const ADAPTER_AUTO_APPLY_STRATEGY: &str = "receipt-preferred-compatible";
+const ADAPTER_AUTO_APPLY_STACK_STATUS: &str = "enabled";
+const ADAPTER_AUTO_APPLY_STACK_STRATEGY: &str = "receipt-declared-compatible-stack";
 const ADAPTER_AUTO_APPLY_BYTE_BUDGET: u64 = 1024 * 1024;
 const ASSEMBLY_RECEIPT_STATUS: &str = "receipt-validated";
 const ASSEMBLY_RECEIPT_KIND: &str = "browser-local-assembly-evidence";
+const MODULE_PLAN_STATUS: &str = "receipt-validated";
+const MODULE_PLAN_KIND: &str = "browser-local-module-plan";
+const MODULE_PLAN_STRATEGY: &str = "selector-entry-self-assembly";
+const MODULE_PLAN_RESOURCE_CLASS: &str = "browser-constrained-local-assembly";
 const ADAPTER_KEY_SUFFIXES: &[&str] = &[
     "adapter_path",
     "adapter_manifest_path",
@@ -44,6 +54,9 @@ const ADAPTER_FAMILY_KEY_SUFFIXES: &[&str] = &[
     "adapter_family_adapter_count",
     "adapter_auto_apply_status",
     "adapter_auto_apply_strategy",
+    "adapter_auto_apply_stack_status",
+    "adapter_auto_apply_stack_strategy",
+    "adapter_auto_apply_stack_count",
     "adapter_auto_apply_byte_budget",
 ];
 const ASSEMBLY_RECEIPT_KEY_SUFFIXES: &[&str] = &[
@@ -52,6 +65,18 @@ const ASSEMBLY_RECEIPT_KEY_SUFFIXES: &[&str] = &[
     "assembly_label",
     "assembly_status",
     "assembly_kind",
+];
+const MODULE_PLAN_KEY_SUFFIXES: &[&str] = &[
+    "module_plan_path",
+    "module_plan_checksum",
+    "module_plan_label",
+    "module_plan_status",
+    "module_plan_kind",
+    "module_plan_strategy",
+    "module_plan_resource_class",
+    "module_plan_model_byte_budget",
+    "module_plan_adapter_byte_budget",
+    "module_plan_module_count",
 ];
 
 struct RegistryEntry {
@@ -77,6 +102,7 @@ struct RegistryEntry {
     adapters: Vec<RegistryAdapterRoute>,
     adapter_family: Option<RegistryAdapterFamilyRoute>,
     assembly: Option<RegistryAssemblyRoute>,
+    module_plan: Option<RegistryModulePlanRoute>,
 }
 
 /// Optional browser-local adapter sidecar metadata for a selector registry entry.
@@ -103,6 +129,9 @@ pub(crate) struct RegistryAdapterFamilyRoute {
     pub(crate) adapter_count: usize,
     pub(crate) auto_apply_status: String,
     pub(crate) auto_apply_strategy: String,
+    pub(crate) auto_apply_stack_status: String,
+    pub(crate) auto_apply_stack_strategy: String,
+    pub(crate) auto_apply_stack_count: usize,
     pub(crate) auto_apply_byte_budget: u64,
 }
 
@@ -117,6 +146,22 @@ pub(crate) struct RegistryAssemblyRoute {
     pub(crate) receipt_checksum: String,
 }
 
+/// Optional browser-local self-assembly module-plan receipt metadata for a selector entry.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct RegistryModulePlanRoute {
+    pub(crate) candidate_id: String,
+    pub(crate) receipt_path: String,
+    pub(crate) label: String,
+    pub(crate) status: String,
+    pub(crate) kind: String,
+    pub(crate) strategy: String,
+    pub(crate) resource_class: String,
+    pub(crate) model_byte_budget: u64,
+    pub(crate) adapter_byte_budget: u64,
+    pub(crate) receipt_checksum: String,
+    pub(crate) module_count: usize,
+}
+
 /// Writes a browser selector registry from one or more selector admission records.
 pub(crate) fn write_registry_path(output: &Path, admission_paths: &[String]) -> io::Result<()> {
     let admission_texts = read_admissions(admission_paths)?;
@@ -129,20 +174,22 @@ pub(crate) fn write_registry_path(output: &Path, admission_paths: &[String]) -> 
     Ok(())
 }
 
-/// Writes a browser selector registry with adapter sidecars, family receipts, and assembly evidence.
-pub(crate) fn write_registry_with_adapter_family_and_assembly_routes_path(
+/// Writes a browser selector registry with adapter, assembly, and module-plan receipts.
+pub(crate) fn write_registry_with_module_plan_routes_path(
     output: &Path,
     admission_paths: &[String],
     adapter_routes: &[RegistryAdapterRoute],
     family_routes: &[RegistryAdapterFamilyRoute],
     assembly_routes: &[RegistryAssemblyRoute],
+    module_plan_routes: &[RegistryModulePlanRoute],
 ) -> io::Result<()> {
     let admission_texts = read_admissions(admission_paths)?;
-    let registry = build_registry_text_with_adapter_family_and_assembly_routes(
+    let registry = build_registry_text_with_module_plan_routes(
         &admission_texts,
         adapter_routes,
         family_routes,
         assembly_routes,
+        module_plan_routes,
     )?;
     if let Some(parent) = output.parent() {
         fs::create_dir_all(parent)?;
@@ -152,6 +199,7 @@ pub(crate) fn write_registry_with_adapter_family_and_assembly_routes_path(
     println!("adapter_routes: {}", adapter_routes.len());
     println!("adapter_family_routes: {}", family_routes.len());
     println!("assembly_routes: {}", assembly_routes.len());
+    println!("module_plan_routes: {}", module_plan_routes.len());
     Ok(())
 }
 
@@ -211,10 +259,27 @@ pub(crate) fn build_registry_text_with_adapter_family_and_assembly_routes(
     family_routes: &[RegistryAdapterFamilyRoute],
     assembly_routes: &[RegistryAssemblyRoute],
 ) -> io::Result<String> {
+    build_registry_text_with_module_plan_routes(
+        admission_texts,
+        adapter_routes,
+        family_routes,
+        assembly_routes,
+        &[],
+    )
+}
+
+pub(crate) fn build_registry_text_with_module_plan_routes(
+    admission_texts: &[String],
+    adapter_routes: &[RegistryAdapterRoute],
+    family_routes: &[RegistryAdapterFamilyRoute],
+    assembly_routes: &[RegistryAssemblyRoute],
+    module_plan_routes: &[RegistryModulePlanRoute],
+) -> io::Result<String> {
     let mut entries = entries_from_admissions(admission_texts)?;
     attach_adapter_routes(&mut entries, adapter_routes)?;
     attach_adapter_family_routes(&mut entries, family_routes)?;
     attach_assembly_routes(&mut entries, assembly_routes)?;
+    attach_module_plan_routes(&mut entries, module_plan_routes)?;
     let selector_id = selector_id(admission_texts)?;
     let default_entry = default_selector_entry(&entries)?;
     let mut text = String::new();
@@ -230,6 +295,26 @@ pub(crate) fn build_registry_text_with_adapter_family_and_assembly_routes(
         &mut text,
         "selector_model_byte_budget",
         &SELECTOR_MODEL_BYTE_BUDGET.to_string(),
+    );
+    push_line(
+        &mut text,
+        "selector_registry_text_byte_budget",
+        &SELECTOR_REGISTRY_TEXT_BYTE_BUDGET.to_string(),
+    );
+    push_line(
+        &mut text,
+        "manifest_text_byte_budget",
+        &MANIFEST_TEXT_BYTE_BUDGET.to_string(),
+    );
+    push_line(
+        &mut text,
+        "receipt_text_byte_budget",
+        &RECEIPT_TEXT_BYTE_BUDGET.to_string(),
+    );
+    push_line(
+        &mut text,
+        "evidence_text_byte_budget",
+        &EVIDENCE_TEXT_BYTE_BUDGET.to_string(),
     );
     push_line(&mut text, "entry_count", &entries.len().to_string());
     push_line(
@@ -464,6 +549,21 @@ pub(crate) fn build_registry_text_with_adapter_family_and_assembly_routes(
             );
             push_line(
                 &mut text,
+                &format!("{prefix}.adapter_auto_apply_stack_status"),
+                &family.auto_apply_stack_status,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.adapter_auto_apply_stack_strategy"),
+                &family.auto_apply_stack_strategy,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.adapter_auto_apply_stack_count"),
+                &family.auto_apply_stack_count.to_string(),
+            );
+            push_line(
+                &mut text,
                 &format!("{prefix}.adapter_auto_apply_byte_budget"),
                 &family.auto_apply_byte_budget.to_string(),
             );
@@ -495,6 +595,58 @@ pub(crate) fn build_registry_text_with_adapter_family_and_assembly_routes(
                 &assembly.kind,
             );
         }
+        if let Some(module_plan) = &entry.module_plan {
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_path"),
+                &module_plan.receipt_path,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_checksum"),
+                &module_plan.receipt_checksum,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_label"),
+                &module_plan.label,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_status"),
+                &module_plan.status,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_kind"),
+                &module_plan.kind,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_strategy"),
+                &module_plan.strategy,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_resource_class"),
+                &module_plan.resource_class,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_model_byte_budget"),
+                &module_plan.model_byte_budget.to_string(),
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_adapter_byte_budget"),
+                &module_plan.adapter_byte_budget.to_string(),
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_module_count"),
+                &module_plan.module_count.to_string(),
+            );
+        }
         push_line(
             &mut text,
             &format!("{prefix}.selector_status"),
@@ -515,11 +667,13 @@ fn validate_registry_text(registry_text: &str, admission_texts: &[String]) -> io
     let adapter_routes = adapter_routes_from_registry(&actual)?;
     let family_routes = adapter_family_routes_from_registry(&actual)?;
     let assembly_routes = assembly_routes_from_registry(&actual)?;
-    let expected_text = build_registry_text_with_adapter_family_and_assembly_routes(
+    let module_plan_routes = module_plan_routes_from_registry(&actual)?;
+    let expected_text = build_registry_text_with_module_plan_routes(
         admission_texts,
         &adapter_routes,
         &family_routes,
         &assembly_routes,
+        &module_plan_routes,
     )?;
     let expected = parse_manifest(&expected_text, "expected selector registry")?;
     require_equal(
@@ -533,6 +687,26 @@ fn validate_registry_text(registry_text: &str, admission_texts: &[String]) -> io
         &actual,
         "selector_model_byte_budget",
         &SELECTOR_MODEL_BYTE_BUDGET.to_string(),
+    )?;
+    require_equal(
+        &actual,
+        "selector_registry_text_byte_budget",
+        &SELECTOR_REGISTRY_TEXT_BYTE_BUDGET.to_string(),
+    )?;
+    require_equal(
+        &actual,
+        "manifest_text_byte_budget",
+        &MANIFEST_TEXT_BYTE_BUDGET.to_string(),
+    )?;
+    require_equal(
+        &actual,
+        "receipt_text_byte_budget",
+        &RECEIPT_TEXT_BYTE_BUDGET.to_string(),
+    )?;
+    require_equal(
+        &actual,
+        "evidence_text_byte_budget",
+        &EVIDENCE_TEXT_BYTE_BUDGET.to_string(),
     )?;
     require_equal(&actual, "required_next_gate", REQUIRED_NEXT_GATE)?;
     for (key, expected_value) in &expected {
@@ -633,6 +807,7 @@ fn entries_from_admissions(admission_texts: &[String]) -> io::Result<Vec<Registr
             adapters: Vec::new(),
             adapter_family: None,
             assembly: None,
+            module_plan: None,
         });
     }
     Ok(entries)
@@ -727,6 +902,67 @@ fn attach_assembly_routes(
             )));
         };
         entries[index].assembly = Some(route.clone());
+    }
+    Ok(())
+}
+
+fn attach_module_plan_routes(
+    entries: &mut [RegistryEntry],
+    module_plan_routes: &[RegistryModulePlanRoute],
+) -> io::Result<()> {
+    let mut entry_index = HashMap::new();
+    for (index, entry) in entries.iter().enumerate() {
+        entry_index.insert(entry.candidate_id.clone(), index);
+    }
+    let mut seen = HashSet::new();
+    for route in module_plan_routes {
+        validate_registry_module_plan_route(route)?;
+        if !seen.insert(route.candidate_id.as_str()) {
+            return Err(invalid(&format!(
+                "duplicate selector registry module plan route for {}",
+                route.candidate_id
+            )));
+        }
+        let Some(index) = entry_index.get(&route.candidate_id).copied() else {
+            return Err(invalid(&format!(
+                "module plan route candidate_id {} has no selector registry entry",
+                route.candidate_id
+            )));
+        };
+        let entry = &entries[index];
+        let Some(family) = &entry.adapter_family else {
+            return Err(invalid(
+                "selector registry module plan requires an adapter family route",
+            ));
+        };
+        if entry.assembly.is_none() {
+            return Err(invalid(
+                "selector registry module plan requires an assembly route",
+            ));
+        }
+        let expected_module_count = 4usize
+            .checked_add(family.auto_apply_stack_count)
+            .ok_or_else(|| invalid("selector registry module plan count overflow"))?;
+        if route.module_count != expected_module_count {
+            return Err(invalid(
+                "selector registry module plan count must match model, manifest, receipts, and adapter stack",
+            ));
+        }
+        let model_bytes = entry
+            .model_bytes
+            .parse::<u64>()
+            .map_err(|_| invalid("selector registry module plan model budget is invalid"))?;
+        if route.model_byte_budget != model_bytes {
+            return Err(invalid(
+                "selector registry module plan model byte budget must match the admitted model bytes",
+            ));
+        }
+        if route.adapter_byte_budget != family.auto_apply_byte_budget {
+            return Err(invalid(
+                "selector registry module plan adapter byte budget must match the adapter family budget",
+            ));
+        }
+        entries[index].module_plan = Some(route.clone());
     }
     Ok(())
 }
@@ -830,6 +1066,22 @@ fn adapter_family_routes_from_registry(
                 &format!("{prefix}.adapter_auto_apply_strategy"),
             )?
             .to_string(),
+            auto_apply_stack_status: require_key(
+                fields,
+                &format!("{prefix}.adapter_auto_apply_stack_status"),
+            )?
+            .to_string(),
+            auto_apply_stack_strategy: require_key(
+                fields,
+                &format!("{prefix}.adapter_auto_apply_stack_strategy"),
+            )?
+            .to_string(),
+            auto_apply_stack_count: require_key(
+                fields,
+                &format!("{prefix}.adapter_auto_apply_stack_count"),
+            )?
+            .parse::<usize>()
+            .map_err(|_| invalid("selector registry adapter auto apply stack count is invalid"))?,
             auto_apply_byte_budget: require_key(
                 fields,
                 &format!("{prefix}.adapter_auto_apply_byte_budget"),
@@ -871,6 +1123,54 @@ fn assembly_routes_from_registry(
             kind: require_key(fields, &format!("{prefix}.assembly_kind"))?.to_string(),
         };
         validate_registry_assembly_route(&route)?;
+        routes.push(route);
+    }
+    Ok(routes)
+}
+
+fn module_plan_routes_from_registry(
+    fields: &HashMap<String, String>,
+) -> io::Result<Vec<RegistryModulePlanRoute>> {
+    let entry_count = require_key(fields, "entry_count")?
+        .parse::<usize>()
+        .map_err(|_| invalid("selector registry entry_count is invalid"))?;
+    let mut routes = Vec::new();
+    for index in 0..entry_count {
+        let prefix = format!("entry.{index}");
+        let has_module_plan_key = MODULE_PLAN_KEY_SUFFIXES.iter().any(|suffix| {
+            let key = format!("{prefix}.{suffix}");
+            fields.contains_key(&key)
+        });
+        if !has_module_plan_key {
+            continue;
+        }
+        let candidate_id_key = format!("{prefix}.candidate_id");
+        let route = RegistryModulePlanRoute {
+            candidate_id: require_key(fields, &candidate_id_key)?.to_string(),
+            receipt_path: require_key(fields, &format!("{prefix}.module_plan_path"))?.to_string(),
+            receipt_checksum: require_key(fields, &format!("{prefix}.module_plan_checksum"))?
+                .to_string(),
+            label: require_key(fields, &format!("{prefix}.module_plan_label"))?.to_string(),
+            status: require_key(fields, &format!("{prefix}.module_plan_status"))?.to_string(),
+            kind: require_key(fields, &format!("{prefix}.module_plan_kind"))?.to_string(),
+            strategy: require_key(fields, &format!("{prefix}.module_plan_strategy"))?.to_string(),
+            resource_class: require_key(fields, &format!("{prefix}.module_plan_resource_class"))?
+                .to_string(),
+            model_byte_budget: parse_module_plan_byte_budget(
+                fields,
+                &format!("{prefix}.module_plan_model_byte_budget"),
+                "model",
+            )?,
+            adapter_byte_budget: parse_module_plan_byte_budget(
+                fields,
+                &format!("{prefix}.module_plan_adapter_byte_budget"),
+                "adapter",
+            )?,
+            module_count: require_key(fields, &format!("{prefix}.module_plan_module_count"))?
+                .parse::<usize>()
+                .map_err(|_| invalid("selector registry module plan count is invalid"))?,
+        };
+        validate_registry_module_plan_route(&route)?;
         routes.push(route);
     }
     Ok(routes)
@@ -1008,6 +1308,21 @@ pub(crate) fn validate_registry_adapter_family_route(
             "selector registry adapter auto apply strategy is invalid",
         ));
     }
+    if route.auto_apply_stack_status != ADAPTER_AUTO_APPLY_STACK_STATUS {
+        return Err(invalid(
+            "selector registry adapter auto apply stack status is invalid",
+        ));
+    }
+    if route.auto_apply_stack_strategy != ADAPTER_AUTO_APPLY_STACK_STRATEGY {
+        return Err(invalid(
+            "selector registry adapter auto apply stack strategy is invalid",
+        ));
+    }
+    if route.auto_apply_stack_count == 0 || route.auto_apply_stack_count > route.adapter_count {
+        return Err(invalid(
+            "selector registry adapter auto apply stack count is invalid",
+        ));
+    }
     if route.auto_apply_byte_budget == 0
         || route.auto_apply_byte_budget > ADAPTER_AUTO_APPLY_BYTE_BUDGET
     {
@@ -1039,6 +1354,73 @@ pub(crate) fn validate_registry_assembly_route(route: &RegistryAssemblyRoute) ->
     }
     validate_hex64(&route.receipt_checksum, "assembly receipt checksum")?;
     Ok(())
+}
+
+pub(crate) fn validate_registry_module_plan_route(
+    route: &RegistryModulePlanRoute,
+) -> io::Result<()> {
+    if route.candidate_id.trim().is_empty() {
+        return Err(invalid(
+            "selector registry module plan candidate_id is empty",
+        ));
+    }
+    validate_module_plan_receipt_path(&route.receipt_path)?;
+    if route.label.trim().is_empty()
+        || route.label.contains('\r')
+        || route.label.contains('\n')
+        || route.label.len() > 160
+    {
+        return Err(invalid("selector registry module plan label is invalid"));
+    }
+    if route.status != MODULE_PLAN_STATUS {
+        return Err(invalid("selector registry module plan status is invalid"));
+    }
+    if route.kind != MODULE_PLAN_KIND {
+        return Err(invalid("selector registry module plan kind is invalid"));
+    }
+    if route.strategy != MODULE_PLAN_STRATEGY {
+        return Err(invalid("selector registry module plan strategy is invalid"));
+    }
+    if route.resource_class != MODULE_PLAN_RESOURCE_CLASS {
+        return Err(invalid(
+            "selector registry module plan resource class is invalid",
+        ));
+    }
+    if route.model_byte_budget == 0 || route.model_byte_budget > SELECTOR_MODEL_BYTE_BUDGET {
+        return Err(invalid(
+            "selector registry module plan model byte budget is invalid",
+        ));
+    }
+    if route.adapter_byte_budget == 0 || route.adapter_byte_budget > ADAPTER_AUTO_APPLY_BYTE_BUDGET
+    {
+        return Err(invalid(
+            "selector registry module plan adapter byte budget is invalid",
+        ));
+    }
+    if !(5..=32).contains(&route.module_count) {
+        return Err(invalid("selector registry module plan count is invalid"));
+    }
+    validate_hex64(&route.receipt_checksum, "module plan checksum")?;
+    Ok(())
+}
+
+fn parse_module_plan_byte_budget(
+    fields: &HashMap<String, String>,
+    key: &str,
+    label: &str,
+) -> io::Result<u64> {
+    let value = require_key(fields, key)?;
+    let bytes = value.parse::<u64>().map_err(|_| {
+        invalid(&format!(
+            "selector registry module plan {label} byte budget is invalid"
+        ))
+    })?;
+    if bytes == 0 || bytes.to_string() != value {
+        return Err(invalid(&format!(
+            "selector registry module plan {label} byte budget is invalid"
+        )));
+    }
+    Ok(bytes)
 }
 
 fn selector_id(admission_texts: &[String]) -> io::Result<String> {
@@ -1190,6 +1572,29 @@ fn validate_assembly_receipt_path(path: &str) -> io::Result<()> {
     Ok(())
 }
 
+fn validate_module_plan_receipt_path(path: &str) -> io::Result<()> {
+    let normalized = path.replace('\\', "/");
+    let Some(rest) = normalized.strip_prefix("../models/") else {
+        return Err(invalid(
+            "selector registry module plan route must point at served ../models receipt artifacts",
+        ));
+    };
+    if rest.is_empty()
+        || !rest.ends_with(".module-plan.receipt")
+        || rest.contains(':')
+        || rest.contains('\\')
+        || rest.contains("//")
+    {
+        return Err(invalid("selector registry module plan route is invalid"));
+    }
+    for part in rest.split('/') {
+        if part.is_empty() || part == "." || part == ".." {
+            return Err(invalid("selector registry module plan route is invalid"));
+        }
+    }
+    Ok(())
+}
+
 fn validate_hex64(value: &str, label: &str) -> io::Result<()> {
     let Some(rest) = value.strip_prefix("0x") else {
         return Err(invalid(&format!("selector registry {label} is invalid")));
@@ -1317,6 +1722,10 @@ mod tests {
         validate_registry_text(&registry, &[admission]).unwrap();
         assert!(registry.contains("registry_status=admitted-records-only"));
         assert!(registry.contains("selector_model_byte_budget=33554432"));
+        assert!(registry.contains("selector_registry_text_byte_budget=262144"));
+        assert!(registry.contains("manifest_text_byte_budget=65536"));
+        assert!(registry.contains("receipt_text_byte_budget=131072"));
+        assert!(registry.contains("evidence_text_byte_budget=131072"));
         assert!(registry.contains("selector_default_strategy=browser-frugal-quantized"));
         assert!(registry.contains("selector_default_candidate_id=tiny-q8-candidate"));
         assert!(registry.contains("selector_default_quantization=q8_0"));
@@ -1466,6 +1875,11 @@ mod tests {
         assert!(
             registry.contains("entry.0.adapter_auto_apply_strategy=receipt-preferred-compatible")
         );
+        assert!(registry.contains("entry.0.adapter_auto_apply_stack_status=enabled"));
+        assert!(registry.contains(
+            "entry.0.adapter_auto_apply_stack_strategy=receipt-declared-compatible-stack"
+        ));
+        assert!(registry.contains("entry.0.adapter_auto_apply_stack_count=2"));
         assert!(registry.contains("entry.0.adapter_auto_apply_byte_budget=1048576"));
     }
 
@@ -1532,6 +1946,37 @@ mod tests {
     }
 
     #[test]
+    fn rejects_adapter_auto_apply_stack_count_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let registry = build_registry_text_with_adapter_families(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.adapter_auto_apply_stack_count=2",
+            "entry.0.adapter_auto_apply_stack_count=3",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("adapter auto apply stack count"));
+    }
+
+    #[test]
     fn writes_and_validates_selector_registry_with_assembly_receipt() {
         let admission =
             fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
@@ -1551,6 +1996,119 @@ mod tests {
         );
         assert!(registry.contains("entry.0.assembly_status=receipt-validated"));
         assert!(registry.contains("entry.0.assembly_kind=browser-local-assembly-evidence"));
+    }
+
+    #[test]
+    fn writes_and_validates_selector_registry_with_module_plan_receipt() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap();
+
+        validate_registry_text(&registry, &[admission]).unwrap();
+        assert!(
+            registry.contains("entry.0.module_plan_path=../models/tiny-f32.module-plan.receipt")
+        );
+        assert!(registry.contains("entry.0.module_plan_status=receipt-validated"));
+        assert!(registry.contains("entry.0.module_plan_kind=browser-local-module-plan"));
+        assert!(registry.contains("entry.0.module_plan_strategy=selector-entry-self-assembly"));
+        assert!(registry
+            .contains("entry.0.module_plan_resource_class=browser-constrained-local-assembly"));
+        assert!(registry.contains(&format!(
+            "entry.0.module_plan_model_byte_budget={}",
+            tiny_fixture_f32_bytes().len()
+        )));
+        assert!(registry.contains("entry.0.module_plan_adapter_byte_budget=1048576"));
+        assert!(registry.contains("entry.0.module_plan_module_count=6"));
+    }
+
+    #[test]
+    fn rejects_module_plan_count_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_module_count=6",
+            "entry.0.module_plan_module_count=5",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("module plan count"));
+    }
+
+    #[test]
+    fn rejects_module_plan_resource_envelope_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_adapter_byte_budget=1048576",
+            "entry.0.module_plan_adapter_byte_budget=1048577",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("adapter byte budget"));
     }
 
     #[test]
@@ -1706,6 +2264,20 @@ mod tests {
     }
 
     #[test]
+    fn rejects_selector_registry_text_budget_drift() {
+        let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
+        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
+            "manifest_text_byte_budget=65536",
+            "manifest_text_byte_budget=65537",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("manifest_text_byte_budget"));
+    }
+
+    #[test]
     fn rejects_unsupported_admission_version() {
         let admission = "selector_id=browser-local-selector\ncandidate_id=oops\n".to_string();
 
@@ -1804,6 +2376,9 @@ mod tests {
             adapter_count,
             auto_apply_status: ADAPTER_AUTO_APPLY_STATUS.to_string(),
             auto_apply_strategy: ADAPTER_AUTO_APPLY_STRATEGY.to_string(),
+            auto_apply_stack_status: ADAPTER_AUTO_APPLY_STACK_STATUS.to_string(),
+            auto_apply_stack_strategy: ADAPTER_AUTO_APPLY_STACK_STRATEGY.to_string(),
+            auto_apply_stack_count: adapter_count,
             auto_apply_byte_budget: ADAPTER_AUTO_APPLY_BYTE_BUDGET,
         }
     }
@@ -1816,6 +2391,25 @@ mod tests {
             status: ASSEMBLY_RECEIPT_STATUS.to_string(),
             kind: ASSEMBLY_RECEIPT_KIND.to_string(),
             receipt_checksum: "0x00000000000000ef".to_string(),
+        }
+    }
+
+    fn fixture_module_plan_route(
+        candidate_id: &str,
+        module_count: usize,
+    ) -> RegistryModulePlanRoute {
+        RegistryModulePlanRoute {
+            candidate_id: candidate_id.to_string(),
+            receipt_path: "../models/tiny-f32.module-plan.receipt".to_string(),
+            label: "Tiny f32 module plan".to_string(),
+            status: MODULE_PLAN_STATUS.to_string(),
+            kind: MODULE_PLAN_KIND.to_string(),
+            strategy: MODULE_PLAN_STRATEGY.to_string(),
+            resource_class: MODULE_PLAN_RESOURCE_CLASS.to_string(),
+            model_byte_budget: tiny_fixture_f32_bytes().len() as u64,
+            adapter_byte_budget: ADAPTER_AUTO_APPLY_BYTE_BUDGET,
+            receipt_checksum: "0x00000000000000f0".to_string(),
+            module_count,
         }
     }
 

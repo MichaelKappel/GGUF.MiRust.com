@@ -54,6 +54,18 @@ const REQUIRED_IDS: &[&str] = &[
     "assemblyOperator",
     "assemblyLedger",
     "assemblyNextGate",
+    "modulePlanPanel",
+    "modulePlanState",
+    "modulePlanKind",
+    "modulePlanResource",
+    "modulePlanModules",
+    "modulePlanModelBudget",
+    "modulePlanAdapterBudget",
+    "modulePlanSlots",
+    "modulePlanRoles",
+    "modulePlanDepends",
+    "modulePlanModel",
+    "modulePlanStack",
     "benchLoadMs",
     "benchPromptTokens",
     "benchGeneratedTokens",
@@ -73,6 +85,7 @@ const REQUIRED_HTML_TEXT: &[&str] = &[
     "Developer Mode",
     "Model Provenance",
     "Assembly Evidence",
+    "Module Plan",
     "Adapter Sidecar",
     "Conversation",
     "Local .slm models only",
@@ -289,6 +302,11 @@ fn audit_static_contract(root: &Path, checks: &mut Vec<String>) -> Result<(), Ha
     checks.push("html asset links".to_string());
 
     require_contains("app.js wasm path", &js, "../runtime/tinyrustlm.wasm")?;
+    require_contains(
+        "app.js wasm manifest path",
+        &js,
+        "../runtime/tinyrustlm.wasm.manifest",
+    )?;
     require_contains("app.js wasm instantiate", &js, "WebAssembly.instantiate")?;
     require_contains("app.js local fetch", &js, "fetch(")?;
     require_contains("app.js manifest fetch", &js, "model.path")?;
@@ -307,6 +325,21 @@ fn audit_static_contract(root: &Path, checks: &mut Vec<String>) -> Result<(), Ha
         "app.js adapter sidecar route",
         &js,
         "../models/tiny-test-model-self.adp1",
+    )?;
+    require_contains(
+        "app.js adapter stack strategy",
+        &js,
+        "receipt-declared-compatible-stack",
+    )?;
+    require_contains(
+        "app.js module plan strategy",
+        &js,
+        "selector-entry-self-assembly",
+    )?;
+    require_contains(
+        "app.js module plan resource class",
+        &js,
+        "browser-constrained-local-assembly",
     )?;
     for export in REQUIRED_JS_EXPORTS {
         require_contains("app.js wasm export", &js, export)?;
@@ -337,12 +370,56 @@ fn audit_static_contract(root: &Path, checks: &mut Vec<String>) -> Result<(), Ha
         "{} local model routes and manifests",
         REQUIRED_MODEL_ROUTES.len()
     ));
+    audit_runtime_wasm_manifest(root)?;
+    checks.push("runtime WASM manifest".to_string());
 
     require_contains("app.css responsive behavior", &css, "@media")?;
     require_contains("app.css status error state", &css, ".error")?;
     require_contains("app.css shell layout", &css, ".shell")?;
     checks.push("css layout and error-state markers".to_string());
 
+    Ok(())
+}
+
+fn audit_runtime_wasm_manifest(root: &Path) -> Result<(), HarnessError> {
+    let wasm_path = root.join("runtime").join("tinyrustlm.wasm");
+    let manifest_path = root.join("runtime").join("tinyrustlm.wasm.manifest");
+    if !wasm_path.is_file() {
+        return Err(HarnessError::Missing(format!(
+            "runtime WASM file {}",
+            wasm_path.display()
+        )));
+    }
+    if !manifest_path.is_file() {
+        return Err(HarnessError::Missing(format!(
+            "runtime WASM manifest {}",
+            manifest_path.display()
+        )));
+    }
+    let manifest_text = read_utf8(&manifest_path)?;
+    require_no_remote_markers("runtime WASM manifest", &manifest_text)?;
+    let fields = parse_manifest(&manifest_text);
+    require_manifest_value(&fields, "tinyrustlm_wasm_manifest_version", "1")?;
+    require_manifest_value(&fields, "runtime_kind", "tinyrustlm-rust-wasm")?;
+    require_manifest_value(&fields, "runtime_status", "validated-local-runtime")?;
+    require_manifest_value(&fields, "runtime_wasm_path", "../runtime/tinyrustlm.wasm")?;
+    require_manifest_value(
+        &fields,
+        "runtime_wasm_bytes",
+        &fs::metadata(&wasm_path)?.len().to_string(),
+    )?;
+    let checksum = fields
+        .get("runtime_wasm_checksum")
+        .ok_or_else(|| HarnessError::Missing("runtime_wasm_checksum".to_string()))?;
+    if checksum.len() != 18
+        || !checksum.starts_with("0x")
+        || !checksum[2..].bytes().all(|byte| byte.is_ascii_hexdigit())
+    {
+        return Err(HarnessError::InvalidInput(format!(
+            "invalid runtime_wasm_checksum {checksum}"
+        )));
+    }
+    require_manifest_value(&fields, "required_next_gate", "instantiate-wasm-runtime")?;
     Ok(())
 }
 
@@ -435,6 +512,7 @@ fn audit_http_contract(app_url: &str, checks: &mut Vec<String>) -> Result<(), Ha
         ("HEAD", "/app/app.css", "text/css"),
         ("HEAD", "/app/app.js", "text/javascript"),
         ("HEAD", "/runtime/tinyrustlm.wasm", "application/wasm"),
+        ("HEAD", "/runtime/tinyrustlm.wasm.manifest", "text/plain"),
         (
             "HEAD",
             "/models/tinylm16-q8.slm",

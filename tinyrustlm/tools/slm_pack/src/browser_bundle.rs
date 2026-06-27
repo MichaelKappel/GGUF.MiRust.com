@@ -32,9 +32,18 @@ use crate::tokenizer_writer::ByteTokenizerSection;
 const ASSEMBLY_RECEIPT_KIND: &str = "browser-local-assembly-evidence";
 const ASSEMBLY_RECEIPT_STATUS: &str = "validated";
 const ASSEMBLY_REGISTRY_STATUS: &str = "receipt-validated";
+const MODULE_PLAN_KIND: &str = "browser-local-module-plan";
+const MODULE_PLAN_STATUS: &str = "validated";
+const MODULE_PLAN_REGISTRY_STATUS: &str = "receipt-validated";
+const MODULE_PLAN_STRATEGY: &str = "selector-entry-self-assembly";
+const MODULE_PLAN_RESOURCE_CLASS: &str = "browser-constrained-local-assembly";
 const SOURCE_KIND: &str = "converted-trained";
 const APP_FILES: [&str; 3] = ["index.html", "app.css", "app.js"];
 const RUNTIME_WASM_FILE: &str = "tinyrustlm.wasm";
+const RUNTIME_WASM_MANIFEST_FILE: &str = "tinyrustlm.wasm.manifest";
+const RUNTIME_WASM_KIND: &str = "tinyrustlm-rust-wasm";
+const RUNTIME_WASM_STATUS: &str = "validated-local-runtime";
+const RUNTIME_WASM_NEXT_GATE: &str = "instantiate-wasm-runtime";
 
 struct ParentRecord {
     model_path: PathBuf,
@@ -67,6 +76,8 @@ struct BundleSpec {
     adapter_family_label: String,
     assembly_receipt_file: String,
     assembly_label: String,
+    module_plan_receipt_file: String,
+    module_plan_label: String,
 }
 
 impl BundleSpec {
@@ -101,6 +112,8 @@ impl BundleSpec {
             adapter_family_label: format!("Multi-parent sign-merge {quantization} adapter family"),
             assembly_receipt_file: format!("{id}.assembly.receipt"),
             assembly_label: format!("Multi-parent sign-merge {quantization} assembly evidence"),
+            module_plan_receipt_file: format!("{id}.module-plan.receipt"),
+            module_plan_label: format!("Multi-parent sign-merge {quantization} module plan"),
             id,
             quantization: quantization.to_string(),
             dtype,
@@ -113,6 +126,7 @@ struct StagedBundleModule {
     adapter_routes: Vec<selector::RegistryAdapterRoute>,
     adapter_family_route: selector::RegistryAdapterFamilyRoute,
     assembly_route: selector::RegistryAssemblyRoute,
+    module_plan_route: selector::RegistryModulePlanRoute,
     candidate_path: PathBuf,
     quantization: String,
 }
@@ -150,12 +164,17 @@ pub(crate) fn write_bundle_path_with_quantization(
         .iter()
         .map(|module| module.assembly_route.clone())
         .collect::<Vec<_>>();
-    selector::write_registry_with_adapter_family_and_assembly_routes_path(
+    let module_plan_routes = modules
+        .iter()
+        .map(|module| module.module_plan_route.clone())
+        .collect::<Vec<_>>();
+    selector::write_registry_with_module_plan_routes_path(
         &registry_path,
         &admission_paths,
         &adapter_routes,
         &adapter_family_routes,
         &assembly_routes,
+        &module_plan_routes,
     )?;
     selector::validate_registry_path(&registry_path, &admission_paths)?;
 
@@ -340,14 +359,248 @@ fn write_bundle_module(
         &multi_admission_path,
         &adapter_family_route,
     )?;
+    let module_plan_receipt_path = models.join(&spec.module_plan_receipt_file);
+    let module_plan_route = write_bundle_module_plan_receipt(
+        &spec,
+        &module_plan_receipt_path,
+        &report,
+        &provenance_path,
+        &bundle_adapter_routes,
+        &adapter_family_route,
+        &assembly_route,
+    )?;
     Ok(StagedBundleModule {
         admission_path: multi_admission_path,
         adapter_routes,
         adapter_family_route,
         assembly_route,
+        module_plan_route,
         candidate_path,
         quantization: spec.quantization.clone(),
     })
+}
+
+fn write_bundle_module_plan_receipt(
+    spec: &BundleSpec,
+    receipt_path: &Path,
+    report: &ValidationReport,
+    provenance_manifest_path: &Path,
+    bundle_adapter_routes: &[BundleAdapterRoute],
+    adapter_family_route: &selector::RegistryAdapterFamilyRoute,
+    assembly_route: &selector::RegistryAssemblyRoute,
+) -> io::Result<selector::RegistryModulePlanRoute> {
+    let route = format!("../models/{}", spec.module_plan_receipt_file);
+    let model_path = format!("../models/{}", spec.model_file);
+    let manifest_path = format!("../models/{}.manifest", spec.model_file);
+    let model_checksum = hex64(report.checksum());
+    let model_byte_budget = u64::try_from(report.file_bytes())
+        .map_err(|_| invalid("module plan model byte budget overflow"))?;
+    let adapter_byte_budget = adapter_family_route.auto_apply_byte_budget;
+    let manifest_checksum = text_file_checksum(provenance_manifest_path)?;
+    let stack_indexes = bundle_auto_apply_stack_indexes(bundle_adapter_routes.len());
+    let module_count = 4usize
+        .checked_add(stack_indexes.len())
+        .ok_or_else(|| invalid("module plan count overflow"))?;
+    if module_count != 4 + adapter_family_route.auto_apply_stack_count {
+        return Err(invalid(
+            "module plan adapter stack count must match adapter family route",
+        ));
+    }
+
+    let mut text = String::new();
+    push_line(&mut text, "tinyrustlm_module_plan_version", "1");
+    push_line(&mut text, "module_plan_kind", MODULE_PLAN_KIND);
+    push_line(&mut text, "module_plan_status", MODULE_PLAN_STATUS);
+    push_line(&mut text, "module_plan_strategy", MODULE_PLAN_STRATEGY);
+    push_line(&mut text, "candidate_id", &spec.id);
+    push_line(&mut text, "module_plan_label", &spec.module_plan_label);
+    push_line(&mut text, "module_plan_path", &route);
+    push_line(
+        &mut text,
+        "module_plan_resource_class",
+        MODULE_PLAN_RESOURCE_CLASS,
+    );
+    push_line(
+        &mut text,
+        "module_plan_model_byte_budget",
+        &model_byte_budget.to_string(),
+    );
+    push_line(
+        &mut text,
+        "module_plan_adapter_byte_budget",
+        &adapter_byte_budget.to_string(),
+    );
+    push_line(&mut text, "model_path", &model_path);
+    push_line(&mut text, "manifest_path", &manifest_path);
+    push_line(&mut text, "quantization", &spec.quantization);
+    push_line(&mut text, "model_checksum", &model_checksum);
+    push_line(&mut text, "manifest_checksum", &manifest_checksum);
+    push_line(
+        &mut text,
+        "assembly_receipt_path",
+        &assembly_route.receipt_path,
+    );
+    push_line(
+        &mut text,
+        "assembly_receipt_checksum",
+        &assembly_route.receipt_checksum,
+    );
+    push_line(
+        &mut text,
+        "adapter_family_receipt_path",
+        &adapter_family_route.receipt_path,
+    );
+    push_line(
+        &mut text,
+        "adapter_family_receipt_checksum",
+        &adapter_family_route.receipt_checksum,
+    );
+    push_line(
+        &mut text,
+        "adapter_auto_apply_stack_count",
+        &stack_indexes.len().to_string(),
+    );
+    push_line(&mut text, "module_count", &module_count.to_string());
+    push_module_plan_line(
+        &mut text,
+        0,
+        "model",
+        "runtime-model",
+        "runtime-model",
+        "runtime-wasm",
+        &model_path,
+        &model_checksum,
+    );
+    push_module_plan_line(
+        &mut text,
+        1,
+        "model-manifest",
+        "model-manifest",
+        "model-provenance-manifest",
+        "module.0",
+        &manifest_path,
+        &manifest_checksum,
+    );
+    push_module_plan_line(
+        &mut text,
+        2,
+        "assembly-receipt",
+        "assembly-receipt",
+        "assembly-evidence",
+        "module.1",
+        &assembly_route.receipt_path,
+        &assembly_route.receipt_checksum,
+    );
+    push_module_plan_line(
+        &mut text,
+        3,
+        "adapter-family-receipt",
+        "adapter-family-receipt",
+        "adapter-family",
+        "module.2",
+        &adapter_family_route.receipt_path,
+        &adapter_family_route.receipt_checksum,
+    );
+    for (stack_position, adapter_index) in stack_indexes.iter().enumerate() {
+        let module_index = stack_position + 4;
+        let route = &bundle_adapter_routes[*adapter_index].route;
+        let prefix = format!("module.{module_index}");
+        let depends_on = if stack_position == 0 {
+            "module.3".to_string()
+        } else {
+            format!("module.{}", module_index - 1)
+        };
+        push_line(&mut text, &format!("{prefix}.kind"), "adapter-stack-member");
+        push_line(
+            &mut text,
+            &format!("{prefix}.assembly_slot"),
+            &format!("adapter-stack-{stack_position}"),
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.role"),
+            module_plan_adapter_role(&route.adapter_path),
+        );
+        push_line(&mut text, &format!("{prefix}.depends_on"), &depends_on);
+        push_line(
+            &mut text,
+            &format!("{prefix}.adapter_index"),
+            &adapter_index.to_string(),
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.adapter_path"),
+            &route.adapter_path,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.manifest_path"),
+            &route.manifest_path,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.artifact_checksum"),
+            &route.artifact_checksum,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.manifest_checksum"),
+            &route.manifest_checksum,
+        );
+    }
+    fs::write(receipt_path, &text)?;
+    Ok(selector::RegistryModulePlanRoute {
+        candidate_id: spec.id.clone(),
+        receipt_path: route,
+        label: spec.module_plan_label.clone(),
+        status: MODULE_PLAN_REGISTRY_STATUS.to_string(),
+        kind: MODULE_PLAN_KIND.to_string(),
+        strategy: MODULE_PLAN_STRATEGY.to_string(),
+        resource_class: MODULE_PLAN_RESOURCE_CLASS.to_string(),
+        model_byte_budget,
+        adapter_byte_budget,
+        receipt_checksum: hex64(provenance::text_checksum(text.as_bytes())),
+        module_count,
+    })
+}
+
+fn push_module_plan_line(
+    text: &mut String,
+    module_index: usize,
+    kind: &str,
+    assembly_slot: &str,
+    role: &str,
+    depends_on: &str,
+    path: &str,
+    checksum: &str,
+) {
+    let prefix = format!("module.{module_index}");
+    push_line(text, &format!("{prefix}.kind"), kind);
+    push_line(text, &format!("{prefix}.assembly_slot"), assembly_slot);
+    push_line(text, &format!("{prefix}.role"), role);
+    push_line(text, &format!("{prefix}.depends_on"), depends_on);
+    push_line(text, &format!("{prefix}.path"), path);
+    push_line(text, &format!("{prefix}.checksum"), checksum);
+}
+
+fn module_plan_adapter_role(adapter_path: &str) -> &'static str {
+    if adapter_path.ends_with("-sparse.asp1") {
+        "adapter-stack-sparse-delta"
+    } else if adapter_path.ends_with("-family.adp1") {
+        "adapter-stack-family-delta"
+    } else if adapter_path.ends_with("-self.adp1") {
+        "adapter-stack-self-delta"
+    } else {
+        "adapter-stack-delta"
+    }
+}
+
+fn bundle_auto_apply_stack_indexes(member_count: usize) -> Vec<usize> {
+    if member_count >= 3 {
+        (1..member_count).collect()
+    } else {
+        (0..member_count).collect()
+    }
 }
 
 fn write_bundle_assembly_receipt(
@@ -646,6 +899,10 @@ fn text_file_checksum(path: &Path) -> io::Result<String> {
     Ok(hex64(provenance::text_checksum(text.as_bytes())))
 }
 
+fn invalid(message: &str) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidData, message)
+}
+
 fn copy_browser_surface(root: &Path) -> io::Result<()> {
     let source_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..");
     let app_source = source_root.join("app");
@@ -657,11 +914,41 @@ fn copy_browser_surface(root: &Path) -> io::Result<()> {
     for file_name in APP_FILES {
         fs::copy(app_source.join(file_name), app_target.join(file_name))?;
     }
-    fs::copy(
-        runtime_source.join(RUNTIME_WASM_FILE),
-        runtime_target.join(RUNTIME_WASM_FILE),
+    let runtime_bytes = fs::read(runtime_source.join(RUNTIME_WASM_FILE))?;
+    fs::write(runtime_target.join(RUNTIME_WASM_FILE), &runtime_bytes)?;
+    fs::write(
+        runtime_target.join(RUNTIME_WASM_MANIFEST_FILE),
+        runtime_wasm_manifest_text(&runtime_bytes),
     )?;
     Ok(())
+}
+
+pub(crate) fn write_runtime_wasm_manifest_path(
+    wasm_path: &Path,
+    manifest_path: &Path,
+) -> io::Result<()> {
+    let runtime_bytes = fs::read(wasm_path)?;
+    fs::write(manifest_path, runtime_wasm_manifest_text(&runtime_bytes))
+}
+
+fn runtime_wasm_manifest_text(runtime_bytes: &[u8]) -> String {
+    let mut text = String::new();
+    push_line(&mut text, "tinyrustlm_wasm_manifest_version", "1");
+    push_line(&mut text, "runtime_kind", RUNTIME_WASM_KIND);
+    push_line(&mut text, "runtime_status", RUNTIME_WASM_STATUS);
+    push_line(&mut text, "runtime_wasm_path", "../runtime/tinyrustlm.wasm");
+    push_line(
+        &mut text,
+        "runtime_wasm_bytes",
+        &runtime_bytes.len().to_string(),
+    );
+    push_line(
+        &mut text,
+        "runtime_wasm_checksum",
+        &hex64(provenance::text_checksum(runtime_bytes)),
+    );
+    push_line(&mut text, "required_next_gate", RUNTIME_WASM_NEXT_GATE);
+    text
 }
 
 fn parent_admission_text(
@@ -799,6 +1086,68 @@ mod tests {
     use super::*;
     use std::time::{SystemTime, UNIX_EPOCH};
 
+    fn assert_module_plan(root: &std::path::Path, id: &str, quantization: &str, registry: &str) {
+        let file_name = format!("{id}.module-plan.receipt");
+        let module_plan = fs::read_to_string(root.join("models").join(&file_name)).unwrap();
+        let checksum = hex64(provenance::text_checksum(module_plan.as_bytes()));
+        let model_bytes = fs::metadata(root.join("models").join(format!("{id}.slm")))
+            .unwrap()
+            .len();
+        assert!(registry.contains(&format!("module_plan_path=../models/{file_name}")));
+        assert!(registry.contains(&format!("module_plan_checksum={checksum}")));
+        assert!(registry.contains("module_plan_status=receipt-validated"));
+        assert!(registry.contains("module_plan_kind=browser-local-module-plan"));
+        assert!(registry.contains("module_plan_strategy=selector-entry-self-assembly"));
+        assert!(registry.contains("module_plan_resource_class=browser-constrained-local-assembly"));
+        assert!(registry.contains(&format!("module_plan_model_byte_budget={model_bytes}")));
+        assert!(registry.contains("module_plan_adapter_byte_budget=1048576"));
+        assert!(registry.contains("module_plan_module_count=6"));
+        assert!(module_plan.contains("tinyrustlm_module_plan_version=1"));
+        assert!(module_plan.contains("module_plan_kind=browser-local-module-plan"));
+        assert!(module_plan.contains("module_plan_status=validated"));
+        assert!(module_plan.contains("module_plan_strategy=selector-entry-self-assembly"));
+        assert!(module_plan.contains(&format!("candidate_id={id}")));
+        assert!(module_plan.contains(&format!("module_plan_path=../models/{file_name}")));
+        assert!(
+            module_plan.contains("module_plan_resource_class=browser-constrained-local-assembly")
+        );
+        assert!(module_plan.contains(&format!("module_plan_model_byte_budget={model_bytes}")));
+        assert!(module_plan.contains("module_plan_adapter_byte_budget=1048576"));
+        assert!(module_plan.contains(&format!("model_path=../models/{id}.slm")));
+        assert!(module_plan.contains(&format!("manifest_path=../models/{id}.slm.manifest")));
+        assert!(module_plan.contains(&format!("quantization={quantization}")));
+        assert!(module_plan.contains("adapter_auto_apply_stack_count=2"));
+        assert!(module_plan.contains("module_count=6"));
+        assert!(module_plan.contains("module.0.kind=model"));
+        assert!(module_plan.contains("module.0.assembly_slot=runtime-model"));
+        assert!(module_plan.contains("module.0.role=runtime-model"));
+        assert!(module_plan.contains("module.0.depends_on=runtime-wasm"));
+        assert!(module_plan.contains("module.1.kind=model-manifest"));
+        assert!(module_plan.contains("module.1.assembly_slot=model-manifest"));
+        assert!(module_plan.contains("module.1.role=model-provenance-manifest"));
+        assert!(module_plan.contains("module.1.depends_on=module.0"));
+        assert!(module_plan.contains("module.2.kind=assembly-receipt"));
+        assert!(module_plan.contains("module.2.assembly_slot=assembly-receipt"));
+        assert!(module_plan.contains("module.2.role=assembly-evidence"));
+        assert!(module_plan.contains("module.2.depends_on=module.1"));
+        assert!(module_plan.contains("module.3.kind=adapter-family-receipt"));
+        assert!(module_plan.contains("module.3.assembly_slot=adapter-family-receipt"));
+        assert!(module_plan.contains("module.3.role=adapter-family"));
+        assert!(module_plan.contains("module.3.depends_on=module.2"));
+        assert!(module_plan.contains("module.4.kind=adapter-stack-member"));
+        assert!(module_plan.contains("module.4.assembly_slot=adapter-stack-0"));
+        assert!(module_plan.contains("module.4.role=adapter-stack-family-delta"));
+        assert!(module_plan.contains("module.4.depends_on=module.3"));
+        assert!(module_plan.contains("module.4.adapter_index=1"));
+        assert!(module_plan.contains(&format!("module.4.adapter_path=../models/{id}-family.adp1")));
+        assert!(module_plan.contains("module.5.kind=adapter-stack-member"));
+        assert!(module_plan.contains("module.5.assembly_slot=adapter-stack-1"));
+        assert!(module_plan.contains("module.5.role=adapter-stack-sparse-delta"));
+        assert!(module_plan.contains("module.5.depends_on=module.4"));
+        assert!(module_plan.contains("module.5.adapter_index=2"));
+        assert!(module_plan.contains(&format!("module.5.adapter_path=../models/{id}-sparse.asp1")));
+    }
+
     #[test]
     fn writes_browser_multi_parent_bundle() {
         let root = unique_dir("bundle").join("tinyrustlm");
@@ -807,6 +1156,10 @@ mod tests {
         let registry = fs::read_to_string(root.join("models").join("selector.registry")).unwrap();
         assert!(registry.contains("entry.0.candidate_id=multi-parent-sign-merge-f32"));
         assert!(registry.contains("selector_model_byte_budget=33554432"));
+        assert!(registry.contains("selector_registry_text_byte_budget=262144"));
+        assert!(registry.contains("manifest_text_byte_budget=65536"));
+        assert!(registry.contains("receipt_text_byte_budget=131072"));
+        assert!(registry.contains("evidence_text_byte_budget=131072"));
         assert!(registry.contains("entry.0.model_path=../models/multi-parent-sign-merge-f32.slm"));
         assert!(registry
             .contains("entry.0.adapter_path=../models/multi-parent-sign-merge-f32-self.adp1"));
@@ -831,6 +1184,11 @@ mod tests {
         assert!(
             registry.contains("entry.0.adapter_auto_apply_strategy=receipt-preferred-compatible")
         );
+        assert!(registry.contains("entry.0.adapter_auto_apply_stack_status=enabled"));
+        assert!(registry.contains(
+            "entry.0.adapter_auto_apply_stack_strategy=receipt-declared-compatible-stack"
+        ));
+        assert!(registry.contains("entry.0.adapter_auto_apply_stack_count=2"));
         assert!(registry.contains("entry.0.adapter_auto_apply_byte_budget=1048576"));
         let family_receipt = fs::read_to_string(
             root.join("models")
@@ -840,6 +1198,15 @@ mod tests {
         assert!(family_receipt.contains("adapter_family_preferred_adapter_index=2"));
         assert!(family_receipt.contains(
             "adapter_family_preferred_adapter_path=../models/multi-parent-sign-merge-f32-sparse.asp1"
+        ));
+        assert!(family_receipt.contains("adapter_family_auto_apply_stack_count=2"));
+        assert!(family_receipt.contains("adapter_family_auto_apply_stack.0.adapter_index=1"));
+        assert!(family_receipt.contains(
+            "adapter_family_auto_apply_stack.0.adapter_path=../models/multi-parent-sign-merge-f32-family.adp1"
+        ));
+        assert!(family_receipt.contains("adapter_family_auto_apply_stack.1.adapter_index=2"));
+        assert!(family_receipt.contains(
+            "adapter_family_auto_apply_stack.1.adapter_path=../models/multi-parent-sign-merge-f32-sparse.asp1"
         ));
         assert!(registry.contains(
             "entry.0.assembly_receipt_path=../models/multi-parent-sign-merge-f32.assembly.receipt"
@@ -860,6 +1227,7 @@ mod tests {
         assert!(
             assembly_receipt.contains("required_next_gate=browser-selector-registry-route-binding")
         );
+        assert_module_plan(&root, "multi-parent-sign-merge-f32", "f32", &registry);
         assert!(root
             .join("models")
             .join("multi-parent-sign-merge-f32.slm.manifest")
@@ -902,6 +1270,7 @@ mod tests {
         assert!(root.join("app").join("app.css").exists());
         assert!(root.join("app").join("app.js").exists());
         assert!(root.join("runtime").join("tinyrustlm.wasm").exists());
+        assert_runtime_manifest(&root);
 
         fs::remove_dir_all(root.parent().unwrap()).unwrap();
     }
@@ -916,6 +1285,10 @@ mod tests {
                 fs::read_to_string(root.join("models").join("selector.registry")).unwrap();
             assert!(registry.contains(&format!("entry.0.candidate_id={id}")));
             assert!(registry.contains("selector_model_byte_budget=33554432"));
+            assert!(registry.contains("selector_registry_text_byte_budget=262144"));
+            assert!(registry.contains("manifest_text_byte_budget=65536"));
+            assert!(registry.contains("receipt_text_byte_budget=131072"));
+            assert!(registry.contains("evidence_text_byte_budget=131072"));
             assert!(registry.contains(&format!("entry.0.quantization={quantization}")));
             assert!(registry.contains(&format!("entry.0.model_path=../models/{id}.slm")));
             assert!(registry.contains(&format!("entry.0.adapter_path=../models/{id}-self.adp1")));
@@ -934,6 +1307,11 @@ mod tests {
             assert!(registry.contains("entry.0.adapter_auto_apply_status=enabled"));
             assert!(registry
                 .contains("entry.0.adapter_auto_apply_strategy=receipt-preferred-compatible"));
+            assert!(registry.contains("entry.0.adapter_auto_apply_stack_status=enabled"));
+            assert!(registry.contains(
+                "entry.0.adapter_auto_apply_stack_strategy=receipt-declared-compatible-stack"
+            ));
+            assert!(registry.contains("entry.0.adapter_auto_apply_stack_count=2"));
             assert!(registry.contains("entry.0.adapter_auto_apply_byte_budget=1048576"));
             assert!(registry.contains(&format!(
                 "entry.0.assembly_receipt_path=../models/{id}.assembly.receipt"
@@ -949,6 +1327,16 @@ mod tests {
             assert!(family_receipt.contains(&format!(
                 "adapter_family_preferred_adapter_path=../models/{id}-sparse.asp1"
             )));
+            assert!(family_receipt.contains("adapter_family_auto_apply_stack_count=2"));
+            assert!(family_receipt.contains("adapter_family_auto_apply_stack.0.adapter_index=1"));
+            assert!(family_receipt.contains(&format!(
+                "adapter_family_auto_apply_stack.0.adapter_path=../models/{id}-family.adp1"
+            )));
+            assert!(family_receipt.contains("adapter_family_auto_apply_stack.1.adapter_index=2"));
+            assert!(family_receipt.contains(&format!(
+                "adapter_family_auto_apply_stack.1.adapter_path=../models/{id}-sparse.asp1"
+            )));
+            assert_module_plan(&root, &id, quantization, &registry);
             let assembly_receipt =
                 fs::read_to_string(root.join("models").join(format!("{id}.assembly.receipt")))
                     .unwrap();
@@ -964,6 +1352,7 @@ mod tests {
                 .join("models")
                 .join(format!("{id}-sparse.asp1.manifest"))
                 .exists());
+            assert_runtime_manifest(&root);
             fs::remove_dir_all(root.parent().unwrap()).unwrap();
         }
     }
@@ -976,6 +1365,10 @@ mod tests {
         let registry = fs::read_to_string(root.join("models").join("selector.registry")).unwrap();
         assert!(registry.contains("entry_count=3"));
         assert!(registry.contains("selector_model_byte_budget=33554432"));
+        assert!(registry.contains("selector_registry_text_byte_budget=262144"));
+        assert!(registry.contains("manifest_text_byte_budget=65536"));
+        assert!(registry.contains("receipt_text_byte_budget=131072"));
+        assert!(registry.contains("evidence_text_byte_budget=131072"));
         assert!(registry.contains("selector_default_strategy=browser-frugal-quantized"));
         assert!(registry.contains("selector_default_candidate_id=multi-parent-sign-merge-q4"));
         assert!(registry.contains("selector_default_quantization=q4_0"));
@@ -998,6 +1391,13 @@ mod tests {
                 "entry.{index}.adapter_auto_apply_strategy=receipt-preferred-compatible"
             )));
             assert!(registry.contains(&format!(
+                "entry.{index}.adapter_auto_apply_stack_status=enabled"
+            )));
+            assert!(registry.contains(&format!(
+                "entry.{index}.adapter_auto_apply_stack_strategy=receipt-declared-compatible-stack"
+            )));
+            assert!(registry.contains(&format!("entry.{index}.adapter_auto_apply_stack_count=2")));
+            assert!(registry.contains(&format!(
                 "entry.{index}.adapter_auto_apply_byte_budget=1048576"
             )));
             assert!(registry.contains(&format!(
@@ -1012,6 +1412,14 @@ mod tests {
             assert!(family_receipt.contains(&format!(
                 "adapter_family_preferred_adapter_path=../models/{id}-sparse.asp1"
             )));
+            assert!(family_receipt.contains("adapter_family_auto_apply_stack_count=2"));
+            assert!(family_receipt.contains(&format!(
+                "adapter_family_auto_apply_stack.0.adapter_path=../models/{id}-family.adp1"
+            )));
+            assert!(family_receipt.contains(&format!(
+                "adapter_family_auto_apply_stack.1.adapter_path=../models/{id}-sparse.asp1"
+            )));
+            assert_module_plan(&root, &id, quantization, &registry);
             assert!(root.join("models").join(format!("{id}.slm")).exists());
             assert!(root
                 .join("evidence")
@@ -1021,8 +1429,51 @@ mod tests {
         }
         assert!(root.join("app").join("app.js").exists());
         assert!(root.join("runtime").join("tinyrustlm.wasm").exists());
+        assert_runtime_manifest(&root);
 
         fs::remove_dir_all(root.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn writes_standalone_runtime_manifest() {
+        let root = unique_dir("runtime-manifest");
+        fs::create_dir_all(&root).unwrap();
+        let wasm_path = root.join("tinyrustlm.wasm");
+        let manifest_path = root.join("tinyrustlm.wasm.manifest");
+        fs::write(&wasm_path, [0x00, 0x61, 0x73, 0x6d]).unwrap();
+
+        write_runtime_wasm_manifest_path(&wasm_path, &manifest_path).unwrap();
+
+        let manifest = fs::read_to_string(&manifest_path).unwrap();
+        assert!(manifest.contains("tinyrustlm_wasm_manifest_version=1"));
+        assert!(manifest.contains("runtime_kind=tinyrustlm-rust-wasm"));
+        assert!(manifest.contains("runtime_status=validated-local-runtime"));
+        assert!(manifest.contains("runtime_wasm_path=../runtime/tinyrustlm.wasm"));
+        assert!(manifest.contains("runtime_wasm_bytes=4"));
+        assert!(manifest.contains(&format!(
+            "runtime_wasm_checksum={}",
+            hex64(provenance::text_checksum(&[0x00, 0x61, 0x73, 0x6d]))
+        )));
+        assert!(manifest.contains("required_next_gate=instantiate-wasm-runtime"));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    fn assert_runtime_manifest(root: &Path) {
+        let wasm_path = root.join("runtime").join("tinyrustlm.wasm");
+        let manifest_path = root.join("runtime").join("tinyrustlm.wasm.manifest");
+        let wasm_bytes = fs::read(&wasm_path).unwrap();
+        let manifest = fs::read_to_string(&manifest_path).unwrap();
+        assert!(manifest.contains("tinyrustlm_wasm_manifest_version=1"));
+        assert!(manifest.contains("runtime_kind=tinyrustlm-rust-wasm"));
+        assert!(manifest.contains("runtime_status=validated-local-runtime"));
+        assert!(manifest.contains("runtime_wasm_path=../runtime/tinyrustlm.wasm"));
+        assert!(manifest.contains(&format!("runtime_wasm_bytes={}", wasm_bytes.len())));
+        assert!(manifest.contains(&format!(
+            "runtime_wasm_checksum={}",
+            hex64(provenance::text_checksum(&wasm_bytes))
+        )));
+        assert!(manifest.contains("required_next_gate=instantiate-wasm-runtime"));
     }
 
     fn unique_dir(label: &str) -> PathBuf {
