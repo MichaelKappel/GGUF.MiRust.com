@@ -3,7 +3,7 @@ title: GGUF.MiRust.com LLM Wiki Log
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/log/
 status: planned_pending_publication
-reviewed_utc: 2026-06-27T15:10:00Z
+reviewed_utc: 2026-06-27T15:17:51Z
 ---
 
 # LLM Wiki Log
@@ -31,6 +31,11 @@ reviewed_utc: 2026-06-27T15:10:00Z
 - Added adapter-family receipt routing so generated selector registries carry a served receipt path, checksum, family strategy, and adapter count for compatible f32 ADP1 sidecar sets.
 - Added assembly receipt routing so generated multi-parent bundles carry a browser-verified receipt and fetch/checksum the referenced ledger, review, recipe, operator, candidate, promotion, runtime, eval, admission, and adapter-family evidence files.
 - Extended selector-registry adapter routing to f32/q8_0/q4_0 entries when apply status matches quantization, with a focused q8_0 registry-adapter browser smoke.
+- Extended generated browser bundle routing to file-backed f32/q8_0/q4_0 roots, including selector registry, model, manifest, assembly receipt, evidence files, adapter-family receipt, adapter manifests, and family ADP1 apply smoke for q8_0 and q4_0.
 - Added sparse task-delta receipt metadata for density, nonzero-delta retention, unchanged/pruned counts, and an implicit top-k mask checksum.
+- Added sparse `ASP1` adapter packages with write/validate commands, manifest density and mask metadata, and runtime f32/q8_0/q4_0 sparse apply.
+- Added browser-routed sparse `ASP1` adapter-family members for generated bundles, including served manifest verification, ASP1 artifact checksum transfer, refreshed WASM, and headless `adapter-sidecar-registry-file` apply proof.
+- Added receipt-bound preferred adapter selection so generated adapter-family receipts name the sparse `ASP1` member and the browser defaults to that verified route before Apply.
+- Added combined multi-quant generated selector roots so one `browser-multi-parent-bundle all` output serves f32, q8_0, and q4_0 multi-parent modules with receipt-preferred sparse `ASP1` apply proof for each entry.
 - Added parent-pool relatedness metadata: recipes write relatedness metric, scope, pair count, shared-family checksum, and per-parent group fields; sign-merge receipts echo them; multi-parent candidate manifests carry the summary.
 - Added population-review objective-vector metadata: reviews write quality/frugality/quantization fit weights plus per-entry objective-vector checksums before parent-pool routing.

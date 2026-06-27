@@ -46,6 +46,12 @@ struct BundleAdapterRoute {
     manifest_path: PathBuf,
 }
 
+#[derive(Clone, Copy)]
+enum BundleAdapterKind {
+    RawAdp1,
+    SparseAsp1,
+}
+
 struct BundleSpec {
     id: String,
     quantization: String,
@@ -55,6 +61,8 @@ struct BundleSpec {
     self_adapter_label: String,
     family_adapter_file: String,
     family_adapter_label: String,
+    sparse_adapter_file: String,
+    sparse_adapter_label: String,
     adapter_family_receipt_file: String,
     adapter_family_label: String,
     assembly_receipt_file: String,
@@ -87,8 +95,10 @@ impl BundleSpec {
             self_adapter_label: format!("Multi-parent sign-merge {quantization} self ADP1"),
             family_adapter_file: format!("{id}-family.adp1"),
             family_adapter_label: format!("Multi-parent sign-merge {quantization} family ADP1"),
+            sparse_adapter_file: format!("{id}-sparse.asp1"),
+            sparse_adapter_label: format!("Multi-parent sign-merge {quantization} sparse ASP1"),
             adapter_family_receipt_file: format!("{id}.adapter-family.receipt"),
-            adapter_family_label: format!("Multi-parent sign-merge {quantization} ADP1 family"),
+            adapter_family_label: format!("Multi-parent sign-merge {quantization} adapter family"),
             assembly_receipt_file: format!("{id}.assembly.receipt"),
             assembly_label: format!("Multi-parent sign-merge {quantization} assembly evidence"),
             id,
@@ -98,20 +108,101 @@ impl BundleSpec {
     }
 }
 
-/// Writes a browser-loadable multi-parent selector registry bundle for one quantization mode.
+struct StagedBundleModule {
+    admission_path: PathBuf,
+    adapter_routes: Vec<selector::RegistryAdapterRoute>,
+    adapter_family_route: selector::RegistryAdapterFamilyRoute,
+    assembly_route: selector::RegistryAssemblyRoute,
+    candidate_path: PathBuf,
+    quantization: String,
+}
+
+/// Writes a browser-loadable multi-parent selector registry bundle for one or all quantization modes.
 pub(crate) fn write_bundle_path_with_quantization(
     root: &Path,
     quantization: &str,
 ) -> io::Result<()> {
-    let spec = BundleSpec::from_quantization(quantization)?;
+    let quantizations = bundle_quantizations(quantization)?;
     let models = root.join("models");
+    fs::create_dir_all(&models)?;
+    copy_browser_surface(root)?;
+
+    let mut modules = Vec::with_capacity(quantizations.len());
+    for quantization in quantizations {
+        let spec = BundleSpec::from_quantization(quantization)?;
+        modules.push(write_bundle_module(root, &models, &spec)?);
+    }
+
+    let registry_path = models.join("selector.registry");
+    let admission_paths = modules
+        .iter()
+        .map(|module| display_path(&module.admission_path))
+        .collect::<Vec<_>>();
+    let adapter_routes = modules
+        .iter()
+        .flat_map(|module| module.adapter_routes.iter().cloned())
+        .collect::<Vec<_>>();
+    let adapter_family_routes = modules
+        .iter()
+        .map(|module| module.adapter_family_route.clone())
+        .collect::<Vec<_>>();
+    let assembly_routes = modules
+        .iter()
+        .map(|module| module.assembly_route.clone())
+        .collect::<Vec<_>>();
+    selector::write_registry_with_adapter_family_and_assembly_routes_path(
+        &registry_path,
+        &admission_paths,
+        &adapter_routes,
+        &adapter_family_routes,
+        &assembly_routes,
+    )?;
+    selector::validate_registry_path(&registry_path, &admission_paths)?;
+
+    let quantization_labels = modules
+        .iter()
+        .map(|module| module.quantization.as_str())
+        .collect::<Vec<_>>()
+        .join(",");
+    println!("SLM browser multi-parent bundle root: {}", root.display());
+    println!(
+        "SLM browser multi-parent registry: {}",
+        registry_path.display()
+    );
+    println!("SLM browser multi-parent model count: {}", modules.len());
+    for module in &modules {
+        println!(
+            "SLM browser multi-parent model: {}",
+            module.candidate_path.display()
+        );
+    }
+    println!("SLM browser multi-parent quantizations: {quantization_labels}");
+    Ok(())
+}
+
+fn bundle_quantizations(quantization: &str) -> io::Result<Vec<&'static str>> {
+    match quantization {
+        "f32" => Ok(vec!["f32"]),
+        "q8_0" => Ok(vec!["q8_0"]),
+        "q4_0" => Ok(vec!["q4_0"]),
+        "all" => Ok(vec!["f32", "q8_0", "q4_0"]),
+        _ => Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "browser-multi-parent-bundle quantization must be f32, q8_0, q4_0, or all",
+        )),
+    }
+}
+
+fn write_bundle_module(
+    root: &Path,
+    models: &Path,
+    spec: &BundleSpec,
+) -> io::Result<StagedBundleModule> {
     let evidence = root.join("evidence").join(&spec.id);
     let parents = evidence.join("parents");
     let admissions = evidence.join("admissions");
-    fs::create_dir_all(&models)?;
     fs::create_dir_all(&parents)?;
     fs::create_dir_all(&admissions)?;
-    copy_browser_surface(root)?;
 
     let parent_specs = [
         (spec.id.as_str(), 0.0f32),
@@ -147,7 +238,6 @@ pub(crate) fn write_bundle_path_with_quantization(
     let runtime_path = evidence.join("sign-merge.runtime");
     let eval_path = evidence.join("sign-merge.eval");
     let multi_admission_path = evidence.join("sign-merge.multi.admission");
-    let registry_path = models.join("selector.registry");
 
     ledger::write_ledger_path(&ledger_path, &admission_paths)?;
     population::write_review_path(&ledger_path, &review_path, &admission_paths)?;
@@ -250,29 +340,14 @@ pub(crate) fn write_bundle_path_with_quantization(
         &multi_admission_path,
         &adapter_family_route,
     )?;
-    selector::write_registry_with_adapter_family_and_assembly_routes_path(
-        &registry_path,
-        &[display_path(&multi_admission_path)],
-        &adapter_routes,
-        &[adapter_family_route],
-        &[assembly_route],
-    )?;
-    selector::validate_registry_path(&registry_path, &[display_path(&multi_admission_path)])?;
-
-    println!("SLM browser multi-parent bundle root: {}", root.display());
-    println!(
-        "SLM browser multi-parent registry: {}",
-        registry_path.display()
-    );
-    println!(
-        "SLM browser multi-parent model: {}",
-        candidate_path.display()
-    );
-    println!(
-        "SLM browser multi-parent quantization: {}",
-        spec.quantization
-    );
-    Ok(())
+    Ok(StagedBundleModule {
+        admission_path: multi_admission_path,
+        adapter_routes,
+        adapter_family_route,
+        assembly_route,
+        candidate_path,
+        quantization: spec.quantization.clone(),
+    })
 }
 
 fn write_bundle_assembly_receipt(
@@ -441,36 +516,65 @@ fn write_bundle_adapter_route(
     route_id: &str,
     adapter_file: &str,
     adapter_label: &str,
+    adapter_kind: BundleAdapterKind,
 ) -> io::Result<selector::RegistryAdapterRoute> {
     let compatibility_path = evidence.join(format!("{route_id}.compat"));
     let lineage_path = evidence.join(format!("{route_id}.lineage"));
     let adapter_path = models.join(adapter_file);
     let adapter_manifest_path = models.join(format!("{adapter_file}.manifest"));
+    let lineage_operator = match adapter_kind {
+        BundleAdapterKind::RawAdp1 => "adapter-delta-v1",
+        BundleAdapterKind::SparseAsp1 => "sparse-adapter-delta-v1",
+    };
 
     compatibility::report_path(candidate_path, candidate_path, Some(&compatibility_path))?;
     lineage::write_template_path(
         &compatibility_path,
         &lineage_path,
         &format!("{}-{route_id}", spec.id),
-        "adapter-delta-v1",
+        lineage_operator,
         "browser-registry-sidecar",
     )?;
-    adapter::write_artifact_path(
-        &compatibility_path,
-        &lineage_path,
-        candidate_path,
-        candidate_path,
-        &adapter_path,
-        &adapter_manifest_path,
-    )?;
-    adapter::validate_artifact_path(
-        &compatibility_path,
-        &lineage_path,
-        candidate_path,
-        candidate_path,
-        &adapter_path,
-        &adapter_manifest_path,
-    )?;
+    match adapter_kind {
+        BundleAdapterKind::RawAdp1 => {
+            adapter::write_artifact_path(
+                &compatibility_path,
+                &lineage_path,
+                candidate_path,
+                candidate_path,
+                &adapter_path,
+                &adapter_manifest_path,
+            )?;
+            adapter::validate_artifact_path(
+                &compatibility_path,
+                &lineage_path,
+                candidate_path,
+                candidate_path,
+                &adapter_path,
+                &adapter_manifest_path,
+            )?;
+        }
+        BundleAdapterKind::SparseAsp1 => {
+            adapter::write_sparse_artifact_path(
+                &compatibility_path,
+                &lineage_path,
+                candidate_path,
+                candidate_path,
+                &adapter_path,
+                &adapter_manifest_path,
+                Some("1000000"),
+                Some("250000"),
+            )?;
+            adapter::validate_sparse_artifact_path(
+                &compatibility_path,
+                &lineage_path,
+                candidate_path,
+                candidate_path,
+                &adapter_path,
+                &adapter_manifest_path,
+            )?;
+        }
+    }
 
     let manifest_text = fs::read_to_string(&adapter_manifest_path)?;
     let fields = provenance::parse_manifest(&manifest_text)?;
@@ -498,15 +602,23 @@ fn write_bundle_adapter_routes(
             "self-adapter",
             spec.self_adapter_file.as_str(),
             spec.self_adapter_label.as_str(),
+            BundleAdapterKind::RawAdp1,
         ),
         (
             "family-adapter",
             spec.family_adapter_file.as_str(),
             spec.family_adapter_label.as_str(),
+            BundleAdapterKind::RawAdp1,
+        ),
+        (
+            "sparse-adapter",
+            spec.sparse_adapter_file.as_str(),
+            spec.sparse_adapter_label.as_str(),
+            BundleAdapterKind::SparseAsp1,
         ),
     ];
     let mut routes = Vec::with_capacity(route_specs.len());
-    for (route_id, adapter_file, adapter_label) in route_specs {
+    for (route_id, adapter_file, adapter_label, adapter_kind) in route_specs {
         let route = write_bundle_adapter_route(
             spec,
             candidate_path,
@@ -515,6 +627,7 @@ fn write_bundle_adapter_routes(
             route_id,
             adapter_file,
             adapter_label,
+            adapter_kind,
         )?;
         routes.push(BundleAdapterRoute {
             route,
@@ -697,17 +810,31 @@ mod tests {
         assert!(registry
             .contains("entry.0.adapter_path=../models/multi-parent-sign-merge-f32-self.adp1"));
         assert!(registry.contains("entry.0.adapter_label=Multi-parent sign-merge f32 self ADP1"));
-        assert!(registry.contains("entry.0.adapter_count=2"));
+        assert!(registry.contains("entry.0.adapter_count=3"));
         assert!(registry
             .contains("entry.0.adapter.1.path=../models/multi-parent-sign-merge-f32-family.adp1"));
         assert!(
             registry.contains("entry.0.adapter.1.label=Multi-parent sign-merge f32 family ADP1")
         );
+        assert!(registry
+            .contains("entry.0.adapter.2.path=../models/multi-parent-sign-merge-f32-sparse.asp1"));
+        assert!(
+            registry.contains("entry.0.adapter.2.label=Multi-parent sign-merge f32 sparse ASP1")
+        );
         assert!(registry.contains(
             "entry.0.adapter_family_receipt_path=../models/multi-parent-sign-merge-f32.adapter-family.receipt"
         ));
         assert!(registry.contains("entry.0.adapter_family_status=receipt-validated"));
-        assert!(registry.contains("entry.0.adapter_family_adapter_count=2"));
+        assert!(registry.contains("entry.0.adapter_family_adapter_count=3"));
+        let family_receipt = fs::read_to_string(
+            root.join("models")
+                .join("multi-parent-sign-merge-f32.adapter-family.receipt"),
+        )
+        .unwrap();
+        assert!(family_receipt.contains("adapter_family_preferred_adapter_index=2"));
+        assert!(family_receipt.contains(
+            "adapter_family_preferred_adapter_path=../models/multi-parent-sign-merge-f32-sparse.asp1"
+        ));
         assert!(registry.contains(
             "entry.0.assembly_receipt_path=../models/multi-parent-sign-merge-f32.assembly.receipt"
         ));
@@ -749,6 +876,20 @@ mod tests {
             .exists());
         assert!(root
             .join("models")
+            .join("multi-parent-sign-merge-f32-sparse.asp1")
+            .exists());
+        assert!(root
+            .join("models")
+            .join("multi-parent-sign-merge-f32-sparse.asp1.manifest")
+            .exists());
+        let sparse_manifest = fs::read_to_string(
+            root.join("models")
+                .join("multi-parent-sign-merge-f32-sparse.asp1.manifest"),
+        )
+        .unwrap();
+        assert!(sparse_manifest.contains("adapter_artifact_kind=sparse-f32-task-delta-v1"));
+        assert!(root
+            .join("models")
             .join("multi-parent-sign-merge-f32.adapter-family.receipt")
             .exists());
         assert!(root.join("app").join("index.html").exists());
@@ -777,8 +918,12 @@ mod tests {
                 "entry.0.adapter.1.path=../models/{id}-family.adp1"
             )));
             assert!(registry.contains(&format!(
+                "entry.0.adapter.2.path=../models/{id}-sparse.asp1"
+            )));
+            assert!(registry.contains(&format!(
                 "entry.0.adapter_family_receipt_path=../models/{id}.adapter-family.receipt"
             )));
+            assert!(registry.contains("entry.0.adapter_family_adapter_count=3"));
             assert!(registry.contains(&format!(
                 "entry.0.assembly_receipt_path=../models/{id}.assembly.receipt"
             )));
@@ -789,6 +934,10 @@ mod tests {
             .unwrap();
             assert!(family_receipt
                 .contains(&format!("family.adapter_base_quantization={quantization}")));
+            assert!(family_receipt.contains("adapter_family_preferred_adapter_index=2"));
+            assert!(family_receipt.contains(&format!(
+                "adapter_family_preferred_adapter_path=../models/{id}-sparse.asp1"
+            )));
             let assembly_receipt =
                 fs::read_to_string(root.join("models").join(format!("{id}.assembly.receipt")))
                     .unwrap();
@@ -800,8 +949,61 @@ mod tests {
                 .join("models")
                 .join(format!("{id}-family.adp1.manifest"))
                 .exists());
+            assert!(root
+                .join("models")
+                .join(format!("{id}-sparse.asp1.manifest"))
+                .exists());
             fs::remove_dir_all(root.parent().unwrap()).unwrap();
         }
+    }
+
+    #[test]
+    fn writes_combined_browser_multi_parent_bundle() {
+        let root = unique_dir("combined").join("tinyrustlm");
+        write_bundle_path_with_quantization(&root, "all").unwrap();
+
+        let registry = fs::read_to_string(root.join("models").join("selector.registry")).unwrap();
+        assert!(registry.contains("entry_count=3"));
+        assert!(registry.contains("selector_default_strategy=browser-frugal-quantized"));
+        assert!(registry.contains("selector_default_candidate_id=multi-parent-sign-merge-q4"));
+        assert!(registry.contains("selector_default_quantization=q4_0"));
+        for (index, quantization, suffix) in
+            [(0, "f32", "f32"), (1, "q8_0", "q8"), (2, "q4_0", "q4")]
+        {
+            let id = format!("multi-parent-sign-merge-{suffix}");
+            assert!(registry.contains(&format!("entry.{index}.candidate_id={id}")));
+            assert!(registry.contains(&format!("entry.{index}.quantization={quantization}")));
+            assert!(registry.contains(&format!("entry.{index}.model_path=../models/{id}.slm")));
+            assert!(registry.contains(&format!("entry.{index}.adapter_count=3")));
+            assert!(registry.contains(&format!(
+                "entry.{index}.adapter.2.path=../models/{id}-sparse.asp1"
+            )));
+            assert!(registry.contains(&format!(
+                "entry.{index}.adapter_family_receipt_path=../models/{id}.adapter-family.receipt"
+            )));
+            assert!(registry.contains(&format!(
+                "entry.{index}.assembly_receipt_path=../models/{id}.assembly.receipt"
+            )));
+            let family_receipt = fs::read_to_string(
+                root.join("models")
+                    .join(format!("{id}.adapter-family.receipt")),
+            )
+            .unwrap();
+            assert!(family_receipt.contains("adapter_family_preferred_adapter_index=2"));
+            assert!(family_receipt.contains(&format!(
+                "adapter_family_preferred_adapter_path=../models/{id}-sparse.asp1"
+            )));
+            assert!(root.join("models").join(format!("{id}.slm")).exists());
+            assert!(root
+                .join("evidence")
+                .join(&id)
+                .join("sign-merge.multi.admission")
+                .exists());
+        }
+        assert!(root.join("app").join("app.js").exists());
+        assert!(root.join("runtime").join("tinyrustlm.wasm").exists());
+
+        fs::remove_dir_all(root.parent().unwrap()).unwrap();
     }
 
     fn unique_dir(label: &str) -> PathBuf {

@@ -15,6 +15,7 @@ const REGISTRY_STATUS: &str = "admitted-records-only";
 const ENTRY_STATUS: &str = "admitted";
 const PUBLIC_CLAIM_STATUS: &str = "bound-to-eval-scope";
 const REQUIRED_NEXT_GATE: &str = "browser-loads-selector-registry-entry-models";
+const SELECTOR_DEFAULT_STRATEGY: &str = "browser-frugal-quantized";
 const ADAPTER_APPLY_STATUS_F32: &str = "runtime-f32-compatible-or-fuse-to-slm";
 const ADAPTER_APPLY_STATUS_QUANTIZED: &str = "runtime-q8-q4-compatible-or-fuse-to-slm";
 const ADAPTER_FAMILY_STATUS: &str = "receipt-validated";
@@ -205,6 +206,7 @@ pub(crate) fn build_registry_text_with_adapter_family_and_assembly_routes(
     attach_adapter_family_routes(&mut entries, family_routes)?;
     attach_assembly_routes(&mut entries, assembly_routes)?;
     let selector_id = selector_id(admission_texts)?;
+    let default_entry = default_selector_entry(&entries)?;
     let mut text = String::new();
     push_line(
         &mut text,
@@ -215,6 +217,21 @@ pub(crate) fn build_registry_text_with_adapter_family_and_assembly_routes(
     push_line(&mut text, "registry_scope", REGISTRY_SCOPE);
     push_line(&mut text, "registry_status", REGISTRY_STATUS);
     push_line(&mut text, "entry_count", &entries.len().to_string());
+    push_line(
+        &mut text,
+        "selector_default_strategy",
+        SELECTOR_DEFAULT_STRATEGY,
+    );
+    push_line(
+        &mut text,
+        "selector_default_candidate_id",
+        &default_entry.candidate_id,
+    );
+    push_line(
+        &mut text,
+        "selector_default_quantization",
+        &default_entry.quantization,
+    );
     push_line(
         &mut text,
         "admission_set_checksum",
@@ -492,6 +509,27 @@ fn validate_registry_text(registry_text: &str, admission_texts: &[String]) -> io
         }
     }
     Ok(())
+}
+
+fn default_selector_entry(entries: &[RegistryEntry]) -> io::Result<&RegistryEntry> {
+    entries
+        .iter()
+        .min_by_key(|entry| {
+            (
+                quantization_default_rank(&entry.quantization),
+                &entry.candidate_id,
+            )
+        })
+        .ok_or_else(|| invalid("selector registry requires at least one admission record"))
+}
+
+fn quantization_default_rank(quantization: &str) -> u8 {
+    match quantization {
+        "q4_0" => 0,
+        "q8_0" => 1,
+        "f32" => 2,
+        _ => 3,
+    }
 }
 
 fn entries_from_admissions(admission_texts: &[String]) -> io::Result<Vec<RegistryEntry>> {
@@ -997,11 +1035,11 @@ fn validate_adapter_route_path(path: &str) -> io::Result<()> {
     let normalized = path.replace('\\', "/");
     let Some(rest) = normalized.strip_prefix("../models/") else {
         return Err(invalid(
-            "selector registry adapter route must point at served ../models .adp1 artifacts",
+            "selector registry adapter route must point at served ../models adapter artifacts",
         ));
     };
     if rest.is_empty()
-        || !rest.ends_with(".adp1")
+        || !is_supported_adapter_artifact_name(rest)
         || rest.contains(':')
         || rest.contains('\\')
         || rest.contains("//")
@@ -1014,6 +1052,10 @@ fn validate_adapter_route_path(path: &str) -> io::Result<()> {
         }
     }
     Ok(())
+}
+
+fn is_supported_adapter_artifact_name(path: &str) -> bool {
+    path.ends_with(".adp1") || path.ends_with(".asp1")
 }
 
 fn validate_adapter_family_receipt_path(path: &str) -> io::Result<()> {
@@ -1185,7 +1227,7 @@ mod tests {
     use crate::promotion;
     use crate::slm_validate;
     use crate::tensor_writer::{
-        tiny_fixture_tensors_with_dtype, ModelShape, DTYPE_F32, DTYPE_Q8_0,
+        tiny_fixture_tensors_with_dtype, ModelShape, DTYPE_F32, DTYPE_Q4_0, DTYPE_Q8_0,
     };
     use crate::tokenizer_writer::ByteTokenizerSection;
 
@@ -1196,6 +1238,9 @@ mod tests {
 
         validate_registry_text(&registry, &[admission]).unwrap();
         assert!(registry.contains("registry_status=admitted-records-only"));
+        assert!(registry.contains("selector_default_strategy=browser-frugal-quantized"));
+        assert!(registry.contains("selector_default_candidate_id=tiny-q8-candidate"));
+        assert!(registry.contains("selector_default_quantization=q8_0"));
         assert!(registry.contains("entry.0.model_path=../models/tiny-q8.slm"));
         assert!(registry.contains("entry.0.selector_status=admitted"));
     }
@@ -1225,6 +1270,27 @@ mod tests {
     }
 
     #[test]
+    fn writes_frugal_selector_default_for_mixed_quantizations() {
+        let f32_admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let q8_admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
+        let q4_admission =
+            fixture_q4_admission("tiny-q4-candidate", "tinyrustlm/models/tiny-q4.slm");
+
+        let registry = build_registry_text(&[
+            f32_admission.clone(),
+            q8_admission.clone(),
+            q4_admission.clone(),
+        ])
+        .unwrap();
+
+        validate_registry_text(&registry, &[f32_admission, q8_admission, q4_admission]).unwrap();
+        assert!(registry.contains("entry_count=3"));
+        assert!(registry.contains("selector_default_candidate_id=tiny-q4-candidate"));
+        assert!(registry.contains("selector_default_quantization=q4_0"));
+    }
+
+    #[test]
     fn writes_and_validates_selector_registry_with_adapter_route() {
         let admission =
             fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
@@ -1239,6 +1305,25 @@ mod tests {
         assert!(
             registry.contains("entry.0.adapter_apply_status=runtime-f32-compatible-or-fuse-to-slm")
         );
+    }
+
+    #[test]
+    fn writes_and_validates_selector_registry_with_sparse_adapter_route() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let route = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-sparse.asp1".to_string(),
+            manifest_path: "../models/tiny-f32-sparse.asp1.manifest".to_string(),
+            label: "Tiny f32 sparse ASP1".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+
+        let registry =
+            build_registry_text_with_adapters(&[admission.clone()], &[route.clone()]).unwrap();
+
+        validate_registry_text(&registry, &[admission]).unwrap();
+        assert!(registry.contains("entry.0.adapter_path=../models/tiny-f32-sparse.asp1"));
+        assert!(registry.contains("entry.0.adapter_label=Tiny f32 sparse ASP1"));
     }
 
     #[test]
@@ -1461,6 +1546,10 @@ mod tests {
 
     fn fixture_f32_admission(candidate_id: &str, candidate_path: &str) -> String {
         fixture_admission_for_bytes(candidate_id, candidate_path, tiny_fixture_f32_bytes())
+    }
+
+    fn fixture_q4_admission(candidate_id: &str, candidate_path: &str) -> String {
+        fixture_admission_for_bytes(candidate_id, candidate_path, tiny_fixture_q4_bytes())
     }
 
     fn fixture_admission_for_bytes(
@@ -1745,6 +1834,15 @@ mod tests {
         build_model_file(
             &ModelShape::tiny_fixture(),
             &tiny_fixture_tensors_with_dtype(DTYPE_F32),
+            &ByteTokenizerSection::phase_one(),
+        )
+        .unwrap()
+    }
+
+    fn tiny_fixture_q4_bytes() -> Vec<u8> {
+        build_model_file(
+            &ModelShape::tiny_fixture(),
+            &tiny_fixture_tensors_with_dtype(DTYPE_Q4_0),
             &ByteTokenizerSection::phase_one(),
         )
         .unwrap()

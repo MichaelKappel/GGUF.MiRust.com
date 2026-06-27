@@ -1,5 +1,6 @@
 //! Offline adapter/delta artifacts for modular model-breeding candidates.
 
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fs;
 use std::io;
@@ -18,12 +19,16 @@ use crate::writer::{align_to_64, write_f32, write_u32, write_u64};
 const ADAPTER_ARTIFACT_VERSION: &str = "1";
 const ADAPTER_BINARY_VERSION: u32 = 1;
 const ADAPTER_ARTIFACT_KIND: &str = "raw-f32-task-delta-v1";
+const SPARSE_ADAPTER_ARTIFACT_KIND: &str = "sparse-f32-task-delta-v1";
 const ADAPTER_STATUS: &str = "artifact-written";
 const ADAPTER_DTYPE: &str = "f32-delta";
+const SPARSE_ADAPTER_DTYPE: &str = "sparse-f32-delta";
 const ADAPTER_BASE_CONTRACT: &str = "matches-parent-direct-parameter-contract";
 const ADAPTER_APPLY_STATUS_F32: &str = "runtime-f32-compatible-or-fuse-to-slm";
 const ADAPTER_APPLY_STATUS_QUANTIZED: &str = "runtime-q8-q4-compatible-or-fuse-to-slm";
 const REQUIRED_NEXT_GATE: &str = "fuse-to-slm-plus-candidate-manifest-plus-runtime-smoke-plus-eval";
+const SPARSE_REQUIRED_NEXT_GATE: &str =
+    "runtime-smoke-plus-eval-plus-selector-adapter-family-or-expand-to-adp1";
 const ADAPTER_FUSE_VERSION: &str = "1";
 const FUSE_OPERATOR_KIND: &str = "adapter-delta-fuse-to-slm";
 const FUSE_OPERATOR_STATUS: &str = "candidate-written";
@@ -35,6 +40,13 @@ const HEADER_LEN: usize = 64;
 const ENTRY_LEN: usize = 64;
 const CHECKSUM_OFFSET: usize = 56;
 const MAGIC: &[u8; 4] = b"ADP1";
+const SPARSE_MAGIC: &[u8; 4] = b"ASP1";
+const SPARSE_PAIR_LEN: usize = 12;
+const DEFAULT_SPARSE_KEEP_PPM: &str = "1000000";
+const DEFAULT_DELTA_WEIGHT_PPM: &str = "1000000";
+const MIN_DELTA_WEIGHT_PPM: i64 = -1_000_000;
+const MAX_DELTA_WEIGHT_PPM: i64 = 2_000_000;
+const PPM_DENOMINATOR: u32 = 1_000_000;
 
 /// Writes a raw f32 task-delta adapter artifact plus a recomputable manifest.
 pub(crate) fn write_artifact_path(
@@ -104,6 +116,83 @@ pub(crate) fn validate_artifact_path(
         &manifest_text,
     )?;
     println!("SLM adapter-delta validation: PASS");
+    println!("adapter: {}", adapter.display());
+    println!("manifest: {}", manifest.display());
+    Ok(())
+}
+
+/// Writes a sparse f32 task-delta adapter artifact plus a recomputable manifest.
+pub(crate) fn write_sparse_artifact_path(
+    compatibility: &Path,
+    lineage_manifest: &Path,
+    base_parent: &Path,
+    target_parent: &Path,
+    output_adapter: &Path,
+    output_manifest: &Path,
+    delta_weight_ppm: Option<&str>,
+    keep_ppm: Option<&str>,
+) -> io::Result<()> {
+    let compatibility_text = fs::read_to_string(compatibility)?;
+    let lineage_text = fs::read_to_string(lineage_manifest)?;
+    let base_bytes = fs::read(base_parent)?;
+    let target_bytes = fs::read(target_parent)?;
+    let (adapter, manifest) = build_sparse_artifact_bytes_and_manifest(
+        &compatibility_text,
+        &lineage_text,
+        &base_bytes,
+        &base_parent.display().to_string(),
+        &target_bytes,
+        &target_parent.display().to_string(),
+        &output_adapter.display().to_string(),
+        delta_weight_ppm,
+        keep_ppm,
+    )?;
+    if let Some(parent) = output_adapter.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(output_adapter, adapter)?;
+    if let Some(parent) = output_manifest.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(output_manifest, manifest)?;
+    println!(
+        "SLM sparse adapter-delta artifact written: {}",
+        output_adapter.display()
+    );
+    println!(
+        "SLM sparse adapter-delta manifest written: {}",
+        output_manifest.display()
+    );
+    Ok(())
+}
+
+/// Validates a sparse adapter artifact and manifest by recomputing both from parents.
+pub(crate) fn validate_sparse_artifact_path(
+    compatibility: &Path,
+    lineage_manifest: &Path,
+    base_parent: &Path,
+    target_parent: &Path,
+    adapter: &Path,
+    manifest: &Path,
+) -> io::Result<()> {
+    let compatibility_text = fs::read_to_string(compatibility)?;
+    let lineage_text = fs::read_to_string(lineage_manifest)?;
+    let base_bytes = fs::read(base_parent)?;
+    let target_bytes = fs::read(target_parent)?;
+    let adapter_bytes = fs::read(adapter)?;
+    let manifest_text = fs::read_to_string(manifest)?;
+    validate_sparse_artifact_text(
+        &compatibility_text,
+        &lineage_text,
+        &base_bytes,
+        &base_parent.display().to_string(),
+        &target_bytes,
+        &target_parent.display().to_string(),
+        &adapter_bytes,
+        &adapter.display().to_string(),
+        &manifest_text,
+    )?;
+    println!("SLM sparse adapter-delta validation: PASS");
     println!("adapter: {}", adapter.display());
     println!("manifest: {}", manifest.display());
     Ok(())
@@ -231,6 +320,54 @@ fn validate_artifact_text(
     if manifest_text != expected_manifest {
         return Err(invalid(
             "adapter-delta manifest fields do not match recomputed output",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_sparse_artifact_text(
+    compatibility_text: &str,
+    lineage_text: &str,
+    base_bytes: &[u8],
+    base_path: &str,
+    target_bytes: &[u8],
+    target_path: &str,
+    adapter_bytes: &[u8],
+    adapter_path: &str,
+    manifest_text: &str,
+) -> io::Result<()> {
+    let manifest = parse_manifest(manifest_text, "sparse adapter-delta manifest")?;
+    require_equal(
+        &manifest,
+        "tinyrustlm_adapter_artifact_version",
+        ADAPTER_ARTIFACT_VERSION,
+    )?;
+    require_equal(
+        &manifest,
+        "adapter_artifact_kind",
+        SPARSE_ADAPTER_ARTIFACT_KIND,
+    )?;
+    let delta_weight_ppm = require_key(&manifest, "adapter_delta_weight_ppm")?;
+    let keep_ppm = require_key(&manifest, "adapter_sparse_keep_ppm")?;
+    let (expected_adapter, expected_manifest) = build_sparse_artifact_bytes_and_manifest(
+        compatibility_text,
+        lineage_text,
+        base_bytes,
+        base_path,
+        target_bytes,
+        target_path,
+        adapter_path,
+        Some(delta_weight_ppm),
+        Some(keep_ppm),
+    )?;
+    if adapter_bytes != expected_adapter {
+        return Err(invalid(
+            "sparse adapter-delta artifact bytes do not match recomputed parent deltas",
+        ));
+    }
+    if manifest_text != expected_manifest {
+        return Err(invalid(
+            "sparse adapter-delta manifest fields do not match recomputed output",
         ));
     }
     Ok(())
@@ -411,6 +548,50 @@ fn build_artifact_bytes_and_manifest(
     Ok((adapter, manifest))
 }
 
+fn build_sparse_artifact_bytes_and_manifest(
+    compatibility_text: &str,
+    lineage_text: &str,
+    base_bytes: &[u8],
+    base_path: &str,
+    target_bytes: &[u8],
+    target_path: &str,
+    adapter_path: &str,
+    delta_weight_ppm: Option<&str>,
+    keep_ppm: Option<&str>,
+) -> io::Result<(Vec<u8>, String)> {
+    lineage::validate_text(compatibility_text, lineage_text)?;
+    let compatibility = parse_passing_compatibility(compatibility_text)?;
+    let lineage_fields = parse_manifest(lineage_text, "lineage")?;
+    let base_report = slm_validate::validate_bytes(base_bytes, base_path)?;
+    let target_report = slm_validate::validate_bytes(target_bytes, target_path)?;
+    require_parent_report(&compatibility, 0, &base_report)?;
+    require_parent_report(&compatibility, 1, &target_report)?;
+
+    let delta_weight =
+        parse_delta_weight_ppm(delta_weight_ppm.unwrap_or(DEFAULT_DELTA_WEIGHT_PPM))?;
+    let keep = parse_keep_ppm(keep_ppm.unwrap_or(DEFAULT_SPARSE_KEEP_PPM))?;
+    let base = parse_model_values(base_bytes)?;
+    let target = parse_model_values(target_bytes)?;
+    let (adapter, stats) =
+        build_sparse_adapter_bytes(&base, &target, &base_report, delta_weight, keep)?;
+    validate_sparse_adapter_bytes(&adapter)?;
+    let manifest = build_sparse_manifest_text(
+        &compatibility,
+        &lineage_fields,
+        lineage_text,
+        base_path,
+        target_path,
+        &base_report,
+        &target_report,
+        adapter_path,
+        &adapter,
+        delta_weight,
+        keep,
+        stats,
+    )?;
+    Ok((adapter, manifest))
+}
+
 fn build_adapter_bytes(
     base: &ParsedModel,
     target: &ParsedModel,
@@ -487,6 +668,135 @@ fn build_adapter_bytes(
     let checksum = adapter_checksum(&bytes)?;
     write_u64(&mut bytes, CHECKSUM_OFFSET, checksum)?;
     Ok(bytes)
+}
+
+fn build_sparse_adapter_bytes(
+    base: &ParsedModel,
+    target: &ParsedModel,
+    base_report: &ValidationReport,
+    delta_weight_ppm: i64,
+    keep_ppm: u32,
+) -> io::Result<(Vec<u8>, SparseStats)> {
+    validate_parent_models(base, target)?;
+    let tensor_count = base.tensors.len();
+    let directory_offset = HEADER_LEN;
+    let data_offset = align_to_64(directory_offset + tensor_count * ENTRY_LEN);
+    let mut ranked = Vec::new();
+    let mut total_parameter_count = 0u64;
+
+    for (tensor_index, (base_tensor, target_tensor)) in
+        base.tensors.iter().zip(target.tensors.iter()).enumerate()
+    {
+        require_same_tensor_spec(&base_tensor.spec, &target_tensor.spec)?;
+        total_parameter_count += base_tensor.values.len() as u64;
+        for (value_index, (base_value, target_value)) in base_tensor
+            .values
+            .iter()
+            .zip(target_tensor.values.iter())
+            .enumerate()
+        {
+            let delta = target_value - base_value;
+            let magnitude = delta.abs();
+            if magnitude > 0.0 {
+                ranked.push(RankedDelta {
+                    magnitude,
+                    tensor_index,
+                    value_index,
+                    delta,
+                });
+            }
+        }
+    }
+
+    ranked.sort_by(compare_ranked_delta);
+    let requested_keep = keep_count(total_parameter_count, keep_ppm)?;
+    let kept_parameter_count = requested_keep.min(ranked.len() as u64);
+    let delta_weight = delta_weight_ppm as f32 / PPM_DENOMINATOR as f32;
+    let selected = ranked
+        .iter()
+        .take(kept_parameter_count as usize)
+        .collect::<Vec<_>>();
+    let mut selected_by_tensor = vec![Vec::<(usize, f32)>::new(); tensor_count];
+    for entry in &selected {
+        selected_by_tensor[entry.tensor_index]
+            .push((entry.value_index, entry.delta * delta_weight));
+    }
+    for pairs in &mut selected_by_tensor {
+        pairs.sort_by_key(|(value_index, _)| *value_index);
+    }
+
+    let mut tensor_offsets = Vec::with_capacity(tensor_count);
+    let mut tensor_lengths = Vec::with_capacity(tensor_count);
+    let mut tensor_checksums = Vec::with_capacity(tensor_count);
+    let mut payloads = Vec::with_capacity(tensor_count);
+    let mut cursor = data_offset;
+    for pairs in &selected_by_tensor {
+        cursor = align_to_64(cursor);
+        tensor_offsets.push(cursor);
+        let byte_length = pairs
+            .len()
+            .checked_mul(SPARSE_PAIR_LEN)
+            .ok_or_else(|| invalid("sparse adapter tensor byte length overflow"))?;
+        tensor_lengths.push(byte_length);
+        cursor = cursor
+            .checked_add(byte_length)
+            .ok_or_else(|| invalid("sparse adapter payload length overflow"))?;
+        let mut payload = vec![0u8; byte_length];
+        for (pair_index, (value_index, delta)) in pairs.iter().enumerate() {
+            let offset = pair_index * SPARSE_PAIR_LEN;
+            write_u64(&mut payload, offset, *value_index as u64)?;
+            write_f32(&mut payload, offset + 8, *delta)?;
+        }
+        tensor_checksums.push(payload_checksum(&payload));
+        payloads.push(payload);
+    }
+
+    let mut bytes = vec![0u8; cursor];
+    bytes[0..4].copy_from_slice(SPARSE_MAGIC);
+    write_u32(&mut bytes, 4, ADAPTER_BINARY_VERSION)?;
+    write_u32(&mut bytes, 8, HEADER_LEN as u32)?;
+    write_u32(&mut bytes, 12, tensor_count as u32)?;
+    write_u32(&mut bytes, 16, base.flags)?;
+    write_u32(&mut bytes, 20, ENTRY_LEN as u32)?;
+    write_u64(&mut bytes, 24, base_report.parameter_count() as u64)?;
+    write_u64(&mut bytes, 32, base_report.tensor_layout_checksum())?;
+    write_u64(&mut bytes, 40, base_report.tokenizer_checksum())?;
+    write_u64(&mut bytes, 48, data_offset as u64)?;
+    write_u64(&mut bytes, CHECKSUM_OFFSET, 0)?;
+
+    for (index, tensor) in base.tensors.iter().enumerate() {
+        let entry = directory_offset + index * ENTRY_LEN;
+        write_u64(&mut bytes, entry, tensor.spec.name_hash)?;
+        write_u32(&mut bytes, entry + 8, tensor.spec.rank)?;
+        write_u32(&mut bytes, entry + 12, tensor.spec.dims[0])?;
+        write_u32(&mut bytes, entry + 16, tensor.spec.dims[1])?;
+        write_u32(&mut bytes, entry + 20, tensor.spec.dims[2])?;
+        write_u32(&mut bytes, entry + 24, tensor.spec.dims[3])?;
+        write_u32(&mut bytes, entry + 28, 0)?;
+        write_u64(&mut bytes, entry + 32, tensor_offsets[index] as u64)?;
+        write_u64(&mut bytes, entry + 40, tensor_lengths[index] as u64)?;
+        write_u64(&mut bytes, entry + 48, tensor.spec.element_count() as u64)?;
+        write_u64(&mut bytes, entry + 56, tensor_checksums[index])?;
+
+        let start = tensor_offsets[index];
+        bytes[start..start + tensor_lengths[index]].copy_from_slice(&payloads[index]);
+    }
+
+    let checksum = adapter_checksum(&bytes)?;
+    write_u64(&mut bytes, CHECKSUM_OFFSET, checksum)?;
+    let nonzero_delta_count = ranked.len() as u64;
+    let stats = SparseStats {
+        total_parameter_count,
+        nonzero_delta_count,
+        kept_parameter_count,
+        pruned_parameter_count: total_parameter_count - kept_parameter_count,
+        unchanged_parameter_count: total_parameter_count - nonzero_delta_count,
+        pruned_nonzero_delta_count: nonzero_delta_count - kept_parameter_count,
+        density_ppm: ratio_ppm(kept_parameter_count, total_parameter_count)?,
+        nonzero_delta_retention_ppm: ratio_ppm(kept_parameter_count, nonzero_delta_count)?,
+        mask_checksum: sparse_mask_checksum(&selected, total_parameter_count),
+    };
+    Ok((bytes, stats))
 }
 
 fn build_manifest_text(
@@ -600,6 +910,200 @@ fn build_manifest_text(
         adapter_apply_status(base_report),
     );
     push_line(&mut text, "required_next_gate", REQUIRED_NEXT_GATE);
+    Ok(text)
+}
+
+fn build_sparse_manifest_text(
+    compatibility: &HashMap<String, String>,
+    lineage_fields: &HashMap<String, String>,
+    lineage_text: &str,
+    base_path: &str,
+    target_path: &str,
+    base_report: &ValidationReport,
+    target_report: &ValidationReport,
+    adapter_path: &str,
+    adapter_bytes: &[u8],
+    delta_weight_ppm: i64,
+    keep_ppm: u32,
+    stats: SparseStats,
+) -> io::Result<String> {
+    let mut text = String::new();
+    push_line(
+        &mut text,
+        "tinyrustlm_adapter_artifact_version",
+        ADAPTER_ARTIFACT_VERSION,
+    );
+    push_line(
+        &mut text,
+        "adapter_artifact_kind",
+        SPARSE_ADAPTER_ARTIFACT_KIND,
+    );
+    push_line(&mut text, "adapter_status", ADAPTER_STATUS);
+    push_line(
+        &mut text,
+        "candidate_id",
+        require_key(lineage_fields, "candidate_id")?,
+    );
+    push_line(
+        &mut text,
+        "operator_id",
+        require_key(lineage_fields, "operator_id")?,
+    );
+    push_line(
+        &mut text,
+        "operator_lane",
+        require_key(lineage_fields, "operator_lane")?,
+    );
+    push_line(
+        &mut text,
+        "resource_budget",
+        require_key(lineage_fields, "resource_budget")?,
+    );
+    push_line(
+        &mut text,
+        "compatibility_report_checksum",
+        require_key(lineage_fields, "compatibility_report_checksum")?,
+    );
+    push_line(
+        &mut text,
+        "lineage_manifest_checksum",
+        &hex64(lineage::text_checksum(lineage_text.as_bytes())),
+    );
+    push_line(
+        &mut text,
+        "compatibility_scope",
+        require_key(compatibility, "compatibility_scope")?,
+    );
+    push_line(&mut text, "parent_count", "2");
+    push_parent_lines(&mut text, compatibility, 0, base_path, base_report)?;
+    push_parent_lines(&mut text, compatibility, 1, target_path, target_report)?;
+    push_line(&mut text, "adapter_artifact_path", adapter_path);
+    push_line(
+        &mut text,
+        "adapter_artifact_bytes",
+        &adapter_bytes.len().to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_artifact_checksum",
+        &hex64(read_u64(adapter_bytes, CHECKSUM_OFFSET)?),
+    );
+    push_line(
+        &mut text,
+        "adapter_tensor_count",
+        &base_report.tensor_count().to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_parameter_count",
+        &base_report.parameter_count().to_string(),
+    );
+    push_line(&mut text, "adapter_dtype", SPARSE_ADAPTER_DTYPE);
+    push_line(
+        &mut text,
+        "adapter_model_shape",
+        &base_report.shape_summary(),
+    );
+    push_line(
+        &mut text,
+        "adapter_base_quantization",
+        base_report.quantization_label(),
+    );
+    push_line(
+        &mut text,
+        "adapter_output_contract",
+        base_report.output_contract_label(),
+    );
+    push_line(
+        &mut text,
+        "adapter_tokenizer_checksum",
+        &hex64(base_report.tokenizer_checksum()),
+    );
+    push_line(
+        &mut text,
+        "adapter_tensor_layout_checksum",
+        &hex64(base_report.tensor_layout_checksum()),
+    );
+    push_line(&mut text, "adapter_base_contract", ADAPTER_BASE_CONTRACT);
+    push_line(&mut text, "adapter_delta_weight_unit", "parts-per-million");
+    push_line(
+        &mut text,
+        "adapter_delta_weight_ppm",
+        &delta_weight_ppm.to_string(),
+    );
+    push_line(&mut text, "adapter_sparse_keep_unit", "parts-per-million");
+    push_line(&mut text, "adapter_sparse_keep_ppm", &keep_ppm.to_string());
+    push_line(
+        &mut text,
+        "adapter_sparse_pair_width_bytes",
+        &SPARSE_PAIR_LEN.to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_sparse_selection_metric",
+        "absolute-target-minus-base-delta",
+    );
+    push_line(
+        &mut text,
+        "adapter_sparse_selection_scope",
+        "global-compatible-parent-tensors",
+    );
+    push_line(
+        &mut text,
+        "adapter_sparse_tie_break",
+        "tensor-index-then-value-index",
+    );
+    push_line(
+        &mut text,
+        "adapter_sparse_total_parameter_count",
+        &stats.total_parameter_count.to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_sparse_nonzero_delta_count",
+        &stats.nonzero_delta_count.to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_sparse_kept_parameter_count",
+        &stats.kept_parameter_count.to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_sparse_pruned_parameter_count",
+        &stats.pruned_parameter_count.to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_sparse_unchanged_parameter_count",
+        &stats.unchanged_parameter_count.to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_sparse_pruned_nonzero_delta_count",
+        &stats.pruned_nonzero_delta_count.to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_sparse_density_ppm",
+        &stats.density_ppm.to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_sparse_nonzero_delta_retention_ppm",
+        &stats.nonzero_delta_retention_ppm.to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_sparse_mask_checksum",
+        &hex64(stats.mask_checksum),
+    );
+    push_line(
+        &mut text,
+        "adapter_apply_status",
+        adapter_apply_status(base_report),
+    );
+    push_line(&mut text, "required_next_gate", SPARSE_REQUIRED_NEXT_GATE);
     Ok(text)
 }
 
@@ -976,6 +1480,75 @@ fn validate_adapter_bytes(bytes: &[u8]) -> io::Result<()> {
     Ok(())
 }
 
+fn validate_sparse_adapter_bytes(bytes: &[u8]) -> io::Result<()> {
+    if bytes.get(0..4) != Some(SPARSE_MAGIC) {
+        return Err(invalid("sparse adapter artifact has invalid magic"));
+    }
+    let version = read_u32(bytes, 4)?;
+    if version != ADAPTER_BINARY_VERSION {
+        return Err(invalid("sparse adapter artifact has unsupported version"));
+    }
+    let header_len = read_u32(bytes, 8)? as usize;
+    if header_len != HEADER_LEN {
+        return Err(invalid("sparse adapter artifact has invalid header length"));
+    }
+    let tensor_count = read_u32(bytes, 12)? as usize;
+    let entry_len = read_u32(bytes, 20)? as usize;
+    if entry_len != ENTRY_LEN {
+        return Err(invalid("sparse adapter artifact has invalid entry length"));
+    }
+    let data_offset = read_u64(bytes, 48)? as usize;
+    let directory_end = HEADER_LEN
+        .checked_add(
+            tensor_count
+                .checked_mul(ENTRY_LEN)
+                .ok_or_else(|| invalid("sparse adapter directory length overflow"))?,
+        )
+        .ok_or_else(|| invalid("sparse adapter directory end overflow"))?;
+    if data_offset < directory_end || data_offset % 64 != 0 {
+        return Err(invalid("sparse adapter artifact has invalid data offset"));
+    }
+    if read_u64(bytes, CHECKSUM_OFFSET)? != adapter_checksum(bytes)? {
+        return Err(invalid("sparse adapter artifact checksum mismatch"));
+    }
+    for index in 0..tensor_count {
+        let entry = HEADER_LEN + index * ENTRY_LEN;
+        let byte_offset = read_u64(bytes, entry + 32)? as usize;
+        let byte_length = read_u64(bytes, entry + 40)? as usize;
+        let element_count = read_u64(bytes, entry + 48)? as usize;
+        if byte_length % SPARSE_PAIR_LEN != 0 || byte_length / SPARSE_PAIR_LEN > element_count {
+            return Err(invalid(
+                "sparse adapter tensor byte length does not match sparse pairs",
+            ));
+        }
+        let end = byte_offset
+            .checked_add(byte_length)
+            .ok_or_else(|| invalid("sparse adapter tensor payload end overflow"))?;
+        let payload = bytes
+            .get(byte_offset..end)
+            .ok_or_else(|| invalid("sparse adapter tensor payload escapes artifact"))?;
+        if read_u64(bytes, entry + 56)? != payload_checksum(payload) {
+            return Err(invalid("sparse adapter tensor payload checksum mismatch"));
+        }
+        let mut previous_index = None;
+        for pair_index in 0..byte_length / SPARSE_PAIR_LEN {
+            let pair_offset = byte_offset + pair_index * SPARSE_PAIR_LEN;
+            let value_index = read_u64(bytes, pair_offset)? as usize;
+            if value_index >= element_count
+                || previous_index.is_some_and(|previous| value_index <= previous)
+            {
+                return Err(invalid("sparse adapter tensor value index is invalid"));
+            }
+            let delta = read_f32(bytes, pair_offset + 8)?;
+            if !delta.is_finite() {
+                return Err(invalid("sparse adapter tensor delta is not finite"));
+            }
+            previous_index = Some(value_index);
+        }
+    }
+    Ok(())
+}
+
 fn adapter_checksum(bytes: &[u8]) -> io::Result<u64> {
     if bytes.len() < HEADER_LEN {
         return Err(invalid("adapter artifact is too short"));
@@ -1000,6 +1573,91 @@ fn payload_checksum(bytes: &[u8]) -> u64 {
         acc = acc.rotate_left(7).wrapping_mul(0x100000001b3);
     }
     acc
+}
+
+fn compare_ranked_delta(left: &RankedDelta, right: &RankedDelta) -> Ordering {
+    right
+        .magnitude
+        .partial_cmp(&left.magnitude)
+        .unwrap_or(Ordering::Equal)
+        .then_with(|| left.tensor_index.cmp(&right.tensor_index))
+        .then_with(|| left.value_index.cmp(&right.value_index))
+}
+
+fn keep_count(total_parameter_count: u64, keep_ppm: u32) -> io::Result<u64> {
+    if total_parameter_count == 0 || keep_ppm == 0 {
+        return Ok(0);
+    }
+    let numerator =
+        u128::from(total_parameter_count) * u128::from(keep_ppm) + u128::from(PPM_DENOMINATOR - 1);
+    let count = numerator / u128::from(PPM_DENOMINATOR);
+    u64::try_from(count).map_err(|_| invalid("sparse adapter keep count overflowed u64"))
+}
+
+fn ratio_ppm(numerator: u64, denominator: u64) -> io::Result<u64> {
+    if denominator == 0 {
+        return Ok(0);
+    }
+    let ppm = u128::from(numerator) * u128::from(PPM_DENOMINATOR) / u128::from(denominator);
+    u64::try_from(ppm).map_err(|_| invalid("sparse adapter ratio overflowed u64"))
+}
+
+fn sparse_mask_checksum(selected: &[&RankedDelta], total_parameter_count: u64) -> u64 {
+    let mut acc = 0x6173_7031_6d61_736bu64;
+    mix_sparse_value(&mut acc, total_parameter_count);
+    mix_sparse_value(&mut acc, selected.len() as u64);
+    for entry in selected {
+        mix_sparse_value(&mut acc, entry.tensor_index as u64);
+        mix_sparse_value(&mut acc, entry.value_index as u64);
+    }
+    acc
+}
+
+fn mix_sparse_value(acc: &mut u64, value: u64) {
+    *acc ^= value.wrapping_add(0x9e37_79b9_7f4a_7c15);
+    *acc = acc.rotate_left(11).wrapping_mul(0x1000_0000_01b3);
+}
+
+fn parse_delta_weight_ppm(value: &str) -> io::Result<i64> {
+    let weight = value
+        .parse::<i64>()
+        .map_err(|_| invalid("sparse adapter weight must be an integer parts-per-million value"))?;
+    if !(MIN_DELTA_WEIGHT_PPM..=MAX_DELTA_WEIGHT_PPM).contains(&weight) {
+        return Err(invalid(
+            "sparse adapter weight must be between -1000000 and 2000000",
+        ));
+    }
+    Ok(weight)
+}
+
+fn parse_keep_ppm(value: &str) -> io::Result<u32> {
+    let keep = value
+        .parse::<u32>()
+        .map_err(|_| invalid("sparse adapter keep must be an integer parts-per-million value"))?;
+    if keep > PPM_DENOMINATOR {
+        return Err(invalid("sparse adapter keep must be between 0 and 1000000"));
+    }
+    Ok(keep)
+}
+
+struct RankedDelta {
+    magnitude: f32,
+    tensor_index: usize,
+    value_index: usize,
+    delta: f32,
+}
+
+#[derive(Clone, Copy)]
+struct SparseStats {
+    total_parameter_count: u64,
+    nonzero_delta_count: u64,
+    kept_parameter_count: u64,
+    pruned_parameter_count: u64,
+    unchanged_parameter_count: u64,
+    pruned_nonzero_delta_count: u64,
+    density_ppm: u64,
+    nonzero_delta_retention_ppm: u64,
+    mask_checksum: u64,
 }
 
 fn read_u32(bytes: &[u8], offset: usize) -> io::Result<u32> {
@@ -1117,6 +1775,110 @@ mod tests {
         )
         .unwrap();
         assert!(manifest.contains("adapter_base_quantization=q8_0"));
+        assert!(manifest.contains("adapter_apply_status=runtime-q8-q4-compatible-or-fuse-to-slm"));
+    }
+
+    #[test]
+    fn writes_and_validates_sparse_f32_adapter_delta_artifact() {
+        let base = tiny_f32_scaled_bytes(1.0);
+        let target = tiny_f32_scaled_bytes(3.0);
+        let compatibility =
+            compatibility::compatibility_text_for_bytes(&base, "base.slm", &target, "target.slm")
+                .unwrap();
+        let lineage = lineage::build_template_text(
+            &compatibility,
+            "sparse-adapter-f32",
+            "sparse-adapter-delta-v1",
+            "tiny",
+        )
+        .unwrap();
+
+        let (adapter, manifest) = build_sparse_artifact_bytes_and_manifest(
+            &compatibility,
+            &lineage,
+            &base,
+            "base.slm",
+            &target,
+            "target.slm",
+            "adapter.asp1",
+            Some("1000000"),
+            Some("250000"),
+        )
+        .unwrap();
+        let (raw_adapter, _) = build_artifact_bytes_and_manifest(
+            &compatibility,
+            &lineage,
+            &base,
+            "base.slm",
+            &target,
+            "target.slm",
+            "adapter.adp1",
+        )
+        .unwrap();
+
+        validate_sparse_artifact_text(
+            &compatibility,
+            &lineage,
+            &base,
+            "base.slm",
+            &target,
+            "target.slm",
+            &adapter,
+            "adapter.asp1",
+            &manifest,
+        )
+        .unwrap();
+        assert_eq!(adapter.get(0..4), Some(&SPARSE_MAGIC[..]));
+        assert!(adapter.len() < raw_adapter.len());
+        assert!(manifest.contains("adapter_artifact_kind=sparse-f32-task-delta-v1"));
+        assert!(manifest.contains("adapter_sparse_keep_ppm=250000"));
+        assert!(manifest.contains("adapter_sparse_pair_width_bytes=12"));
+        assert!(manifest.contains("adapter_sparse_mask_checksum="));
+    }
+
+    #[test]
+    fn writes_and_validates_sparse_q8_adapter_delta_artifact() {
+        let base = tiny_q8_bytes();
+        let target = tiny_q8_bytes();
+        let compatibility =
+            compatibility::compatibility_text_for_bytes(&base, "base.slm", &target, "target.slm")
+                .unwrap();
+        let lineage = lineage::build_template_text(
+            &compatibility,
+            "sparse-adapter-q8",
+            "sparse-adapter-delta-v1",
+            "tiny",
+        )
+        .unwrap();
+
+        let (adapter, manifest) = build_sparse_artifact_bytes_and_manifest(
+            &compatibility,
+            &lineage,
+            &base,
+            "base.slm",
+            &target,
+            "target.slm",
+            "adapter.asp1",
+            None,
+            None,
+        )
+        .unwrap();
+
+        validate_sparse_adapter_bytes(&adapter).unwrap();
+        validate_sparse_artifact_text(
+            &compatibility,
+            &lineage,
+            &base,
+            "base.slm",
+            &target,
+            "target.slm",
+            &adapter,
+            "adapter.asp1",
+            &manifest,
+        )
+        .unwrap();
+        assert!(manifest.contains("adapter_base_quantization=q8_0"));
+        assert!(manifest.contains("adapter_sparse_kept_parameter_count=0"));
         assert!(manifest.contains("adapter_apply_status=runtime-q8-q4-compatible-or-fuse-to-slm"));
     }
 

@@ -1,8 +1,8 @@
 //! Loaded model metadata and tensor storage.
 
 use crate::adapter::{
-    parameter_count, read_f32, section_checksum, tensor_layout_checksum, AdapterDelta,
-    AdapterDeltaPayload, AdapterExpected,
+    parameter_count, read_f32, read_sparse_delta_pair, section_checksum, tensor_layout_checksum,
+    AdapterDelta, AdapterDeltaPayload, AdapterDeltaPayloadKind, AdapterExpected,
 };
 use crate::errors::ErrorCode;
 use crate::model_format::{
@@ -181,11 +181,24 @@ impl LoadedTensor {
         if tensor_element_count(&self.entry)? != payload.element_count {
             return Err(ErrorCode::ShapeMismatch);
         }
-        for value_index in 0..payload.element_count {
-            let value =
-                self.f32_value_at(value_index)? + adapter_delta_value(bytes, payload, value_index)?;
-            if !value.is_finite() {
-                return Err(ErrorCode::InvalidHeader);
+        match payload.kind {
+            AdapterDeltaPayloadKind::RawF32 => {
+                for value_index in 0..payload.element_count {
+                    let value = self.f32_value_at(value_index)?
+                        + adapter_delta_value(bytes, payload, value_index)?;
+                    if !value.is_finite() {
+                        return Err(ErrorCode::InvalidHeader);
+                    }
+                }
+            }
+            AdapterDeltaPayloadKind::SparseF32 { pair_count } => {
+                for pair_index in 0..pair_count {
+                    let (value_index, delta) = read_sparse_delta_pair(bytes, payload, pair_index)?;
+                    let value = self.f32_value_at(value_index)? + delta;
+                    if !value.is_finite() {
+                        return Err(ErrorCode::InvalidHeader);
+                    }
+                }
             }
         }
         Ok(())
@@ -743,8 +756,19 @@ fn apply_f32_adapter_payload(
     if data.len() != payload.element_count {
         return Err(ErrorCode::ShapeMismatch);
     }
-    for (value_index, value) in data.iter_mut().enumerate() {
-        *value += adapter_delta_value(bytes, payload, value_index)?;
+    match payload.kind {
+        AdapterDeltaPayloadKind::RawF32 => {
+            for (value_index, value) in data.iter_mut().enumerate() {
+                *value += adapter_delta_value(bytes, payload, value_index)?;
+            }
+        }
+        AdapterDeltaPayloadKind::SparseF32 { pair_count } => {
+            for pair_index in 0..pair_count {
+                let (value_index, delta) = read_sparse_delta_pair(bytes, payload, pair_index)?;
+                let value = data.get_mut(value_index).ok_or(ErrorCode::ShapeMismatch)?;
+                *value += delta;
+            }
+        }
     }
     Ok(())
 }
@@ -765,16 +789,49 @@ fn apply_q8_adapter_payload(
     }
     let mut row_values = vec![0.0f32; cols];
     let mut row_weights = vec![0i8; cols];
-    for row in 0..rows {
-        let row_start = row.checked_mul(cols).ok_or(ErrorCode::InvalidLength)?;
-        let base_scale = scales[row];
-        for col in 0..cols {
-            let index = row_start + col;
-            row_values[col] = f32::from(weights[index]) * base_scale
-                + adapter_delta_value(bytes, payload, index)?;
+    match payload.kind {
+        AdapterDeltaPayloadKind::RawF32 => {
+            for row in 0..rows {
+                let row_start = row.checked_mul(cols).ok_or(ErrorCode::InvalidLength)?;
+                let base_scale = scales[row];
+                for col in 0..cols {
+                    let index = row_start + col;
+                    row_values[col] = f32::from(weights[index]) * base_scale
+                        + adapter_delta_value(bytes, payload, index)?;
+                }
+                scales[row] = quantize_q8_row(&row_values, &mut row_weights)?;
+                weights[row_start..row_start + cols].copy_from_slice(&row_weights);
+            }
         }
-        scales[row] = quantize_q8_row(&row_values, &mut row_weights)?;
-        weights[row_start..row_start + cols].copy_from_slice(&row_weights);
+        AdapterDeltaPayloadKind::SparseF32 { pair_count } => {
+            let mut pair_index = 0usize;
+            for row in 0..rows {
+                let row_start = row.checked_mul(cols).ok_or(ErrorCode::InvalidLength)?;
+                let row_end = row_start
+                    .checked_add(cols)
+                    .ok_or(ErrorCode::InvalidLength)?;
+                let base_scale = scales[row];
+                for col in 0..cols {
+                    row_values[col] = f32::from(weights[row_start + col]) * base_scale;
+                }
+                while pair_index < pair_count {
+                    let (value_index, delta) = read_sparse_delta_pair(bytes, payload, pair_index)?;
+                    if value_index >= row_end {
+                        break;
+                    }
+                    if value_index < row_start {
+                        return Err(ErrorCode::ShapeMismatch);
+                    }
+                    row_values[value_index - row_start] += delta;
+                    pair_index += 1;
+                }
+                scales[row] = quantize_q8_row(&row_values, &mut row_weights)?;
+                weights[row_start..row_start + cols].copy_from_slice(&row_weights);
+            }
+            if pair_index != pair_count {
+                return Err(ErrorCode::ShapeMismatch);
+            }
+        }
     }
     Ok(())
 }
@@ -808,26 +865,74 @@ fn apply_q4_adapter_payload(
     {
         return Err(ErrorCode::ShapeMismatch);
     }
-    let mut block_values = vec![0.0f32; block_size];
     let mut block_weights = vec![0i8; block_size];
-    for row in 0..rows {
-        for block in 0..blocks_per_row {
-            let scale_index = row * blocks_per_row + block;
-            let base_scale = scales[scale_index];
-            for block_col in 0..block_size {
-                let col = block * block_size + block_col;
-                let index = row * cols + col;
-                let byte_index = row * bytes_per_row + col / 2;
-                let byte = packed[byte_index];
-                let nibble = if col % 2 == 0 { byte & 0x0f } else { byte >> 4 };
-                block_values[block_col] = f32::from(sign_extend_4(nibble)) * base_scale
-                    + adapter_delta_value(bytes, payload, index)?;
+    match payload.kind {
+        AdapterDeltaPayloadKind::RawF32 => {
+            let mut block_values = vec![0.0f32; block_size];
+            for row in 0..rows {
+                for block in 0..blocks_per_row {
+                    let scale_index = row * blocks_per_row + block;
+                    let base_scale = scales[scale_index];
+                    for block_col in 0..block_size {
+                        let col = block * block_size + block_col;
+                        let index = row * cols + col;
+                        let byte_index = row * bytes_per_row + col / 2;
+                        let byte = packed[byte_index];
+                        let nibble = if col % 2 == 0 { byte & 0x0f } else { byte >> 4 };
+                        block_values[block_col] = f32::from(sign_extend_4(nibble)) * base_scale
+                            + adapter_delta_value(bytes, payload, index)?;
+                    }
+                    scales[scale_index] = quantize_q4_block(&block_values, &mut block_weights)?;
+                    let byte_start = row * bytes_per_row + block * (block_size / 2);
+                    for pair in 0..block_size / 2 {
+                        packed[byte_start + pair] =
+                            pack_q4_pair(block_weights[pair * 2], block_weights[pair * 2 + 1]);
+                    }
+                }
             }
-            scales[scale_index] = quantize_q4_block(&block_values, &mut block_weights)?;
-            let byte_start = row * bytes_per_row + block * (block_size / 2);
-            for pair in 0..block_size / 2 {
-                packed[byte_start + pair] =
-                    pack_q4_pair(block_weights[pair * 2], block_weights[pair * 2 + 1]);
+        }
+        AdapterDeltaPayloadKind::SparseF32 { pair_count } => {
+            let mut row_values = vec![0.0f32; cols];
+            let mut pair_index = 0usize;
+            for row in 0..rows {
+                let row_start = row.checked_mul(cols).ok_or(ErrorCode::InvalidLength)?;
+                let row_end = row_start
+                    .checked_add(cols)
+                    .ok_or(ErrorCode::InvalidLength)?;
+                for col in 0..cols {
+                    let byte_index = row * bytes_per_row + col / 2;
+                    let byte = packed[byte_index];
+                    let nibble = if col % 2 == 0 { byte & 0x0f } else { byte >> 4 };
+                    let scale = scales[row * blocks_per_row + col / block_size];
+                    row_values[col] = f32::from(sign_extend_4(nibble)) * scale;
+                }
+                while pair_index < pair_count {
+                    let (value_index, delta) = read_sparse_delta_pair(bytes, payload, pair_index)?;
+                    if value_index >= row_end {
+                        break;
+                    }
+                    if value_index < row_start {
+                        return Err(ErrorCode::ShapeMismatch);
+                    }
+                    row_values[value_index - row_start] += delta;
+                    pair_index += 1;
+                }
+                for block in 0..blocks_per_row {
+                    let scale_index = row * blocks_per_row + block;
+                    let value_start = block * block_size;
+                    scales[scale_index] = quantize_q4_block(
+                        &row_values[value_start..value_start + block_size],
+                        &mut block_weights,
+                    )?;
+                    let byte_start = row * bytes_per_row + block * (block_size / 2);
+                    for pair in 0..block_size / 2 {
+                        packed[byte_start + pair] =
+                            pack_q4_pair(block_weights[pair * 2], block_weights[pair * 2 + 1]);
+                    }
+                }
+            }
+            if pair_index != pair_count {
+                return Err(ErrorCode::ShapeMismatch);
             }
         }
     }
@@ -875,6 +980,9 @@ fn adapter_delta_value(
     payload: AdapterDeltaPayload,
     value_index: usize,
 ) -> Result<f32, ErrorCode> {
+    if !matches!(payload.kind, AdapterDeltaPayloadKind::RawF32) {
+        return Err(ErrorCode::ShapeMismatch);
+    }
     if value_index >= payload.element_count {
         return Err(ErrorCode::ShapeMismatch);
     }
@@ -1053,6 +1161,73 @@ mod tests {
         bytes
     }
 
+    fn build_sparse_adapter_bytes<F>(model: &Model, mut delta: F) -> Vec<u8>
+    where
+        F: FnMut(usize, usize, &TensorEntry) -> Option<f32>,
+    {
+        let tensors = &model.parsed().tensors;
+        let data_offset = align_to_64(ADAPTER_HEADER_LEN + tensors.len() * ADAPTER_ENTRY_LEN);
+        let mut cursor = data_offset;
+        let mut offsets = Vec::with_capacity(tensors.len());
+        let mut lengths = Vec::with_capacity(tensors.len());
+        let mut payloads = Vec::with_capacity(tensors.len());
+        for (tensor_index, tensor) in tensors.iter().enumerate() {
+            cursor = align_to_64(cursor);
+            offsets.push(cursor);
+            let element_count = tensor_element_count(tensor).unwrap();
+            let mut payload = Vec::new();
+            for value_index in 0..element_count {
+                if let Some(value) = delta(tensor_index, value_index, tensor) {
+                    payload.extend_from_slice(&(value_index as u64).to_le_bytes());
+                    payload.extend_from_slice(&value.to_le_bytes());
+                }
+            }
+            lengths.push(payload.len());
+            cursor += payload.len();
+            payloads.push(payload);
+        }
+
+        let mut bytes = vec![0u8; cursor];
+        bytes[0..4].copy_from_slice(b"ASP1");
+        write_u32(&mut bytes, 4, 1);
+        write_u32(&mut bytes, 8, ADAPTER_HEADER_LEN as u32);
+        write_u32(&mut bytes, 12, tensors.len() as u32);
+        write_u32(&mut bytes, 16, model.header().flags);
+        write_u32(&mut bytes, 20, ADAPTER_ENTRY_LEN as u32);
+        write_u64(&mut bytes, 24, model.parameter_count);
+        write_u64(&mut bytes, 32, model.tensor_layout_checksum);
+        write_u64(&mut bytes, 40, model.tokenizer_checksum);
+        write_u64(&mut bytes, 48, data_offset as u64);
+        write_u64(&mut bytes, ADAPTER_CHECKSUM_OFFSET, 0);
+
+        for (index, tensor) in tensors.iter().enumerate() {
+            let entry = ADAPTER_HEADER_LEN + index * ADAPTER_ENTRY_LEN;
+            write_u64(&mut bytes, entry, tensor.name_hash);
+            write_u32(&mut bytes, entry + 8, tensor.rank);
+            write_u32(&mut bytes, entry + 12, tensor.dim0);
+            write_u32(&mut bytes, entry + 16, tensor.dim1);
+            write_u32(&mut bytes, entry + 20, tensor.dim2);
+            write_u32(&mut bytes, entry + 24, tensor.dim3);
+            write_u32(&mut bytes, entry + 28, 0);
+            write_u64(&mut bytes, entry + 32, offsets[index] as u64);
+            write_u64(&mut bytes, entry + 40, lengths[index] as u64);
+            write_u64(
+                &mut bytes,
+                entry + 48,
+                tensor_element_count(tensor).unwrap() as u64,
+            );
+            write_u64(
+                &mut bytes,
+                entry + 56,
+                adapter_payload_checksum(&payloads[index]),
+            );
+            let start = offsets[index];
+            bytes[start..start + lengths[index]].copy_from_slice(&payloads[index]);
+        }
+        refresh_adapter_checksum(&mut bytes);
+        bytes
+    }
+
     fn refresh_adapter_checksum(bytes: &mut [u8]) {
         write_u64(bytes, ADAPTER_CHECKSUM_OFFSET, 0);
         let checksum = adapter_checksum(bytes);
@@ -1156,6 +1331,27 @@ mod tests {
     }
 
     #[test]
+    fn applies_sparse_adapter_delta_to_loaded_f32_tensor() {
+        let mut model = Model::load(include_bytes!("../../models/tiny-test-model.slm")).unwrap();
+        let mut before = vec![0.0f32; 260 * 8];
+        model.copy_tensor_f32("output.weight", &mut before).unwrap();
+        let adapter = build_sparse_adapter_bytes(&model, |_tensor_index, value_index, tensor| {
+            if tensor.name_hash == name_hash("output.weight") && value_index == 0 {
+                Some(0.25)
+            } else {
+                None
+            }
+        });
+
+        model.apply_adapter_delta(&adapter).unwrap();
+
+        let mut after = vec![0.0f32; 260 * 8];
+        model.copy_tensor_f32("output.weight", &mut after).unwrap();
+        assert_eq!(after[0], before[0] + 0.25);
+        assert_eq!(after[1], before[1]);
+    }
+
+    #[test]
     fn adapter_identity_drift_rejects_without_mutating_tensor() {
         let mut model = Model::load(include_bytes!("../../models/tiny-test-model.slm")).unwrap();
         let mut before = vec![0.0f32; 260 * 8];
@@ -1208,6 +1404,29 @@ mod tests {
     }
 
     #[test]
+    fn applies_sparse_adapter_delta_to_loaded_q8_tensor() {
+        let mut model = Model::load(include_bytes!("../../models/tiny-test-model-q8.slm")).unwrap();
+        let mut before = vec![0.0f32; 260 * 8];
+        model.copy_tensor_f32("output.weight", &mut before).unwrap();
+        let adapter = build_sparse_adapter_bytes(&model, |_tensor_index, value_index, tensor| {
+            if tensor.name_hash == name_hash("output.weight") && value_index < 8 {
+                Some(1.0)
+            } else {
+                None
+            }
+        });
+
+        model.apply_adapter_delta(&adapter).unwrap();
+
+        let mut after = vec![0.0f32; 260 * 8];
+        model.copy_tensor_f32("output.weight", &mut after).unwrap();
+        let before_sum = before[..8].iter().sum::<f32>();
+        let after_sum = after[..8].iter().sum::<f32>();
+        assert!(after_sum > before_sum + 4.0);
+        assert_eq!(model.quantization_mode(), "q8_0");
+    }
+
+    #[test]
     fn applies_q4_adapter_delta_to_loaded_compact_tensor() {
         let mut model = Model::load(include_bytes!("../../models/tiny-test-model-q4.slm")).unwrap();
         let mut before = vec![0.0f32; 260 * 8];
@@ -1232,6 +1451,29 @@ mod tests {
             model.tensor_f32("output.weight").unwrap_err(),
             ErrorCode::UnsupportedDType
         );
+    }
+
+    #[test]
+    fn applies_sparse_adapter_delta_to_loaded_q4_tensor() {
+        let mut model = Model::load(include_bytes!("../../models/tiny-test-model-q4.slm")).unwrap();
+        let mut before = vec![0.0f32; 260 * 8];
+        model.copy_tensor_f32("output.weight", &mut before).unwrap();
+        let adapter = build_sparse_adapter_bytes(&model, |_tensor_index, value_index, tensor| {
+            if tensor.name_hash == name_hash("output.weight") && value_index < 8 {
+                Some(1.0)
+            } else {
+                None
+            }
+        });
+
+        model.apply_adapter_delta(&adapter).unwrap();
+
+        let mut after = vec![0.0f32; 260 * 8];
+        model.copy_tensor_f32("output.weight", &mut after).unwrap();
+        let before_sum = before[..8].iter().sum::<f32>();
+        let after_sum = after[..8].iter().sum::<f32>();
+        assert!(after_sum > before_sum + 3.0);
+        assert_eq!(model.quantization_mode(), "q4_0");
     }
 
     #[test]

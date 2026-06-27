@@ -50,15 +50,18 @@ const expectedAdapterLabels = {
   tinyq4: ["Tiny Fixture q4_0 self ADP1"],
   "multi-parent-sign-merge-f32": [
     "Multi-parent sign-merge f32 self ADP1",
-    "Multi-parent sign-merge f32 family ADP1"
+    "Multi-parent sign-merge f32 family ADP1",
+    "Multi-parent sign-merge f32 sparse ASP1"
   ],
   "multi-parent-sign-merge-q8": [
     "Multi-parent sign-merge q8_0 self ADP1",
-    "Multi-parent sign-merge q8_0 family ADP1"
+    "Multi-parent sign-merge q8_0 family ADP1",
+    "Multi-parent sign-merge q8_0 sparse ASP1"
   ],
   "multi-parent-sign-merge-q4": [
     "Multi-parent sign-merge q4_0 self ADP1",
-    "Multi-parent sign-merge q4_0 family ADP1"
+    "Multi-parent sign-merge q4_0 family ADP1",
+    "Multi-parent sign-merge q4_0 sparse ASP1"
   ]
 };
 
@@ -66,9 +69,9 @@ const expectedAdapterRoutes = {
   tinyf32: "/models/tiny-test-model-self.adp1",
   tinyq8: "/models/tiny-test-model-q8-self.adp1",
   tinyq4: "/models/tiny-test-model-q4-self.adp1",
-  "multi-parent-sign-merge-q8": "/models/multi-parent-sign-merge-q8-family.adp1",
-  "multi-parent-sign-merge-q4": "/models/multi-parent-sign-merge-q4-family.adp1",
-  "multi-parent-sign-merge-f32": "/models/multi-parent-sign-merge-f32-family.adp1"
+  "multi-parent-sign-merge-q8": "/models/multi-parent-sign-merge-q8-sparse.asp1",
+  "multi-parent-sign-merge-q4": "/models/multi-parent-sign-merge-q4-sparse.asp1",
+  "multi-parent-sign-merge-f32": "/models/multi-parent-sign-merge-f32-sparse.asp1"
 };
 
 const expectedAdapterFamilyReceiptRoutes = {
@@ -92,23 +95,26 @@ const expectedAssemblyEvidenceRoutes = {
 const expectedAdapterManifestRoutes = {
   "multi-parent-sign-merge-q8": [
     "/models/multi-parent-sign-merge-q8-self.adp1.manifest",
-    "/models/multi-parent-sign-merge-q8-family.adp1.manifest"
+    "/models/multi-parent-sign-merge-q8-family.adp1.manifest",
+    "/models/multi-parent-sign-merge-q8-sparse.asp1.manifest"
   ],
   "multi-parent-sign-merge-q4": [
     "/models/multi-parent-sign-merge-q4-self.adp1.manifest",
-    "/models/multi-parent-sign-merge-q4-family.adp1.manifest"
+    "/models/multi-parent-sign-merge-q4-family.adp1.manifest",
+    "/models/multi-parent-sign-merge-q4-sparse.asp1.manifest"
   ],
   "multi-parent-sign-merge-f32": [
     "/models/multi-parent-sign-merge-f32-self.adp1.manifest",
-    "/models/multi-parent-sign-merge-f32-family.adp1.manifest"
+    "/models/multi-parent-sign-merge-f32-family.adp1.manifest",
+    "/models/multi-parent-sign-merge-f32-sparse.asp1.manifest"
   ]
 };
 
 const expectedAdapterApplyIndexes = {
   tinyf32: 0,
-  "multi-parent-sign-merge-q8": 1,
-  "multi-parent-sign-merge-q4": 1,
-  "multi-parent-sign-merge-f32": 1
+  "multi-parent-sign-merge-q8": 2,
+  "multi-parent-sign-merge-q4": 2,
+  "multi-parent-sign-merge-f32": 2
 };
 
 function multiParentEvidenceRoutes(modelKey) {
@@ -425,6 +431,11 @@ async function runPageAdapterSidecarSmoke(client, modelKey) {
         }
         await sleep(100);
       }
+      const initialSelectedModel = byId("modelSelect").value;
+      const modelOptions = Array.from(byId("modelSelect").options).map((option) => ({
+        value: option.value,
+        label: option.textContent.trim()
+      }));
       if (byId("modelSelect").value !== expectedModel) {
         byId("modelSelect").value = expectedModel;
         byId("modelSelect").dispatchEvent(new Event("change", { bubbles: true }));
@@ -439,10 +450,6 @@ async function runPageAdapterSidecarSmoke(client, modelKey) {
         value: option.value,
         label: option.textContent.trim()
       }));
-      const adapterApplyIndex = expectedModel.startsWith("multi-parent-sign-merge-") && adapterOptions.length > 1 ? 1 : 0;
-      if (adapterOptions.length > adapterApplyIndex) {
-        byId("adapterSelect").value = String(adapterApplyIndex);
-      }
       const selectedAdapterBeforeApply = byId("adapterSelect").value;
       const adapterSelectDisabledBefore = byId("adapterSelect").disabled;
       const applyDisabledBefore = byId("applyAdapterButton").disabled;
@@ -471,7 +478,9 @@ async function runPageAdapterSidecarSmoke(client, modelKey) {
         errorState: byId("errorState").textContent,
         response: byId("response").textContent,
         console: byId("console").textContent,
+        initialSelectedModel,
         selectedModel: byId("modelSelect").value,
+        modelOptions,
         adapterState: byId("adapterState").textContent,
         assemblyState: byId("assemblyState").textContent,
         assemblyKind: byId("assemblyKind").textContent,
@@ -1420,6 +1429,17 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests) {
   const expectedApplyIndex = expectedAdapterApplyIndexes[modelKey] || 0;
   if (result.selectedAdapterBeforeApply !== String(expectedApplyIndex)) {
     failures.push(`selected adapter index was ${result.selectedAdapterBeforeApply}`);
+  }
+  const modelOptionValues = Array.isArray(result.modelOptions)
+    ? result.modelOptions.map((option) => option.value)
+    : [];
+  const hasCombinedGeneratedOptions = [
+    "multi-parent-sign-merge-f32",
+    "multi-parent-sign-merge-q8",
+    "multi-parent-sign-merge-q4"
+  ].every((option) => modelOptionValues.includes(option));
+  if (hasCombinedGeneratedOptions && result.initialSelectedModel !== "multi-parent-sign-merge-q4") {
+    failures.push(`combined selector default was ${result.initialSelectedModel}`);
   }
   if (result.adapterSelectDisabledBefore || result.applyDisabledBefore) {
     failures.push("adapter controls were disabled before apply");

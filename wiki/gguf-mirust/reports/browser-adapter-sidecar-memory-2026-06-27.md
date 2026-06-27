@@ -3,7 +3,7 @@ title: Browser Adapter Sidecar Memory 2026-06-27
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/reports/browser-adapter-sidecar-memory-2026-06-27/
 status: planned_pending_publication
-reviewed_utc: 2026-06-27T15:10:00Z
+reviewed_utc: 2026-06-27T13:52:09Z
 ---
 
 # Browser Adapter Sidecar Memory
@@ -55,5 +55,5 @@ JavaScript does not parse adapter bytes. Rust remains the authority for `ADP1` p
 ## Next Routes
 
 - Keep `adapter-sidecar` browser smoke in the default browser helper when adapter UI or runtime state changes.
-- Add registry-provided adapter sidecars only after the selector/admission records carry an explicit local adapter route and matching evidence fields.
-- Keep extending generated registry adapter-family sidecars from the current f32 file-backed bundle and intercepted q8_0 registry smoke toward file-backed q8_0/q4_0 bundle routes.
+- Keep registry-provided adapter sidecars tied to explicit local adapter routes, matching manifest fields, and smoke evidence.
+- Use `browser-sparse-adapter-route-memory-2026-06-27.md` for the generated browser ASP1 route proof, then extend the same manifest and receipt shape toward LoRA-style modules and longer selector-route exercises.

@@ -88,13 +88,30 @@
   const registryAdapterFamilyStrategy = "single-adapter-selection";
   const registryAssemblyStatus = "receipt-validated";
   const registryAssemblyKind = "browser-local-assembly-evidence";
+  const selectorDefaultStrategy = "browser-frugal-quantized";
   const adapterFamilyReceiptStatus = "validated";
   const assemblyReceiptStatus = "validated";
   const assemblyReceiptStrategy = "multi-parent-sign-merge";
   const adapterManifestArtifactVersion = "1";
-  const adapterManifestArtifactKind = "raw-f32-task-delta-v1";
   const adapterManifestStatus = "artifact-written";
-  const adapterManifestDtype = "f32-delta";
+  const adapterManifestFormats = [
+    {
+      extension: ".adp1",
+      artifactKind: "raw-f32-task-delta-v1",
+      dtype: "f32-delta",
+      defaultLabel: "ADP1 adapter"
+    },
+    {
+      extension: ".asp1",
+      artifactKind: "sparse-f32-task-delta-v1",
+      dtype: "sparse-f32-delta",
+      defaultLabel: "ASP1 adapter"
+    }
+  ];
+  const adapterFamilyReceiptKinds = new Set([
+    "browser-local-adapter-family",
+    "browser-local-adp1-family"
+  ]);
   const checksumMask = (1n << 64n) - 1n;
   const checksumPrime = 0x100000001b3n;
   const adapterFamilyIdentityKeys = [
@@ -133,6 +150,7 @@
     modelManifest: null,
     assemblyReceipt: null,
     selectorRegistry: null,
+    selectorDefaultModelKey: "",
     hasContext: false,
     messages: []
   };
@@ -376,7 +394,8 @@
         firstKey = key;
       }
     }
-    el.modelSelect.value = models[selected] ? selected : firstKey;
+    const defaultKey = state.selectorDefaultModelKey;
+    el.modelSelect.value = models[selected] ? selected : (models[defaultKey] ? defaultKey : firstKey);
   }
 
   function isSafeRegistryModelPath(value) {
@@ -390,8 +409,15 @@
     return rest.split("/").every((part) => part && part !== "." && part !== "..");
   }
 
+  function adapterFormatForPath(value) {
+    if (!value) {
+      return null;
+    }
+    return adapterManifestFormats.find((format) => value.endsWith(format.extension)) || null;
+  }
+
   function isSafeRegistryAdapterPath(value) {
-    if (!value || !value.startsWith("../models/") || !value.endsWith(".adp1")) {
+    if (!value || !value.startsWith("../models/") || !adapterFormatForPath(value)) {
       return false;
     }
     if (value.includes("\\") || value.includes("://") || value.includes("//")) {
@@ -510,6 +536,7 @@
     if (!isSafeRegistryAdapterPath(adapterPath)) {
       return null;
     }
+    const adapterFormat = adapterFormatForPath(adapterPath);
     const manifestPath = fields[manifestKey];
     if (manifestPath && manifestPath !== `${adapterPath}.manifest`) {
       return null;
@@ -528,7 +555,7 @@
       return null;
     }
     return {
-      label: fields[labelKey] || "ADP1 adapter",
+      label: fields[labelKey] || adapterFormat.defaultLabel,
       path: adapterPath,
       manifestPath: manifestPath || `${adapterPath}.manifest`,
       applyStatus: applyStatus || expectedApplyStatus,
@@ -704,7 +731,32 @@
         assembly: assembly || null
       };
     }
-    return models;
+    const defaultModelKey = registryDefaultModelKey(fields, models);
+    if (defaultModelKey === null) {
+      return null;
+    }
+    return { models, defaultModelKey };
+  }
+
+  function registryDefaultModelKey(fields, models) {
+    const keys = [
+      "selector_default_strategy",
+      "selector_default_candidate_id",
+      "selector_default_quantization"
+    ];
+    const hasDefault = keys.some((key) => fields[key]);
+    if (!hasDefault) {
+      return "";
+    }
+    if (fields.selector_default_strategy !== selectorDefaultStrategy) {
+      return null;
+    }
+    const candidateId = fields.selector_default_candidate_id;
+    const model = models[candidateId];
+    if (!model || fields.selector_default_quantization !== model.quantization) {
+      return null;
+    }
+    return candidateId;
   }
 
   async function loadSelectorRegistry() {
@@ -714,15 +766,17 @@
         return;
       }
       const fields = parseManifest(await response.text());
-      const models = registryModelEntries(fields);
-      if (!models) {
+      const registry = registryModelEntries(fields);
+      if (!registry) {
         return;
       }
-      paths.models = models;
+      paths.models = registry.models;
       state.selectorRegistry = fields;
+      state.selectorDefaultModelKey = registry.defaultModelKey || "";
       renderModelOptions(paths.models);
     } catch (_error) {
       state.selectorRegistry = null;
+      state.selectorDefaultModelKey = "";
     }
   }
 
@@ -780,8 +834,27 @@
         option.textContent = adapters[index].label || `Adapter ${index + 1}`;
         el.adapterSelect.append(option);
       }
+      const preferredIndex = Number.isInteger(model.adapterFamilyPreferredIndex)
+        ? model.adapterFamilyPreferredIndex
+        : 0;
+      if (preferredIndex >= 0 && preferredIndex < adapters.length) {
+        el.adapterSelect.value = String(preferredIndex);
+      }
     }
     setText(el.adapterState, status || (adapters.length > 0 ? "ready" : "none"), isError);
+  }
+
+  function adapterFamilyPreferredIndex(model, fields) {
+    const source = "adapter family receipt";
+    const indexValue = requireManifestField(fields, "adapter_family_preferred_adapter_index", source);
+    const index = Number.parseInt(indexValue, 10);
+    if (!Number.isInteger(index) || String(index) !== indexValue || index < 0 || index >= model.adapters.length) {
+      throw new Error("Adapter family preferred adapter index mismatch");
+    }
+    const preferred = model.adapters[index];
+    requireManifestEqual(fields, "adapter_family_preferred_adapter_path", preferred.path, source);
+    requireManifestEqual(fields, "adapter_family_preferred_manifest_path", preferred.manifestPath, source);
+    return index;
   }
 
   function validateAdapterFamilyReceipt(model, receiptText) {
@@ -792,7 +865,10 @@
     requireChecksumEqual(textChecksumHex(receiptText), family.checksum, "adapter family receipt");
     const fields = parseManifest(receiptText);
     requireManifestEqual(fields, "tinyrustlm_adapter_family_receipt_version", "1");
-    requireManifestEqual(fields, "adapter_family_kind", "browser-local-adp1-family");
+    const familyKind = requireManifestField(fields, "adapter_family_kind", "adapter family receipt");
+    if (!adapterFamilyReceiptKinds.has(familyKind)) {
+      throw new Error("Adapter family receipt kind mismatch");
+    }
     requireManifestEqual(fields, "adapter_family_status", adapterFamilyReceiptStatus);
     requireManifestEqual(fields, "adapter_family_receipt_path", family.path);
     requireManifestEqual(fields, "adapter_family_strategy", family.strategy);
@@ -800,6 +876,7 @@
     if (!Number.isInteger(adapterCount) || adapterCount !== family.count || adapterCount !== model.adapters.length) {
       throw new Error("Adapter family receipt count mismatch");
     }
+    adapterFamilyPreferredIndex(model, fields);
     for (const key of adapterFamilyIdentityKeys) {
       requireManifestField(fields, `family.${key}`);
     }
@@ -831,10 +908,14 @@
     requireChecksumEqual(textChecksumHex(manifestText), adapter.manifestChecksum, `adapter ${index} manifest`);
     const fields = parseManifest(manifestText);
     const source = "Adapter manifest";
+    const adapterFormat = adapterFormatForPath(adapter.path);
+    if (!adapterFormat) {
+      throw new Error("Adapter route format mismatch");
+    }
     requireManifestEqual(fields, "tinyrustlm_adapter_artifact_version", adapterManifestArtifactVersion, source);
-    requireManifestEqual(fields, "adapter_artifact_kind", adapterManifestArtifactKind, source);
+    requireManifestEqual(fields, "adapter_artifact_kind", adapterFormat.artifactKind, source);
     requireManifestEqual(fields, "adapter_status", adapterManifestStatus, source);
-    requireManifestEqual(fields, "adapter_dtype", adapterManifestDtype, source);
+    requireManifestEqual(fields, "adapter_dtype", adapterFormat.dtype, source);
     requireManifestEqual(fields, "adapter_base_quantization", adapter.baseQuantization, source);
     requireManifestEqual(fields, "adapter_apply_status", adapter.applyStatus, source);
     requireChecksumEqual(
@@ -869,12 +950,14 @@
     model.adapterFamilyVerified = false;
     model.adapterFamilyReceipt = null;
     model.adapterFamilyManifests = null;
+    model.adapterFamilyPreferredIndex = null;
     const response = await fetch(model.adapterFamily.path);
     if (!response.ok) {
       throw new Error(`Unable to fetch local adapter-family receipt (${response.status})`);
     }
     const text = await response.text();
     const receiptFields = validateAdapterFamilyReceipt(model, text);
+    const preferredIndex = adapterFamilyPreferredIndex(model, receiptFields);
     const manifestFields = [];
     for (let index = 0; index < model.adapters.length; index += 1) {
       const adapter = model.adapters[index];
@@ -887,6 +970,7 @@
     }
     model.adapterFamilyReceipt = receiptFields;
     model.adapterFamilyManifests = manifestFields;
+    model.adapterFamilyPreferredIndex = preferredIndex;
     model.adapterFamilyVerified = true;
     return "family verified";
   }

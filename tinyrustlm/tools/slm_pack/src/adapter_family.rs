@@ -10,13 +10,15 @@ use crate::provenance;
 use crate::selector::{self, RegistryAdapterFamilyRoute, RegistryAdapterRoute};
 
 const ADAPTER_FAMILY_RECEIPT_VERSION: &str = "1";
-const ADAPTER_FAMILY_KIND: &str = "browser-local-adp1-family";
+const ADAPTER_FAMILY_KIND: &str = "browser-local-adapter-family";
 const ADAPTER_FAMILY_STATUS: &str = "validated";
 const ADAPTER_FAMILY_STRATEGY: &str = "single-adapter-selection";
 const ADAPTER_ARTIFACT_VERSION: &str = "1";
 const ADAPTER_ARTIFACT_KIND: &str = "raw-f32-task-delta-v1";
+const SPARSE_ADAPTER_ARTIFACT_KIND: &str = "sparse-f32-task-delta-v1";
 const ADAPTER_STATUS: &str = "artifact-written";
 const ADAPTER_DTYPE: &str = "f32-delta";
+const SPARSE_ADAPTER_DTYPE: &str = "sparse-f32-delta";
 const ADAPTER_APPLY_STATUS_F32: &str = "runtime-f32-compatible-or-fuse-to-slm";
 const ADAPTER_APPLY_STATUS_QUANTIZED: &str = "runtime-q8-q4-compatible-or-fuse-to-slm";
 const REQUIRED_NEXT_GATE: &str = "browser-loads-selector-registry-adapter-family";
@@ -140,6 +142,23 @@ fn build_receipt_text(
         ADAPTER_FAMILY_STRATEGY,
     );
     push_line(&mut text, "adapter_count", &members.len().to_string());
+    let preferred_index = preferred_member_index(&members);
+    let preferred = &members[preferred_index];
+    push_line(
+        &mut text,
+        "adapter_family_preferred_adapter_index",
+        &preferred_index.to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_family_preferred_adapter_path",
+        preferred.route.adapter_path.as_str(),
+    );
+    push_line(
+        &mut text,
+        "adapter_family_preferred_manifest_path",
+        preferred.route.manifest_path.as_str(),
+    );
     for key in SHARED_IDENTITY_KEYS {
         push_line(
             &mut text,
@@ -200,9 +219,10 @@ fn validate_member_manifest(
         "tinyrustlm_adapter_artifact_version",
         ADAPTER_ARTIFACT_VERSION,
     )?;
-    require_equal(fields, "adapter_artifact_kind", ADAPTER_ARTIFACT_KIND)?;
+    let format = adapter_format_for_route(&route.adapter_path)?;
+    require_equal(fields, "adapter_artifact_kind", format.artifact_kind)?;
     require_equal(fields, "adapter_status", ADAPTER_STATUS)?;
-    require_equal(fields, "adapter_dtype", ADAPTER_DTYPE)?;
+    require_equal(fields, "adapter_dtype", format.dtype)?;
     let base_quantization = require_key(fields, "adapter_base_quantization")?;
     validate_apply_status_for_quantization(&route.apply_status, &base_quantization)?;
     require_equal(fields, "adapter_apply_status", &route.apply_status)?;
@@ -221,6 +241,27 @@ fn validate_member_manifest(
         require_key(fields, key)?;
     }
     Ok(())
+}
+
+struct AdapterManifestFormat {
+    artifact_kind: &'static str,
+    dtype: &'static str,
+}
+
+fn adapter_format_for_route(adapter_path: &str) -> io::Result<AdapterManifestFormat> {
+    if adapter_path.ends_with(".adp1") {
+        return Ok(AdapterManifestFormat {
+            artifact_kind: ADAPTER_ARTIFACT_KIND,
+            dtype: ADAPTER_DTYPE,
+        });
+    }
+    if adapter_path.ends_with(".asp1") {
+        return Ok(AdapterManifestFormat {
+            artifact_kind: SPARSE_ADAPTER_ARTIFACT_KIND,
+            dtype: SPARSE_ADAPTER_DTYPE,
+        });
+    }
+    Err(invalid("adapter family member route format is invalid"))
 }
 
 fn validate_apply_status_for_quantization(status: &str, quantization: &str) -> io::Result<()> {
@@ -251,6 +292,13 @@ fn validate_shared_identity(members: &[AdapterFamilyMember<'_>]) -> io::Result<(
         }
     }
     Ok(())
+}
+
+fn preferred_member_index(members: &[AdapterFamilyMember<'_>]) -> usize {
+    members
+        .iter()
+        .position(|member| member.route.adapter_path.ends_with(".asp1"))
+        .unwrap_or(0)
 }
 
 fn push_member_lines(
@@ -358,9 +406,9 @@ mod tests {
         let dir = unique_dir("family");
         fs::create_dir_all(&dir).unwrap();
         let first_manifest = member_manifest("0x00000000000000aa", "0x00000000000000f1");
-        let second_manifest = member_manifest("0x00000000000000bb", "0x00000000000000f1");
+        let second_manifest = sparse_member_manifest("0x00000000000000bb", "0x00000000000000f1");
         let first_manifest_path = dir.join("first.adp1.manifest");
-        let second_manifest_path = dir.join("second.adp1.manifest");
+        let second_manifest_path = dir.join("second.asp1.manifest");
         fs::write(&first_manifest_path, &first_manifest).unwrap();
         fs::write(&second_manifest_path, &second_manifest).unwrap();
         let first = route(
@@ -370,8 +418,8 @@ mod tests {
             &first_manifest,
         );
         let second = route(
-            "../models/second.adp1",
-            "Second ADP1",
+            "../models/second.asp1",
+            "Second ASP1",
             "0x00000000000000bb",
             &second_manifest,
         );
@@ -398,7 +446,12 @@ mod tests {
 
         validate_receipt_path(&receipt_path, &inputs).unwrap();
         let receipt = fs::read_to_string(&receipt_path).unwrap();
-        assert!(receipt.contains("adapter_family_kind=browser-local-adp1-family"));
+        assert!(receipt.contains("adapter_family_kind=browser-local-adapter-family"));
+        assert!(receipt.contains("adapter_family_preferred_adapter_index=1"));
+        assert!(receipt.contains("adapter_family_preferred_adapter_path=../models/second.asp1"));
+        assert!(receipt
+            .contains("adapter_family_preferred_manifest_path=../models/second.asp1.manifest"));
+        assert!(receipt.contains("adapter.1.path=../models/second.asp1"));
         assert!(receipt.contains("family.adapter_tensor_layout_checksum=0x00000000000000f1"));
         assert_eq!(receipt_route.adapter_count, 2);
         assert_eq!(receipt_route.status, "receipt-validated");
@@ -464,6 +517,7 @@ mod tests {
         validate_receipt_path(&receipt_path, &inputs).unwrap();
         let receipt = fs::read_to_string(&receipt_path).unwrap();
         assert!(receipt.contains("family.adapter_base_quantization=q8_0"));
+        assert!(receipt.contains("adapter_family_preferred_adapter_index=0"));
         assert!(receipt.contains("adapter.1.apply_status=runtime-q8-q4-compatible-or-fuse-to-slm"));
 
         fs::remove_dir_all(dir).unwrap();
@@ -556,11 +610,40 @@ mod tests {
         )
     }
 
+    fn sparse_member_manifest(artifact_checksum: &str, layout_checksum: &str) -> String {
+        member_manifest_with_format(
+            artifact_checksum,
+            layout_checksum,
+            "f32",
+            ADAPTER_APPLY_STATUS_F32,
+            SPARSE_ADAPTER_ARTIFACT_KIND,
+            SPARSE_ADAPTER_DTYPE,
+        )
+    }
+
     fn member_manifest_with_quantization(
         artifact_checksum: &str,
         layout_checksum: &str,
         base_quantization: &str,
         apply_status: &str,
+    ) -> String {
+        member_manifest_with_format(
+            artifact_checksum,
+            layout_checksum,
+            base_quantization,
+            apply_status,
+            ADAPTER_ARTIFACT_KIND,
+            ADAPTER_DTYPE,
+        )
+    }
+
+    fn member_manifest_with_format(
+        artifact_checksum: &str,
+        layout_checksum: &str,
+        base_quantization: &str,
+        apply_status: &str,
+        artifact_kind: &str,
+        dtype: &str,
     ) -> String {
         let mut text = String::new();
         push_line(
@@ -568,12 +651,12 @@ mod tests {
             "tinyrustlm_adapter_artifact_version",
             ADAPTER_ARTIFACT_VERSION,
         );
-        push_line(&mut text, "adapter_artifact_kind", ADAPTER_ARTIFACT_KIND);
+        push_line(&mut text, "adapter_artifact_kind", artifact_kind);
         push_line(&mut text, "adapter_status", ADAPTER_STATUS);
         push_line(&mut text, "adapter_artifact_checksum", artifact_checksum);
         push_line(&mut text, "adapter_tensor_count", "12");
         push_line(&mut text, "adapter_parameter_count", "1024");
-        push_line(&mut text, "adapter_dtype", ADAPTER_DTYPE);
+        push_line(&mut text, "adapter_dtype", dtype);
         push_line(&mut text, "adapter_model_shape", "tiny-fixture");
         push_line(&mut text, "adapter_base_quantization", base_quantization);
         push_line(&mut text, "adapter_output_contract", "untied-output");

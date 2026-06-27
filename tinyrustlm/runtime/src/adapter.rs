@@ -1,13 +1,15 @@
-//! Runtime parser for `ADP1` adapter-delta packages.
+//! Runtime parser for adapter-delta packages.
 
 use crate::errors::ErrorCode;
 use crate::model_format::TensorEntry;
 
-const MAGIC: &[u8; 4] = b"ADP1";
+const RAW_MAGIC: &[u8; 4] = b"ADP1";
+const SPARSE_MAGIC: &[u8; 4] = b"ASP1";
 const VERSION: u32 = 1;
 const HEADER_LEN: usize = 64;
 const ENTRY_LEN: usize = 64;
 const CHECKSUM_OFFSET: usize = 56;
+const SPARSE_PAIR_LEN: usize = 12;
 
 /// Identity values the adapter package must match before it can be applied.
 pub(crate) struct AdapterExpected<'a> {
@@ -26,12 +28,13 @@ pub(crate) struct AdapterDelta {
 struct AdapterDeltaEntry {
     byte_offset: usize,
     element_count: usize,
+    kind: AdapterDeltaPayloadKind,
 }
 
 impl AdapterDelta {
-    /// Parses and validates an `ADP1` package for a loaded model identity.
+    /// Parses and validates an adapter package for a loaded model identity.
     pub(crate) fn parse(bytes: &[u8], expected: &AdapterExpected<'_>) -> Result<Self, ErrorCode> {
-        validate_adapter_bytes(bytes)?;
+        let format = validate_adapter_bytes(bytes)?;
         let tensor_count = read_u32(bytes, 12)? as usize;
         if tensor_count != expected.tensors.len() {
             return Err(ErrorCode::ShapeMismatch);
@@ -55,11 +58,23 @@ impl AdapterDelta {
             let entry_offset = HEADER_LEN + index * ENTRY_LEN;
             validate_entry_identity(bytes, entry_offset, tensor, data_offset)?;
             let byte_offset = usize_from_u64(read_u64(bytes, entry_offset + 32)?)?;
+            let byte_length = usize_from_u64(read_u64(bytes, entry_offset + 40)?)?;
             let element_count = usize_from_u64(read_u64(bytes, entry_offset + 48)?)?;
-            validate_finite_payload(bytes, byte_offset, element_count)?;
+            let kind = match format {
+                AdapterPackageFormat::RawF32 => {
+                    validate_finite_payload(bytes, byte_offset, element_count)?;
+                    AdapterDeltaPayloadKind::RawF32
+                }
+                AdapterPackageFormat::SparseF32 => {
+                    let pair_count =
+                        validate_sparse_payload(bytes, byte_offset, byte_length, element_count)?;
+                    AdapterDeltaPayloadKind::SparseF32 { pair_count }
+                }
+            };
             entries.push(AdapterDeltaEntry {
                 byte_offset,
                 element_count,
+                kind,
             });
         }
         Ok(Self { entries })
@@ -69,15 +84,29 @@ impl AdapterDelta {
         self.entries.iter().map(|entry| AdapterDeltaPayload {
             byte_offset: entry.byte_offset,
             element_count: entry.element_count,
+            kind: entry.kind,
         })
     }
 }
 
-/// One validated f32-delta payload.
+/// The storage layout for one validated adapter payload.
+#[derive(Clone, Copy)]
+pub(crate) enum AdapterDeltaPayloadKind {
+    /// Dense f32 deltas, one value for each tensor element.
+    RawF32,
+    /// Sparse f32 deltas, stored as sorted `(u64 index, f32 delta)` pairs.
+    SparseF32 {
+        /// Number of sparse pairs in the payload.
+        pair_count: usize,
+    },
+}
+
+/// One validated adapter payload.
 #[derive(Clone, Copy)]
 pub(crate) struct AdapterDeltaPayload {
     pub(crate) byte_offset: usize,
     pub(crate) element_count: usize,
+    pub(crate) kind: AdapterDeltaPayloadKind,
 }
 
 /// Computes the checksum used by packer reports for tokenizer sections.
@@ -121,10 +150,33 @@ pub(crate) fn read_f32(bytes: &[u8], offset: usize) -> Result<f32, ErrorCode> {
     Ok(f32::from_le_bytes([slice[0], slice[1], slice[2], slice[3]]))
 }
 
-fn validate_adapter_bytes(bytes: &[u8]) -> Result<(), ErrorCode> {
-    if bytes.get(0..4) != Some(MAGIC) {
-        return Err(ErrorCode::InvalidHeader);
+/// Reads one sparse `(value_index, delta)` pair from a validated sparse payload.
+pub(crate) fn read_sparse_delta_pair(
+    bytes: &[u8],
+    payload: AdapterDeltaPayload,
+    pair_index: usize,
+) -> Result<(usize, f32), ErrorCode> {
+    let AdapterDeltaPayloadKind::SparseF32 { pair_count } = payload.kind else {
+        return Err(ErrorCode::ShapeMismatch);
+    };
+    if pair_index >= pair_count {
+        return Err(ErrorCode::ShapeMismatch);
     }
+    let offset = payload
+        .byte_offset
+        .checked_add(
+            pair_index
+                .checked_mul(SPARSE_PAIR_LEN)
+                .ok_or(ErrorCode::InvalidLength)?,
+        )
+        .ok_or(ErrorCode::InvalidLength)?;
+    let value_index = usize_from_u64(read_u64(bytes, offset)?)?;
+    let delta = read_f32(bytes, offset + 8)?;
+    Ok((value_index, delta))
+}
+
+fn validate_adapter_bytes(bytes: &[u8]) -> Result<AdapterPackageFormat, ErrorCode> {
+    let format = adapter_format(bytes)?;
     if read_u32(bytes, 4)? != VERSION {
         return Err(ErrorCode::UnsupportedModelVersion);
     }
@@ -154,11 +206,22 @@ fn validate_adapter_bytes(bytes: &[u8]) -> Result<(), ErrorCode> {
         let byte_offset = usize_from_u64(read_u64(bytes, entry_offset + 32)?)?;
         let byte_length = usize_from_u64(read_u64(bytes, entry_offset + 40)?)?;
         let element_count = usize_from_u64(read_u64(bytes, entry_offset + 48)?)?;
-        let expected_byte_length = element_count
-            .checked_mul(4)
-            .ok_or(ErrorCode::InvalidLength)?;
-        if byte_length != expected_byte_length {
-            return Err(ErrorCode::ShapeMismatch);
+        match format {
+            AdapterPackageFormat::RawF32 => {
+                let expected_byte_length = element_count
+                    .checked_mul(4)
+                    .ok_or(ErrorCode::InvalidLength)?;
+                if byte_length != expected_byte_length {
+                    return Err(ErrorCode::ShapeMismatch);
+                }
+            }
+            AdapterPackageFormat::SparseF32 => {
+                if byte_length % SPARSE_PAIR_LEN != 0
+                    || byte_length / SPARSE_PAIR_LEN > element_count
+                {
+                    return Err(ErrorCode::ShapeMismatch);
+                }
+            }
         }
         let end = byte_offset
             .checked_add(byte_length)
@@ -170,7 +233,21 @@ fn validate_adapter_bytes(bytes: &[u8]) -> Result<(), ErrorCode> {
             return Err(ErrorCode::InvalidHeader);
         }
     }
-    Ok(())
+    Ok(format)
+}
+
+#[derive(Clone, Copy)]
+enum AdapterPackageFormat {
+    RawF32,
+    SparseF32,
+}
+
+fn adapter_format(bytes: &[u8]) -> Result<AdapterPackageFormat, ErrorCode> {
+    match bytes.get(0..4) {
+        Some(magic) if magic == RAW_MAGIC => Ok(AdapterPackageFormat::RawF32),
+        Some(magic) if magic == SPARSE_MAGIC => Ok(AdapterPackageFormat::SparseF32),
+        _ => Err(ErrorCode::InvalidHeader),
+    }
 }
 
 fn validate_entry_identity(
@@ -221,6 +298,37 @@ fn validate_finite_payload(
         }
     }
     Ok(())
+}
+
+fn validate_sparse_payload(
+    bytes: &[u8],
+    byte_offset: usize,
+    byte_length: usize,
+    element_count: usize,
+) -> Result<usize, ErrorCode> {
+    let pair_count = byte_length / SPARSE_PAIR_LEN;
+    let mut previous_index = None;
+    for pair_index in 0..pair_count {
+        let offset = byte_offset
+            .checked_add(
+                pair_index
+                    .checked_mul(SPARSE_PAIR_LEN)
+                    .ok_or(ErrorCode::InvalidLength)?,
+            )
+            .ok_or(ErrorCode::InvalidLength)?;
+        let value_index = usize_from_u64(read_u64(bytes, offset)?)?;
+        if value_index >= element_count
+            || previous_index.is_some_and(|previous| value_index <= previous)
+        {
+            return Err(ErrorCode::ShapeMismatch);
+        }
+        let delta = read_f32(bytes, offset + 8)?;
+        if !delta.is_finite() {
+            return Err(ErrorCode::InvalidHeader);
+        }
+        previous_index = Some(value_index);
+    }
+    Ok(pair_count)
 }
 
 fn adapter_checksum(bytes: &[u8]) -> Result<u64, ErrorCode> {
