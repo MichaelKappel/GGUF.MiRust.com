@@ -105,7 +105,7 @@ fn read_admissions(admission_paths: &[String], command: &str) -> io::Result<Vec<
         .collect()
 }
 
-fn build_recipe_text(
+pub(crate) fn build_recipe_text(
     ledger_text: &str,
     review_text: &str,
     admission_texts: &[String],
@@ -185,7 +185,7 @@ fn build_recipe_text(
     Ok(text)
 }
 
-fn validate_recipe_text(
+pub(crate) fn validate_recipe_text(
     ledger_text: &str,
     review_text: &str,
     recipe_text: &str,

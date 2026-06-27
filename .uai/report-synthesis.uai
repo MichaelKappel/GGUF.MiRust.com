@@ -1,5 +1,5 @@
 profile: gguf-mirust.report-synthesis.v2
-updated_utc: 2026-06-27T02:47:09Z
+updated_utc: 2026-06-27T03:21:25Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/gguf-mirust/report-intake-2026-06-25/
@@ -17,13 +17,14 @@ source_authority:
   durable_research:
     - wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md
   uaix_strategy_source: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
+  uaix_strategy_dogfood: docs/dogfood/uaix-file-handoff-memory-strategy-2026-06-26.md
 failure_dogfood:
   issue: First report-processing pass over-prioritized durable wiki files and pointer-ledger cleanliness, leaving hot .uai files too thin for cold-start agents.
   correction: Keep long-term-memory.uai pointer-only, but populate typed .uai files with enough report-derived routing, constraints, tensions, and next questions to guide work before wiki deep-loading.
   uaix_guidance_needed: UAIX and LLM Wiki setup guidance should say link-only is not memory-thin; every project needs hot .uai synthesis plus crawlable durable nodes.
   crawlability_rule: A future agent should be able to identify what to load next from .uai files within two minutes, without opening every report or wiki page.
   uaix_file_handoff_strategy_2026_06_26: The active setup is File Handoff plus raw evidence, durable LLM Wiki synthesis, pointer-only long-term memory, and short-term routing into durable report nodes.
-  uaix_file_handoff_strategy_2026_06_27: Keep report bodies in durable wiki/raw evidence, keep short-term memory as current routing plus proof pointers, and keep long-term memory as checksum-bearing file routes.
+  uaix_file_handoff_strategy_2026_06_27: Scan active buckets, classify each source file, record disposition and proof, preserve originals with checksums, synthesize durable wiki/report nodes, refresh hot routing, then remove or explicitly keep active copies.
 report_clusters:
   enterprise_rust_governance:
     sources: enterprise Rust adoption, Enterprise Rust Best Practices, Rust Design Patterns, Rust ownership/SOLID.
@@ -86,16 +87,19 @@ report_clusters:
       - Require exact base-family, tokenizer, tensor-shape, quantization, and output-head compatibility before any parameter-level merge.
       - Use sparse-delta-candidate for lineage-bound sparse task-vector .slm candidates before candidate-manifest.
       - Use population-review for ledger-backed fitness ranking, frontier selection, and parent-pool routing after promotion-ledger.
+      - Use parent-pool-recipe after validate-population-review to require shared direct-parameter contracts and record fitness-normalized seed weights.
+      - Use the reference ideas page for diverse lanes spanning soups, Re-Basin alignment, task vectors, sparse/sign-aware composition, adapters, federated population updates, pruning masks, retention metrics, and evolution-style search.
       - Use distillation or retraining when compatibility breaks instead of direct tensor mixing.
       - Record parent hashes, operator recipe, build tool route, and eval evidence in a future candidate manifest.
       - Treat 4Fs as a helpful lens: fast, flexible, frugal, federated.
-      - Treat code beading as durable small work units: source manifest, compatibility result, candidate artifact, eval sidecar, promotion ledger, population review, and selector registry.
+      - Treat code beading as durable small work units: source manifest, compatibility result, candidate artifact, eval sidecar, promotion ledger, population review, parent-pool recipe, and selector registry.
       - Follow .uai/taboo.uai for public website copy about model breeding, mutualism, and tiny model ecology.
     future_reference_lanes:
       - model soups and task vectors for compatible weight-space edits.
-      - TIES and DARE for sparse/sign-aware delta composition; sparse task-delta receipts are implemented, sign-aware multi-parent recipes are future work.
+      - TIES and DARE for sparse/sign-aware delta composition; sparse task-delta receipts and parent-pool recipes are implemented, while sign-aware candidate operators are future work.
       - LoRA and adapters for compact skill deltas; adapter-delta and adapter-fuse are implemented offline gates while runtime apply remains future work.
-      - population-based training for candidate registries, fitness scores, staged promotion, and the implemented population-review record.
+      - population-based training for candidate registries, fitness scores, staged promotion, implemented population-review records, and implemented parent-pool recipes.
+      - federated averaging, evolution strategies, adapter families, quantized adapter training, pruning, lottery tickets, and retention metrics for future recipe metadata, eval sidecars, and compact candidate artifacts.
     keep_separate:
       - Research references are future lanes, not current runtime claims.
       - Third-party framework suggestions in reports are comparison context while zero-dependency TinyRustLM remains active.

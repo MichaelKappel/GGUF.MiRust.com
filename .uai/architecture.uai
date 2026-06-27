@@ -1,5 +1,5 @@
 profile: gguf-mirust.architecture.v4
-updated_utc: 2026-06-27T02:47:09Z
+updated_utc: 2026-06-27T03:21:25Z
 active_product:
   name: TinyRustLM
   root: tinyrustlm/
@@ -54,7 +54,7 @@ report_derived_architecture_memory:
   parent_pool_recipe_boundary: tinyrustlm-slm-pack parent-pool-recipe is the current reviewed-parent planning gate; it validates the population review, requires shared direct-parameter contract fields, and records fitness-normalized seed weights for future sign-aware merge work.
   selector_registry_boundary: tinyrustlm-slm-pack selector-registry is the current browser route gate; it consumes selector admission records, requires served tinyrustlm/models candidate paths, writes ../models/*.slm routes, and app.js can consume models/selector.registry when present.
   code_beading_memory: Break model-breeding work into durable beads: source manifest, compatibility check, lineage template, blend, task-delta, or sparse task-delta operator receipt, adapter-delta artifact manifest, adapter-fuse receipt, candidate artifact manifest, promotion template, runtime-smoke sidecar, eval sidecar, selector admission record, promotion ledger, population review, parent-pool recipe, selector registry, and provenance display.
-  research_reference_boundary: Model soups, Git Re-Basin, task arithmetic, TIES, DARE, LoRA, and population-based training are research lanes recorded in wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md; DARE-style sparse selection maps to sparse-delta-candidate and PBT-style selection maps to population-review plus parent-pool recipes while sign-aware multi-parent candidate operators remain future work.
+  research_reference_boundary: Model soups, Git Re-Basin, task arithmetic, TIES, DARE, LoRA, FedAvg, evolution strategies, EWC, PackNet, lottery tickets, adapters, QLoRA, and PBT are research lanes recorded in wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md; DARE-style sparse selection maps to sparse-delta-candidate and PBT-style selection maps to population-review plus parent-pool recipes while sign-aware multi-parent candidate operators, retention metrics, mask metadata, and compact adapter variants remain future work.
   teleodynamic_translation: Treat resource-bounded ideas as measurable states: context length, scratch arena, KV length, load phase, reset behavior, failure recovery, and latency.
   brand_boundary: Position TinyRustLM as a transparent browser-local Rust/WASM SLM runtime; do not claim trained-quality assistant behavior, GGUF import, or Mini Browser orchestration yet.
   site_voice_boundary: Read .uai/taboo.uai before changing public copy; keep GGUF.MiRust.com centered on constructive local-model craft, lineage, and proof.

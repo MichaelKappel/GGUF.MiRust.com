@@ -1,5 +1,5 @@
 profile: gguf-mirust.workspace-guidance.v3
-updated_utc: 2026-06-27T03:10:31Z
+updated_utc: 2026-06-27T03:21:25Z
 canonical_root: E:\Source\Rust\GGUF.MiRust.com
 startup_rule: Read AGENTS.md, workspace.uai, and local .uai startup files before broad loading.
 memory_strategy:
@@ -13,6 +13,8 @@ memory_strategy:
   dogfood_rule: If durable wiki memory is hard to crawl from .uai, update UAIX/LLM Wiki guidance and strengthen hot .uai synthesis rather than only adding more Markdown.
   report_storage_rule: Keep report bodies in wiki/raw durable evidence, keep short-term memory as current routing plus proof pointers, and keep long-term memory as checksum-bearing pointers.
   uaix_file_handoff_strategy_source: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
+  uaix_file_handoff_strategy_2026_06_27: Scan active buckets first, record disposition and proof-of-use, preserve originals with checksums in raw evidence, synthesize durable wiki/report nodes, refresh hot routing, then remove or explicitly keep active source copies.
+  research_reference_distribution_rule: Keep research/reference bodies in wiki/gguf-mirust/research/ and report syntheses in wiki/gguf-mirust/reports/; route them from short-term memory and checksum-bearing long-term pointers instead of inlining them into long-term memory.
 long_term_pointer_rule:
   link_only_not_context_free: true
   summary_rule: Routing-only, one sentence, 35 words maximum, no body memory.

@@ -14,6 +14,7 @@ mod promotion;
 mod provenance;
 mod quant_writer;
 mod selector;
+mod sign_merge;
 mod slm_validate;
 mod sparse_delta;
 mod tensor_writer;
@@ -1165,6 +1166,102 @@ fn run() -> io::Result<()> {
             &admission_records,
         );
     }
+    if output == "sign-merge-candidate" {
+        let Some(input_ledger) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "sign-merge-candidate requires an input ledger path",
+            ));
+        };
+        let Some(input_review) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "sign-merge-candidate requires an input review path",
+            ));
+        };
+        let Some(input_recipe) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "sign-merge-candidate requires an input parent-pool recipe path",
+            ));
+        };
+        let Some(output_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "sign-merge-candidate requires an output candidate .slm path",
+            ));
+        };
+        let Some(output_receipt) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "sign-merge-candidate requires an output operator receipt path",
+            ));
+        };
+        let (parent_paths, admission_records) =
+            split_parent_admission_args("sign-merge-candidate", args.collect())?;
+        return sign_merge::write_candidate_path(
+            Path::new(&input_ledger),
+            Path::new(&input_review),
+            Path::new(&input_recipe),
+            Path::new(&output_slm),
+            Path::new(&output_receipt),
+            &parent_paths,
+            &admission_records,
+        );
+    }
+    if output == "validate-sign-merge-candidate" {
+        let Some(input_ledger) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-sign-merge-candidate requires an input ledger path",
+            ));
+        };
+        let Some(input_review) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-sign-merge-candidate requires an input review path",
+            ));
+        };
+        let Some(input_recipe) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-sign-merge-candidate requires an input parent-pool recipe path",
+            ));
+        };
+        let Some(candidate_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-sign-merge-candidate requires a candidate .slm path",
+            ));
+        };
+        let Some(input_receipt) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-sign-merge-candidate requires an input operator receipt path",
+            ));
+        };
+        let (parent_paths, admission_records) =
+            split_parent_admission_args("validate-sign-merge-candidate", args.collect())?;
+        return sign_merge::validate_candidate_path(
+            Path::new(&input_ledger),
+            Path::new(&input_review),
+            Path::new(&input_recipe),
+            Path::new(&candidate_slm),
+            Path::new(&input_receipt),
+            &parent_paths,
+            &admission_records,
+        );
+    }
     if output == "validate-selector-registry" {
         let Some(input_registry) = args.next() else {
             print_usage();
@@ -1451,6 +1548,60 @@ fn run() -> io::Result<()> {
     Ok(())
 }
 
+fn split_parent_admission_args(
+    command: &str,
+    rest: Vec<String>,
+) -> io::Result<(Vec<String>, Vec<String>)> {
+    let Some(parent_marker) = rest.iter().position(|arg| arg == "--parents") else {
+        print_usage();
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("{command} requires --parents before parent .slm paths"),
+        ));
+    };
+    let Some(admission_marker) = rest.iter().position(|arg| arg == "--admissions") else {
+        print_usage();
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("{command} requires --admissions before admission records"),
+        ));
+    };
+    if parent_marker != 0 || admission_marker <= parent_marker + 1 {
+        print_usage();
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("{command} requires --parents <parent.slm> [...parent.slm]"),
+        ));
+    }
+    if admission_marker + 1 >= rest.len() {
+        print_usage();
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("{command} requires --admissions <input.admission> [...input.admission]"),
+        ));
+    }
+    let parents = rest[parent_marker + 1..admission_marker].to_vec();
+    let admissions = rest[admission_marker + 1..].to_vec();
+    if parents.len() < 2 {
+        print_usage();
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("{command} requires at least two parent .slm paths"),
+        ));
+    }
+    if admissions
+        .iter()
+        .any(|arg| arg == "--parents" || arg == "--admissions")
+    {
+        print_usage();
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("{command} received duplicate list markers"),
+        ));
+    }
+    Ok((parents, admissions))
+}
+
 fn print_usage() {
     eprintln!(
         "usage: tinyrustlm-slm-pack <output.slm> [tiny-fixture|tiny-fixture-tied|tiny-fixture-q8|tiny-fixture-q4|tiny-fixture-bpe|tinylm16-f32|tinylm16-q8|tinylm16-q4]\n       tinyrustlm-slm-pack validate <input.slm>\n       tinyrustlm-slm-pack compatibility <left-parent.slm> <right-parent.slm> [output.compat]\n       tinyrustlm-slm-pack lineage-template <input.compat> <output.lineage> <candidate-id> <operator-id> [resource-budget]\n       tinyrustlm-slm-pack validate-lineage <input.compat> <input.lineage>\n       tinyrustlm-slm-pack blend-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <output.slm> <output.operator> [parent0-weight-ppm]\n       tinyrustlm-slm-pack validate-blend-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm]\n       tinyrustlm-slm-pack validate-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack sparse-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm] [keep-ppm]\n       tinyrustlm-slm-pack validate-sparse-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.adapter> <output.adapter.manifest>\n       tinyrustlm-slm-pack validate-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest>\n       tinyrustlm-slm-pack fuse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest> <output.slm> <output.operator>\n       tinyrustlm-slm-pack validate-fuse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack candidate-manifest <input.compat> <input.lineage> <candidate.slm> <output.candidate>\n       tinyrustlm-slm-pack validate-candidate <input.compat> <input.lineage> <candidate.slm> <input.candidate>\n       tinyrustlm-slm-pack promotion-template <input.compat> <input.lineage> <candidate.slm> <input.candidate> <output.promotion> [promoter-id] [promotion-scope]\n       tinyrustlm-slm-pack validate-promotion <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion>\n       tinyrustlm-slm-pack admission-record <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion> <input.manifest> <input.runtime> <input.eval> <output.admission> [selector-id]\n       tinyrustlm-slm-pack validate-admission <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion> <input.manifest> <input.runtime> <input.eval> <input.admission>\n       tinyrustlm-slm-pack promotion-ledger <output.ledger> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-promotion-ledger <input.ledger> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack selector-registry <output.registry> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-selector-registry <input.registry> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack manifest <input.slm> <output.manifest> [deterministic-smoke|converted-trained]\n       tinyrustlm-slm-pack validate-manifest <input.slm> <input.manifest>\n       tinyrustlm-slm-pack runtime-smoke <input.slm> <input.manifest> <output.runtime>\n       tinyrustlm-slm-pack validate-runtime-smoke <input.slm> <input.manifest> <input.runtime>\n       tinyrustlm-slm-pack eval-template <input.slm> <input.manifest> <output.eval> [assistant-quality]\n       tinyrustlm-slm-pack quality-gate <input.slm> <input.manifest> <runtime-smoke|assistant-quality> [input.eval]\n       tinyrustlm-slm-pack source-template <output-source-dir> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied]\n       tinyrustlm-slm-pack validate-source <input-source-dir>\n       tinyrustlm-slm-pack convert-trained <input-source-dir> <output.slm> [f32|q8_0|q4_0]"
@@ -1460,6 +1611,9 @@ fn print_usage() {
     );
     eprintln!(
         "       tinyrustlm-slm-pack parent-pool-recipe <input.ledger> <input.review> <output.recipe> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-parent-pool-recipe <input.ledger> <input.review> <input.recipe> <input.admission> [...input.admission]"
+    );
+    eprintln!(
+        "       tinyrustlm-slm-pack sign-merge-candidate <input.ledger> <input.review> <input.recipe> <output.slm> <output.operator> --parents <parent.slm> [...parent.slm] --admissions <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-sign-merge-candidate <input.ledger> <input.review> <input.recipe> <candidate.slm> <input.operator> --parents <parent.slm> [...parent.slm] --admissions <input.admission> [...input.admission]"
     );
 }
 

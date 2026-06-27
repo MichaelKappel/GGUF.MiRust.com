@@ -1,11 +1,12 @@
-profile: gguf-mirust.taboo.v1
-updated_utc: 2026-06-27T02:47:09Z
+profile: gguf-mirust.taboo.v2
+updated_utc: 2026-06-27T03:21:25Z
 scope: public_site_voice_and_project_copy
 purpose: Keep GGUF.MiRust.com focused on constructive local-model craft, verifiable Rust/WASM execution, model lineage, research momentum, and user agency.
 authority:
   human_request: 2026-06-26
   route_elsewhere: Broad AI policy, harm essays, and alarm-led public messaging belong on other websites.
   human_update_2026_06_27: This website should not spend public copy on caution-centered or worry-centered AI messaging; keep that content on other sites.
+  human_update_2026_06_27_site_rule: GGUF.MiRust.com pages should not be organized around warnings, cautions, worry, or alarm messaging; use proof, craft, lineage, local agency, and implementation-boundary language instead.
 public_site_voice:
   preferred_emphasis:
     - browser-local Rust/WASM execution
@@ -31,4 +32,5 @@ public_site_voice:
     warning: use proof, boundary, status, route, or fit when the copy needs a factual project edge.
     caution: use scope note, implementation boundary, or future lane when the copy needs project routing.
     risk: use fit, compatibility, or claim boundary when the copy needs technical precision.
+    site_section_titles: use status, evidence, boundaries, routes, fit, lineage, craft, or future lanes.
 implementation_note: This file guides site voice and public product copy; technical tests, error states, and Rust lint names may still use their exact domain terms where required.

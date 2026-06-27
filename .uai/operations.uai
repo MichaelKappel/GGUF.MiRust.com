@@ -1,5 +1,5 @@
 profile: gguf-mirust.operations.v4
-updated_utc: 2026-06-27T02:23:33Z
+updated_utc: 2026-06-27T03:10:31Z
 local_development:
   active_product: TinyRustLM
   app_url: http://127.0.0.1:8080/app/
@@ -16,6 +16,7 @@ toolchain:
   rustup: C:\Users\AI\.cargo\bin\rustup.exe
   node: required_for_javascript_execution_smoke_tools_only
 current_verified_checks:
+  - 2026-06-27 parent_pool_recipe_gate_verified: tinyrustlm-slm-pack parent-pool-recipe consumes a validated promotion ledger, population review, and admission records, requires selected parents to share direct-parameter contract fields, writes ranked parent roles plus fitness-normalized seed weights, and validate-parent-pool-recipe recomputes the recipe before future recipe consumers; cargo fmt --all -- --check, focused parent_pool tests with 6 tests, focused packer tests with 108 tests, workspace tests with 182 tests, strict slm_pack rustdoc, cargo build -p tinyrustlm-slm-pack, CLI promotion-ledger-population-review-parent-pool-recipe-validate-parent-pool-recipe chain, dependency-section scan, public-copy scan, and git diff --check line-ending-only passed.
   - 2026-06-27 sparse_delta_operator_gate_verified: tinyrustlm-slm-pack sparse-delta-candidate consumes compatibility, lineage, base and target .slm files, signed delta weight, and keep rate, writes a normal .slm candidate plus recomputable sparse task-delta receipt, and validate-sparse-delta-candidate recomputes selected absolute deltas, candidate bytes, and receipt before candidate-manifest; cargo fmt --all -- --check, focused sparse_delta tests with 6 tests, focused packer tests with 96 tests, workspace tests with 170 tests, strict slm_pack rustdoc, cargo build -p tinyrustlm-slm-pack, CLI q8 compatibility-lineage-sparse-delta-validate-candidate chain, dependency-section scan, public-copy scan, and git diff --check line-ending-only passed.
   - 2026-06-27 adapter_fuse_candidate_gate_verified: tinyrustlm-slm-pack fuse-adapter-delta consumes compatibility, lineage, base and target .slm files, an ADP1 adapter package, and its manifest, validates the package and manifest, writes a normal .slm candidate plus recomputable fuse receipt, and validate-fuse-adapter-delta recomputes both; cargo fmt --all -- --check, focused adapter tests with 9 tests, focused packer tests with 90 tests, workspace tests with 164 tests, strict slm_pack rustdoc, CLI compatibility-lineage-adapter-write-validate-fuse-validate chain, dependency-section scan, public-copy scan, and git diff --check line-ending-only passed.
   - 2026-06-27 adapter_delta_artifact_gate_verified: tinyrustlm-slm-pack adapter-delta consumes a passing compatibility report, validated lineage, compatibility-bound base and target .slm files, writes an ADP1 raw-f32-task-delta-v1 binary package plus manifest, and validate-adapter-delta recomputes bytes and manifest; cargo fmt --all -- --check, focused packer tests with 86 tests, workspace tests with 160 tests, strict slm_pack rustdoc, CLI q8 compatibility-lineage-adapter-write-validate chain, dependency-section scan, public-doc taboo scan, and git diff --check line-ending-only passed.
@@ -86,7 +87,7 @@ security_boundary:
   quality_gates: runtime-smoke allowed for execution evidence; assistant-quality requires converted-trained provenance plus a matching passed eval sidecar with positive case count, zero failures, and exact per-case expected/actual matches.
   network: no_remote_inference_no_cdn_no_telemetry
   report_guidance: design_pressure_only_until_converted_to_source_change_or_testable_invariant
-  model_breeding_guidance: offline_candidate_lineage_only_with_tinyrustlm_slm_pack_compatibility_reports_validated_lineage_templates_validated_blend_task_delta_or_sparse_delta_operator_receipts_validated_adapter_delta_manifests_validated_adapter_fuse_receipts_validated_candidate_artifact_manifests_validated_promotion_sidecars_validated_runtime_smoke_sidecars_validated_selector_admission_records_validated_promotion_ledgers_and_validated_selector_registries_before_selector_claims
+  model_breeding_guidance: offline_candidate_lineage_only_with_tinyrustlm_slm_pack_compatibility_reports_validated_lineage_templates_validated_blend_task_delta_or_sparse_delta_operator_receipts_validated_adapter_delta_manifests_validated_adapter_fuse_receipts_validated_candidate_artifact_manifests_validated_promotion_sidecars_validated_runtime_smoke_sidecars_validated_selector_admission_records_validated_promotion_ledgers_validated_population_reviews_validated_parent_pool_recipes_and_validated_selector_registries_before_selector_claims
   site_voice: public_copy_routes_through_uai_taboo_for_constructive_local_model_craft
 operations_notes:
   - Chrome may leave temporary tinyrustlm-browser-smoke-* profiles; remove only matching directories under %TEMP% after verifying no matching browser process remains.
@@ -115,6 +116,8 @@ operations_notes:
   - Use tinyrustlm-slm-pack runtime-smoke after validate-manifest when a durable execution sidecar is needed; validate-runtime-smoke before feeding runtime evidence into admission-record.
   - Use tinyrustlm-slm-pack admission-record only after validate-promotion, validate-runtime-smoke, and a passed converted-trained eval sidecar; validate-admission before any future selector registry or browser route consumes a bred candidate.
   - Use tinyrustlm-slm-pack promotion-ledger after validate-admission when admitted candidates need a durable promotion history; validate-promotion-ledger before selector or population review consumes the ledger.
+  - Use tinyrustlm-slm-pack population-review after validate-promotion-ledger when a ledger needs frontier and parent-pool routing; validate-population-review before parent-pool-recipe consumes the review.
+  - Use tinyrustlm-slm-pack parent-pool-recipe after validate-population-review when reviewed candidates need a shared-contract parent recipe; validate-parent-pool-recipe before any future recipe consumer.
   - Use tinyrustlm-slm-pack validate-manifest on every generated or converted .slm sidecar before treating an artifact as admitted.
   - Use tinyrustlm-slm-pack validate-source before convert-trained; do not treat unchecked source weights as eligible for converted-trained provenance.
   - Use tied source-template and runtime-smoke conversion gates after changing output-head layout behavior; tied conversion omits output.weight and does not imply assistant-quality evidence.

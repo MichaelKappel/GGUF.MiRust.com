@@ -1,5 +1,5 @@
 profile: gguf-mirust.coding-standards.v4
-updated_utc: 2026-06-27T02:47:09Z
+updated_utc: 2026-06-27T03:21:25Z
 rust:
   edition: 2021
   dependency_policy: No third-party Rust crates in TinyRustLM runtime or packer.
@@ -27,6 +27,7 @@ memory:
   report_synthesis_rule: Do store compact report-derived operating memory in typed .uai files so cold-start agents can route and reason without bulk-loading every report.
   report_reference_rule: Short-term memory must point to durable report indexes after each processed batch; long-term memory remains pointer-only with checksums.
   uaix_file_handoff_rule: Follow the UAIX file-handoff setup shape; active drops are transient, hot .uai files carry current routing and synthesis, and report bodies live in wiki/raw evidence targets.
+  research_reference_rule: Keep diverse model-breeding research in wiki/gguf-mirust/research/ and route it through hot .uai synthesis; do not inline research bodies into the long-term pointer ledger.
   site_voice_rule: Read .uai/taboo.uai before public copy or product-positioning edits.
 file_handoff:
   rule: Active handoff files must receive disposition ledger entries before they are removed, preserved, or kept active.
@@ -47,7 +48,7 @@ model_breeding:
   population_review: Run tinyrustlm-slm-pack population-review after validate-promotion-ledger when admitted candidates need frontier or parent-pool selection; validate-population-review must recompute ranking from ledger plus admissions.
   parent_pool_recipe: Run tinyrustlm-slm-pack parent-pool-recipe after validate-population-review when reviewed candidates need a shared-contract parent recipe; validate-parent-pool-recipe must recompute the review, parent contract fields, and seed weights from ledger plus admissions.
   selector_registry: Run tinyrustlm-slm-pack selector-registry only after validate-admission and after the admitted candidate artifact plus manifest are staged under served tinyrustlm/models routing; validate-selector-registry must reject drift before browser selector claims.
-  adapters: Treat adapter-delta packages as offline typed delta artifacts; use fuse-adapter-delta to create normal .slm candidates for the existing admission path; keep LoRA adapters, runtime apply, and multi-parent sign-aware candidate operators as future formats with explicit source, tests, and manifest support.
+  adapters: Treat adapter-delta packages as offline typed delta artifacts; use fuse-adapter-delta to create normal .slm candidates for the existing admission path; keep LoRA, adapter-family variants, QLoRA-style quantized adapter ideas, runtime apply, and multi-parent sign-aware candidate operators as future formats with explicit source, tests, and manifest support.
   heterogenous_models: Use distillation or retraining when architecture or tokenizer compatibility fails.
 report_derived_rust_rules:
   - Prefer enums, newtypes, slices, explicit lengths, and data-driven dimensions over abstract framework layers.

@@ -1,5 +1,5 @@
 profile: gguf-mirust.long-term-memory-ledger.v3
-updated_utc: 2026-06-27T02:47:09Z
+updated_utc: 2026-06-27T03:21:25Z
 storage_mode: hybrid
 ledger_rule:
   pointer_only_not_context_free: true
@@ -12,15 +12,15 @@ records:
     path: tinyrustlm/README.md
     target_location: tinyrustlm/README.md
     label: Required For TinyRustLM Build And Run Instructions
-    summary: Routes agents to TinyRustLM commands, conversion, compatibility, operators, adapters, candidates, promotion, admission, ledgers, population reviews, registries, smokes, and limits.
+    summary: Routes agents to TinyRustLM commands, conversion, compatibility, operators, adapters, candidates, promotion, admission, ledgers, population reviews, parent-pool recipes, registries, smokes, and limits.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed implementation doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before building, testing, serving, or claiming TinyRustLM runtime support.
-    checksum_hash: sha256:1F014F1F2B04CF2F45B93B6A26154AE35432270DABDCA9CDA1286C8BA1938821
-    last_reviewed_utc: 2026-06-27T02:47:09Z
+    checksum_hash: sha256:AF942B2FA43563CFF4FF209D411815EFDF145A3765C64C8C0B7862F229C3BF06
+    last_reviewed_utc: 2026-06-27T03:10:31Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; durable build detail lives in the target file.
   - stable_id: gguf_mirust_root_readme
@@ -29,15 +29,15 @@ records:
     path: README.md
     target_location: README.md
     label: Required For Workspace Entry Commands
-    summary: Routes agents to setup, commands, rustdoc, conversion, compatibility, operators, adapter artifacts, candidates, promotion, runtime-smoke, admission, ledgers, population reviews, registries, and memory strategy.
+    summary: Routes agents to setup, commands, rustdoc, conversion, compatibility, operators, adapter artifacts, candidates, promotion, runtime-smoke, admission, ledgers, population reviews, parent-pool recipes, registries, and memory strategy.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed workspace doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before orienting from the repository root or changing top-level commands.
-    checksum_hash: sha256:5A123CAEC22D09EC180BB13D6AF49AB0D7C7578692313DBED8374506C51464FD
-    last_reviewed_utc: 2026-06-27T02:47:09Z
+    checksum_hash: sha256:6586969BEBF5F3D1E9C51940A2225998C69C3EA9F5AA7F3A0B03045951C2000E
+    last_reviewed_utc: 2026-06-27T03:10:31Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; root command detail lives in the target file.
   - stable_id: tinyrustlm_workspace_cargo
@@ -63,15 +63,15 @@ records:
     path: tinyrustlm/docs/architecture.md
     target_location: tinyrustlm/docs/architecture.md
     label: Required For TinyRustLM Architecture
-    summary: Routes agents to runtime/app/tooling boundaries, model-breeding operators, adapters, candidates, promotion, runtime-smoke, admission, ledgers, population reviews, registries, browser intake, gates, and expansion.
+    summary: Routes agents to runtime/app/tooling boundaries, model-breeding operators, adapters, candidates, promotion, runtime-smoke, admission, ledgers, population reviews, parent-pool recipes, registries, browser intake, gates, and expansion.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed architecture doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing runtime boundaries, app responsibilities, model loading, or future milestone order.
-    checksum_hash: sha256:76B13701F585716B1F54602A8084369B8D4202F5BCB1FE2581F8B4BB1E72EC1B
-    last_reviewed_utc: 2026-06-27T02:47:09Z
+    checksum_hash: sha256:8692176B7834C4F5F2E026FCB2E4B089FA492D9A8B11E921DB31A14ADEE57E84
+    last_reviewed_utc: 2026-06-27T03:10:31Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; architecture detail lives in the target file.
   - stable_id: tinyrustlm_slm_format
@@ -80,15 +80,15 @@ records:
     path: tinyrustlm/docs/slm-format.md
     target_location: tinyrustlm/docs/slm-format.md
     label: Required For SLM Format Work
-    summary: Routes agents to v1 .slm layout, conversion, validation, compatibility, operators, ADP1 adapters, adapter-fuse, promotion, runtime-smoke, admission, ledgers, population reviews, registries, and gates.
+    summary: Routes agents to v1 .slm layout, conversion, validation, compatibility, operators, ADP1 adapters, adapter-fuse, promotion, runtime-smoke, admission, ledgers, population reviews, parent-pool recipes, registries, and gates.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed format doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing model_format.rs, slm_pack, fixtures, or model validation.
-    checksum_hash: sha256:F62142668AD520BB7B28D74E59723902D00DE67EE09BC0DDCF2D0EFA1A851B02
-    last_reviewed_utc: 2026-06-27T02:47:09Z
+    checksum_hash: sha256:486FF36D96524CE496F7A85511B9CE9E760ADAFB4ED1E6D45AF53615C22DFA62
+    last_reviewed_utc: 2026-06-27T03:10:31Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; format detail lives in the target file.
   - stable_id: tinyrustlm_tokenizer
@@ -403,15 +403,15 @@ records:
     path: tinyrustlm/tools/slm_pack/src/main.rs
     target_location: tinyrustlm/tools/slm_pack/src/main.rs
     label: Required For SLM Packer And Artifact Generation
-    summary: Routes agents to CLI dispatch for conversion, manifests, eval, compatibility, operators, adapters, candidates, promotion, runtime-smoke, admission, ledgers, population reviews, registries, and checksums.
+    summary: Routes agents to CLI dispatch for conversion, manifests, eval, compatibility, operators, adapters, candidates, promotion, runtime-smoke, admission, ledgers, population reviews, parent-pool recipes, registries, and checksums.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed packer source
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before regenerating artifacts or changing tensor writer/checksum behavior.
-    checksum_hash: sha256:93B67C18575FF547C9EAB780330809FF6DFE903E9864C2457885CAE155537D22
-    last_reviewed_utc: 2026-06-27T02:47:09Z
+    checksum_hash: sha256:77CAFB6EB7DA1B41D1268C25CA4458E19CA294189BB785ABEFB4451430478A9A
+    last_reviewed_utc: 2026-06-27T03:10:31Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; packer implementation lives in the target file.
   - stable_id: tinyrustlm_tokenizer_writer_source
@@ -631,10 +631,27 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing population review ranking, frontier selection, parent-pool routing, or PBT-inspired model-breeding gates.
-    checksum_hash: sha256:70A308B2145B2782E12B609BB48F3168853E2C9B44A0DB8527BE49E567A5D750
-    last_reviewed_utc: 2026-06-27T02:47:09Z
+    checksum_hash: sha256:AAAECEAA7B3871F0718E71BDD08DE6FB3C8F65F9DB9C85427788B3E1B2F94D41
+    last_reviewed_utc: 2026-06-27T03:10:31Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; population review implementation lives in the target file.
+  - stable_id: tinyrustlm_slm_parent_pool_source
+    memory_domain: tinyrustlm.model_breeding_parent_pool_source
+    pointer_type: local_rs
+    path: tinyrustlm/tools/slm_pack/src/parent_pool.rs
+    target_location: tinyrustlm/tools/slm_pack/src/parent_pool.rs
+    label: Required For Parent-Pool Recipe Records
+    summary: Routes agents to parent-pool-recipe, validate-parent-pool-recipe, population-review validation, shared direct-parameter contracts, seed weights, and drift tests.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed packer source
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing reviewed-parent recipes, seed weighting, sign-aware merge planning, or population-review consumers.
+    checksum_hash: sha256:1F8C6C8983F2A5900DC226A6ACC54BC9C049CF9D208733209D53A591829B80D0
+    last_reviewed_utc: 2026-06-27T03:10:31Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; parent-pool recipe implementation lives in the target file.
   - stable_id: tinyrustlm_slm_selector_source
     memory_domain: tinyrustlm.model_breeding_selector_source
     pointer_type: local_rs
@@ -1287,15 +1304,15 @@ records:
     path: docs/dogfood/uaix-file-handoff-memory-strategy-2026-06-26.md
     target_location: docs/dogfood/uaix-file-handoff-memory-strategy-2026-06-26.md
     label: Required For UAIX File Handoff Memory Strategy Dogfood
-    summary: Routes agents to UAIX wizard-aligned File Handoff strategy for raw preservation, durable synthesis, hot routing, and source-copy clearing.
+    summary: Routes agents to UAIX wizard-aligned File Handoff strategy for raw preservation, durable synthesis, hot routing, pointer ledgers, and source-copy clearing.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local dogfood review from UAIX AI Memory Package Wizard
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing File Handoff, LLM Wiki, or report-batch strategy.
-    checksum_hash: sha256:9CE7A31D108651C7DA13BD35225D0422FC8476A1A1BF7E7DDA77E05A72BD5F3F
-    last_reviewed_utc: 2026-06-26T18:44:35Z
+    checksum_hash: sha256:A90D2A3D861D44E3DE2407841F2273E19594B820B5214CE14952A58690A4C294
+    last_reviewed_utc: 2026-06-27T03:21:25Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; strategy findings live in the target file.
   - stable_id: gguf_mirust_llm_wiki_index
@@ -1355,15 +1372,15 @@ records:
     path: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
     target_location: https://aiwikis.org/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26/
     label: Required For Model Breeding Ecology Memory
-    summary: Routes agents to model-breeding concepts for lineage, compatibility, sparse-delta, adapters, population review, evaluation sidecars, promotion records, and site voice.
+    summary: Routes agents to model-breeding concepts for lineage, compatibility, sparse-delta, adapters, population review, parent-pool recipes, evaluation sidecars, promotion records, and site voice.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed report synthesis
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before model-breeding architecture, candidate manifest, adapter, merge-operator, or product-positioning work.
-    checksum_hash: sha256:ED2BBBA922CA954420B460CDCA560CB7AB11082E7FFCC9629231D98526AA2835
-    last_reviewed_utc: 2026-06-27T02:47:09Z
+    checksum_hash: sha256:27EAD15E40E72CE17B83D2810107615804D0AAC7D4CE84B56968D5AE5A5A1568
+    last_reviewed_utc: 2026-06-27T03:21:25Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; report synthesis body lives in the target file.
   - stable_id: gguf_mirust_model_breeding_reference_ideas
@@ -1372,15 +1389,15 @@ records:
     path: wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md
     target_location: https://aiwikis.org/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26/
     label: Required For Model Breeding Research References
-    summary: Routes agents to research sources for soups, Re-Basin, task arithmetic, TIES, DARE, sparse-delta, adapters, population review, PBT, and UAIX File Handoff.
+    summary: Routes agents to research sources for soups, Re-Basin, task arithmetic, TIES/DARE, adapters, PBT, federated updates, pruning masks, retention metrics, parent-pool recipes, and UAIX handoff.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed research routing
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before selecting model-breeding references or designing future candidate operators.
-    checksum_hash: sha256:D9F54AE253E92E35D42F94A2E05200E836AF6A6F238102CACD765A3F8093EBCB
-    last_reviewed_utc: 2026-06-27T02:47:09Z
+    checksum_hash: sha256:6DCB5DE5639764F33C1EE62995E89DF151DC36D35C0E803FD1D5842E55C821C0
+    last_reviewed_utc: 2026-06-27T03:21:25Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; research reference body lives in the target file.
   - stable_id: gguf_mirust_taboo_voice_memory
@@ -1389,15 +1406,15 @@ records:
     path: .uai/taboo.uai
     target_location: .uai/taboo.uai
     label: Required For GGUF.MiRust.com Site Voice Taboo Rules
-    summary: Routes agents to GGUF.MiRust.com public copy boundaries for constructive local-model craft, lineage, proof, research momentum, and routed-off concern-led messaging.
+    summary: Routes agents to proof-centered GGUF.MiRust.com public copy boundaries for local-model craft, lineage, research momentum, and routed-off concern-led messaging.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing public copy, model-breeding positioning, or mutualist language.
-    checksum_hash: sha256:B751284E333078E2D077C6EC2CB41DA8CBD3EF598B6A91CE88FA7647AF0B2DCD
-    last_reviewed_utc: 2026-06-27T02:47:09Z
+    checksum_hash: sha256:AFE3401636701224E232E78A9149FB662B4E478AF4E31C238DDE86985469EE0E
+    last_reviewed_utc: 2026-06-27T03:21:25Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; hot voice rules live in the target file.
   - stable_id: gguf_mirust_enterprise_rust_governance_memory
