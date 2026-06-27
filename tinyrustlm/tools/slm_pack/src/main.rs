@@ -1,13 +1,18 @@
 //! TinyRustLM `.slm` packing utility.
 
 mod adapter;
+mod adapter_family;
 mod admission;
 mod blend;
+mod browser_bundle;
 mod candidate;
 mod compatibility;
 mod delta;
 mod ledger;
 mod lineage;
+mod multi_admission;
+mod multi_candidate;
+mod multi_promotion;
 mod parent_pool;
 mod population;
 mod promotion;
@@ -62,6 +67,20 @@ fn run() -> io::Result<()> {
             ));
         };
         return slm_validate::validate_path(Path::new(&input));
+    }
+    if output == "browser-multi-parent-bundle" {
+        let Some(root) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "browser-multi-parent-bundle requires an output tinyrustlm root",
+            ));
+        };
+        let quantization = args.next().unwrap_or_else(|| "f32".to_string());
+        return browser_bundle::write_bundle_path_with_quantization(
+            Path::new(&root),
+            &quantization,
+        );
     }
     if output == "compatibility" {
         let Some(left) = args.next() else {
@@ -1262,6 +1281,438 @@ fn run() -> io::Result<()> {
             &admission_records,
         );
     }
+    if output == "multi-parent-candidate-manifest" {
+        let Some(input_ledger) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "multi-parent-candidate-manifest requires an input ledger path",
+            ));
+        };
+        let Some(input_review) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "multi-parent-candidate-manifest requires an input review path",
+            ));
+        };
+        let Some(input_recipe) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "multi-parent-candidate-manifest requires an input parent-pool recipe path",
+            ));
+        };
+        let Some(candidate_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "multi-parent-candidate-manifest requires a candidate .slm path",
+            ));
+        };
+        let Some(input_receipt) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "multi-parent-candidate-manifest requires an input operator receipt path",
+            ));
+        };
+        let Some(output_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "multi-parent-candidate-manifest requires an output candidate manifest path",
+            ));
+        };
+        let (parent_paths, admission_records) =
+            split_parent_admission_args("multi-parent-candidate-manifest", args.collect())?;
+        return multi_candidate::write_manifest_path(
+            Path::new(&input_ledger),
+            Path::new(&input_review),
+            Path::new(&input_recipe),
+            Path::new(&candidate_slm),
+            Path::new(&input_receipt),
+            Path::new(&output_manifest),
+            &parent_paths,
+            &admission_records,
+        );
+    }
+    if output == "validate-multi-parent-candidate" {
+        let Some(input_ledger) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-multi-parent-candidate requires an input ledger path",
+            ));
+        };
+        let Some(input_review) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-multi-parent-candidate requires an input review path",
+            ));
+        };
+        let Some(input_recipe) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-multi-parent-candidate requires an input parent-pool recipe path",
+            ));
+        };
+        let Some(candidate_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-multi-parent-candidate requires a candidate .slm path",
+            ));
+        };
+        let Some(input_receipt) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-multi-parent-candidate requires an input operator receipt path",
+            ));
+        };
+        let Some(input_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-multi-parent-candidate requires an input candidate manifest path",
+            ));
+        };
+        let (parent_paths, admission_records) =
+            split_parent_admission_args("validate-multi-parent-candidate", args.collect())?;
+        return multi_candidate::validate_manifest_path(
+            Path::new(&input_ledger),
+            Path::new(&input_review),
+            Path::new(&input_recipe),
+            Path::new(&candidate_slm),
+            Path::new(&input_receipt),
+            Path::new(&input_manifest),
+            &parent_paths,
+            &admission_records,
+        );
+    }
+    if output == "multi-parent-promotion-template" {
+        let Some(input_ledger) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "multi-parent-promotion-template requires an input ledger path",
+            ));
+        };
+        let Some(input_review) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "multi-parent-promotion-template requires an input review path",
+            ));
+        };
+        let Some(input_recipe) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "multi-parent-promotion-template requires an input parent-pool recipe path",
+            ));
+        };
+        let Some(candidate_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "multi-parent-promotion-template requires a candidate .slm path",
+            ));
+        };
+        let Some(input_receipt) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "multi-parent-promotion-template requires an input operator receipt path",
+            ));
+        };
+        let Some(input_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "multi-parent-promotion-template requires an input candidate manifest path",
+            ));
+        };
+        let Some(output_promotion) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "multi-parent-promotion-template requires an output promotion path",
+            ));
+        };
+        let (parent_paths, admission_records) =
+            split_parent_admission_args("multi-parent-promotion-template", args.collect())?;
+        return multi_promotion::write_template_path(
+            Path::new(&input_ledger),
+            Path::new(&input_review),
+            Path::new(&input_recipe),
+            Path::new(&candidate_slm),
+            Path::new(&input_receipt),
+            Path::new(&input_manifest),
+            Path::new(&output_promotion),
+            &parent_paths,
+            &admission_records,
+        );
+    }
+    if output == "validate-multi-parent-promotion" {
+        let Some(input_ledger) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-multi-parent-promotion requires an input ledger path",
+            ));
+        };
+        let Some(input_review) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-multi-parent-promotion requires an input review path",
+            ));
+        };
+        let Some(input_recipe) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-multi-parent-promotion requires an input parent-pool recipe path",
+            ));
+        };
+        let Some(candidate_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-multi-parent-promotion requires a candidate .slm path",
+            ));
+        };
+        let Some(input_receipt) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-multi-parent-promotion requires an input operator receipt path",
+            ));
+        };
+        let Some(input_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-multi-parent-promotion requires an input candidate manifest path",
+            ));
+        };
+        let Some(input_promotion) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-multi-parent-promotion requires an input promotion path",
+            ));
+        };
+        let (parent_paths, admission_records) =
+            split_parent_admission_args("validate-multi-parent-promotion", args.collect())?;
+        return multi_promotion::validate_template_path(
+            Path::new(&input_ledger),
+            Path::new(&input_review),
+            Path::new(&input_recipe),
+            Path::new(&candidate_slm),
+            Path::new(&input_receipt),
+            Path::new(&input_manifest),
+            Path::new(&input_promotion),
+            &parent_paths,
+            &admission_records,
+        );
+    }
+    if output == "multi-parent-admission-record" {
+        let Some(input_ledger) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "multi-parent-admission-record requires an input ledger path",
+            ));
+        };
+        let Some(input_review) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "multi-parent-admission-record requires an input review path",
+            ));
+        };
+        let Some(input_recipe) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "multi-parent-admission-record requires an input parent-pool recipe path",
+            ));
+        };
+        let Some(candidate_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "multi-parent-admission-record requires a candidate .slm path",
+            ));
+        };
+        let Some(input_receipt) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "multi-parent-admission-record requires an input operator receipt path",
+            ));
+        };
+        let Some(input_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "multi-parent-admission-record requires an input candidate manifest path",
+            ));
+        };
+        let Some(input_promotion) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "multi-parent-admission-record requires an input promotion path",
+            ));
+        };
+        let Some(input_provenance) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "multi-parent-admission-record requires an input provenance manifest path",
+            ));
+        };
+        let Some(input_runtime) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "multi-parent-admission-record requires an input runtime-smoke sidecar path",
+            ));
+        };
+        let Some(input_eval) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "multi-parent-admission-record requires an input evaluation manifest path",
+            ));
+        };
+        let Some(output_admission) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "multi-parent-admission-record requires an output admission path",
+            ));
+        };
+        let (parent_paths, admission_records) =
+            split_parent_admission_args("multi-parent-admission-record", args.collect())?;
+        return multi_admission::write_record_path(
+            Path::new(&input_ledger),
+            Path::new(&input_review),
+            Path::new(&input_recipe),
+            Path::new(&candidate_slm),
+            Path::new(&input_receipt),
+            Path::new(&input_manifest),
+            Path::new(&input_promotion),
+            Path::new(&input_provenance),
+            Path::new(&input_runtime),
+            Path::new(&input_eval),
+            Path::new(&output_admission),
+            &parent_paths,
+            &admission_records,
+        );
+    }
+    if output == "validate-multi-parent-admission" {
+        let Some(input_ledger) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-multi-parent-admission requires an input ledger path",
+            ));
+        };
+        let Some(input_review) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-multi-parent-admission requires an input review path",
+            ));
+        };
+        let Some(input_recipe) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-multi-parent-admission requires an input parent-pool recipe path",
+            ));
+        };
+        let Some(candidate_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-multi-parent-admission requires a candidate .slm path",
+            ));
+        };
+        let Some(input_receipt) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-multi-parent-admission requires an input operator receipt path",
+            ));
+        };
+        let Some(input_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-multi-parent-admission requires an input candidate manifest path",
+            ));
+        };
+        let Some(input_promotion) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-multi-parent-admission requires an input promotion path",
+            ));
+        };
+        let Some(input_provenance) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-multi-parent-admission requires an input provenance manifest path",
+            ));
+        };
+        let Some(input_runtime) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-multi-parent-admission requires an input runtime-smoke sidecar path",
+            ));
+        };
+        let Some(input_eval) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-multi-parent-admission requires an input evaluation manifest path",
+            ));
+        };
+        let Some(input_admission) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-multi-parent-admission requires an input admission path",
+            ));
+        };
+        let (parent_paths, admission_records) =
+            split_parent_admission_args("validate-multi-parent-admission", args.collect())?;
+        return multi_admission::validate_record_path(
+            Path::new(&input_ledger),
+            Path::new(&input_review),
+            Path::new(&input_recipe),
+            Path::new(&candidate_slm),
+            Path::new(&input_receipt),
+            Path::new(&input_manifest),
+            Path::new(&input_promotion),
+            Path::new(&input_provenance),
+            Path::new(&input_runtime),
+            Path::new(&input_eval),
+            Path::new(&input_admission),
+            &parent_paths,
+            &admission_records,
+        );
+    }
     if output == "validate-selector-registry" {
         let Some(input_registry) = args.next() else {
             print_usage();
@@ -1604,7 +2055,7 @@ fn split_parent_admission_args(
 
 fn print_usage() {
     eprintln!(
-        "usage: tinyrustlm-slm-pack <output.slm> [tiny-fixture|tiny-fixture-tied|tiny-fixture-q8|tiny-fixture-q4|tiny-fixture-bpe|tinylm16-f32|tinylm16-q8|tinylm16-q4]\n       tinyrustlm-slm-pack validate <input.slm>\n       tinyrustlm-slm-pack compatibility <left-parent.slm> <right-parent.slm> [output.compat]\n       tinyrustlm-slm-pack lineage-template <input.compat> <output.lineage> <candidate-id> <operator-id> [resource-budget]\n       tinyrustlm-slm-pack validate-lineage <input.compat> <input.lineage>\n       tinyrustlm-slm-pack blend-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <output.slm> <output.operator> [parent0-weight-ppm]\n       tinyrustlm-slm-pack validate-blend-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm]\n       tinyrustlm-slm-pack validate-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack sparse-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm] [keep-ppm]\n       tinyrustlm-slm-pack validate-sparse-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.adapter> <output.adapter.manifest>\n       tinyrustlm-slm-pack validate-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest>\n       tinyrustlm-slm-pack fuse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest> <output.slm> <output.operator>\n       tinyrustlm-slm-pack validate-fuse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack candidate-manifest <input.compat> <input.lineage> <candidate.slm> <output.candidate>\n       tinyrustlm-slm-pack validate-candidate <input.compat> <input.lineage> <candidate.slm> <input.candidate>\n       tinyrustlm-slm-pack promotion-template <input.compat> <input.lineage> <candidate.slm> <input.candidate> <output.promotion> [promoter-id] [promotion-scope]\n       tinyrustlm-slm-pack validate-promotion <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion>\n       tinyrustlm-slm-pack admission-record <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion> <input.manifest> <input.runtime> <input.eval> <output.admission> [selector-id]\n       tinyrustlm-slm-pack validate-admission <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion> <input.manifest> <input.runtime> <input.eval> <input.admission>\n       tinyrustlm-slm-pack promotion-ledger <output.ledger> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-promotion-ledger <input.ledger> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack selector-registry <output.registry> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-selector-registry <input.registry> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack manifest <input.slm> <output.manifest> [deterministic-smoke|converted-trained]\n       tinyrustlm-slm-pack validate-manifest <input.slm> <input.manifest>\n       tinyrustlm-slm-pack runtime-smoke <input.slm> <input.manifest> <output.runtime>\n       tinyrustlm-slm-pack validate-runtime-smoke <input.slm> <input.manifest> <input.runtime>\n       tinyrustlm-slm-pack eval-template <input.slm> <input.manifest> <output.eval> [assistant-quality]\n       tinyrustlm-slm-pack quality-gate <input.slm> <input.manifest> <runtime-smoke|assistant-quality> [input.eval]\n       tinyrustlm-slm-pack source-template <output-source-dir> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied]\n       tinyrustlm-slm-pack validate-source <input-source-dir>\n       tinyrustlm-slm-pack convert-trained <input-source-dir> <output.slm> [f32|q8_0|q4_0]"
+        "usage: tinyrustlm-slm-pack <output.slm> [tiny-fixture|tiny-fixture-tied|tiny-fixture-q8|tiny-fixture-q4|tiny-fixture-bpe|tinylm16-f32|tinylm16-q8|tinylm16-q4]\n       tinyrustlm-slm-pack validate <input.slm>\n       tinyrustlm-slm-pack browser-multi-parent-bundle <output-tinyrustlm-root> [f32|q8_0|q4_0]\n       tinyrustlm-slm-pack compatibility <left-parent.slm> <right-parent.slm> [output.compat]\n       tinyrustlm-slm-pack lineage-template <input.compat> <output.lineage> <candidate-id> <operator-id> [resource-budget]\n       tinyrustlm-slm-pack validate-lineage <input.compat> <input.lineage>\n       tinyrustlm-slm-pack blend-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <output.slm> <output.operator> [parent0-weight-ppm]\n       tinyrustlm-slm-pack validate-blend-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm]\n       tinyrustlm-slm-pack validate-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack sparse-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm] [keep-ppm]\n       tinyrustlm-slm-pack validate-sparse-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.adapter> <output.adapter.manifest>\n       tinyrustlm-slm-pack validate-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest>\n       tinyrustlm-slm-pack fuse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest> <output.slm> <output.operator>\n       tinyrustlm-slm-pack validate-fuse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack candidate-manifest <input.compat> <input.lineage> <candidate.slm> <output.candidate>\n       tinyrustlm-slm-pack validate-candidate <input.compat> <input.lineage> <candidate.slm> <input.candidate>\n       tinyrustlm-slm-pack promotion-template <input.compat> <input.lineage> <candidate.slm> <input.candidate> <output.promotion> [promoter-id] [promotion-scope]\n       tinyrustlm-slm-pack validate-promotion <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion>\n       tinyrustlm-slm-pack admission-record <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion> <input.manifest> <input.runtime> <input.eval> <output.admission> [selector-id]\n       tinyrustlm-slm-pack validate-admission <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion> <input.manifest> <input.runtime> <input.eval> <input.admission>\n       tinyrustlm-slm-pack promotion-ledger <output.ledger> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-promotion-ledger <input.ledger> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack selector-registry <output.registry> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-selector-registry <input.registry> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack manifest <input.slm> <output.manifest> [deterministic-smoke|converted-trained]\n       tinyrustlm-slm-pack validate-manifest <input.slm> <input.manifest>\n       tinyrustlm-slm-pack runtime-smoke <input.slm> <input.manifest> <output.runtime>\n       tinyrustlm-slm-pack validate-runtime-smoke <input.slm> <input.manifest> <input.runtime>\n       tinyrustlm-slm-pack eval-template <input.slm> <input.manifest> <output.eval> [assistant-quality]\n       tinyrustlm-slm-pack quality-gate <input.slm> <input.manifest> <runtime-smoke|assistant-quality> [input.eval]\n       tinyrustlm-slm-pack source-template <output-source-dir> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied]\n       tinyrustlm-slm-pack validate-source <input-source-dir>\n       tinyrustlm-slm-pack convert-trained <input-source-dir> <output.slm> [f32|q8_0|q4_0]"
     );
     eprintln!(
         "       tinyrustlm-slm-pack population-review <input.ledger> <output.review> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-population-review <input.ledger> <input.review> <input.admission> [...input.admission]"
@@ -1614,6 +2065,15 @@ fn print_usage() {
     );
     eprintln!(
         "       tinyrustlm-slm-pack sign-merge-candidate <input.ledger> <input.review> <input.recipe> <output.slm> <output.operator> --parents <parent.slm> [...parent.slm] --admissions <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-sign-merge-candidate <input.ledger> <input.review> <input.recipe> <candidate.slm> <input.operator> --parents <parent.slm> [...parent.slm] --admissions <input.admission> [...input.admission]"
+    );
+    eprintln!(
+        "       tinyrustlm-slm-pack multi-parent-candidate-manifest <input.ledger> <input.review> <input.recipe> <candidate.slm> <input.operator> <output.candidate> --parents <parent.slm> [...parent.slm] --admissions <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-multi-parent-candidate <input.ledger> <input.review> <input.recipe> <candidate.slm> <input.operator> <input.candidate> --parents <parent.slm> [...parent.slm] --admissions <input.admission> [...input.admission]"
+    );
+    eprintln!(
+        "       tinyrustlm-slm-pack multi-parent-promotion-template <input.ledger> <input.review> <input.recipe> <candidate.slm> <input.operator> <input.candidate> <output.promotion> --parents <parent.slm> [...parent.slm] --admissions <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-multi-parent-promotion <input.ledger> <input.review> <input.recipe> <candidate.slm> <input.operator> <input.candidate> <input.promotion> --parents <parent.slm> [...parent.slm] --admissions <input.admission> [...input.admission]"
+    );
+    eprintln!(
+        "       tinyrustlm-slm-pack multi-parent-admission-record <input.ledger> <input.review> <input.recipe> <candidate.slm> <input.operator> <input.candidate> <input.promotion> <input.provenance> <input.runtime> <input.eval> <output.admission> --parents <parent.slm> [...parent.slm] --admissions <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-multi-parent-admission <input.ledger> <input.review> <input.recipe> <candidate.slm> <input.operator> <input.candidate> <input.promotion> <input.provenance> <input.runtime> <input.eval> <input.admission> --parents <parent.slm> [...parent.slm] --admissions <input.admission> [...input.admission]"
     );
 }
 

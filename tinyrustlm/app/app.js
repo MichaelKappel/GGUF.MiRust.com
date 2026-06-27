@@ -23,7 +23,17 @@
       tinyf32: {
         label: "Tiny Fixture f32",
         path: "../models/tiny-test-model.slm",
-        maxTokens: 16
+        maxTokens: 16,
+        adapters: [
+          {
+            label: "Tiny Fixture f32 self ADP1",
+            path: "../models/tiny-test-model-self.adp1",
+            manifestPath: "../models/tiny-test-model-self.adp1.manifest",
+            applyStatus: "runtime-f32-compatible-or-fuse-to-slm",
+            artifactChecksum: "0xe9669ade4571fd42",
+            manifestChecksum: "0x3810be9f3ee711b6"
+          }
+        ]
       },
       tinytied: {
         label: "Tiny Fixture tied-output f32",
@@ -33,12 +43,32 @@
       tinyq8: {
         label: "Tiny Fixture q8_0",
         path: "../models/tiny-test-model-q8.slm",
-        maxTokens: 16
+        maxTokens: 16,
+        adapters: [
+          {
+            label: "Tiny Fixture q8_0 self ADP1",
+            path: "../models/tiny-test-model-q8-self.adp1",
+            manifestPath: "../models/tiny-test-model-q8-self.adp1.manifest",
+            applyStatus: "runtime-q8-q4-compatible-or-fuse-to-slm",
+            artifactChecksum: "0x8194a8a671285019",
+            manifestChecksum: "0x536f9b488db9822b"
+          }
+        ]
       },
       tinyq4: {
         label: "Tiny Fixture q4_0",
         path: "../models/tiny-test-model-q4.slm",
-        maxTokens: 16
+        maxTokens: 16,
+        adapters: [
+          {
+            label: "Tiny Fixture q4_0 self ADP1",
+            path: "../models/tiny-test-model-q4-self.adp1",
+            manifestPath: "../models/tiny-test-model-q4-self.adp1.manifest",
+            applyStatus: "runtime-q8-q4-compatible-or-fuse-to-slm",
+            artifactChecksum: "0x0bd71e0020bc6ebf",
+            manifestChecksum: "0xe62b43e1d8e06516"
+          }
+        ]
       },
       tinybpe: {
         label: "Tiny Fixture BPE f32",
@@ -47,6 +77,47 @@
       }
     }
   };
+
+  const registryAdapterApplyStatus = "runtime-f32-compatible-or-fuse-to-slm";
+  const registryQuantizedAdapterApplyStatus = "runtime-q8-q4-compatible-or-fuse-to-slm";
+  const registryAdapterApplyStatuses = new Set([
+    registryAdapterApplyStatus,
+    registryQuantizedAdapterApplyStatus
+  ]);
+  const registryAdapterFamilyStatus = "receipt-validated";
+  const registryAdapterFamilyStrategy = "single-adapter-selection";
+  const registryAssemblyStatus = "receipt-validated";
+  const registryAssemblyKind = "browser-local-assembly-evidence";
+  const adapterFamilyReceiptStatus = "validated";
+  const assemblyReceiptStatus = "validated";
+  const assemblyReceiptStrategy = "multi-parent-sign-merge";
+  const adapterManifestArtifactVersion = "1";
+  const adapterManifestArtifactKind = "raw-f32-task-delta-v1";
+  const adapterManifestStatus = "artifact-written";
+  const adapterManifestDtype = "f32-delta";
+  const checksumMask = (1n << 64n) - 1n;
+  const checksumPrime = 0x100000001b3n;
+  const adapterFamilyIdentityKeys = [
+    "adapter_tensor_count",
+    "adapter_parameter_count",
+    "adapter_model_shape",
+    "adapter_base_quantization",
+    "adapter_output_contract",
+    "adapter_tokenizer_checksum",
+    "adapter_tensor_layout_checksum",
+    "adapter_base_contract"
+  ];
+  const assemblyEvidenceRoutes = [
+    ["promotion_ledger_path", "promotion_ledger_checksum"],
+    ["population_review_path", "population_review_checksum"],
+    ["parent_pool_recipe_path", "parent_pool_recipe_checksum"],
+    ["operator_receipt_path", "operator_receipt_checksum"],
+    ["candidate_manifest_path", "candidate_manifest_checksum"],
+    ["promotion_manifest_path", "promotion_manifest_checksum"],
+    ["runtime_smoke_path", "runtime_smoke_manifest_checksum"],
+    ["eval_path", "eval_manifest_checksum"],
+    ["admission_path", "admission_checksum"]
+  ];
 
   const state = {
     instance: null,
@@ -57,7 +128,10 @@
     lastGenerateMs: 0,
     lastMeasuredTokens: 0,
     modelLoadSequence: 0,
+    activeModelKey: "",
+    modelLoaded: false,
     modelManifest: null,
+    assemblyReceipt: null,
     selectorRegistry: null,
     hasContext: false,
     messages: []
@@ -80,6 +154,9 @@
     topP: document.getElementById("topP"),
     seed: document.getElementById("seed"),
     modelSelect: document.getElementById("modelSelect"),
+    adapterSelect: document.getElementById("adapterSelect"),
+    applyAdapterButton: document.getElementById("applyAdapterButton"),
+    adapterState: document.getElementById("adapterState"),
     generateButton: document.getElementById("generateButton"),
     stepTokenButton: document.getElementById("stepTokenButton"),
     resetButton: document.getElementById("resetButton"),
@@ -96,7 +173,13 @@
     provenanceQualityClaim: document.getElementById("provenanceQualityClaim"),
     provenanceTrainedClaim: document.getElementById("provenanceTrainedClaim"),
     provenanceChecksum: document.getElementById("provenanceChecksum"),
-    provenanceNextGate: document.getElementById("provenanceNextGate")
+    provenanceNextGate: document.getElementById("provenanceNextGate"),
+    assemblyState: document.getElementById("assemblyState"),
+    assemblyKind: document.getElementById("assemblyKind"),
+    assemblyParents: document.getElementById("assemblyParents"),
+    assemblyOperator: document.getElementById("assemblyOperator"),
+    assemblyLedger: document.getElementById("assemblyLedger"),
+    assemblyNextGate: document.getElementById("assemblyNextGate")
   };
 
   function setText(node, text, isError) {
@@ -307,6 +390,268 @@
     return rest.split("/").every((part) => part && part !== "." && part !== "..");
   }
 
+  function isSafeRegistryAdapterPath(value) {
+    if (!value || !value.startsWith("../models/") || !value.endsWith(".adp1")) {
+      return false;
+    }
+    if (value.includes("\\") || value.includes("://") || value.includes("//")) {
+      return false;
+    }
+    const rest = value.slice("../models/".length);
+    return rest.split("/").every((part) => part && part !== "." && part !== "..");
+  }
+
+  function isSafeRegistryAdapterFamilyReceiptPath(value) {
+    if (!value || !value.startsWith("../models/") || !value.endsWith(".adapter-family.receipt")) {
+      return false;
+    }
+    if (value.includes("\\") || value.includes("://") || value.includes("//")) {
+      return false;
+    }
+    const rest = value.slice("../models/".length);
+    return rest.split("/").every((part) => part && part !== "." && part !== "..");
+  }
+
+  function isSafeRegistryAssemblyReceiptPath(value) {
+    if (!value || !value.startsWith("../models/") || !value.endsWith(".assembly.receipt")) {
+      return false;
+    }
+    if (value.includes("\\") || value.includes("://") || value.includes("//")) {
+      return false;
+    }
+    const rest = value.slice("../models/".length);
+    return rest.split("/").every((part) => part && part !== "." && part !== "..");
+  }
+
+  function isSafeAssemblyEvidencePath(value) {
+    if (!value || !value.startsWith("../evidence/")) {
+      return false;
+    }
+    if (value.includes("\\") || value.includes("://") || value.includes("//")) {
+      return false;
+    }
+    const rest = value.slice("../evidence/".length);
+    return rest.split("/").every((part) => part && part !== "." && part !== "..");
+  }
+
+  function isRegistryHex64(value) {
+    return /^0x[0-9a-fA-F]{16}$/.test(value || "");
+  }
+
+  function rotateLeft64(value, bits) {
+    return ((value << bits) | (value >> (64n - bits))) & checksumMask;
+  }
+
+  function textChecksumHex(text) {
+    const bytes = state.encoder.encode(text);
+    let acc = 0x4d595df4d0f33173n;
+    for (let index = 0; index < bytes.length; index += 1) {
+      acc ^= BigInt(bytes[index]) + (BigInt(index) << 2n);
+      acc = (rotateLeft64(acc, 9n) * checksumPrime) & checksumMask;
+    }
+    return `0x${acc.toString(16).padStart(16, "0")}`;
+  }
+
+  function adapterArtifactChecksumHex(bytes) {
+    if (!bytes || bytes.length < 64) {
+      throw new Error("Adapter artifact is too short");
+    }
+    let acc = 0x6164617074657231n;
+    for (let index = 0; index < bytes.length; index += 1) {
+      const value = index >= 56 && index < 64 ? 0 : bytes[index];
+      acc ^= BigInt(value) + (BigInt(index) << 3n);
+      acc = (rotateLeft64(acc, 11n) * checksumPrime) & checksumMask;
+    }
+    return `0x${acc.toString(16).padStart(16, "0")}`;
+  }
+
+  function requireManifestField(fields, key, source) {
+    const value = fields[key];
+    if (!value) {
+      throw new Error(`Missing ${source || "receipt"} field ${key}`);
+    }
+    return value;
+  }
+
+  function requireManifestEqual(fields, key, expected, source) {
+    const actual = requireManifestField(fields, key, source ? source.toLowerCase() : undefined);
+    if (actual !== expected) {
+      throw new Error(`${source || "Receipt"} field ${key} was ${actual}`);
+    }
+  }
+
+  function requireChecksumEqual(actual, expected, label) {
+    if (!isRegistryHex64(actual) || actual.toLowerCase() !== String(expected || "").toLowerCase()) {
+      throw new Error(`${label} checksum mismatch`);
+    }
+  }
+
+  function adapterApplyStatusForQuantization(quantization) {
+    if (quantization === "f32") {
+      return registryAdapterApplyStatus;
+    }
+    if (quantization === "q8_0" || quantization === "q4_0") {
+      return registryQuantizedAdapterApplyStatus;
+    }
+    return null;
+  }
+
+  function registryAdapterFromFields(
+    fields,
+    pathKey,
+    manifestKey,
+    labelKey,
+    applyStatusKey,
+    artifactChecksumKey,
+    manifestChecksumKey,
+    baseQuantization
+  ) {
+    const adapterPath = fields[pathKey];
+    if (!isSafeRegistryAdapterPath(adapterPath)) {
+      return null;
+    }
+    const manifestPath = fields[manifestKey];
+    if (manifestPath && manifestPath !== `${adapterPath}.manifest`) {
+      return null;
+    }
+    const applyStatus = fields[applyStatusKey];
+    const expectedApplyStatus = adapterApplyStatusForQuantization(baseQuantization);
+    if (!expectedApplyStatus || (applyStatus && applyStatus !== expectedApplyStatus)) {
+      return null;
+    }
+    if (applyStatus && !registryAdapterApplyStatuses.has(applyStatus)) {
+      return null;
+    }
+    const artifactChecksum = fields[artifactChecksumKey];
+    const manifestChecksum = fields[manifestChecksumKey];
+    if (!isRegistryHex64(artifactChecksum) || !isRegistryHex64(manifestChecksum)) {
+      return null;
+    }
+    return {
+      label: fields[labelKey] || "ADP1 adapter",
+      path: adapterPath,
+      manifestPath: manifestPath || `${adapterPath}.manifest`,
+      applyStatus: applyStatus || expectedApplyStatus,
+      baseQuantization,
+      artifactChecksum,
+      manifestChecksum
+    };
+  }
+
+  function registryAdapterEntries(fields, prefix, baseQuantization) {
+    const adapterCountValue = fields[`${prefix}.adapter_count`];
+    if (adapterCountValue) {
+      const adapterCount = Number.parseInt(adapterCountValue, 10);
+      if (!Number.isInteger(adapterCount) || adapterCount < 1 || adapterCount > 16) {
+        return null;
+      }
+      const adapters = [];
+      const seenPaths = new Set();
+      for (let adapterIndex = 0; adapterIndex < adapterCount; adapterIndex += 1) {
+        const adapterPrefix = `${prefix}.adapter.${adapterIndex}`;
+        const adapter = registryAdapterFromFields(
+          fields,
+          `${adapterPrefix}.path`,
+          `${adapterPrefix}.manifest_path`,
+          `${adapterPrefix}.label`,
+          `${adapterPrefix}.apply_status`,
+          `${adapterPrefix}.artifact_checksum`,
+          `${adapterPrefix}.manifest_checksum`,
+          baseQuantization
+        );
+        if (!adapter || seenPaths.has(adapter.path)) {
+          return null;
+        }
+        seenPaths.add(adapter.path);
+        adapters.push(adapter);
+      }
+      return adapters;
+    }
+    if (!fields[`${prefix}.adapter_path`]) {
+      return [];
+    }
+    const adapter = registryAdapterFromFields(
+      fields,
+      `${prefix}.adapter_path`,
+      `${prefix}.adapter_manifest_path`,
+      `${prefix}.adapter_label`,
+      `${prefix}.adapter_apply_status`,
+      `${prefix}.adapter_artifact_checksum`,
+      `${prefix}.adapter_manifest_checksum`,
+      baseQuantization
+    );
+    return adapter ? [adapter] : null;
+  }
+
+  function registryAdapterFamilyEntry(fields, prefix, adapterCount) {
+    const keys = [
+      "adapter_family_receipt_path",
+      "adapter_family_receipt_checksum",
+      "adapter_family_label",
+      "adapter_family_status",
+      "adapter_family_strategy",
+      "adapter_family_adapter_count"
+    ];
+    const hasFamily = keys.some((key) => fields[`${prefix}.${key}`]);
+    if (!hasFamily) {
+      return undefined;
+    }
+    const receiptPath = fields[`${prefix}.adapter_family_receipt_path`];
+    const receiptChecksum = fields[`${prefix}.adapter_family_receipt_checksum`];
+    const familyCount = Number.parseInt(fields[`${prefix}.adapter_family_adapter_count`] || "0", 10);
+    if (!isSafeRegistryAdapterFamilyReceiptPath(receiptPath) || !isRegistryHex64(receiptChecksum)) {
+      return null;
+    }
+    if (fields[`${prefix}.adapter_family_status`] !== registryAdapterFamilyStatus) {
+      return null;
+    }
+    if (fields[`${prefix}.adapter_family_strategy`] !== registryAdapterFamilyStrategy) {
+      return null;
+    }
+    if (!Number.isInteger(familyCount) || familyCount !== adapterCount || familyCount < 2 || familyCount > 16) {
+      return null;
+    }
+    return {
+      label: fields[`${prefix}.adapter_family_label`] || "ADP1 adapter family",
+      path: receiptPath,
+      checksum: receiptChecksum,
+      strategy: fields[`${prefix}.adapter_family_strategy`],
+      count: familyCount
+    };
+  }
+
+  function registryAssemblyEntry(fields, prefix) {
+    const keys = [
+      "assembly_receipt_path",
+      "assembly_receipt_checksum",
+      "assembly_label",
+      "assembly_status",
+      "assembly_kind"
+    ];
+    const hasAssembly = keys.some((key) => fields[`${prefix}.${key}`]);
+    if (!hasAssembly) {
+      return undefined;
+    }
+    const receiptPath = fields[`${prefix}.assembly_receipt_path`];
+    const receiptChecksum = fields[`${prefix}.assembly_receipt_checksum`];
+    if (!isSafeRegistryAssemblyReceiptPath(receiptPath) || !isRegistryHex64(receiptChecksum)) {
+      return null;
+    }
+    if (fields[`${prefix}.assembly_status`] !== registryAssemblyStatus) {
+      return null;
+    }
+    if (fields[`${prefix}.assembly_kind`] !== registryAssemblyKind) {
+      return null;
+    }
+    return {
+      label: fields[`${prefix}.assembly_label`] || "Assembly evidence",
+      path: receiptPath,
+      checksum: receiptChecksum,
+      status: fields[`${prefix}.assembly_status`],
+      kind: fields[`${prefix}.assembly_kind`]
+    };
+  }
+
   function registryModelEntries(fields) {
     if (!fields || fields.tinyrustlm_selector_registry_version !== "1") {
       return null;
@@ -336,10 +681,27 @@
         return null;
       }
       const maxTokens = clampInteger(fields[`${prefix}.max_tokens`], 1, 512, 8);
+      const quantization = fields[`${prefix}.quantization`] || "";
+      const adapters = registryAdapterEntries(fields, prefix, quantization);
+      if (!adapters) {
+        return null;
+      }
+      const adapterFamily = registryAdapterFamilyEntry(fields, prefix, adapters.length);
+      if (adapterFamily === null) {
+        return null;
+      }
+      const assembly = registryAssemblyEntry(fields, prefix);
+      if (assembly === null) {
+        return null;
+      }
       models[candidateId] = {
         label: fields[`${prefix}.display_name`] || candidateId,
         path: modelPath,
-        maxTokens
+        maxTokens,
+        quantization,
+        adapters,
+        adapterFamily: adapterFamily || null,
+        assembly: assembly || null
       };
     }
     return models;
@@ -374,6 +736,275 @@
     el.provenanceNextGate.textContent = manifestValue(fields, "required_next_gate");
   }
 
+  function renderAssembly(status, fields, isError) {
+    setText(el.assemblyState, status, isError);
+    el.assemblyKind.textContent = manifestValue(fields, "assembly_kind");
+    el.assemblyParents.textContent = manifestValue(fields, "parent_count");
+    el.assemblyOperator.textContent = manifestValue(fields, "operator_receipt_checksum");
+    el.assemblyLedger.textContent = manifestValue(fields, "promotion_ledger_checksum");
+    el.assemblyNextGate.textContent = manifestValue(fields, "required_next_gate");
+  }
+
+  function modelAdapters(model) {
+    if (!model || !Array.isArray(model.adapters)) {
+      return [];
+    }
+    if (model.adapterFamily && !model.adapterFamilyVerified) {
+      return [];
+    }
+    return model.adapters;
+  }
+
+  function selectedAdapter() {
+    const model = paths.models[state.activeModelKey];
+    const adapters = modelAdapters(model);
+    const index = Number.parseInt(el.adapterSelect.value, 10);
+    if (!Number.isInteger(index) || index < 0 || index >= adapters.length) {
+      return null;
+    }
+    return adapters[index];
+  }
+
+  function renderAdapterOptions(model, status, isError) {
+    const adapters = modelAdapters(model);
+    el.adapterSelect.replaceChildren();
+    if (adapters.length === 0) {
+      const option = document.createElement("option");
+      option.value = "none";
+      option.textContent = "None";
+      el.adapterSelect.append(option);
+    } else {
+      for (let index = 0; index < adapters.length; index += 1) {
+        const option = document.createElement("option");
+        option.value = String(index);
+        option.textContent = adapters[index].label || `Adapter ${index + 1}`;
+        el.adapterSelect.append(option);
+      }
+    }
+    setText(el.adapterState, status || (adapters.length > 0 ? "ready" : "none"), isError);
+  }
+
+  function validateAdapterFamilyReceipt(model, receiptText) {
+    const family = model.adapterFamily;
+    if (!family) {
+      return null;
+    }
+    requireChecksumEqual(textChecksumHex(receiptText), family.checksum, "adapter family receipt");
+    const fields = parseManifest(receiptText);
+    requireManifestEqual(fields, "tinyrustlm_adapter_family_receipt_version", "1");
+    requireManifestEqual(fields, "adapter_family_kind", "browser-local-adp1-family");
+    requireManifestEqual(fields, "adapter_family_status", adapterFamilyReceiptStatus);
+    requireManifestEqual(fields, "adapter_family_receipt_path", family.path);
+    requireManifestEqual(fields, "adapter_family_strategy", family.strategy);
+    const adapterCount = Number.parseInt(requireManifestField(fields, "adapter_count"), 10);
+    if (!Number.isInteger(adapterCount) || adapterCount !== family.count || adapterCount !== model.adapters.length) {
+      throw new Error("Adapter family receipt count mismatch");
+    }
+    for (const key of adapterFamilyIdentityKeys) {
+      requireManifestField(fields, `family.${key}`);
+    }
+    for (let index = 0; index < model.adapters.length; index += 1) {
+      const adapter = model.adapters[index];
+      const prefix = `adapter.${index}`;
+      requireManifestEqual(fields, `${prefix}.path`, adapter.path);
+      requireManifestEqual(fields, `${prefix}.manifest_path`, adapter.manifestPath);
+      requireManifestEqual(fields, `${prefix}.label`, adapter.label);
+      requireManifestEqual(fields, `${prefix}.apply_status`, adapter.applyStatus);
+      requireChecksumEqual(
+        requireManifestField(fields, `${prefix}.artifact_checksum`),
+        adapter.artifactChecksum,
+        `adapter ${index} artifact`
+      );
+      requireChecksumEqual(
+        requireManifestField(fields, `${prefix}.manifest_checksum`),
+        adapter.manifestChecksum,
+        `adapter ${index} manifest`
+      );
+      for (const key of adapterFamilyIdentityKeys) {
+        requireManifestEqual(fields, `${prefix}.${key}`, requireManifestField(fields, `family.${key}`));
+      }
+    }
+    return fields;
+  }
+
+  function validateAdapterManifest(adapter, manifestText, receiptFields, index) {
+    requireChecksumEqual(textChecksumHex(manifestText), adapter.manifestChecksum, `adapter ${index} manifest`);
+    const fields = parseManifest(manifestText);
+    const source = "Adapter manifest";
+    requireManifestEqual(fields, "tinyrustlm_adapter_artifact_version", adapterManifestArtifactVersion, source);
+    requireManifestEqual(fields, "adapter_artifact_kind", adapterManifestArtifactKind, source);
+    requireManifestEqual(fields, "adapter_status", adapterManifestStatus, source);
+    requireManifestEqual(fields, "adapter_dtype", adapterManifestDtype, source);
+    requireManifestEqual(fields, "adapter_base_quantization", adapter.baseQuantization, source);
+    requireManifestEqual(fields, "adapter_apply_status", adapter.applyStatus, source);
+    requireChecksumEqual(
+      requireManifestField(fields, "adapter_artifact_checksum", "adapter manifest"),
+      adapter.artifactChecksum,
+      `adapter ${index} artifact`
+    );
+    const receiptPrefix = `adapter.${index}`;
+    const expectedManifestBytes = Number.parseInt(
+      requireManifestField(receiptFields, `${receiptPrefix}.manifest_bytes`),
+      10
+    );
+    const actualManifestBytes = state.encoder.encode(manifestText).length;
+    if (!Number.isInteger(expectedManifestBytes) || expectedManifestBytes !== actualManifestBytes) {
+      throw new Error(`Adapter ${index} manifest byte count mismatch`);
+    }
+    for (const key of adapterFamilyIdentityKeys) {
+      requireManifestEqual(
+        fields,
+        key,
+        requireManifestField(receiptFields, `${receiptPrefix}.${key}`),
+        source
+      );
+    }
+    return fields;
+  }
+
+  async function loadAdapterFamilyReceipt(model) {
+    if (!model.adapterFamily) {
+      return "";
+    }
+    model.adapterFamilyVerified = false;
+    model.adapterFamilyReceipt = null;
+    model.adapterFamilyManifests = null;
+    const response = await fetch(model.adapterFamily.path);
+    if (!response.ok) {
+      throw new Error(`Unable to fetch local adapter-family receipt (${response.status})`);
+    }
+    const text = await response.text();
+    const receiptFields = validateAdapterFamilyReceipt(model, text);
+    const manifestFields = [];
+    for (let index = 0; index < model.adapters.length; index += 1) {
+      const adapter = model.adapters[index];
+      const manifestResponse = await fetch(adapter.manifestPath);
+      if (!manifestResponse.ok) {
+        throw new Error(`Unable to fetch local adapter manifest (${manifestResponse.status})`);
+      }
+      const manifestText = await manifestResponse.text();
+      manifestFields.push(validateAdapterManifest(adapter, manifestText, receiptFields, index));
+    }
+    model.adapterFamilyReceipt = receiptFields;
+    model.adapterFamilyManifests = manifestFields;
+    model.adapterFamilyVerified = true;
+    return "family verified";
+  }
+
+  function validateAssemblyReceipt(model, receiptText) {
+    const assembly = model.assembly;
+    if (!assembly) {
+      return null;
+    }
+    if (!state.modelManifest) {
+      throw new Error("Assembly receipt requires a loaded model manifest");
+    }
+    requireChecksumEqual(textChecksumHex(receiptText), assembly.checksum, "assembly receipt");
+    const fields = parseManifest(receiptText);
+    const source = "Assembly receipt";
+    requireManifestEqual(fields, "tinyrustlm_assembly_receipt_version", "1", source);
+    requireManifestEqual(fields, "assembly_kind", registryAssemblyKind, source);
+    requireManifestEqual(fields, "assembly_status", assemblyReceiptStatus, source);
+    requireManifestEqual(fields, "assembly_strategy", assemblyReceiptStrategy, source);
+    requireManifestEqual(fields, "candidate_id", state.activeModelKey, source);
+    requireManifestEqual(fields, "assembly_receipt_path", assembly.path, source);
+    requireManifestEqual(fields, "model_path", model.path, source);
+    requireManifestEqual(fields, "manifest_path", `${model.path}.manifest`, source);
+    requireChecksumEqual(
+      requireManifestField(fields, "slm_checksum", "assembly receipt"),
+      requireManifestField(state.modelManifest, "slm_checksum", "model manifest"),
+      "assembly model"
+    );
+    const parentCount = Number.parseInt(requireManifestField(fields, "parent_count", "assembly receipt"), 10);
+    if (!Number.isInteger(parentCount) || parentCount < 1 || parentCount > 16) {
+      throw new Error("Assembly receipt parent count mismatch");
+    }
+    for (const key of [
+      "manifest_checksum",
+      "promotion_ledger_checksum",
+      "population_review_checksum",
+      "parent_pool_recipe_checksum",
+      "operator_receipt_checksum",
+      "candidate_manifest_checksum",
+      "promotion_manifest_checksum",
+      "runtime_smoke_manifest_checksum",
+      "eval_manifest_checksum",
+      "admission_checksum",
+      "adapter_family_receipt_checksum"
+    ]) {
+      const value = requireManifestField(fields, key, "assembly receipt");
+      if (!isRegistryHex64(value)) {
+        throw new Error(`Assembly receipt field ${key} is invalid`);
+      }
+    }
+    for (const [pathKey] of assemblyEvidenceRoutes) {
+      const route = requireManifestField(fields, pathKey, "assembly receipt");
+      if (!isSafeAssemblyEvidencePath(route)) {
+        throw new Error(`Assembly receipt field ${pathKey} is invalid`);
+      }
+    }
+    if (model.adapterFamily) {
+      requireManifestEqual(fields, "adapter_family_receipt_path", model.adapterFamily.path, source);
+      requireChecksumEqual(
+        requireManifestField(fields, "adapter_family_receipt_checksum", "assembly receipt"),
+        model.adapterFamily.checksum,
+        "assembly adapter family"
+      );
+    }
+    requireManifestEqual(fields, "required_next_gate", "browser-selector-registry-route-binding", source);
+    return fields;
+  }
+
+  async function verifyAssemblyEvidenceFiles(fields) {
+    const evidence = [];
+    for (const [pathKey, checksumKey] of assemblyEvidenceRoutes) {
+      const route = requireManifestField(fields, pathKey, "assembly receipt");
+      const expectedChecksum = requireManifestField(fields, checksumKey, "assembly receipt");
+      const response = await fetch(route);
+      if (!response.ok) {
+        throw new Error(`Unable to fetch local assembly evidence (${response.status})`);
+      }
+      const text = await response.text();
+      requireChecksumEqual(textChecksumHex(text), expectedChecksum, `assembly evidence ${pathKey}`);
+      evidence.push({
+        pathKey,
+        checksumKey,
+        route,
+        checksum: expectedChecksum
+      });
+    }
+    return evidence;
+  }
+
+  async function loadAssemblyReceipt(model) {
+    if (!model.assembly) {
+      state.assemblyReceipt = null;
+      renderAssembly("none", null, false);
+      return "";
+    }
+    model.assemblyVerified = false;
+    model.assemblyReceipt = null;
+    model.assemblyEvidence = null;
+    const response = await fetch(model.assembly.path);
+    if (!response.ok) {
+      throw new Error(`Unable to fetch local assembly receipt (${response.status})`);
+    }
+    const fields = validateAssemblyReceipt(model, await response.text());
+    const evidence = await verifyAssemblyEvidenceFiles(fields);
+    model.assemblyReceipt = fields;
+    model.assemblyEvidence = evidence;
+    model.assemblyVerified = true;
+    state.assemblyReceipt = fields;
+    renderAssembly("loaded", fields, false);
+    return "assembly verified";
+  }
+
+  function setAdapterControls(canApply) {
+    const hasAdapter = Boolean(selectedAdapter());
+    el.adapterSelect.disabled = !canApply || !hasAdapter;
+    el.applyAdapterButton.disabled = !canApply || !hasAdapter;
+  }
+
   async function loadModelManifest(model) {
     const manifestPath = `${model.path}.manifest`;
     try {
@@ -399,6 +1030,7 @@
     el.stepTokenButton.disabled = !canGenerate || !state.hasContext;
     el.resetButton.disabled = !canGenerate;
     el.modelSelect.disabled = !canSelectModel || !state.exports;
+    setAdapterControls(canGenerate && state.modelLoaded);
   }
 
   async function loadSelectedModel() {
@@ -409,13 +1041,28 @@
     el.modelSelect.value = selectedModel;
     const modelPath = model.path;
     el.maxTokens.value = String(model.maxTokens);
+    state.activeModelKey = selectedModel;
+    state.modelLoaded = false;
     state.hasContext = false;
     state.lastMeasuredTokens = 0;
+    if (model.adapterFamily) {
+      model.adapterFamilyVerified = false;
+      model.adapterFamilyReceipt = null;
+      model.adapterFamilyManifests = null;
+    }
+    if (model.assembly) {
+      model.assemblyVerified = false;
+      model.assemblyReceipt = null;
+      model.assemblyEvidence = null;
+    }
+    renderAdapterOptions(model, "waiting");
     setInteractive(false);
     el.response.textContent = "";
     el.console.textContent = "";
     state.modelManifest = null;
+    state.assemblyReceipt = null;
     renderProvenance("waiting for accepted model", null, false);
+    renderAssembly("waiting for accepted model", null, false);
     setText(el.runtimeStatus, "Loading local model");
     setText(el.modelState, "loading");
     const started = performance.now();
@@ -432,12 +1079,15 @@
       }
       state.modelLoadMs = Math.round(performance.now() - started);
       state.lastGenerateMs = 0;
+      state.modelLoaded = false;
       state.hasContext = false;
       state.lastMeasuredTokens = 0;
       setText(el.modelState, "fetch error", true);
       setText(el.runtimeStatus, "Model load failed", true);
       setText(el.errorState, errorMessage(error), true);
       renderProvenance("model not loaded", null, true);
+      renderAssembly("model not loaded", null, true);
+      setText(el.adapterState, "model not loaded", true);
       setControls(false, true);
       renderDiagnostics();
       return false;
@@ -453,6 +1103,7 @@
     }
     state.modelLoadMs = Math.round(performance.now() - started);
     state.lastGenerateMs = 0;
+    state.modelLoaded = loadCode === 0;
     state.hasContext = false;
     state.lastMeasuredTokens = 0;
     setText(el.modelState, loadCode === 0 ? `loaded (${state.modelLoadMs} ms)` : `error ${loadCode}`, loadCode !== 0);
@@ -461,12 +1112,92 @@
     if (loadCode === 0) {
       renderProvenance("loading local manifest", null, false);
       await loadModelManifest(model);
+      try {
+        await loadAssemblyReceipt(model);
+      } catch (error) {
+        const assemblyStatus = errorMessage(error);
+        renderAssembly(assemblyStatus, null, true);
+        appendConsole(assemblyStatus);
+      }
+      let adapterStatus = "";
+      let adapterStatusIsError = false;
+      try {
+        adapterStatus = await loadAdapterFamilyReceipt(model);
+      } catch (error) {
+        adapterStatus = errorMessage(error);
+        adapterStatusIsError = true;
+        appendConsole(adapterStatus);
+      }
+      renderAdapterOptions(model, adapterStatus || undefined, adapterStatusIsError);
     } else {
       renderProvenance("model rejected", null, true);
+      renderAssembly("model rejected", null, true);
+      renderAdapterOptions(model, "model not loaded");
     }
     setControls(loadCode === 0, true);
     renderDiagnostics();
     return loadCode === 0;
+  }
+
+  async function applySelectedAdapter() {
+    if (!state.exports || !state.modelLoaded) {
+      return;
+    }
+    const adapter = selectedAdapter();
+    if (!adapter) {
+      return;
+    }
+    if (typeof state.exports.apply_adapter_delta !== "function") {
+      throw new Error("WASM runtime does not expose adapter apply");
+    }
+    setControls(false, true);
+    setText(el.runtimeStatus, "Applying adapter");
+    setText(el.adapterState, "loading");
+    let adapterBytes = null;
+    try {
+      const response = await fetch(adapter.path);
+      if (!response.ok) {
+        throw new Error(`Unable to fetch local adapter (${response.status})`);
+      }
+      adapterBytes = new Uint8Array(await response.arrayBuffer());
+      if (adapter.artifactChecksum) {
+        requireChecksumEqual(
+          adapterArtifactChecksumHex(adapterBytes),
+          adapter.artifactChecksum,
+          "adapter artifact"
+        );
+      }
+    } catch (error) {
+      const text = errorMessage(error);
+      setText(el.runtimeStatus, "Adapter load failed", true);
+      setText(el.adapterState, text, true);
+      setText(el.errorState, text, true);
+      appendConsole(text);
+      renderDiagnostics();
+      setControls(state.modelLoaded, true);
+      return;
+    }
+    const ptr = allocCopy(adapterBytes);
+    const code = state.exports.apply_adapter_delta(ptr, adapterBytes.length);
+    release(ptr, adapterBytes.length);
+    const text = readLastResult() || `adapter apply returned ${code}`;
+    state.lastGenerateMs = 0;
+    state.lastMeasuredTokens = 0;
+    state.hasContext = false;
+    if (code === 0) {
+      setText(el.runtimeStatus, "Ready", false);
+      setText(el.adapterState, "applied", false);
+      setText(el.errorState, "none", false);
+      setText(el.response, text, false);
+    } else {
+      setText(el.runtimeStatus, "Adapter rejected", true);
+      setText(el.adapterState, text, true);
+      setText(el.errorState, text, true);
+      setText(el.response, text, true);
+    }
+    appendConsole(`apply_adapter_delta(${adapter.label || adapter.path}) -> ${code}\n${text}`);
+    renderDiagnostics();
+    setControls(state.modelLoaded, true);
   }
 
   async function boot() {
@@ -585,6 +1316,18 @@
       setText(el.modelState, "unexpected error", true);
       setText(el.errorState, errorMessage(error), true);
       setControls(false, Boolean(state.exports));
+    });
+  });
+
+  el.applyAdapterButton.addEventListener("click", function () {
+    applySelectedAdapter().catch((error) => {
+      const text = errorMessage(error);
+      setText(el.runtimeStatus, "Adapter load failed", true);
+      setText(el.adapterState, text, true);
+      setText(el.errorState, text, true);
+      appendConsole(text);
+      renderDiagnostics();
+      setControls(state.modelLoaded, Boolean(state.exports));
     });
   });
 

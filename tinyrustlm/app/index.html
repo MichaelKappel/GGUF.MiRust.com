@@ -78,6 +78,20 @@
       </section>
 
       <section class="panel">
+        <h2>Adapter Sidecar</h2>
+        <label for="adapterSelect">Adapter</label>
+        <select id="adapterSelect" disabled>
+          <option value="none" selected>None</option>
+        </select>
+        <div class="actions adapter-actions">
+          <button id="applyAdapterButton" type="button" disabled>Apply Adapter</button>
+        </div>
+        <dl id="adapterPanel">
+          <dt>Status</dt><dd id="adapterState">waiting</dd>
+        </dl>
+      </section>
+
+      <section class="panel">
         <h2>Model Provenance</h2>
         <dl id="provenancePanel">
           <dt>Manifest</dt><dd id="provenanceState">waiting</dd>
@@ -87,6 +101,18 @@
           <dt>Trained</dt><dd id="provenanceTrainedClaim">waiting</dd>
           <dt>Checksum</dt><dd id="provenanceChecksum">waiting</dd>
           <dt>Next Gate</dt><dd id="provenanceNextGate">waiting</dd>
+        </dl>
+      </section>
+
+      <section class="panel">
+        <h2>Assembly Evidence</h2>
+        <dl id="assemblyPanel">
+          <dt>Receipt</dt><dd id="assemblyState">waiting</dd>
+          <dt>Kind</dt><dd id="assemblyKind">waiting</dd>
+          <dt>Parents</dt><dd id="assemblyParents">waiting</dd>
+          <dt>Operator</dt><dd id="assemblyOperator">waiting</dd>
+          <dt>Ledger</dt><dd id="assemblyLedger">waiting</dd>
+          <dt>Next Gate</dt><dd id="assemblyNextGate">waiting</dd>
         </dl>
       </section>
 

@@ -1,5 +1,5 @@
 profile: gguf-mirust.long-term-memory-ledger.v3
-updated_utc: 2026-06-27T03:21:25Z
+updated_utc: 2026-06-27T15:10:00Z
 storage_mode: hybrid
 ledger_rule:
   pointer_only_not_context_free: true
@@ -12,15 +12,15 @@ records:
     path: tinyrustlm/README.md
     target_location: tinyrustlm/README.md
     label: Required For TinyRustLM Build And Run Instructions
-    summary: Routes agents to TinyRustLM commands, conversion, compatibility, operators, adapters, candidates, promotion, admission, ledgers, population reviews, parent-pool recipes, registries, smokes, and limits.
+    summary: Routes agents to TinyRustLM commands, operators, objective-vector reviews, sparse-mask receipts, parent-relatedness recipes, ADP1 sidecars, browser-verified receipts/manifests, candidates, registries, bundles, and limits.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed implementation doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before building, testing, serving, or claiming TinyRustLM runtime support.
-    checksum_hash: sha256:AF942B2FA43563CFF4FF209D411815EFDF145A3765C64C8C0B7862F229C3BF06
-    last_reviewed_utc: 2026-06-27T03:10:31Z
+    checksum_hash: sha256:221364D0C977635DF54D490AED474E57D8AAE554C9F276CF91D2CE28085E97E0
+    last_reviewed_utc: 2026-06-27T15:10:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; durable build detail lives in the target file.
   - stable_id: gguf_mirust_root_readme
@@ -29,15 +29,15 @@ records:
     path: README.md
     target_location: README.md
     label: Required For Workspace Entry Commands
-    summary: Routes agents to setup, commands, rustdoc, conversion, compatibility, operators, adapter artifacts, candidates, promotion, runtime-smoke, admission, ledgers, population reviews, parent-pool recipes, registries, and memory strategy.
+    summary: Routes agents to setup, commands, operators, objective-vector reviews, sparse-mask receipts, parent-relatedness recipes, ADP1 sidecars, browser-verified receipts/manifests, candidates, registries, bundles, and memory strategy.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed workspace doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before orienting from the repository root or changing top-level commands.
-    checksum_hash: sha256:6586969BEBF5F3D1E9C51940A2225998C69C3EA9F5AA7F3A0B03045951C2000E
-    last_reviewed_utc: 2026-06-27T03:10:31Z
+    checksum_hash: sha256:F6ACABD7450DB558A865282D0938861402A0AAF1D5E7C97527D2BCD908B17E20
+    last_reviewed_utc: 2026-06-27T15:10:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; root command detail lives in the target file.
   - stable_id: tinyrustlm_workspace_cargo
@@ -63,15 +63,15 @@ records:
     path: tinyrustlm/docs/architecture.md
     target_location: tinyrustlm/docs/architecture.md
     label: Required For TinyRustLM Architecture
-    summary: Routes agents to runtime/app/tooling boundaries, model-breeding operators, adapters, candidates, promotion, runtime-smoke, admission, ledgers, population reviews, parent-pool recipes, registries, browser intake, gates, and expansion.
+    summary: Routes agents to runtime/app/tooling boundaries, objective-vector reviews, parent-relatedness metadata, ADP1 sidecars, browser-verified receipts/manifests, operators, candidates, registries, runnable bundles, gates, and expansion.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed architecture doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing runtime boundaries, app responsibilities, model loading, or future milestone order.
-    checksum_hash: sha256:8692176B7834C4F5F2E026FCB2E4B089FA492D9A8B11E921DB31A14ADEE57E84
-    last_reviewed_utc: 2026-06-27T03:10:31Z
+    checksum_hash: sha256:F4DB8ACE299881BD8F5AEE8BADF4BE15F1BC125A11EB4749BFFA73971B40EA78
+    last_reviewed_utc: 2026-06-27T15:10:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; architecture detail lives in the target file.
   - stable_id: tinyrustlm_slm_format
@@ -80,15 +80,15 @@ records:
     path: tinyrustlm/docs/slm-format.md
     target_location: tinyrustlm/docs/slm-format.md
     label: Required For SLM Format Work
-    summary: Routes agents to v1 .slm layout, conversion, validation, compatibility, operators, ADP1 adapters, adapter-fuse, promotion, runtime-smoke, admission, ledgers, population reviews, parent-pool recipes, registries, and gates.
+    summary: Routes agents to v1 .slm layout, validation, compatibility, operators, objective-vector reviews, sparse-mask receipts, parent-relatedness fields, ADP1 adapters, browser sidecars, adapter-family receipts, registries, and gates.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed format doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing model_format.rs, slm_pack, fixtures, or model validation.
-    checksum_hash: sha256:486FF36D96524CE496F7A85511B9CE9E760ADAFB4ED1E6D45AF53615C22DFA62
-    last_reviewed_utc: 2026-06-27T03:10:31Z
+    checksum_hash: sha256:F7203DC477294CA0FDC436DF162C6B732C814D74CA236A6D524CFBA1893578AC
+    last_reviewed_utc: 2026-06-27T15:10:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; format detail lives in the target file.
   - stable_id: tinyrustlm_tokenizer
@@ -104,8 +104,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing tokenizer.rs, tokenizer fixtures, or BPE planning.
-    checksum_hash: sha256:187AF7EE167E9C109C1A135EDB1231C66423149B5C121F418281894A76F351B5
-    last_reviewed_utc: 2026-06-25T11:46:02Z
+    checksum_hash: sha256:B133955180A0AF4F260C81F6438E1C586A27A4863068AD4B6E82C32DCB14D18F
+    last_reviewed_utc: 2026-06-27T06:07:09Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; tokenizer detail lives in the target file.
   - stable_id: tinyrustlm_tokenizer_source
@@ -142,21 +142,38 @@ records:
     last_reviewed_utc: 2026-06-25T07:24:21Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; quantization detail lives in the target file.
+  - stable_id: tinyrustlm_quant_source
+    memory_domain: tinyrustlm.quantization_source
+    pointer_type: local_rs
+    path: tinyrustlm/runtime/src/quant.rs
+    target_location: tinyrustlm/runtime/src/quant.rs
+    label: Required For Runtime Quantization Helpers
+    summary: Routes agents to q8_0/q4_0 dequantization, re-quantization helpers, nibble packing, block math, and quantization unit tests.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed runtime source
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing q8/q4 dequantization, ADP1 compact apply, q4 packing, or quantized matvec support.
+    checksum_hash: sha256:90E9F3103D39D00A75A1AC52756436D745EB0D24DE748AFFE5C3F462B183A914
+    last_reviewed_utc: 2026-06-27T14:30:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; quantization implementation lives in the target file.
   - stable_id: tinyrustlm_browser_runtime
     memory_domain: tinyrustlm.browser_runtime
     pointer_type: local_md
     path: tinyrustlm/docs/browser-runtime.md
     target_location: tinyrustlm/docs/browser-runtime.md
     label: Required For Browser Runtime Work
-    summary: Routes agents to Rust hosting, JS responsibilities, local model/manifest policy, selector.registry intake, offline operator boundary, Step Token, provenance, validation, and local-only rules.
+    summary: Routes agents to Rust hosting, JS responsibilities, selector.registry intake, ADP1 checksum-checked sidecars, browser-verified adapter-family receipts and manifests, Step Token, provenance, and local-only rules.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed browser runtime doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing app.js, app.css, app HTML, local fetch paths, or browser diagnostics.
-    checksum_hash: sha256:DA2A82B7D2385D5B14DA49D5C314F2CE956C52CD7CE9B4AE864E869CF79581B5
-    last_reviewed_utc: 2026-06-27T02:23:33Z
+    checksum_hash: sha256:4AAD16E7C4F1F6288D8BD00E90B5BE92A187950448F572DC711E85567A4008AE
+    last_reviewed_utc: 2026-06-27T15:10:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; browser runtime detail lives in the target file.
   - stable_id: tinyrustlm_browser_app_html
@@ -165,15 +182,15 @@ records:
     path: tinyrustlm/app/index.html
     target_location: tinyrustlm/app/index.html
     label: Required For TinyRustLM Browser Shell Markup
-    summary: Routes agents to the static UI structure for chat, transcript, Step Token, Clear, loading, provenance, benchmark, diagnostics, local-only notice, and footer identity.
+    summary: Routes agents to the static UI structure for chat, transcript, Step Token, Adapter Sidecar, Clear, loading, provenance, Assembly Evidence, benchmark, diagnostics, local-only notice, and footer identity.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed app source
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing visible browser panels, product shell, or static app layout.
-    checksum_hash: sha256:93C9A0A430048F423D314C28B4BA34AF1661139DCC5EF401230351A39AC9E5C7
-    last_reviewed_utc: 2026-06-25T13:59:11Z
+    checksum_hash: sha256:463E45D80689A737E8682636E90CBFDCAD0209B8C0D5AED2316E4CC319473B63
+    last_reviewed_utc: 2026-06-27T11:55:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; implementation lives in the target file.
   - stable_id: tinyrustlm_browser_app_js
@@ -182,15 +199,15 @@ records:
     path: tinyrustlm/app/app.js
     target_location: tinyrustlm/app/app.js
     label: Required For TinyRustLM Browser Host Logic
-    summary: Routes agents to handwritten WASM/model loading, selector.registry parsing, registry model options, manifest parsing, transcript rendering, Step Token, diagnostics, benchmark, and generation calls.
+    summary: Routes agents to handwritten WASM/model loading, selector.registry parsing, static and registry ADP1 transfer, artifact checksum checks, receipt/manifest verification, transcript, Step Token, diagnostics, and generation calls.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed app source
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing browser host behavior, local fetches, model selection, provenance rendering, or WASM calls.
-    checksum_hash: sha256:FBF09C67AF1EBD2992FAF3ECB31BB122262D317A6930B0BDDB0BE4AB20F2715F
-    last_reviewed_utc: 2026-06-26T23:45:48Z
+    checksum_hash: sha256:0AF4578F4E5E08BA7FD4039989B6A26E293E6C0DBA19FEA5EE21E71FC2E4BCA3
+    last_reviewed_utc: 2026-06-27T15:10:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; implementation lives in the target file.
   - stable_id: tinyrustlm_browser_app_css
@@ -223,8 +240,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing diagnostics JSON, benchmark counters, developer mode fields, or browser JSON.parse assumptions.
-    checksum_hash: sha256:4B875444C26474E8C1C5F212D5392D28EF5D9B909241310453B3A8BFE799F683
-    last_reviewed_utc: 2026-06-25T00:00:00Z
+    checksum_hash: sha256:F36F525DD7DCC60E892BBAA7ED00816634A4CEA9E9895B8143D79A313E2A24CE
+    last_reviewed_utc: 2026-06-27T06:07:09Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; diagnostics implementation lives in the target file.
   - stable_id: tinyrustlm_testing
@@ -233,15 +250,15 @@ records:
     path: tinyrustlm/docs/testing.md
     target_location: tinyrustlm/docs/testing.md
     label: Required For TinyRustLM Test Coverage
-    summary: Routes agents to tests for conversion, compatibility, blend/task/sparse operators, adapter validation, candidates, promotion, runtime-smoke, selector admission, ledgers, registries, browser intake, ABI, and smokes.
+    summary: Routes agents to tests for conversion, objective-vector reviews, sparse-mask receipts, parent-relatedness fields, operators, adapters, ADP1 checks, browser sidecars/families, candidates, admission, registries, ABI, and smokes.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed testing doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before adding tests, accepting runtime behavior, or claiming milestone completion.
-    checksum_hash: sha256:2F82781D55E3BB7EC7FEB6D8F7666C64721DBCD3E050AE8E6177E469BFB932E3
-    last_reviewed_utc: 2026-06-27T02:23:33Z
+    checksum_hash: sha256:061860D28B8D78D99EF952C8B7CA91B373909A1DA60700D48D5BB2E44506B99F
+    last_reviewed_utc: 2026-06-27T15:10:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; testing detail lives in the target file.
   - stable_id: tinyrustlm_ops_source
@@ -284,15 +301,15 @@ records:
     path: tinyrustlm/models/README.md
     target_location: tinyrustlm/models/README.md
     label: Required For TinyRustLM Model Artifact Commands
-    summary: Routes agents to model commands, conversion, compatibility, blend/task/sparse operators, adapter packages, adapter-fuse candidates, promotion, runtime-smoke, selector admission, ledgers, registries, gates, and artifacts.
+    summary: Routes agents to model commands, conversion, compatibility, operators, objective-vector reviews, parent-relatedness metadata, adapters, ADP1 sidecars, adapter families, candidates, admissions, registries, bundles, gates, and artifacts.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed model artifact note
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before regenerating, deleting, or claiming model artifacts under tinyrustlm/models/.
-    checksum_hash: sha256:2EB092C0554D3D2FDA89F49F7B97C2B52C36CFEC61BD699AB26264B707F8FAE2
-    last_reviewed_utc: 2026-06-27T02:23:33Z
+    checksum_hash: sha256:A0AB4CBA894D653CC2DA1F88D9EADCCDAC19C980C3E9F6E5853745EA32796051
+    last_reviewed_utc: 2026-06-27T14:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; model command detail lives in the target file.
   - stable_id: tinyrustlm_model_format_source
@@ -335,15 +352,15 @@ records:
     path: tinyrustlm/runtime/src/model.rs
     target_location: tinyrustlm/runtime/src/model.rs
     label: Required For Runtime Model Tensor Storage
-    summary: Routes agents to model loading, pre-resolved tensor indices, tied-output projection fallback, required tensor validation, native q8/q4 compact storage, scratch copies, and quantized matvec.
+    summary: Routes agents to model loading, runtime f32/q8/q4 ADP1 apply, tensor identity checks, pre-resolved indices, tied-output fallback, compact storage, scratch copies, and matvec.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed runtime source
     review_status: reviewed_current
     quarantine_status: reviewed_current
-    contextual_trigger: Read before changing tensor loading, quantized storage, tensor borrow/copy behavior, or model matvec dispatch.
-    checksum_hash: sha256:AABD65E4B142BBC29C8F562D8C42E045541EC433785CC66C9283C5602C905789
-    last_reviewed_utc: 2026-06-25T12:22:29Z
+    contextual_trigger: Read before changing tensor loading, runtime adapter apply, quantized storage, tensor borrow/copy behavior, or model matvec dispatch.
+    checksum_hash: sha256:BEC2B555241B3264AD0DF5808F1D9D46049764625E91AF20B28B365AE3F933F2
+    last_reviewed_utc: 2026-06-27T14:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; model loading implementation lives in the target file.
   - stable_id: tinyrustlm_generate_source
@@ -352,17 +369,34 @@ records:
     path: tinyrustlm/runtime/src/generate.rs
     target_location: tinyrustlm/runtime/src/generate.rs
     label: Required For Runtime Generation And Scratch Use
-    summary: Routes agents to generation state, tensor-index use, BPE diagnostics, context cleanup, output cap, reusable scratch/logits, step-token ABI, model-free state, and KV updates.
+    summary: Routes agents to generation state, tensor-index use, BPE diagnostics, context cleanup, output cap, reusable scratch/logits, step-token ABI, adapter apply reset, model-free state, and KV updates.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed runtime source
     review_status: reviewed_current
     quarantine_status: reviewed_current
-    contextual_trigger: Read before changing generation loops, scratch allocation, diagnostics counters, or quantized embedding/norm access.
-    checksum_hash: sha256:84669EB22638850F376D260B266999135D83021B791378B7771C5C16CB1F7372
-    last_reviewed_utc: 2026-06-25T13:35:24Z
+    contextual_trigger: Read before changing generation loops, adapter apply state reset, scratch allocation, diagnostics counters, or quantized embedding/norm access.
+    checksum_hash: sha256:0982A7BE2CA5072C6E5B8F6193E82B7548457D21464049457962C7B5A028CBDA
+    last_reviewed_utc: 2026-06-27T14:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; generation implementation lives in the target file.
+  - stable_id: tinyrustlm_runtime_adapter_source
+    memory_domain: tinyrustlm.runtime_adapter_source
+    pointer_type: local_rs
+    path: tinyrustlm/runtime/src/adapter.rs
+    target_location: tinyrustlm/runtime/src/adapter.rs
+    label: Required For Runtime ADP1 Adapter Parsing
+    summary: Routes agents to runtime ADP1 parsing, checksum formulas, model identity validation, tensor directory validation, payload checks, finite delta checks, and adapter unit tests.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed runtime source
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing ADP1 package parsing, checksum compatibility with slm_pack, runtime adapter validation, or adapter apply tests.
+    checksum_hash: sha256:6405E031682DDE403551A72357A08C61C87566D7687936F9B6D8B51905EB6EEA
+    last_reviewed_utc: 2026-06-27T07:12:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; adapter parser implementation lives in the target file.
   - stable_id: tinyrustlm_sampler_source
     memory_domain: tinyrustlm.sampler_source
     pointer_type: local_rs
@@ -386,15 +420,15 @@ records:
     path: tinyrustlm/runtime/src/wasm_exports.rs
     target_location: tinyrustlm/runtime/src/wasm_exports.rs
     label: Required For TinyRustLM WASM Export Boundary
-    summary: Routes agents to raw WASM exports, memory boundary calls, explicit ErrorCode returns, generate_next_token result routing, diagnostics, reset, and free_model behavior.
+    summary: Routes agents to raw WASM exports, memory boundary calls, explicit ErrorCode returns, generate_next_token, apply_adapter_delta, diagnostics, reset, and free_model behavior.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed runtime source
     review_status: reviewed_current
     quarantine_status: reviewed_current
-    contextual_trigger: Read before changing exported Rust functions, JS ABI calls, memory transfer, diagnostics pointers, reset behavior, or model-free behavior.
-    checksum_hash: sha256:1AFC1DFB508379D3DD5A7565991F8CED5ED8994CB7D7B335A7ED2CE4403D086C
-    last_reviewed_utc: 2026-06-25T10:31:19Z
+    contextual_trigger: Read before changing exported Rust functions, JS ABI calls, adapter apply, memory transfer, diagnostics pointers, reset behavior, or model-free behavior.
+    checksum_hash: sha256:F3ED818D6CEE7C2AE6F444A1D4906944278005B0E495374DDBBEAFA9FA4919BA
+    last_reviewed_utc: 2026-06-27T07:12:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; export implementation lives in the target file.
   - stable_id: tinyrustlm_slm_pack_source
@@ -403,17 +437,34 @@ records:
     path: tinyrustlm/tools/slm_pack/src/main.rs
     target_location: tinyrustlm/tools/slm_pack/src/main.rs
     label: Required For SLM Packer And Artifact Generation
-    summary: Routes agents to CLI dispatch for conversion, manifests, eval, compatibility, operators, adapters, candidates, promotion, runtime-smoke, admission, ledgers, population reviews, parent-pool recipes, registries, and checksums.
+    summary: Routes agents to CLI dispatch for conversion, manifests, eval, compatibility, operators, adapters, adapter-family receipts, candidates, multi-parent manifests, promotions, admission, ledgers, recipes, registries, browser bundles, and checksums.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed packer source
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before regenerating artifacts or changing tensor writer/checksum behavior.
-    checksum_hash: sha256:77CAFB6EB7DA1B41D1268C25CA4458E19CA294189BB785ABEFB4451430478A9A
-    last_reviewed_utc: 2026-06-27T03:10:31Z
+    checksum_hash: sha256:3CF7DB12DD2B66B03E9662637999D82654E38D074242D32D6E34B72BA44D8AE1
+    last_reviewed_utc: 2026-06-27T10:05:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; packer implementation lives in the target file.
+  - stable_id: tinyrustlm_slm_browser_bundle_source
+    memory_domain: tinyrustlm.model_breeding_browser_bundle_source
+    pointer_type: local_rs
+    path: tinyrustlm/tools/slm_pack/src/browser_bundle.rs
+    target_location: tinyrustlm/tools/slm_pack/src/browser_bundle.rs
+    label: Required For Generated Browser Multi-Parent Bundles
+    summary: Routes agents to runnable generated bundle staging for app shell, WASM runtime, f32 sign-merge model, selector registry, evidence, ADP1 packages, manifests, adapter-family receipt, assembly receipt, and smokes.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed packer source
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing browser-multi-parent-bundle staging, generated selector registry roots, generated ADP1 sidecar staging, or file-backed multi-parent browser smoke.
+    checksum_hash: sha256:ACAAF5BC9A500073DD0FD23AB2CAA36EBB28441F18EACB9647C350572E1DB1ED
+    last_reviewed_utc: 2026-06-27T11:55:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; generated bundle implementation lives in the target file.
   - stable_id: tinyrustlm_tokenizer_writer_source
     memory_domain: tinyrustlm.slm_tokenizer_writer_source
     pointer_type: local_rs
@@ -427,8 +478,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing tokenizer section serialization or regenerating BPE fixture artifacts.
-    checksum_hash: sha256:AD2077A7169AE56E0C080C32A753B4F76698BEDE2D1C4C694989AC64CE6FF89E
-    last_reviewed_utc: 2026-06-25T11:46:02Z
+    checksum_hash: sha256:F201E5D93D65D447553C54691BBEA55B62B7D75522060854C2402BD316C3BFFD
+    last_reviewed_utc: 2026-06-27T06:07:09Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; tokenizer writer implementation lives in the target file.
   - stable_id: tinyrustlm_slm_validate_source
@@ -522,15 +573,15 @@ records:
     path: tinyrustlm/tools/slm_pack/src/sparse_delta.rs
     target_location: tinyrustlm/tools/slm_pack/src/sparse_delta.rs
     label: Required For Sparse Task-Delta Operator Receipts
-    summary: Routes agents to sparse-delta-candidate, validate-sparse-delta-candidate, keep rates, absolute-delta selection, .slm output, receipt recomputation, and drift tests.
+    summary: Routes agents to sparse-delta-candidate, validate-sparse-delta-candidate, keep rates, density, nonzero retention, mask checksums, .slm output, receipt recomputation, and drift tests.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed packer source
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing sparse task-vector operators, keep-rate selection, operator receipts, or candidate artifact handoff.
-    checksum_hash: sha256:2C94F2EA1C17C2DC482A000BF7ACFE414DA46663951A847D104D8CAB8EBBDC94
-    last_reviewed_utc: 2026-06-27T02:23:33Z
+    checksum_hash: sha256:F56C9FCB3E11C04F1EF42329FEFEF8C34FD002E67B1A66AAEF5451C346A7A72A
+    last_reviewed_utc: 2026-06-27T12:20:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; sparse task-delta operator implementation lives in the target file.
   - stable_id: tinyrustlm_slm_adapter_source
@@ -539,17 +590,34 @@ records:
     path: tinyrustlm/tools/slm_pack/src/adapter.rs
     target_location: tinyrustlm/tools/slm_pack/src/adapter.rs
     label: Required For Adapter Delta And Fuse Artifacts
-    summary: Routes agents to adapter-delta, validate-adapter-delta, fuse-adapter-delta, ADP1 raw f32 task deltas, .slm candidate fusion, receipt recomputation, and drift tests.
+    summary: Routes agents to adapter-delta, validate-adapter-delta, f32 runtime apply status, fuse-adapter-delta, ADP1 raw f32 task deltas, .slm candidate fusion, and drift tests.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed packer source
     review_status: reviewed_current
     quarantine_status: reviewed_current
-    contextual_trigger: Read before changing adapter artifacts, raw task-delta packages, adapter-fuse handoff, runtime apply planning, or adapter manifest fields.
-    checksum_hash: sha256:EA836C55F041EC6171B86B101F5DD50BA253AF23E252C25CF352FFB2BBE94419
-    last_reviewed_utc: 2026-06-27T01:58:11Z
+    contextual_trigger: Read before changing adapter artifacts, raw task-delta packages, adapter-fuse handoff, runtime f32/q8/q4 apply compatibility, or adapter manifest fields.
+    checksum_hash: sha256:DB0C88D6264B9027638A7DC11E631959D8D01A4397343C8CB43E78D31246C08F
+    last_reviewed_utc: 2026-06-27T14:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; adapter artifact implementation lives in the target file.
+  - stable_id: tinyrustlm_slm_adapter_family_source
+    memory_domain: tinyrustlm.model_breeding_adapter_family_source
+    pointer_type: local_rs
+    path: tinyrustlm/tools/slm_pack/src/adapter_family.rs
+    target_location: tinyrustlm/tools/slm_pack/src/adapter_family.rs
+    label: Required For Adapter Family Receipts
+    summary: Routes agents to adapter-family receipt generation, member manifest validation, shared f32 adapter identity checks, registry route binding, and receipt tests.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed packer source
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing generated adapter-family receipts, selector receipt fields, or bundle receipt staging.
+    checksum_hash: sha256:4D4BC12D2DADC356C1D33E6B702802FEEB4BEEEF5E14F9B94062A484E6CB7250
+    last_reviewed_utc: 2026-06-27T15:10:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; adapter-family receipt implementation lives in the target file.
   - stable_id: tinyrustlm_slm_candidate_source
     memory_domain: tinyrustlm.model_breeding_candidate_source
     pointer_type: local_rs
@@ -624,15 +692,15 @@ records:
     path: tinyrustlm/tools/slm_pack/src/population.rs
     target_location: tinyrustlm/tools/slm_pack/src/population.rs
     label: Required For Population Review Records
-    summary: Routes agents to population-review, validate-population-review, ledger-backed ranking, frontier selection, parent-pool routing, fitness ppm fields, and drift tests.
+    summary: Routes agents to population-review, validate-population-review, ledger-backed ranking, objective-vector metadata, per-entry objective checksums, frontier selection, parent-pool routing, fitness ppm fields, and drift tests.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed packer source
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing population review ranking, frontier selection, parent-pool routing, or PBT-inspired model-breeding gates.
-    checksum_hash: sha256:AAAECEAA7B3871F0718E71BDD08DE6FB3C8F65F9DB9C85427788B3E1B2F94D41
-    last_reviewed_utc: 2026-06-27T03:10:31Z
+    checksum_hash: sha256:48310799260A95B602BC3580E4FD11A2590BD7875A2AB0859B2C0CBA669B0648
+    last_reviewed_utc: 2026-06-27T13:45:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; population review implementation lives in the target file.
   - stable_id: tinyrustlm_slm_parent_pool_source
@@ -641,32 +709,100 @@ records:
     path: tinyrustlm/tools/slm_pack/src/parent_pool.rs
     target_location: tinyrustlm/tools/slm_pack/src/parent_pool.rs
     label: Required For Parent-Pool Recipe Records
-    summary: Routes agents to parent-pool-recipe, validate-parent-pool-recipe, population-review validation, shared direct-parameter contracts, seed weights, and drift tests.
+    summary: Routes agents to parent-pool-recipe, validate-parent-pool-recipe, population-review validation, shared contracts, seed weights, relatedness checksums, sign-merge inputs, and drift tests.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed packer source
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing reviewed-parent recipes, seed weighting, sign-aware merge planning, or population-review consumers.
-    checksum_hash: sha256:1F8C6C8983F2A5900DC226A6ACC54BC9C049CF9D208733209D53A591829B80D0
-    last_reviewed_utc: 2026-06-27T03:10:31Z
+    checksum_hash: sha256:D9799F344A4F9CEA4F085D0446EB125B7018A69937CF9346ED25FDAE3A1451EF
+    last_reviewed_utc: 2026-06-27T12:45:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; parent-pool recipe implementation lives in the target file.
+  - stable_id: tinyrustlm_slm_sign_merge_source
+    memory_domain: tinyrustlm.model_breeding_sign_merge_source
+    pointer_type: local_rs
+    path: tinyrustlm/tools/slm_pack/src/sign_merge.rs
+    target_location: tinyrustlm/tools/slm_pack/src/sign_merge.rs
+    label: Required For Sign-Aware Parent-Pool Merge Candidates
+    summary: Routes agents to sign-merge-candidate, validate-sign-merge-candidate, parent-pool validation, relatedness echo fields, seed-weighted sign consensus, candidate bytes, receipts, and drift tests.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed packer source
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing sign-aware parent-pool merge operators, multi-parent receipts, or candidate manifest handoff.
+    checksum_hash: sha256:7D225DCDC1C94B7BD56F197C11A10C7D9E2ADE303A39F3D1AF1FD3F2E0F34D4A
+    last_reviewed_utc: 2026-06-27T12:45:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; sign-merge implementation lives in the target file.
+  - stable_id: tinyrustlm_slm_multi_candidate_source
+    memory_domain: tinyrustlm.model_breeding_multi_candidate_source
+    pointer_type: local_rs
+    path: tinyrustlm/tools/slm_pack/src/multi_candidate.rs
+    target_location: tinyrustlm/tools/slm_pack/src/multi_candidate.rs
+    label: Required For Multi-Parent Candidate Manifests
+    summary: Routes agents to multi-parent-candidate-manifest, validate-multi-parent-candidate, sign-merge receipt checksums, recipe checksums, relatedness summary, candidate fields, promotion route, and drift tests.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed packer source
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing multi-parent candidate manifests, sign-merge handoff, receipt checksum binding, or promotion routing.
+    checksum_hash: sha256:81D5725E4660B1E62DC126DFC487E75884D41536796A556391F97ACBBCC0AE4D
+    last_reviewed_utc: 2026-06-27T12:45:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; multi-parent candidate implementation lives in the target file.
+  - stable_id: tinyrustlm_slm_multi_promotion_source
+    memory_domain: tinyrustlm.model_breeding_multi_promotion_source
+    pointer_type: local_rs
+    path: tinyrustlm/tools/slm_pack/src/multi_promotion.rs
+    target_location: tinyrustlm/tools/slm_pack/src/multi_promotion.rs
+    label: Required For Multi-Parent Promotion Templates
+    summary: Routes agents to multi-parent-promotion-template, validate-multi-parent-promotion, candidate manifest checksums, receipt checksums, pending runtime-smoke/eval state, selector status, and drift tests.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed packer source
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing sign-merge promotion handoff, multi-parent runtime/eval routes, or selector admission routing.
+    checksum_hash: sha256:C03DCBA963DB4F06B7BDF2F5BAED75ECB5A7E72A1C6360F91A631BFF8FA3C5F5
+    last_reviewed_utc: 2026-06-27T04:21:03Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; multi-parent promotion implementation lives in the target file.
+  - stable_id: tinyrustlm_slm_multi_admission_source
+    memory_domain: tinyrustlm.model_breeding_multi_admission_source
+    pointer_type: local_rs
+    path: tinyrustlm/tools/slm_pack/src/multi_admission.rs
+    target_location: tinyrustlm/tools/slm_pack/src/multi_admission.rs
+    label: Required For Multi-Parent Selector Admission Records
+    summary: Routes agents to multi-parent-admission-record, validate-multi-parent-admission, sign-merge promotion evidence, runtime/eval checksums, selector-registry routing, and drift tests.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed packer source
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing sign-merge admission evidence, multi-parent runtime/eval proof binding, or selector-registry handoff.
+    checksum_hash: sha256:259A3CABE9ED6EC0D69F179C1350AA70F474501446D497F2DAAC4E7355AF0F0F
+    last_reviewed_utc: 2026-06-27T05:13:38Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; multi-parent admission implementation lives in the target file.
   - stable_id: tinyrustlm_slm_selector_source
     memory_domain: tinyrustlm.model_breeding_selector_source
     pointer_type: local_rs
     path: tinyrustlm/tools/slm_pack/src/selector.rs
     target_location: tinyrustlm/tools/slm_pack/src/selector.rs
     label: Required For Selector Registry Records
-    summary: Routes agents to selector-registry generation, validate-selector-registry, served model route derivation, admission checksum binding, duplicate rejection, and registry drift tests.
+    summary: Routes agents to selector-registry generation, validation, mixed admission intake, legacy and indexed f32/q8_0/q4_0 adapter-family fields, adapter-family receipt fields, assembly receipt fields, route checks, duplicate rejection, and drift tests.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed packer source
     review_status: reviewed_current
     quarantine_status: reviewed_current
-    contextual_trigger: Read before changing selector registry generation, browser admitted-route intake, or model-breeding promotion routing.
-    checksum_hash: sha256:2382C3779D95467E91A172AB6404C2143BBC72AFF51E417847E710C8D597918B
-    last_reviewed_utc: 2026-06-26T23:45:48Z
+    contextual_trigger: Read before changing selector registry generation, browser admitted-route intake, optional adapter fields, mixed admission validation, or model-breeding promotion routing.
+    checksum_hash: sha256:1BC49B9648D0D62688AE9B697E11603496C5C213A745655C100C2ACFC675289B
+    last_reviewed_utc: 2026-06-27T15:10:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; selector registry implementation lives in the target file.
   - stable_id: tinyrustlm_slm_provenance_source
@@ -716,8 +852,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing validate-source, source-template, convert-trained, or trained-source quality boundaries.
-    checksum_hash: sha256:0EC78D46A40C6532FFE47FDCE6EC846F8A9491B2FE542A2E38C5E465859C5FE5
-    last_reviewed_utc: 2026-06-25T13:16:41Z
+    checksum_hash: sha256:54A054A391D60584BE042D8A02ECF9C5E4726388566C0AB3695C2CAFE5DA8E3A
+    last_reviewed_utc: 2026-06-27T06:07:09Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; source conversion implementation lives in the target file.
   - stable_id: tinyrustlm_trained_source_fixture_manifest
@@ -750,8 +886,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing eval sidecar evidence fields or assistant-quality fixture claims.
-    checksum_hash: sha256:C417F642D7CE9302C56F6782B3E92A84B9AD73903FE56725E46B5907636B6793
-    last_reviewed_utc: 2026-06-25T00:00:00Z
+    checksum_hash: sha256:F0999C05C19029FC240E11A7BCFC41DC7CC43874F9F81ED6F1111BA66D7B76A8
+    last_reviewed_utc: 2026-06-27T06:07:09Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; provenance implementation lives in the target file.
   - stable_id: tinyrustlm_browser_smoke_tool
@@ -760,15 +896,15 @@ records:
     path: tinyrustlm/tools/browser-smoke.js
     target_location: tinyrustlm/tools/browser-smoke.js
     label: Required For TinyRustLM Browser Smoke Verification
-    summary: Routes agents to headless Chrome smoke, dynamic selector-registry model keys, q8/q4 UI, Step Token, transcript/Clear, provenance, endurance, performance, and local-origin checks.
+    summary: Routes agents to headless Chrome smoke for ADP1 checksum mismatch, assembly receipts with evidence-file requests, adapter-family receipt/manifests, adapter sidecars, multi-parent routing, q8/q4 UI, Step Token, and local-origin checks.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed test tool
     review_status: reviewed_current
     quarantine_status: reviewed_current
-    contextual_trigger: Run after app, WASM, server, or model selector changes.
-    checksum_hash: sha256:959D1D45125869ACD508D5839212159A9BE83F148AA9116E27DB9B3B962AC631
-    last_reviewed_utc: 2026-06-26T23:45:48Z
+    contextual_trigger: Run after app, WASM, server, adapter sidecar, registry, or model selector changes.
+    checksum_hash: sha256:343F3C3F4062FB40A8FAC968C9F1493F0547AF17BCECBB7FB1E8536156AF41DD
+    last_reviewed_utc: 2026-06-27T15:10:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; executable test behavior lives in the target file.
   - stable_id: tinyrustlm_wasm_abi_smoke_tool
@@ -777,15 +913,15 @@ records:
     path: tinyrustlm/tools/wasm-abi-smoke.js
     target_location: tinyrustlm/tools/wasm-abi-smoke.js
     label: Required For TinyRustLM WASM ABI Boundary Verification
-    summary: Routes agents to the no-dependency WASM ABI smoke for invalid UTF-8, invalid args, invalid sampling, recovery, step-token, free_model, and post-free checks.
+    summary: Routes agents to the no-dependency WASM ABI smoke for invalid UTF-8, invalid args, invalid sampling, recovery, step-token, f32 adapter apply, free_model, and post-free checks.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed test tool
     review_status: reviewed_current
     quarantine_status: reviewed_current
-    contextual_trigger: Run after changing WASM exports, memory.rs, app prompt transfer, diagnostics, or Visual Studio test wrappers.
-    checksum_hash: sha256:48A538CAF59516E675DD649E689E6C831D9B19CEE544D981DDCC4D9C618AA292
-    last_reviewed_utc: 2026-06-25T10:31:19Z
+    contextual_trigger: Run after changing WASM exports, memory.rs, app prompt transfer, adapter apply, diagnostics, or Visual Studio test wrappers.
+    checksum_hash: sha256:B3098E2969AE62A23BDC939B5465B5CAD441681857CAD2BC1FC4606D1AA2D4E5
+    last_reviewed_utc: 2026-06-27T07:12:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; executable test behavior lives in the target file.
   - stable_id: tinyrustlm_wasm_runtime_artifact
@@ -794,15 +930,15 @@ records:
     path: tinyrustlm/runtime/tinyrustlm.wasm
     target_location: tinyrustlm/runtime/tinyrustlm.wasm
     label: Required For TinyRustLM Browser WASM Runtime Artifact
-    summary: Routes agents to the rebuilt browser-loaded WASM artifact with tensor-index routing, reusable buffers, output cap, fixed-buffer sampling, ErrorCode step-token, and model-free ABI handling.
+    summary: Routes agents to the rebuilt browser-loaded WASM artifact with tensor-index routing, reusable buffers, output cap, fixed-buffer sampling, ErrorCode step-token, apply_adapter_delta, and model-free ABI handling.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: locally built release artifact
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Check after rebuilding runtime exports or before browser/runtime smoke claims.
-    checksum_hash: sha256:D81E95E5E596EF040A2258752FAB8A7B84B32E6729DD0CF600CFF37DD3EFADAF
-    last_reviewed_utc: 2026-06-25T13:35:24Z
+    checksum_hash: sha256:2948DAF23FECD6560A732A4F08A92A3885D89BD52FF1F3A3E6C54A3E699CAA12
+    last_reviewed_utc: 2026-06-27T14:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; source authority is runtime/src plus the build/test records.
   - stable_id: tinyrustlm_static_server_tool
@@ -845,15 +981,15 @@ records:
     path: tinyrustlm/tools/browser_harness/src/main.rs
     target_location: tinyrustlm/tools/browser_harness/src/main.rs
     label: Required For TinyRustLM Rust Mini Browser Harness
-    summary: Routes agents to the no-crate Rust mini browser harness for static contracts, selector-registry markers, Step Token id/export checks, manifests, and loopback routes.
+    summary: Routes agents to the no-crate Rust mini browser harness for static contracts, selector markers, Assembly Evidence checks, Adapter Sidecar checks, Step Token checks, manifests, and loopback routes.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed development tool
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing app contract checks, local-only policy checks, model manifest route checks, or Visual Studio browser-harness gates.
-    checksum_hash: sha256:641E469246EE8D74C92BC15C75A93AAD61B3AF3963AB2EE2F1D878FBEFF7453D
-    last_reviewed_utc: 2026-06-26T23:45:48Z
+    checksum_hash: sha256:310E7280829A541FB62AD33BE9D1A37B58162F0F4AAEB29CA40DF56DBA23AF66
+    last_reviewed_utc: 2026-06-27T11:55:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; executable harness behavior lives in the target file.
   - stable_id: tinyrustlm_tinylm16_f32_model
@@ -941,6 +1077,108 @@ records:
     last_reviewed_utc: 2026-06-25T12:58:04Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; binary artifact content is the target file.
+  - stable_id: tinyrustlm_tiny_f32_self_adp1
+    memory_domain: tinyrustlm.adapter_artifact
+    pointer_type: local_adp1
+    path: tinyrustlm/models/tiny-test-model-self.adp1
+    target_location: tinyrustlm/models/tiny-test-model-self.adp1
+    label: Required For Tiny F32 Browser Adapter Sidecar
+    summary: Routes agents to the checked zero-delta f32 ADP1 sidecar used by browser adapter-sidecar smoke and runtime apply validation.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local generated adapter artifact
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Validate and smoke before changing browser Adapter Sidecar claims or regenerating tiny f32 adapter artifacts.
+    checksum_hash: sha256:DBEEB5875D00958179600C1CB353CA1FAB7604F3D755A5DA905BFFF7F45B8BA8
+    last_reviewed_utc: 2026-06-27T08:24:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; binary artifact content is the target file.
+  - stable_id: tinyrustlm_tiny_f32_self_adp1_manifest
+    memory_domain: tinyrustlm.adapter_manifest
+    pointer_type: local_text
+    path: tinyrustlm/models/tiny-test-model-self.adp1.manifest
+    target_location: tinyrustlm/models/tiny-test-model-self.adp1.manifest
+    label: Required For Tiny F32 Browser Adapter Sidecar Manifest
+    summary: Routes agents to the checked ADP1 manifest binding f32 apply status, parent checksums, adapter checksum, tensor layout, tokenizer, and next gate.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local generated adapter manifest
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Validate before using the tiny f32 ADP1 package in browser or runtime adapter claims.
+    checksum_hash: sha256:78D72C47C6423F4E16E194DBB7F56F055071962FF611CC8C12E971C4C0FB75D0
+    last_reviewed_utc: 2026-06-27T08:24:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; manifest content is the target file.
+  - stable_id: tinyrustlm_tiny_q8_self_adp1
+    memory_domain: tinyrustlm.adapter_artifact
+    pointer_type: local_adp1
+    path: tinyrustlm/models/tiny-test-model-q8-self.adp1
+    target_location: tinyrustlm/models/tiny-test-model-q8-self.adp1
+    label: Required For Tiny Q8 Browser Adapter Sidecar
+    summary: Routes agents to the checked zero-delta q8_0 ADP1 sidecar used by browser adapter-sidecar smoke and compact runtime apply validation.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local generated adapter artifact
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Validate and smoke before changing browser Adapter Sidecar claims or regenerating tiny q8 adapter artifacts.
+    checksum_hash: sha256:7B4E998EFEAC9B9D7BB6F909FC99BC17CA81A905D5C19FA0970A8229BF67E5E8
+    last_reviewed_utc: 2026-06-27T14:30:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; binary artifact content is the target file.
+  - stable_id: tinyrustlm_tiny_q8_self_adp1_manifest
+    memory_domain: tinyrustlm.adapter_manifest
+    pointer_type: local_text
+    path: tinyrustlm/models/tiny-test-model-q8-self.adp1.manifest
+    target_location: tinyrustlm/models/tiny-test-model-q8-self.adp1.manifest
+    label: Required For Tiny Q8 Browser Adapter Sidecar Manifest
+    summary: Routes agents to the checked q8_0 ADP1 manifest binding apply status, parent checksums, adapter checksum, tensor layout, tokenizer, and next gate.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local generated adapter manifest
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Validate before using the tiny q8 ADP1 package in browser or runtime adapter claims.
+    checksum_hash: sha256:5680FD9A8676B818BCE3B90175AE75B574ACFE380B0B374A27ED46EA2C714AEB
+    last_reviewed_utc: 2026-06-27T14:30:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; manifest content is the target file.
+  - stable_id: tinyrustlm_tiny_q4_self_adp1
+    memory_domain: tinyrustlm.adapter_artifact
+    pointer_type: local_adp1
+    path: tinyrustlm/models/tiny-test-model-q4-self.adp1
+    target_location: tinyrustlm/models/tiny-test-model-q4-self.adp1
+    label: Required For Tiny Q4 Browser Adapter Sidecar
+    summary: Routes agents to the checked zero-delta q4_0 ADP1 sidecar used by browser adapter-sidecar smoke and compact runtime apply validation.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local generated adapter artifact
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Validate and smoke before changing browser Adapter Sidecar claims or regenerating tiny q4 adapter artifacts.
+    checksum_hash: sha256:9BD044B950E0CED7B8C9785D0ECEB0E175B91861D1C845267BC0D690A0CC9C56
+    last_reviewed_utc: 2026-06-27T14:30:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; binary artifact content is the target file.
+  - stable_id: tinyrustlm_tiny_q4_self_adp1_manifest
+    memory_domain: tinyrustlm.adapter_manifest
+    pointer_type: local_text
+    path: tinyrustlm/models/tiny-test-model-q4-self.adp1.manifest
+    target_location: tinyrustlm/models/tiny-test-model-q4-self.adp1.manifest
+    label: Required For Tiny Q4 Browser Adapter Sidecar Manifest
+    summary: Routes agents to the checked q4_0 ADP1 manifest binding apply status, parent checksums, adapter checksum, tensor layout, tokenizer, and next gate.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local generated adapter manifest
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Validate before using the tiny q4 ADP1 package in browser or runtime adapter claims.
+    checksum_hash: sha256:2060583F1243B373C8E3AEFECA5EFD763F09979E679249B9C087C1EC3DFF1880
+    last_reviewed_utc: 2026-06-27T14:30:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; manifest content is the target file.
   - stable_id: tinyrustlm_tiny_f32_manifest
     memory_domain: tinyrustlm.model_manifest
     pointer_type: local_text
@@ -1090,8 +1328,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing Visual Studio solution, NMake project, or tools/vs helper scripts.
-    checksum_hash: sha256:F25BE152F5A4DF0AF2686FB302C38CB4794F1DC858ACA82EBC7E52268A29D204
-    last_reviewed_utc: 2026-06-25T13:59:11Z
+    checksum_hash: sha256:4EB9659BEBD8C33799A384DEE81415BCCB13304F2D2E67CFDC1A3D0D9976ABDB
+    last_reviewed_utc: 2026-06-27T06:07:09Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; setup detail lives in the target file.
   - stable_id: gguf_mirust_visual_studio_solution
@@ -1141,8 +1379,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing VS build, model regeneration, or manifest sidecar generation behavior.
-    checksum_hash: sha256:148444E132A39C8453D9E24DA20953F3F4FDC140BB0F6CEEFC641765836096D3
-    last_reviewed_utc: 2026-06-25T11:46:02Z
+    checksum_hash: sha256:298459C9376B4837CD6552533A2D1E2D90AE7748B7072E307D2C3A73860015F5
+    last_reviewed_utc: 2026-06-27T06:07:09Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; executable build behavior lives in the target file.
   - stable_id: gguf_mirust_visual_studio_test_helper
@@ -1151,15 +1389,15 @@ records:
     path: tools/vs/Test-TinyRustLM.ps1
     target_location: tools/vs/Test-TinyRustLM.ps1
     label: Required For Visual Studio TinyRustLM Test Helper
-    summary: Routes agents to VS tests for Cargo, rustdoc, JS, .slm validation, tied source conversion, ABI, Rust browser harness, BrowserSmoke Step Token, soak, and ports.
+    summary: Routes agents to VS tests for Cargo, rustdoc, JS, model validation, source conversion, ABI, Rust browser harness, BrowserSmoke sidecars, registry routes, soak, and ports.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed Visual Studio test helper
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing Visual Studio test behavior or IDE validation claims.
-    checksum_hash: sha256:6EC30DF4BED779CBF07197DFD35F6EA9507A31EE5F4B99F61FF496D91BFAEC5C
-    last_reviewed_utc: 2026-06-25T13:59:11Z
+    checksum_hash: sha256:E378649DB35F57DCF727924B76DA149925A5AC75BB80E2CDF82378ECAA5897C2
+    last_reviewed_utc: 2026-06-27T08:24:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; executable test behavior lives in the target file.
   - stable_id: gguf_mirust_aiwikis_namespace
@@ -1185,15 +1423,15 @@ records:
     path: wiki/gguf-mirust/source-memory-guide.md
     target_location: https://aiwikis.org/gguf-mirust/source-memory-guide/
     label: Required For GGUF.MiRust.com Source Memory Routing
-    summary: Routes agents to hot memory, durable wiki files, report memory, intake buckets, taboo site voice, model-breeding routes, and TinyRustLM source boundaries.
+    summary: Routes agents to hot memory, durable wiki files, report memory, intake buckets, site voice, objective-vector routes, parent relatedness, assembly receipts, and TinyRustLM boundaries.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed LLM Wiki source
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before loading durable project memory or processing handoff intake.
-    checksum_hash: sha256:31D503E7E3317229F0A126D8E8688156CB1641DB96FB818E05E5503F3DA66F8B
-    last_reviewed_utc: 2026-06-26T18:44:35Z
+    checksum_hash: sha256:963605451558B0322B4B2911A2FF8874EBE6508B5F2EDB771F84AE16CAEE55A7
+    last_reviewed_utc: 2026-06-27T13:45:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; durable source guide body lives in the target file.
   - stable_id: gguf_mirust_knowledge_map
@@ -1202,15 +1440,15 @@ records:
     path: wiki/gguf-mirust/knowledge-map.md
     target_location: https://aiwikis.org/gguf-mirust/knowledge-map/
     label: Required For GGUF.MiRust.com Knowledge Map
-    summary: Routes agents to durable memory nodes, relationships, report indexes, model-breeding records, and raw evidence locations.
+    summary: Routes agents to durable memory nodes, relationships, report indexes, objective-vector records, sparse-mask receipts, parent-relatedness records, runtime adapter apply, adapter families, assembly receipts, and raw evidence.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed LLM Wiki source
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before reorganizing durable wiki routes or raw evidence relationships.
-    checksum_hash: sha256:8A82676DDFC0E567033A781899A299F04ED117D5935EB481DDB143083BFD7608
-    last_reviewed_utc: 2026-06-26T18:44:35Z
+    checksum_hash: sha256:7F9329BCC804FFADA8A1B1544492CCE990DC17E32AFACF53A19A0BAC7CA914FD
+    last_reviewed_utc: 2026-06-27T15:10:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; durable map body lives in the target file.
   - stable_id: gguf_mirust_llm_wiki_log
@@ -1219,15 +1457,15 @@ records:
     path: wiki/gguf-mirust/log.md
     target_location: https://aiwikis.org/gguf-mirust/log/
     label: Required For GGUF.MiRust.com LLM Wiki Log
-    summary: Routes agents to LLM Wiki creation, report processing, model-breeding intake, and public voice-routing chronology.
+    summary: Routes agents to LLM Wiki creation, report processing, model-breeding intake, objective-vector reviews, sparse-mask receipts, parent-relatedness metadata, runtime adapter apply, browser sidecars, receipts, and chronology.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed LLM Wiki source
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before auditing durable memory chronology or publication history.
-    checksum_hash: sha256:880A8091BD9EDC194646C0F4CE04C557EF6CDEB35F2EC42495170B03ADF8E89E
-    last_reviewed_utc: 2026-06-26T18:44:35Z
+    checksum_hash: sha256:63CC9E49BB7F10E5D33832E93ECCB82D4BA79745D39EB94831596B6B9A5D585B
+    last_reviewed_utc: 2026-06-27T15:10:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; durable log body lives in the target file.
   - stable_id: gguf_mirust_browser_harness_architecture
@@ -1304,15 +1542,15 @@ records:
     path: docs/dogfood/uaix-file-handoff-memory-strategy-2026-06-26.md
     target_location: docs/dogfood/uaix-file-handoff-memory-strategy-2026-06-26.md
     label: Required For UAIX File Handoff Memory Strategy Dogfood
-    summary: Routes agents to UAIX wizard-aligned File Handoff strategy for raw preservation, durable synthesis, hot routing, pointer ledgers, and source-copy clearing.
+    summary: Routes agents to UAIX File Handoff strategy for raw preservation, durable synthesis, research routing, objective vectors, parent relatedness, hot memory, pointer ledgers, and source-copy clearing.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local dogfood review from UAIX AI Memory Package Wizard
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing File Handoff, LLM Wiki, or report-batch strategy.
-    checksum_hash: sha256:A90D2A3D861D44E3DE2407841F2273E19594B820B5214CE14952A58690A4C294
-    last_reviewed_utc: 2026-06-27T03:21:25Z
+    checksum_hash: sha256:AF68CAD905A35D5CF55966A7A4C371257C2AA7FA233316968E02622A5AC42BD9
+    last_reviewed_utc: 2026-06-27T13:45:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; strategy findings live in the target file.
   - stable_id: gguf_mirust_llm_wiki_index
@@ -1321,15 +1559,15 @@ records:
     path: wiki/gguf-mirust/index.md
     target_location: https://aiwikis.org/gguf-mirust/
     label: Required For GGUF.MiRust.com LLM Wiki Index
-    summary: Routes agents to the local LLM Wiki index for source guide, knowledge map, report memory, model breeding, log, and TinyRustLM boundary.
+    summary: Routes agents to the local LLM Wiki index for source guide, knowledge map, report memory, objective vectors, parent relatedness, adapter receipts, assembly receipts, log, and TinyRustLM boundary.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed LLM Wiki source
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before publishing or reorganizing the GGUF.MiRust.com LLM Wiki namespace.
-    checksum_hash: sha256:944372E7841217E77ED88ECE43B5CE7760BE91AF8763FF3E19E16CC57B5C3CC9
-    last_reviewed_utc: 2026-06-26T18:44:35Z
+    checksum_hash: sha256:6D81C59C9A7D736D58D9229F647EA2335D3E2B78543057C1E39EBDD2B5F015D4
+    last_reviewed_utc: 2026-06-27T13:45:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; durable index body lives in the target file.
   - stable_id: gguf_mirust_report_intake_index_2026_06_25
@@ -1372,15 +1610,15 @@ records:
     path: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
     target_location: https://aiwikis.org/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26/
     label: Required For Model Breeding Ecology Memory
-    summary: Routes agents to model-breeding concepts for lineage, compatibility, sparse-delta, adapters, population review, parent-pool recipes, evaluation sidecars, promotion records, and site voice.
+    summary: Routes agents to model-breeding concepts for lineage, compatibility, sparse deltas, objective vectors, adapters, parent relatedness, evolutionary recipes, population review, parent pools, and promotion.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed report synthesis
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before model-breeding architecture, candidate manifest, adapter, merge-operator, or product-positioning work.
-    checksum_hash: sha256:27EAD15E40E72CE17B83D2810107615804D0AAC7D4CE84B56968D5AE5A5A1568
-    last_reviewed_utc: 2026-06-27T03:21:25Z
+    checksum_hash: sha256:49CF8E4B99CDFF079F484D78F5644576C5B55B92106FBC98215004E3F28E8D5D
+    last_reviewed_utc: 2026-06-27T13:45:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; report synthesis body lives in the target file.
   - stable_id: gguf_mirust_model_breeding_reference_ideas
@@ -1389,32 +1627,134 @@ records:
     path: wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md
     target_location: https://aiwikis.org/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26/
     label: Required For Model Breeding Research References
-    summary: Routes agents to research sources for soups, Re-Basin, task arithmetic, TIES/DARE, adapters, PBT, federated updates, pruning masks, retention metrics, parent-pool recipes, and UAIX handoff.
+    summary: Routes agents to research sources for soups, task arithmetic, TIES/DARE, sparse-mask receipts, objective vectors, parent relatedness, evolutionary merge search, adapters, population review, and UAIX handoff.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed research routing
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before selecting model-breeding references or designing future candidate operators.
-    checksum_hash: sha256:6DCB5DE5639764F33C1EE62995E89DF151DC36D35C0E803FD1D5842E55C821C0
-    last_reviewed_utc: 2026-06-27T03:21:25Z
+    checksum_hash: sha256:63A2425E26C546A8B9A35FDC9DD5C907C8A71D0C072BCC2C82E3162B51786A53
+    last_reviewed_utc: 2026-06-27T14:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; research reference body lives in the target file.
+  - stable_id: gguf_mirust_runtime_adapter_apply_memory
+    memory_domain: gguf-mirust.report_memory.runtime_adapter
+    pointer_type: llmwiki_node
+    path: wiki/gguf-mirust/reports/runtime-adapter-apply-memory-2026-06-27.md
+    target_location: https://aiwikis.org/gguf-mirust/reports/runtime-adapter-apply-memory-2026-06-27/
+    label: Required For Runtime Adapter Apply Memory
+    summary: Routes agents to runtime f32/q8/q4 ADP1 adapter apply design, validation boundary, compact re-quantization, WASM export, ABI smoke coverage, and sidecar routes.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed runtime adapter report
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing runtime adapter apply, ADP1 compatibility checks, adapter ABI smoke, or adapter-sidecar route planning.
+    checksum_hash: sha256:D9221DB8D0951B0A93277C799FF4DBB32DF5FC3A4ACA12B5CC622A9359FE4B34
+    last_reviewed_utc: 2026-06-27T14:30:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; runtime adapter report body lives in the target file.
+  - stable_id: gguf_mirust_browser_adapter_sidecar_memory
+    memory_domain: gguf-mirust.report_memory.browser_adapter
+    pointer_type: llmwiki_node
+    path: wiki/gguf-mirust/reports/browser-adapter-sidecar-memory-2026-06-27.md
+    target_location: https://aiwikis.org/gguf-mirust/reports/browser-adapter-sidecar-memory-2026-06-27/
+    label: Required For Browser Adapter Sidecar Memory
+    summary: Routes agents to browser Adapter Sidecar design, checked tiny f32/q8/q4 ADP1 routes, JS byte-transfer boundary, smoke coverage, and next adapter routes.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed browser adapter report
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing Adapter Sidecar UI, browser .adp1 routes, app.js adapter transfer, or adapter-sidecar smoke.
+    checksum_hash: sha256:207F8EE4E29E06B549D263ECBA9E02AD917B458CD02016248ED7528389E1EA4B
+    last_reviewed_utc: 2026-06-27T15:10:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; browser adapter report body lives in the target file.
+  - stable_id: gguf_mirust_registry_adapter_sidecar_memory
+    memory_domain: gguf-mirust.report_memory.registry_adapter
+    pointer_type: llmwiki_node
+    path: wiki/gguf-mirust/reports/registry-adapter-sidecar-memory-2026-06-27.md
+    target_location: https://aiwikis.org/gguf-mirust/reports/registry-adapter-sidecar-memory-2026-06-27/
+    label: Required For Registry Adapter Sidecar Memory
+    summary: Routes agents to selector registry f32 adapter fields, generated bundle sidecar staging, adapter-sidecar-registry-file smoke coverage, and next adapter-family routes.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed registry adapter report
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing selector registry adapter fields, browser bundle adapter staging, generated adapter routes, or adapter-sidecar-registry-file smoke.
+    checksum_hash: sha256:AAA3764374A287CAE6986016ECB6497CE58F0318639CD9949A4F51EE516C9958
+    last_reviewed_utc: 2026-06-27T15:10:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; registry adapter report body lives in the target file.
+  - stable_id: gguf_mirust_registry_adapter_family_memory
+    memory_domain: gguf-mirust.report_memory.registry_adapter_family
+    pointer_type: llmwiki_node
+    path: wiki/gguf-mirust/reports/registry-adapter-family-memory-2026-06-27.md
+    target_location: https://aiwikis.org/gguf-mirust/reports/registry-adapter-family-memory-2026-06-27/
+    label: Required For Registry Adapter Family Memory
+    summary: Routes agents to indexed f32/q8_0/q4_0 adapter-family registry fields, generated self and family sidecar staging, browser smoke proof, and next adapter-format lanes.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed registry adapter family report
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing selector registry adapter-family fields, browser bundle sidecar staging, browser adapter parsing, or adapter-sidecar-registry-file smoke.
+    checksum_hash: sha256:C39F3D8941FEF8A4547A2C6B4D0B58142BB3A73548FDC4182DBCB65070B8839D
+    last_reviewed_utc: 2026-06-27T08:55:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; registry adapter family report body lives in the target file.
+  - stable_id: gguf_mirust_adapter_family_receipt_memory
+    memory_domain: gguf-mirust.report_memory.adapter_family_receipt
+    pointer_type: llmwiki_node
+    path: wiki/gguf-mirust/reports/adapter-family-receipt-memory-2026-06-27.md
+    target_location: https://aiwikis.org/gguf-mirust/reports/adapter-family-receipt-memory-2026-06-27/
+    label: Required For Adapter Family Receipt Memory
+    summary: Routes agents to generated f32 ADP1 adapter-family receipts, runnable bundle roots, browser receipt/manifest/artifact checksum verification, member matching, and validation evidence.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed adapter family receipt report
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing adapter_family.rs, selector registry adapter_family fields, browser bundle receipt staging, or browser receipt parsing.
+    checksum_hash: sha256:624DE4FCD278F190B8FE7D603CF11D9609718E7F6DF58D0517C7E34E1BA09A7C
+    last_reviewed_utc: 2026-06-27T15:10:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; adapter family receipt report body lives in the target file.
+  - stable_id: gguf_mirust_assembly_receipt_memory
+    memory_domain: gguf-mirust.report_memory.assembly_receipt
+    pointer_type: llmwiki_node
+    path: wiki/gguf-mirust/reports/assembly-receipt-memory-2026-06-27.md
+    target_location: https://aiwikis.org/gguf-mirust/reports/assembly-receipt-memory-2026-06-27/
+    label: Required For Assembly Receipt Memory
+    summary: Routes agents to generated multi-parent assembly receipts, selector registry assembly fields, browser Assembly Evidence rendering, generated bundle evidence-file fetches, and validation evidence.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed assembly receipt report
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing selector registry assembly fields, browser bundle assembly receipt staging, app.js assembly receipt parsing, evidence-file fetches, or adapter-sidecar-registry-file assembly assertions.
+    checksum_hash: sha256:6E1A92E1415275A420EB46727B527AF3E9F2125BDB8078CE4A8CA371720F93C6
+    last_reviewed_utc: 2026-06-27T12:05:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; assembly receipt report body lives in the target file.
   - stable_id: gguf_mirust_taboo_voice_memory
     memory_domain: gguf-mirust.site_voice
     pointer_type: local_uai
     path: .uai/taboo.uai
     target_location: .uai/taboo.uai
     label: Required For GGUF.MiRust.com Site Voice Taboo Rules
-    summary: Routes agents to proof-centered GGUF.MiRust.com public copy boundaries for local-model craft, lineage, research momentum, and routed-off concern-led messaging.
+    summary: Routes agents to proof-centered GGUF.MiRust.com public copy boundaries for local-model craft, lineage, research momentum, UAIX strategy, and off-site concern-led messaging.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing public copy, model-breeding positioning, or mutualist language.
-    checksum_hash: sha256:AFE3401636701224E232E78A9149FB662B4E478AF4E31C238DDE86985469EE0E
-    last_reviewed_utc: 2026-06-27T03:21:25Z
+    checksum_hash: sha256:7D3FD46FF1FDC1B4ABFE438A74456E46CB9B7E0D102D7C91BE2F0D3D46C0AC77
+    last_reviewed_utc: 2026-06-27T10:55:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; hot voice rules live in the target file.
   - stable_id: gguf_mirust_enterprise_rust_governance_memory

@@ -3,7 +3,7 @@ title: Model Breeding Reference Ideas 2026-06-26
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/research/model-breeding-reference-ideas-2026-06-26/
 status: planned_pending_publication
-reviewed_utc: 2026-06-27T03:21:25Z
+reviewed_utc: 2026-06-27T13:45:00Z
 ---
 
 # Model Breeding Reference Ideas
@@ -17,17 +17,22 @@ This record routes primary research and setup references that are useful for tur
 | [Model soups: averaging weights of multiple fine-tuned models improves accuracy without increasing inference time](https://arxiv.org/abs/2203.05482) | Weight averaging can be a future offline operator when parent models share one low-loss basin and exact schema compatibility. |
 | [Git Re-Basin: Merging Models modulo Permutation Symmetries](https://arxiv.org/abs/2209.04836) | Alignment before merge matters; future compatibility checks should treat tensor schema and hidden-unit alignment as explicit metadata. |
 | [Editing Models with Task Arithmetic](https://arxiv.org/abs/2212.04089) | Task vectors suggest a candidate-delta format where base weights and deltas are tracked separately with parent hashes. |
-| [TIES-Merging: Resolving Interference When Merging Models](https://arxiv.org/abs/2306.01708) | Sign agreement remains a future multi-parent candidate lane; parent-pool recipes now provide the ranked shared-contract parent set before that work. |
+| [TIES-Merging: Resolving Interference When Merging Models](https://arxiv.org/abs/2306.01708) | Sign agreement maps to implemented sign-merge receipts fed by parent-pool recipes with ranked shared-contract parent sets and relatedness metadata. |
 | [Language Models are Super Mario: Absorbing Abilities from Homologous Models as a Free Lunch](https://arxiv.org/abs/2311.03099) | DARE-style sparse deltas map to the lineage-bound sparse task-delta candidate lane, with rescale variants left as future operator metadata. |
-| [LoRA: Low-Rank Adaptation of Large Language Models](https://arxiv.org/abs/2106.09685) | LoRA now maps to offline adapter-package and adapter-fuse gates, with runtime apply kept as a future typed boundary. |
-| [Population Based Training of Neural Networks](https://arxiv.org/abs/1711.09846) | Population-style candidate evaluation now maps to `population-review` plus `parent-pool-recipe`: fitness scores, frontier selection, parent routing, seed weights, resource budgets, and staged promotion. |
+| [Model Breadcrumbs: Scaling Multi-Task Model Merging with Sparse Masks](https://arxiv.org/abs/2312.06795) | Sparse masking now has a first receipt-level form through `sparse-delta-candidate` density, nonzero-delta retention, and implicit top-k mask checksum fields. |
+| [LoRA: Low-Rank Adaptation of Large Language Models](https://arxiv.org/abs/2106.09685) | LoRA remains the broader low-rank adapter reference lane; current implementation covers ADP1 raw f32 packages, adapter-fuse, and compatible f32/q8/q4 runtime apply. |
+| [Evolutionary Optimization of Model Merging Recipes](https://arxiv.org/abs/2403.13187) | Evolutionary merge recipes map to offline recipe search, parent-pool selection, operator receipts, eval sidecars, and promotion ledgers. |
+| [Exploring Model Kinship for Merging Large Language Models](https://arxiv.org/abs/2410.12613) | Parent relatedness now has a first TinyRustLM form: parent-pool recipes write shared-family checksums, sign-merge receipts echo them, and multi-parent candidate manifests carry them. |
+| [Mergenetic: a Simple Evolutionary Model Merging Library](https://arxiv.org/abs/2505.11427) | Adaptive search can remain a planner-layer idea: propose merge weights and masks, then let existing compatibility, receipt, and eval gates decide admission. |
+| [Multi-objective Evolutionary Merging Enables Efficient Reasoning Models](https://arxiv.org/abs/2604.06465) | Multi-objective scoring now has a first TinyRustLM form: population reviews write weighted quality/frugality/quantization objective-vector metadata and per-entry objective checksums. |
+| [Population Based Training of Neural Networks](https://arxiv.org/abs/1711.09846) | Population-style candidate evaluation now maps to `population-review` plus `parent-pool-recipe`: objective vectors, fitness scores, frontier selection, parent routing, seed weights, resource budgets, and staged promotion. |
 | [Communication-Efficient Learning of Deep Networks from Decentralized Data](https://arxiv.org/abs/1602.05629) | FedAvg is a reference lane for federated or on-device parent updates; in TinyRustLM it maps to offline recipe metadata and evidence records. |
 | [Evolution Strategies as a Scalable Alternative to Reinforcement Learning](https://arxiv.org/abs/1703.03864) | Evolution-style search maps to population-level candidate proposal, fitness fields, and resource-budget records before promotion. |
 | [Overcoming catastrophic forgetting in neural networks](https://arxiv.org/abs/1612.00796) | Retention metrics can inspire eval sidecar cases when a candidate absorbs a new task without dropping old fixture behavior. |
 | [PackNet: Adding Multiple Tasks to a Single Network by Iterative Pruning](https://arxiv.org/abs/1711.05769) | Task-specific pruning suggests future mask or slot metadata for keeping small skills separable inside compact artifacts. |
 | [The Lottery Ticket Hypothesis: Finding Sparse, Trainable Neural Networks](https://arxiv.org/abs/1803.03635) | Sparse subnetworks inform pruning, mask, and compact-candidate experiments that still pass ordinary `.slm` validation. |
 | [Parameter-Efficient Transfer Learning for NLP](https://arxiv.org/abs/1902.00751) | Adapter modules give a broader adapter-family lane beyond LoRA for future package manifests and fuse receipts. |
-| [QLoRA: Efficient Finetuning of Quantized LLMs](https://arxiv.org/abs/2305.14314) | Quantized adapter training is a future comparison lane for q8/q4 artifacts plus adapter formats, not a current runtime claim. |
+| [QLoRA: Efficient Finetuning of Quantized LLMs](https://arxiv.org/abs/2305.14314) | Quantized adapter training remains a future comparison lane; current q8/q4 ADP1 runtime apply uses f32 deltas plus compact re-quantization. |
 
 ## UAIX Setup Route
 
@@ -36,9 +41,11 @@ This record routes primary research and setup references that are useful for tur
 ## Research-To-Implementation Map
 
 - Soups and task arithmetic become offline operators, not browser runtime features.
-- TIES and DARE become compatibility and merge recipe metadata; implemented slices are `sparse-delta-candidate` for largest absolute task deltas and `parent-pool-recipe` for ranked shared-contract parent sets.
-- LoRA becomes adapter package and adapter-fuse work: validated packages can produce normal `.slm` candidates, while runtime apply remains future work.
-- PBT becomes population-review plus parent-pool recipe logic: parent selection, fitness scores, seed weights, budget caps, frontier routing, parent-pool routing, and promotion evidence.
+- TIES and DARE become compatibility and merge recipe metadata; implemented slices are `sparse-delta-candidate` for largest absolute task deltas with mask metadata, `parent-pool-recipe` for ranked shared-contract parent sets, and `sign-merge-candidate` for seed-weighted sign consensus.
+- Model Breadcrumbs and kinship metrics now split: sparse-mask retention has a first receipt-level form, parent relatedness has first recipe/receipt/manifest fields, and richer retention-aware eval metadata remains a future typed evidence lane.
+- Evolutionary merge work becomes planner evidence only: search may propose parent sets, weights, masks, or operator chains, but `tinyrustlm-slm-pack` compatibility, receipt validation, eval, and promotion records stay authoritative.
+- LoRA becomes adapter-family research around the current ADP1 lane: validated packages can produce normal `.slm` candidates, and compatible ADP1 packages can apply to loaded f32/q8/q4 runtime models.
+- PBT becomes population-review plus parent-pool recipe logic: objective-vector metadata, parent selection, fitness scores, seed weights, budget caps, frontier routing, parent-pool routing, and promotion evidence.
 - FedAvg and evolution strategies become population-recipe references: they can shape future metadata for distributed parent updates, search budgets, and promotion ledgers.
 - EWC, PackNet, lottery tickets, adapters, and QLoRA become retention, pruning, mask, and compact-update reference lanes for future eval sidecars and adapter manifests.
 - UAIX File Handoff keeps dropped reports transient while raw evidence and durable synthesis carry long-memory authority.

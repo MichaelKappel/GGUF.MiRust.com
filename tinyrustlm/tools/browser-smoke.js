@@ -9,8 +9,8 @@ const path = require("path");
 
 const appUrl = process.argv[2] || "http://127.0.0.1:8080/app/";
 const port = Number(process.argv[3] || 9223);
-const expectedModel = process.argv[4] || "tinylm16q8";
 const smokeMode = process.argv[5] || "single";
+const expectedModel = process.argv[4] || (smokeMode === "multi-parent-registry" ? "multi-parent-sign-merge-q8" : smokeMode === "adapter-sidecar-registry-q8" ? "tinyq8" : smokeMode === "multi-parent-registry-file" || smokeMode === "adapter-sidecar-registry-file" ? "multi-parent-sign-merge-f32" : smokeMode === "adapter-sidecar" || smokeMode === "adapter-sidecar-checksum-mismatch" ? "tinyf32" : "tinylm16q8");
 const enduranceCycles = Math.max(2, Math.min(20, Number.parseInt(process.argv[6] || "4", 10) || 4));
 const performanceTokens = Math.max(2, Math.min(8, Number.parseInt(process.argv[6] || "4", 10) || 4));
 const performanceSoakCycles = Math.max(2, Math.min(10, Number.parseInt(process.argv[6] || "3", 10) || 3));
@@ -24,8 +24,120 @@ const expectedQuantization = {
   tinytied: "f32",
   tinyq8: "q8_0",
   tinyq4: "q4_0",
-  tinybpe: "f32"
+  tinybpe: "f32",
+  "multi-parent-sign-merge-q8": "q8_0",
+  "multi-parent-sign-merge-q4": "q4_0",
+  "multi-parent-sign-merge-f32": "f32"
 };
+
+const expectedModelLabels = {
+  "multi-parent-sign-merge-q8": "multi-parent-sign-merge-q8 q8_0",
+  "multi-parent-sign-merge-q4": "multi-parent-sign-merge-q4 q4_0",
+  "multi-parent-sign-merge-f32": "multi-parent-sign-merge-f32 f32"
+};
+
+const expectedModelRoutes = {
+  tinyq8: "/models/tiny-test-model-q8.slm",
+  tinyq4: "/models/tiny-test-model-q4.slm",
+  "multi-parent-sign-merge-q8": "/models/multi-parent-sign-merge-q8.slm",
+  "multi-parent-sign-merge-q4": "/models/multi-parent-sign-merge-q4.slm",
+  "multi-parent-sign-merge-f32": "/models/multi-parent-sign-merge-f32.slm"
+};
+
+const expectedAdapterLabels = {
+  tinyf32: ["Tiny Fixture f32 self ADP1"],
+  tinyq8: ["Tiny Fixture q8_0 self ADP1"],
+  tinyq4: ["Tiny Fixture q4_0 self ADP1"],
+  "multi-parent-sign-merge-f32": [
+    "Multi-parent sign-merge f32 self ADP1",
+    "Multi-parent sign-merge f32 family ADP1"
+  ],
+  "multi-parent-sign-merge-q8": [
+    "Multi-parent sign-merge q8_0 self ADP1",
+    "Multi-parent sign-merge q8_0 family ADP1"
+  ],
+  "multi-parent-sign-merge-q4": [
+    "Multi-parent sign-merge q4_0 self ADP1",
+    "Multi-parent sign-merge q4_0 family ADP1"
+  ]
+};
+
+const expectedAdapterRoutes = {
+  tinyf32: "/models/tiny-test-model-self.adp1",
+  tinyq8: "/models/tiny-test-model-q8-self.adp1",
+  tinyq4: "/models/tiny-test-model-q4-self.adp1",
+  "multi-parent-sign-merge-q8": "/models/multi-parent-sign-merge-q8-family.adp1",
+  "multi-parent-sign-merge-q4": "/models/multi-parent-sign-merge-q4-family.adp1",
+  "multi-parent-sign-merge-f32": "/models/multi-parent-sign-merge-f32-family.adp1"
+};
+
+const expectedAdapterFamilyReceiptRoutes = {
+  "multi-parent-sign-merge-q8": "/models/multi-parent-sign-merge-q8.adapter-family.receipt",
+  "multi-parent-sign-merge-q4": "/models/multi-parent-sign-merge-q4.adapter-family.receipt",
+  "multi-parent-sign-merge-f32": "/models/multi-parent-sign-merge-f32.adapter-family.receipt"
+};
+
+const expectedAssemblyReceiptRoutes = {
+  "multi-parent-sign-merge-q8": "/models/multi-parent-sign-merge-q8.assembly.receipt",
+  "multi-parent-sign-merge-q4": "/models/multi-parent-sign-merge-q4.assembly.receipt",
+  "multi-parent-sign-merge-f32": "/models/multi-parent-sign-merge-f32.assembly.receipt"
+};
+
+const expectedAssemblyEvidenceRoutes = {
+  "multi-parent-sign-merge-q8": multiParentEvidenceRoutes("multi-parent-sign-merge-q8"),
+  "multi-parent-sign-merge-q4": multiParentEvidenceRoutes("multi-parent-sign-merge-q4"),
+  "multi-parent-sign-merge-f32": multiParentEvidenceRoutes("multi-parent-sign-merge-f32")
+};
+
+const expectedAdapterManifestRoutes = {
+  "multi-parent-sign-merge-q8": [
+    "/models/multi-parent-sign-merge-q8-self.adp1.manifest",
+    "/models/multi-parent-sign-merge-q8-family.adp1.manifest"
+  ],
+  "multi-parent-sign-merge-q4": [
+    "/models/multi-parent-sign-merge-q4-self.adp1.manifest",
+    "/models/multi-parent-sign-merge-q4-family.adp1.manifest"
+  ],
+  "multi-parent-sign-merge-f32": [
+    "/models/multi-parent-sign-merge-f32-self.adp1.manifest",
+    "/models/multi-parent-sign-merge-f32-family.adp1.manifest"
+  ]
+};
+
+const expectedAdapterApplyIndexes = {
+  tinyf32: 0,
+  "multi-parent-sign-merge-q8": 1,
+  "multi-parent-sign-merge-q4": 1,
+  "multi-parent-sign-merge-f32": 1
+};
+
+function multiParentEvidenceRoutes(modelKey) {
+  return [
+    `/evidence/${modelKey}/population.ledger`,
+    `/evidence/${modelKey}/population.review`,
+    `/evidence/${modelKey}/parent-pool.recipe`,
+    `/evidence/${modelKey}/sign-merge.operator`,
+    `/evidence/${modelKey}/sign-merge.candidate`,
+    `/evidence/${modelKey}/sign-merge.promotion`,
+    `/evidence/${modelKey}/sign-merge.runtime`,
+    `/evidence/${modelKey}/sign-merge.eval`,
+    `/evidence/${modelKey}/sign-merge.multi.admission`
+  ];
+}
+
+function expectedLabelForModel(modelKey) {
+  if (modelKey === "multi-parent-sign-merge-q8" && smokeMode === "multi-parent-registry") {
+    return "Multi-parent sign-merge q8_0";
+  }
+  return expectedModelLabels[modelKey] || modelKey;
+}
+
+function expectedRouteForModel(modelKey) {
+  if (modelKey === "multi-parent-sign-merge-q8" && smokeMode === "multi-parent-registry") {
+    return "/models/tinylm16-q8.slm";
+  }
+  return expectedModelRoutes[modelKey];
+}
 
 const chromeCandidates = [
   "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
@@ -54,6 +166,25 @@ function get(url) {
       response.on("end", () => resolve(data));
     }).on("error", reject);
   });
+}
+
+function parseEvaluateValue(result) {
+  if (result && result.exceptionDetails) {
+    const details = result.exceptionDetails;
+    const text = details.exception && details.exception.description
+      ? details.exception.description
+      : details.text || "browser evaluation failed";
+    throw new Error(text);
+  }
+  const remote = result && result.result ? result.result : {};
+  if (!Object.prototype.hasOwnProperty.call(remote, "value") && typeof remote.description === "string") {
+    const description = remote.description.trim();
+    if (description.startsWith("{") || description.startsWith("[")) {
+      return JSON.parse(description);
+    }
+  }
+  const value = remote.value;
+  return typeof value === "string" ? JSON.parse(value) : value;
 }
 
 function sleep(ms) {
@@ -177,6 +308,10 @@ async function runPageSmoke(client, modelKey) {
         benchTokensPerSecond: byId("benchTokensPerSecond").textContent,
         benchScratch: byId("benchScratch").textContent,
         selectedModel: byId("modelSelect").value,
+        modelOptions: Array.from(byId("modelSelect").options).map((option) => ({
+          value: option.value,
+          label: option.textContent.trim()
+        })),
         stepTokenDisabled: byId("stepTokenButton").disabled
       });
     })()
@@ -187,7 +322,7 @@ async function runPageSmoke(client, modelKey) {
     returnByValue: true,
     timeout: 90000
   });
-  return JSON.parse(result.result.value);
+  return parseEvaluateValue(result);
 }
 
 async function runPageStepTokenSmoke(client, modelKey) {
@@ -268,7 +403,103 @@ async function runPageStepTokenSmoke(client, modelKey) {
     returnByValue: true,
     timeout: 120000
   });
-  return JSON.parse(result.result.value);
+  return parseEvaluateValue(result);
+}
+
+async function runPageAdapterSidecarSmoke(client, modelKey) {
+  const expression = `
+    (async () => {
+      const expectedModel = ${JSON.stringify(modelKey)};
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const byId = (id) => document.getElementById(id);
+      const parseDiagnostics = () => {
+        try {
+          return JSON.parse(byId("diagnostics").textContent);
+        } catch (_error) {
+          return {};
+        }
+      };
+      for (let index = 0; index < 600; index += 1) {
+        if (byId("generateButton") && !byId("generateButton").disabled && byId("runtimeStatus").textContent === "Ready") {
+          break;
+        }
+        await sleep(100);
+      }
+      if (byId("modelSelect").value !== expectedModel) {
+        byId("modelSelect").value = expectedModel;
+        byId("modelSelect").dispatchEvent(new Event("change", { bubbles: true }));
+        for (let index = 0; index < 600; index += 1) {
+          if (byId("modelSelect").value === expectedModel && !byId("generateButton").disabled && byId("runtimeStatus").textContent === "Ready") {
+            break;
+          }
+          await sleep(100);
+        }
+      }
+      const adapterOptions = Array.from(byId("adapterSelect").options).map((option) => ({
+        value: option.value,
+        label: option.textContent.trim()
+      }));
+      const adapterApplyIndex = expectedModel.startsWith("multi-parent-sign-merge-") && adapterOptions.length > 1 ? 1 : 0;
+      if (adapterOptions.length > adapterApplyIndex) {
+        byId("adapterSelect").value = String(adapterApplyIndex);
+      }
+      const selectedAdapterBeforeApply = byId("adapterSelect").value;
+      const adapterSelectDisabledBefore = byId("adapterSelect").disabled;
+      const applyDisabledBefore = byId("applyAdapterButton").disabled;
+      byId("maxTokens").value = "1";
+      byId("prompt").value = "hi";
+      byId("generateButton").click();
+      for (let index = 0; index < 600; index += 1) {
+        if (byId("response").textContent === "e" || byId("errorState").textContent !== "none") {
+          break;
+        }
+        await sleep(100);
+      }
+      const beforeApplyDiagnostics = parseDiagnostics();
+      const stepDisabledBeforeApply = byId("stepTokenButton").disabled;
+      byId("applyAdapterButton").click();
+      for (let index = 0; index < 600; index += 1) {
+        if (byId("adapterState").textContent === "applied" || byId("errorState").textContent !== "none") {
+          break;
+        }
+        await sleep(100);
+      }
+      const afterApplyDiagnostics = parseDiagnostics();
+      return JSON.stringify({
+        runtimeStatus: byId("runtimeStatus").textContent,
+        modelState: byId("modelState").textContent,
+        errorState: byId("errorState").textContent,
+        response: byId("response").textContent,
+        console: byId("console").textContent,
+        selectedModel: byId("modelSelect").value,
+        adapterState: byId("adapterState").textContent,
+        assemblyState: byId("assemblyState").textContent,
+        assemblyKind: byId("assemblyKind").textContent,
+        assemblyParents: byId("assemblyParents").textContent,
+        assemblyOperator: byId("assemblyOperator").textContent,
+        assemblyLedger: byId("assemblyLedger").textContent,
+        assemblyNextGate: byId("assemblyNextGate").textContent,
+        adapterOptions,
+        selectedAdapterBeforeApply,
+        adapterSelectDisabledBefore,
+        applyDisabledBefore,
+        stepDisabledBeforeApply,
+        stepDisabledAfterApply: byId("stepTokenButton").disabled,
+        generateDisabledAfterApply: byId("generateButton").disabled,
+        applyDisabledAfterApply: byId("applyAdapterButton").disabled,
+        beforeApplyDiagnostics,
+        afterApplyDiagnostics,
+        diagnosticsText: byId("diagnostics").textContent
+      });
+    })()
+  `;
+  const result = await client.send("Runtime.evaluate", {
+    expression,
+    awaitPromise: true,
+    returnByValue: true,
+    timeout: 120000
+  });
+  return parseEvaluateValue(result);
 }
 
 async function runPageLoopSmoke(client) {
@@ -360,7 +591,7 @@ async function runPageLoopSmoke(client) {
     returnByValue: true,
     timeout: 180000
   });
-  return JSON.parse(result.result.value);
+  return parseEvaluateValue(result);
 }
 
 async function runPageModelErrorSmoke(client) {
@@ -405,7 +636,7 @@ async function runPageModelErrorSmoke(client) {
     returnByValue: true,
     timeout: 90000
   });
-  return JSON.parse(result.result.value);
+  return parseEvaluateValue(result);
 }
 
 async function runPageMissingModelSmoke(client) {
@@ -450,7 +681,7 @@ async function runPageMissingModelSmoke(client) {
     returnByValue: true,
     timeout: 90000
   });
-  return JSON.parse(result.result.value);
+  return parseEvaluateValue(result);
 }
 
 async function runPageContextErrorSmoke(client) {
@@ -503,7 +734,7 @@ async function runPageContextErrorSmoke(client) {
     returnByValue: true,
     timeout: 90000
   });
-  return JSON.parse(result.result.value);
+  return parseEvaluateValue(result);
 }
 
 async function runPageEnduranceSmoke(client, cycles) {
@@ -594,7 +825,7 @@ async function runPageEnduranceSmoke(client, cycles) {
     returnByValue: true,
     timeout: 300000
   });
-  return JSON.parse(result.result.value);
+  return parseEvaluateValue(result);
 }
 
 async function runPagePerformanceSmoke(client, maxTokens) {
@@ -699,7 +930,7 @@ async function runPagePerformanceSmoke(client, maxTokens) {
     returnByValue: true,
     timeout: 240000
   });
-  return JSON.parse(result.result.value);
+  return parseEvaluateValue(result);
 }
 
 async function runPagePerformanceSoak(client, cycles, maxTokens) {
@@ -807,7 +1038,7 @@ async function runPagePerformanceSoak(client, cycles, maxTokens) {
     returnByValue: true,
     timeout: 600000
   });
-  return JSON.parse(result.result.value);
+  return parseEvaluateValue(result);
 }
 
 async function runPageUiAudit(client) {
@@ -875,6 +1106,12 @@ async function runPageUiAudit(client) {
           provenanceTrainedClaim: byId("provenanceTrainedClaim").textContent,
           provenanceChecksum: byId("provenanceChecksum").textContent,
           provenanceNextGate: byId("provenanceNextGate").textContent,
+          assemblyState: byId("assemblyState").textContent,
+          assemblyKind: byId("assemblyKind").textContent,
+          assemblyParents: byId("assemblyParents").textContent,
+          assemblyOperator: byId("assemblyOperator").textContent,
+          assemblyLedger: byId("assemblyLedger").textContent,
+          assemblyNextGate: byId("assemblyNextGate").textContent,
           benchLoadMs: byId("benchLoadMs").textContent,
           benchPromptTokens: byId("benchPromptTokens").textContent,
           benchGeneratedTokens: byId("benchGeneratedTokens").textContent,
@@ -936,7 +1173,7 @@ async function runPageUiAudit(client) {
     returnByValue: true,
     timeout: 180000
   });
-  return JSON.parse(result.result.value);
+  return parseEvaluateValue(result);
 }
 
 async function removeProfile(profile) {
@@ -1034,6 +1271,43 @@ function assertSmoke(result, modelKey) {
   }
 }
 
+function assertMultiParentRegistrySmoke(result, modelKey, networkRequests) {
+  assertSmoke(result, modelKey);
+  const failures = [];
+  if (!Array.isArray(result.modelOptions) || result.modelOptions.length !== 1) {
+    failures.push(`model options were ${JSON.stringify(result.modelOptions)}`);
+  } else {
+    const option = result.modelOptions[0];
+    if (option.value !== modelKey) {
+      failures.push(`registry option value was ${option.value}`);
+    }
+    const expectedLabel = expectedLabelForModel(modelKey);
+    if (option.label !== expectedLabel) {
+      failures.push(`registry option label was ${option.label}`);
+    }
+  }
+  if (!networkRequests.some((requestUrl) => requestUrl.includes("/models/selector.registry"))) {
+    failures.push("selector registry route was not requested");
+  }
+  const expectedRoute = expectedRouteForModel(modelKey) || "/models/tinylm16-q8.slm";
+  if (!networkRequests.some((requestUrl) => requestUrl.includes(expectedRoute))) {
+    failures.push("registry model route was not requested");
+  }
+  const allowedOrigin = new URL(appUrl).origin;
+  for (const requestUrl of networkRequests) {
+    if (!requestUrl.startsWith("http://") && !requestUrl.startsWith("https://")) {
+      continue;
+    }
+    const origin = new URL(requestUrl).origin;
+    if (origin !== allowedOrigin) {
+      failures.push(`remote request observed: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
 function assertStepTokenSmoke(result, modelKey, networkRequests) {
   const failures = [];
   const quantization = expectedQuantization[modelKey];
@@ -1113,6 +1387,194 @@ function assertStepTokenSmoke(result, modelKey, networkRequests) {
     if (origin !== allowedOrigin) {
       failures.push(`remote request observed: ${requestUrl}`);
     }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertAdapterSidecarSmoke(result, modelKey, networkRequests) {
+  const failures = [];
+  if (result.selectedModel !== modelKey) {
+    failures.push(`selected model was ${result.selectedModel}`);
+  }
+  if (result.runtimeStatus !== "Ready") {
+    failures.push(`runtime status was ${result.runtimeStatus}`);
+  }
+  if (!String(result.modelState || "").startsWith("loaded")) {
+    failures.push(`model state was ${result.modelState}`);
+  }
+  if (result.errorState !== "none") {
+    failures.push(`error state was ${result.errorState}`);
+  }
+  const expectedLabels = expectedAdapterLabels[modelKey] || ["Tiny Fixture f32 self ADP1"];
+  if (!Array.isArray(result.adapterOptions) || result.adapterOptions.length !== expectedLabels.length) {
+    failures.push(`adapter options were ${JSON.stringify(result.adapterOptions)}`);
+  } else {
+    for (let index = 0; index < expectedLabels.length; index += 1) {
+      if (result.adapterOptions[index].label !== expectedLabels[index]) {
+        failures.push(`adapter option ${index} label was ${result.adapterOptions[index].label}`);
+      }
+    }
+  }
+  const expectedApplyIndex = expectedAdapterApplyIndexes[modelKey] || 0;
+  if (result.selectedAdapterBeforeApply !== String(expectedApplyIndex)) {
+    failures.push(`selected adapter index was ${result.selectedAdapterBeforeApply}`);
+  }
+  if (result.adapterSelectDisabledBefore || result.applyDisabledBefore) {
+    failures.push("adapter controls were disabled before apply");
+  }
+  if (result.stepDisabledBeforeApply) {
+    failures.push("step-token control was disabled before adapter apply");
+  }
+  if (!result.stepDisabledAfterApply) {
+    failures.push("step-token control stayed enabled after adapter apply");
+  }
+  if (result.generateDisabledAfterApply || result.applyDisabledAfterApply) {
+    failures.push("primary adapter controls were disabled after apply");
+  }
+  if (result.adapterState !== "applied") {
+    failures.push(`adapter state was ${result.adapterState}`);
+  }
+  if (result.response !== "adapter applied") {
+    failures.push(`response was ${JSON.stringify(result.response)}`);
+  }
+  if (!String(result.console || "").includes("apply_adapter_delta")) {
+    failures.push("console did not include apply_adapter_delta");
+  }
+  const before = result.beforeApplyDiagnostics || {};
+  const after = result.afterApplyDiagnostics || {};
+  if (before.generated_token_count !== 1 || before.kv_cache_length < 1) {
+    failures.push(`pre-apply diagnostics were ${JSON.stringify(before)}`);
+  }
+  if (after.last_error !== "ok") {
+    failures.push(`post-apply last_error was ${after.last_error}`);
+  }
+  const expectedMode = expectedQuantization[modelKey] || "f32";
+  if (after.active_quantization_mode !== expectedMode) {
+    failures.push(`post-apply quantization mode was ${after.active_quantization_mode}`);
+  }
+  if (after.generated_token_count !== 0 || after.kv_cache_length !== 0 || after.selected_next_token !== 0) {
+    failures.push(`post-apply reset diagnostics were ${JSON.stringify(after)}`);
+  }
+  const allowedOrigin = new URL(appUrl).origin;
+  for (const requestUrl of networkRequests) {
+    if (!requestUrl.startsWith("http://") && !requestUrl.startsWith("https://")) {
+      continue;
+    }
+    const origin = new URL(requestUrl).origin;
+    if (origin !== allowedOrigin) {
+      failures.push(`remote request observed: ${requestUrl}`);
+    }
+  }
+  const expectedAdapterRoute = expectedAdapterRoutes[modelKey] || "/models/tiny-test-model-self.adp1";
+  if (!networkRequests.some((requestUrl) => requestUrl.includes(expectedAdapterRoute))) {
+    failures.push("adapter sidecar route was not requested");
+  }
+  const expectedReceiptRoute = expectedAdapterFamilyReceiptRoutes[modelKey];
+  if (expectedReceiptRoute && !networkRequests.some((requestUrl) => requestUrl.includes(expectedReceiptRoute))) {
+    failures.push("adapter family receipt route was not requested");
+  }
+  const expectedAssemblyReceiptRoute = expectedAssemblyReceiptRoutes[modelKey];
+  if (expectedAssemblyReceiptRoute) {
+    if (!networkRequests.some((requestUrl) => requestUrl.includes(expectedAssemblyReceiptRoute))) {
+      failures.push("assembly receipt route was not requested");
+    }
+    if (result.assemblyState !== "loaded") {
+      failures.push(`assembly state was ${result.assemblyState}`);
+    }
+    if (result.assemblyKind !== "browser-local-assembly-evidence") {
+      failures.push(`assembly kind was ${result.assemblyKind}`);
+    }
+    if (result.assemblyParents !== "3") {
+      failures.push(`assembly parents were ${result.assemblyParents}`);
+    }
+    if (!/^0x[0-9a-fA-F]{16}$/.test(String(result.assemblyOperator || ""))) {
+      failures.push(`assembly operator checksum was ${result.assemblyOperator}`);
+    }
+    if (!/^0x[0-9a-fA-F]{16}$/.test(String(result.assemblyLedger || ""))) {
+      failures.push(`assembly ledger checksum was ${result.assemblyLedger}`);
+    }
+    if (result.assemblyNextGate !== "browser-selector-registry-route-binding") {
+      failures.push(`assembly next gate was ${result.assemblyNextGate}`);
+    }
+    for (const expectedEvidenceRoute of expectedAssemblyEvidenceRoutes[modelKey] || []) {
+      if (!networkRequests.some((requestUrl) => requestUrl.includes(expectedEvidenceRoute))) {
+        failures.push(`assembly evidence route was not requested: ${expectedEvidenceRoute}`);
+      }
+    }
+  }
+  const expectedManifestRoutes = expectedAdapterManifestRoutes[modelKey] || [];
+  for (const expectedManifestRoute of expectedManifestRoutes) {
+    if (!networkRequests.some((requestUrl) => requestUrl.includes(expectedManifestRoute))) {
+      failures.push(`adapter manifest route was not requested: ${expectedManifestRoute}`);
+    }
+  }
+  const expectedModelRoute = expectedRouteForModel(modelKey);
+  if (expectedModelRoute && !networkRequests.some((requestUrl) => requestUrl.includes(expectedModelRoute))) {
+    failures.push("adapter model route was not requested");
+  }
+  if (modelKey.startsWith("multi-parent-sign-merge-") && !networkRequests.some((requestUrl) => requestUrl.includes("/models/selector.registry"))) {
+    failures.push("selector registry route was not requested");
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertAdapterChecksumMismatchSmoke(result, modelKey, networkRequests) {
+  const failures = [];
+  if (result.selectedModel !== modelKey) {
+    failures.push(`selected model was ${result.selectedModel}`);
+  }
+  if (!String(result.modelState || "").startsWith("loaded")) {
+    failures.push(`model state was ${result.modelState}`);
+  }
+  if (result.runtimeStatus !== "Adapter load failed") {
+    failures.push(`runtime status was ${result.runtimeStatus}`);
+  }
+  if (result.adapterState !== "adapter artifact checksum mismatch") {
+    failures.push(`adapter state was ${result.adapterState}`);
+  }
+  if (result.errorState !== "adapter artifact checksum mismatch") {
+    failures.push(`error state was ${result.errorState}`);
+  }
+  if (result.response !== "e") {
+    failures.push(`response was ${JSON.stringify(result.response)}`);
+  }
+  if (String(result.console || "").includes("apply_adapter_delta")) {
+    failures.push("console included apply_adapter_delta");
+  }
+  if (!String(result.console || "").includes("adapter artifact checksum mismatch")) {
+    failures.push("console did not include checksum mismatch");
+  }
+  const before = result.beforeApplyDiagnostics || {};
+  const after = result.afterApplyDiagnostics || {};
+  if (before.generated_token_count !== 1 || before.kv_cache_length < 1) {
+    failures.push(`pre-apply diagnostics were ${JSON.stringify(before)}`);
+  }
+  if (after.generated_token_count !== 1 || after.kv_cache_length < 1) {
+    failures.push(`post-failure diagnostics were ${JSON.stringify(after)}`);
+  }
+  if (result.stepDisabledAfterApply) {
+    failures.push("step-token control was disabled after adapter load failure");
+  }
+  if (result.generateDisabledAfterApply || result.applyDisabledAfterApply) {
+    failures.push("primary adapter controls were disabled after checksum mismatch");
+  }
+  const allowedOrigin = new URL(appUrl).origin;
+  for (const requestUrl of networkRequests) {
+    if (!requestUrl.startsWith("http://") && !requestUrl.startsWith("https://")) {
+      continue;
+    }
+    const origin = new URL(requestUrl).origin;
+    if (origin !== allowedOrigin) {
+      failures.push(`remote request observed: ${requestUrl}`);
+    }
+  }
+  const expectedAdapterRoute = expectedAdapterRoutes[modelKey] || "/models/tiny-test-model-self.adp1";
+  if (!networkRequests.some((requestUrl) => requestUrl.includes(expectedAdapterRoute))) {
+    failures.push("adapter sidecar route was not requested");
   }
   if (failures.length > 0) {
     throw new Error(failures.join("; "));
@@ -1660,6 +2122,7 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
     "Response",
     "Model Loading",
     "Model Provenance",
+    "Assembly Evidence",
     "Benchmark",
     "Runtime Diagnostics",
     "Token Generation Console",
@@ -1935,6 +2398,152 @@ function installMissingModelInterceptor(client) {
   });
 }
 
+function installCorruptAdapterInterceptor(client) {
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    if (requestUrl.includes("/models/tiny-test-model-self.adp1")) {
+      const adapterPath = path.join(__dirname, "..", "models", "tiny-test-model-self.adp1");
+      const body = Buffer.from(fs.readFileSync(adapterPath));
+      body[body.length - 1] ^= 0xff;
+      client.send("Fetch.fulfillRequest", {
+        requestId: params.requestId,
+        responseCode: 200,
+        responseHeaders: [
+          { name: "content-type", value: "application/octet-stream" },
+          { name: "content-length", value: String(body.length) }
+        ],
+        body: body.toString("base64")
+      }).catch((error) => {
+        console.error(error);
+      });
+      return;
+    }
+    client.send("Fetch.continueRequest", {
+      requestId: params.requestId
+    }).catch((error) => {
+      console.error(error);
+    });
+  });
+}
+
+function installMultiParentRegistryInterceptor(client) {
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    if (requestUrl.includes("/models/selector.registry")) {
+      const body = Buffer.from([
+        "tinyrustlm_selector_registry_version=1",
+        "selector_id=browser-local-selector",
+        "registry_scope=browser-local-model-selector",
+        "registry_status=admitted-records-only",
+        "entry_count=1",
+        "admission_set_checksum=0x0000000000000049",
+        "entry.0.candidate_id=multi-parent-sign-merge-q8",
+        "entry.0.display_name=Multi-parent sign-merge q8_0",
+        "entry.0.model_path=../models/tinylm16-q8.slm",
+        "entry.0.manifest_path=../models/tinylm16-q8.slm.manifest",
+        "entry.0.artifact_path=tinyrustlm/models/tinylm16-q8.slm",
+        "entry.0.max_tokens=8",
+        "entry.0.model_bytes=17160000",
+        "entry.0.slm_checksum=0xa1442f3f180c542b",
+        "entry.0.model_shape=vocab=260,hidden=512,layers=4,heads=8,kv_heads=8,head_dim=64,ffn=2048,context=512",
+        "entry.0.quantization=q8_0",
+        "entry.0.output_contract=separate-output-weight",
+        "entry.0.admission_checksum=0x0000000000000050",
+        "entry.0.promotion_manifest_checksum=0x0000000000000051",
+        "entry.0.runtime_smoke_manifest_checksum=0x0000000000000052",
+        "entry.0.eval_manifest_checksum=0x0000000000000053",
+        "entry.0.quality_scope=tiny-fixture-runtime-eval-only",
+        "entry.0.quality_boundary=fixture-runtime-and-eval-plumbing-not-product-assistant-quality",
+        "entry.0.eval_dataset=tinyrustlm/tests/fixtures/assistant-quality-eval-cases.txt",
+        "entry.0.cases_passed=1",
+        "entry.0.selector_status=admitted",
+        "entry.0.public_claim_status=bound-to-eval-scope",
+        "required_next_gate=browser-loads-selector-registry-entry-models",
+        ""
+      ].join("\n"), "utf8");
+      client.send("Fetch.fulfillRequest", {
+        requestId: params.requestId,
+        responseCode: 200,
+        responseHeaders: [
+          { name: "content-type", value: "text/plain; charset=utf-8" },
+          { name: "content-length", value: String(body.length) }
+        ],
+        body: body.toString("base64")
+      }).catch((error) => {
+        console.error(error);
+      });
+      return;
+    }
+    client.send("Fetch.continueRequest", {
+      requestId: params.requestId
+    }).catch((error) => {
+      console.error(error);
+    });
+  });
+}
+
+function installQuantizedAdapterRegistryInterceptor(client) {
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    if (requestUrl.includes("/models/selector.registry")) {
+      const body = Buffer.from([
+        "tinyrustlm_selector_registry_version=1",
+        "selector_id=browser-local-selector",
+        "registry_scope=browser-local-model-selector",
+        "registry_status=admitted-records-only",
+        "entry_count=1",
+        "admission_set_checksum=0x0000000000000061",
+        "entry.0.candidate_id=tinyq8",
+        "entry.0.display_name=Tiny Fixture q8_0",
+        "entry.0.model_path=../models/tiny-test-model-q8.slm",
+        "entry.0.manifest_path=../models/tiny-test-model-q8.slm.manifest",
+        "entry.0.artifact_path=tinyrustlm/models/tiny-test-model-q8.slm",
+        "entry.0.max_tokens=8",
+        "entry.0.model_bytes=12000",
+        "entry.0.slm_checksum=0x6bde8aa244a5c10d",
+        "entry.0.model_shape=vocab=260,hidden=16,layers=1,heads=2,kv_heads=2,head_dim=8,ffn=32,context=32",
+        "entry.0.quantization=q8_0",
+        "entry.0.output_contract=separate-output-weight",
+        "entry.0.admission_checksum=0x0000000000000062",
+        "entry.0.promotion_manifest_checksum=0x0000000000000063",
+        "entry.0.runtime_smoke_manifest_checksum=0x0000000000000064",
+        "entry.0.eval_manifest_checksum=0x0000000000000065",
+        "entry.0.quality_scope=tiny-fixture-runtime-eval-only",
+        "entry.0.quality_boundary=fixture-runtime-and-eval-plumbing-not-product-assistant-quality",
+        "entry.0.eval_dataset=tinyrustlm/tests/fixtures/assistant-quality-eval-cases.txt",
+        "entry.0.cases_passed=1",
+        "entry.0.selector_status=admitted",
+        "entry.0.public_claim_status=bound-to-eval-scope",
+        "entry.0.adapter_path=../models/tiny-test-model-q8-self.adp1",
+        "entry.0.adapter_manifest_path=../models/tiny-test-model-q8-self.adp1.manifest",
+        "entry.0.adapter_label=Tiny Fixture q8_0 self ADP1",
+        "entry.0.adapter_apply_status=runtime-q8-q4-compatible-or-fuse-to-slm",
+        "entry.0.adapter_artifact_checksum=0x8194a8a671285019",
+        "entry.0.adapter_manifest_checksum=0x536f9b488db9822b",
+        "required_next_gate=browser-loads-selector-registry-entry-models",
+        ""
+      ].join("\n"), "utf8");
+      client.send("Fetch.fulfillRequest", {
+        requestId: params.requestId,
+        responseCode: 200,
+        responseHeaders: [
+          { name: "content-type", value: "text/plain; charset=utf-8" },
+          { name: "content-length", value: String(body.length) }
+        ],
+        body: body.toString("base64")
+      }).catch((error) => {
+        console.error(error);
+      });
+      return;
+    }
+    client.send("Fetch.continueRequest", {
+      requestId: params.requestId
+    }).catch((error) => {
+      console.error(error);
+    });
+  });
+}
+
 async function main() {
   const browser = findBrowser();
   const profile = path.join(os.tmpdir(), `tinyrustlm-browser-smoke-${process.pid}`);
@@ -1971,11 +2580,17 @@ async function main() {
     await client.send("Page.enable", {});
     await client.send("Runtime.enable", {});
     await client.send("Network.enable", {});
-    if (smokeMode === "model-error" || smokeMode === "missing-model") {
+    if (smokeMode === "model-error" || smokeMode === "missing-model" || smokeMode === "multi-parent-registry" || smokeMode === "adapter-sidecar-registry-q8" || smokeMode === "adapter-sidecar-checksum-mismatch") {
       if (smokeMode === "model-error") {
         installMalformedModelInterceptor(client);
-      } else {
+      } else if (smokeMode === "missing-model") {
         installMissingModelInterceptor(client);
+      } else if (smokeMode === "adapter-sidecar-checksum-mismatch") {
+        installCorruptAdapterInterceptor(client);
+      } else if (smokeMode === "adapter-sidecar-registry-q8") {
+        installQuantizedAdapterRegistryInterceptor(client);
+      } else {
+        installMultiParentRegistryInterceptor(client);
       }
       await client.send("Fetch.enable", {
         patterns: [
@@ -2102,6 +2717,40 @@ async function main() {
         }
       }
       assertStepTokenSmoke(result, expectedModel, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (smokeMode === "adapter-sidecar" || smokeMode === "adapter-sidecar-registry-file" || smokeMode === "adapter-sidecar-registry-q8" || smokeMode === "adapter-sidecar-checksum-mismatch") {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageAdapterSidecarSmoke(client, expectedModel);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      if (smokeMode === "adapter-sidecar-checksum-mismatch") {
+        assertAdapterChecksumMismatchSmoke(result, expectedModel, networkRequests);
+      } else {
+        assertAdapterSidecarSmoke(result, expectedModel, networkRequests);
+      }
+      result.networkRequests = networkRequests;
+    } else if (smokeMode === "multi-parent-registry" || smokeMode === "multi-parent-registry-file") {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageSmoke(client, expectedModel);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertMultiParentRegistrySmoke(result, expectedModel, networkRequests);
       result.networkRequests = networkRequests;
     } else if (smokeMode === "model-error") {
       await client.send("Page.reload", { ignoreCache: true });

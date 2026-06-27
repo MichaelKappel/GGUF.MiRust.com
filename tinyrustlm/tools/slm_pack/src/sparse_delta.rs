@@ -23,6 +23,9 @@ const PARENT_CONTRACT: &str = "matches-parent-direct-parameter-contract";
 const REQUIRED_NEXT_GATE: &str = "candidate-manifest-plus-runtime-smoke-plus-eval";
 const DEFAULT_DELTA_WEIGHT_PPM: &str = "1000000";
 const DEFAULT_KEEP_PPM: &str = "250000";
+const MASK_METADATA_VERSION: &str = "1";
+const MASK_METADATA_KIND: &str = "implicit-top-k-absolute-delta-mask";
+const MASK_RETENTION_SCOPE: &str = "nonzero-target-minus-base-deltas";
 const MIN_DELTA_WEIGHT_PPM: i64 = -1_000_000;
 const MAX_DELTA_WEIGHT_PPM: i64 = 2_000_000;
 
@@ -153,6 +156,13 @@ fn validate_candidate_text(
         "sparse_tie_break",
         "tensor-order-then-element-index",
     )?;
+    require_equal(
+        &receipt,
+        "sparse_mask_metadata_version",
+        MASK_METADATA_VERSION,
+    )?;
+    require_equal(&receipt, "sparse_mask_kind", MASK_METADATA_KIND)?;
+    require_equal(&receipt, "sparse_retention_scope", MASK_RETENTION_SCOPE)?;
     let (expected_candidate, expected_receipt) = build_candidate_bytes_and_receipt(
         compatibility_text,
         lineage_text,
@@ -363,6 +373,38 @@ fn build_receipt_text(
     );
     push_line(
         &mut text,
+        "sparse_unchanged_parameter_count",
+        &sparse_stats.unchanged_parameter_count.to_string(),
+    );
+    push_line(
+        &mut text,
+        "sparse_pruned_nonzero_delta_count",
+        &sparse_stats.pruned_nonzero_delta_count.to_string(),
+    );
+    push_line(
+        &mut text,
+        "sparse_density_ppm",
+        &sparse_stats.density_ppm.to_string(),
+    );
+    push_line(
+        &mut text,
+        "sparse_nonzero_delta_retention_ppm",
+        &sparse_stats.nonzero_delta_retention_ppm.to_string(),
+    );
+    push_line(
+        &mut text,
+        "sparse_mask_metadata_version",
+        MASK_METADATA_VERSION,
+    );
+    push_line(&mut text, "sparse_mask_kind", MASK_METADATA_KIND);
+    push_line(&mut text, "sparse_retention_scope", MASK_RETENTION_SCOPE);
+    push_line(
+        &mut text,
+        "sparse_mask_checksum",
+        &hex64(sparse_stats.mask_checksum),
+    );
+    push_line(
+        &mut text,
         "candidate_artifact_path",
         candidate_report.path(),
     );
@@ -487,14 +529,24 @@ fn sparse_delta_values(
     let requested_keep = keep_count(total_parameter_count, keep_ppm)?;
     let kept_parameter_count = requested_keep.min(ranked.len() as u64);
     let delta_weight = delta_weight_ppm as f32 / PPM_DENOMINATOR as f32;
-    for entry in ranked.iter().take(kept_parameter_count as usize) {
+    let selected = ranked
+        .iter()
+        .take(kept_parameter_count as usize)
+        .collect::<Vec<_>>();
+    for entry in &selected {
         output[entry.tensor_index][entry.value_index] += entry.delta * delta_weight;
     }
+    let nonzero_delta_count = ranked.len() as u64;
     let stats = SparseStats {
         total_parameter_count,
-        nonzero_delta_count: ranked.len() as u64,
+        nonzero_delta_count,
         kept_parameter_count,
         pruned_parameter_count: total_parameter_count - kept_parameter_count,
+        unchanged_parameter_count: total_parameter_count - nonzero_delta_count,
+        pruned_nonzero_delta_count: nonzero_delta_count - kept_parameter_count,
+        density_ppm: ratio_ppm(kept_parameter_count, total_parameter_count)?,
+        nonzero_delta_retention_ppm: ratio_ppm(kept_parameter_count, nonzero_delta_count)?,
+        mask_checksum: sparse_mask_checksum(&selected, total_parameter_count),
     };
     Ok((output, stats))
 }
@@ -516,6 +568,30 @@ fn keep_count(total_parameter_count: u64, keep_ppm: u32) -> io::Result<u64> {
         u128::from(total_parameter_count) * u128::from(keep_ppm) + u128::from(PPM_DENOMINATOR - 1);
     let count = numerator / u128::from(PPM_DENOMINATOR);
     u64::try_from(count).map_err(|_| invalid("sparse keep count overflowed u64"))
+}
+
+fn ratio_ppm(numerator: u64, denominator: u64) -> io::Result<u64> {
+    if denominator == 0 {
+        return Ok(0);
+    }
+    let ppm = u128::from(numerator) * u128::from(PPM_DENOMINATOR) / u128::from(denominator);
+    u64::try_from(ppm).map_err(|_| invalid("sparse ratio overflowed u64"))
+}
+
+fn sparse_mask_checksum(selected: &[&RankedDelta], total_parameter_count: u64) -> u64 {
+    let mut acc = 0x7265_7461_696e_6d31u64;
+    mix_mask_value(&mut acc, total_parameter_count);
+    mix_mask_value(&mut acc, selected.len() as u64);
+    for entry in selected {
+        mix_mask_value(&mut acc, entry.tensor_index as u64);
+        mix_mask_value(&mut acc, entry.value_index as u64);
+    }
+    acc
+}
+
+fn mix_mask_value(acc: &mut u64, value: u64) {
+    *acc ^= value.wrapping_add(0x9e37_79b9_7f4a_7c15);
+    *acc = acc.rotate_left(11).wrapping_mul(0x1000_0000_01b3);
 }
 
 fn parse_delta_weight_ppm(value: &str) -> io::Result<i64> {
@@ -553,6 +629,11 @@ struct SparseStats {
     nonzero_delta_count: u64,
     kept_parameter_count: u64,
     pruned_parameter_count: u64,
+    unchanged_parameter_count: u64,
+    pruned_nonzero_delta_count: u64,
+    density_ppm: u64,
+    nonzero_delta_retention_ppm: u64,
+    mask_checksum: u64,
 }
 
 #[cfg(test)]
@@ -633,6 +714,10 @@ mod tests {
         assert!(receipt.contains("operator_kind=sparse-direct-parameter-task-delta"));
         assert!(receipt.contains("sparse_keep_ppm=250000"));
         assert!(receipt.contains("sparse_kept_parameter_count="));
+        assert!(receipt.contains("sparse_mask_metadata_version=1"));
+        assert!(receipt.contains("sparse_mask_kind=implicit-top-k-absolute-delta-mask"));
+        assert!(receipt.contains("sparse_mask_checksum="));
+        assert!(receipt.contains("sparse_nonzero_delta_retention_ppm="));
     }
 
     #[test]
@@ -673,6 +758,8 @@ mod tests {
             assert_eq!(candidate_tensor.values, target_tensor.values);
         }
         assert!(receipt.contains("sparse_keep_ppm=1000000"));
+        assert!(receipt.contains("sparse_pruned_nonzero_delta_count=0"));
+        assert!(receipt.contains("sparse_nonzero_delta_retention_ppm=1000000"));
     }
 
     #[test]
@@ -713,6 +800,61 @@ mod tests {
             assert_eq!(candidate_tensor.values, base_tensor.values);
         }
         assert!(receipt.contains("sparse_kept_parameter_count=0"));
+        assert!(receipt.contains("sparse_density_ppm=0"));
+        assert!(receipt.contains("sparse_nonzero_delta_retention_ppm=0"));
+        assert!(receipt.contains("sparse_retention_scope=nonzero-target-minus-base-deltas"));
+    }
+
+    #[test]
+    fn sparse_mask_checksum_changes_with_selected_positions() {
+        let base = tiny_f32_scaled_bytes(1.0);
+        let target = tiny_f32_index_delta_bytes();
+        let compatibility =
+            compatibility::compatibility_text_for_bytes(&base, "base.slm", &target, "target.slm")
+                .unwrap();
+        let lineage = lineage::build_template_text(
+            &compatibility,
+            "sparse-mask",
+            "sparse-task-vector",
+            "tiny",
+        )
+        .unwrap();
+
+        let (_, sparse_receipt) = build_candidate_bytes_and_receipt(
+            &compatibility,
+            &lineage,
+            &base,
+            "base.slm",
+            &target,
+            "target.slm",
+            "sparse.slm",
+            1_000_000,
+            250_000,
+        )
+        .unwrap();
+        let (_, denser_receipt) = build_candidate_bytes_and_receipt(
+            &compatibility,
+            &lineage,
+            &base,
+            "base.slm",
+            &target,
+            "target.slm",
+            "dense.slm",
+            1_000_000,
+            500_000,
+        )
+        .unwrap();
+
+        let sparse_fields = parse_manifest(&sparse_receipt, "sparse receipt").unwrap();
+        let denser_fields = parse_manifest(&denser_receipt, "denser receipt").unwrap();
+        assert_ne!(
+            sparse_fields.get("sparse_mask_checksum"),
+            denser_fields.get("sparse_mask_checksum")
+        );
+        assert_ne!(
+            sparse_fields.get("sparse_density_ppm"),
+            denser_fields.get("sparse_density_ppm")
+        );
     }
 
     #[test]

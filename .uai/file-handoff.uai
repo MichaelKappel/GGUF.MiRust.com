@@ -1,5 +1,5 @@
-profile: gguf-mirust.file-handoff.v4
-updated_utc: 2026-06-27T03:21:25Z
+profile: gguf-mirust.file-handoff.v5
+updated_utc: 2026-06-27T10:55:00Z
 handoff_root: agent-file-handoff/
 active_buckets:
   content: agent-file-handoff/Content/
@@ -32,6 +32,8 @@ strategy_refresh_2026_06_27:
   source: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
   applied_shape: Active Content and Improvement buckets are transient intake; every reviewed file needs disposition, proof-of-use, durable raw/wiki preservation, hot routing, pointer-ledger refresh, and a remove-or-keep-active decision.
   report_memory_rule: Reports stay as durable raw evidence plus wiki/report synthesis bodies; .uai files keep current routing, synthesis, proof pointers, and checksums.
+  research_memory_rule: Research/reference bodies stay under wiki/gguf-mirust/research/; hot .uai files carry routing, implementation boundaries, and next-step prompts; long-term memory carries checksum pointers.
+  voice_memory_rule: Public-copy voice routes through .uai/taboo.uai before model-breeding, mutualist, tiny-ecology, or UAIX strategy copy is published.
 current_scan:
   scanned_utc: 2026-06-27T03:21:25Z
   content_bucket_non_placeholder_files: 0

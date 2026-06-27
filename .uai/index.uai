@@ -1,5 +1,5 @@
 profile: gguf-mirust.uai-index.v3
-updated_utc: 2026-06-26T18:44:35Z
+updated_utc: 2026-06-27T14:30:00Z
 files:
   - .uai/system-profile.uai
   - .uai/workspace-guidance.uai

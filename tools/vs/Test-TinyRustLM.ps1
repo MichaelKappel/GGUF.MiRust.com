@@ -125,12 +125,59 @@ function Resolve-BrowserSmokeTarget {
     throw "No available local browser-smoke port found from $PreferredPort through $($PreferredPort + $SearchLimit)."
 }
 
+function Resolve-FreeLocalPort {
+    param(
+        [int]$PreferredPort,
+        [int]$SearchLimit
+    )
+
+    if ($SearchLimit -lt 0) {
+        throw "PortSearchLimit must be zero or greater."
+    }
+
+    for ($offset = 0; $offset -le $SearchLimit; $offset++) {
+        $candidate = $PreferredPort + $offset
+        if ($candidate -gt 65535) {
+            break
+        }
+        if (-not (Test-LocalPortOpen $candidate)) {
+            return $candidate
+        }
+    }
+
+    throw "No available local port found from $PreferredPort through $($PreferredPort + $SearchLimit)."
+}
+
 function Resolve-ServerExecutable {
     $server = Join-Path $Root "target\debug\tinyrustlm-local-server.exe"
     if (-not (Test-Path -LiteralPath $server)) {
         throw "TinyRustLM Rust local server was not found at $server after build."
     }
     return (Resolve-Path -LiteralPath $server).Path
+}
+
+function New-MultiParentBrowserSmokeRoot {
+    $bundleBase = Join-Path $Root ("target\browser-served-multi-parent-{0}" -f ([guid]::NewGuid().ToString("N")))
+    $servedRoot = Join-Path $bundleBase "tinyrustlm"
+    New-Item -ItemType Directory -Force -Path $servedRoot | Out-Null
+    Copy-Item -LiteralPath (Join-Path $Root "tinyrustlm\app") -Destination $servedRoot -Recurse -Force
+    Copy-Item -LiteralPath (Join-Path $Root "tinyrustlm\runtime") -Destination $servedRoot -Recurse -Force
+
+    $bundleStdout = Join-Path $bundleBase "browser-bundle.stdout.txt"
+    $bundleStderr = Join-Path $bundleBase "browser-bundle.stderr.txt"
+    $bundleProcess = Start-Process -FilePath $Cargo `
+        -ArgumentList @("run", "-p", "tinyrustlm-slm-pack", "--", "browser-multi-parent-bundle", $servedRoot) `
+        -RedirectStandardOutput $bundleStdout `
+        -RedirectStandardError $bundleStderr `
+        -Wait `
+        -PassThru `
+        -WindowStyle Hidden
+    $bundleExitCode = $bundleProcess.ExitCode
+    if ($bundleExitCode -ne 0) {
+        throw "SLM browser multi-parent bundle generation failed with exit code $bundleExitCode"
+    }
+
+    return (Resolve-Path -LiteralPath $servedRoot).Path
 }
 
 Push-Location $Root
@@ -367,6 +414,45 @@ try {
                 node "tinyrustlm\tools\browser-smoke.js" $target.Url 9235 tinylm16q8 step-token
                 if ($LASTEXITCODE -ne 0) {
                     throw "browser step-token smoke failed with exit code $LASTEXITCODE"
+                }
+                node "tinyrustlm\tools\browser-smoke.js" $target.Url 9238 tinyf32 adapter-sidecar
+                if ($LASTEXITCODE -ne 0) {
+                    throw "browser adapter sidecar smoke failed with exit code $LASTEXITCODE"
+                }
+                node "tinyrustlm\tools\browser-smoke.js" $target.Url 9236 multi-parent-sign-merge-q8 multi-parent-registry
+                if ($LASTEXITCODE -ne 0) {
+                    throw "multi-parent registry browser smoke failed with exit code $LASTEXITCODE"
+                }
+                $bundleRoot = New-MultiParentBrowserSmokeRoot
+                $bundlePort = Resolve-FreeLocalPort -PreferredPort ($target.Port + 100) -SearchLimit $PortSearchLimit
+                $bundleUrl = Get-AppUrl $bundlePort
+                $bundleServer = $null
+                try {
+                    $serverExe = Resolve-ServerExecutable
+                    $bundleServer = Start-Process -FilePath $serverExe -ArgumentList @($bundleRoot, "$bundlePort") -PassThru -WindowStyle Hidden
+                    for ($i = 0; $i -lt 40; $i++) {
+                        if (Test-TinyRustLMServer $bundlePort) {
+                            break
+                        }
+                        Start-Sleep -Milliseconds 250
+                    }
+                    if (-not (Test-TinyRustLMServer $bundlePort)) {
+                        throw "TinyRustLM generated-bundle browser-smoke server did not become ready at $bundleUrl"
+                    }
+
+                    node "tinyrustlm\tools\browser-smoke.js" $bundleUrl 9237 multi-parent-sign-merge-f32 multi-parent-registry-file
+                    if ($LASTEXITCODE -ne 0) {
+                        throw "multi-parent generated-bundle browser smoke failed with exit code $LASTEXITCODE"
+                    }
+                    node "tinyrustlm\tools\browser-smoke.js" $bundleUrl 9239 multi-parent-sign-merge-f32 adapter-sidecar-registry-file
+                    if ($LASTEXITCODE -ne 0) {
+                        throw "registry adapter generated-bundle browser smoke failed with exit code $LASTEXITCODE"
+                    }
+                }
+                finally {
+                    if ($null -ne $bundleServer -and -not $bundleServer.HasExited) {
+                        Stop-Process -Id $bundleServer.Id -Force -ErrorAction SilentlyContinue
+                    }
                 }
                 node "tinyrustlm\tools\browser-smoke.js" $target.Url 9234 tinylm16q8 ui-audit
                 if ($LASTEXITCODE -ne 0) {

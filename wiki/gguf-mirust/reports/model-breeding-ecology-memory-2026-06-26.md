@@ -3,7 +3,7 @@ title: Model Breeding Ecology Memory 2026-06-26
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26/
 status: planned_pending_publication
-reviewed_utc: 2026-06-27T03:21:25Z
+reviewed_utc: 2026-06-27T13:45:00Z
 ---
 
 # Model Breeding Ecology Memory
@@ -17,7 +17,7 @@ Model breeding in this project means a traceable candidate lifecycle: compatible
 - Breeding unit: a local `.slm` candidate or future adapter/delta package with checksums, tokenizer identity, tensor schema, quantization layout, parent hashes, operator metadata, and evaluation evidence.
 - Compatibility gate: parameter-level merging requires the same base family, tensor names, shapes, tokenizer route, dtype or quantization semantics, and output-head contract.
 - Heterogeneous path: when architecture or tokenizer compatibility breaks, use distillation or retraining into the `.slm` ABI instead of direct weight mixing.
-- Operator lanes: model soups, task-vector addition, LoRA/adapters, TIES-style sign agreement, DARE-style sparse deltas, pruning, quantization, and post-merge fine-tuning route future work; current implemented slices include `sparse-delta-candidate`, `adapter-delta`, `fuse-adapter-delta`, promotion ledgers, population reviews, and parent-pool recipes.
+- Operator lanes: model soups, task-vector addition, LoRA/adapters, TIES-style sign agreement, DARE-style sparse deltas, Model Breadcrumbs-style sparse masks, kinship-aware parent selection, evolutionary merge recipes, pruning, quantization, and post-merge fine-tuning route future work; current implemented slices include `sparse-delta-candidate` receipts with density, retention, and mask checksum fields, `adapter-delta`, `fuse-adapter-delta`, promotion ledgers, population reviews with objective-vector fields, parent-pool recipes with relatedness fields, sign-merge receipts that echo relatedness, multi-parent manifests that carry the relatedness summary, selector routing, and browser-verified adapter-family receipts plus manifests.
 - Code beading: split model work into small durable beads such as source manifest, candidate manifest, compatibility result, operator run, eval sidecar, promotion record, and rollback record.
 - 4Fs lens: Fast, Flexible, Frugal, and Federated are useful design adjectives for future model ecology choices, not canonical project law.
 
@@ -32,8 +32,8 @@ Potential future modules:
 - `candidate_eval`: runs bounded task cases, latency, scratch, context, and size gates before any candidate becomes selectable.
 - `adapter_delta`: stores future LoRA or adapter deltas as separate artifacts until the runtime has an explicit typed boundary for applying or fusing them.
 - `breeding_operator`: offline tool only; it produces `.slm` or candidate artifacts that still pass the normal admission and manifest gates.
-- `population_review`: validates a promotion ledger against admissions, scores candidates by quality, frugality, and quantization fit, then records the frontier route and parent-pool route.
-- `parent_pool_recipe`: validates the population review, requires selected parents to share one direct-parameter contract, and records ranked roles plus seed weights for future recipe consumers.
+- `population_review`: validates a promotion ledger against admissions, scores candidates by quality, frugality, and quantization fit, records the weighted objective-vector contract plus per-entry objective checksums, then records the frontier route and parent-pool route.
+- `parent_pool_recipe`: validates the population review, requires selected parents to share one direct-parameter contract, and records ranked roles, seed weights, relatedness metric/scope/pair count/status, shared relatedness checksum, and per-parent relatedness groups for recipe consumers.
 
 ## Report Cluster Synthesis
 
@@ -59,21 +59,22 @@ Potential future modules:
 
 ## 2026-06-27 Implementation Notes
 
-- Compatibility, lineage, blend, task-delta, sparse task-delta, adapter-delta, adapter-fuse, candidate manifests, promotion templates, runtime-smoke sidecars, selector admission records, promotion ledgers, population reviews, parent-pool recipes, and selector registries now exist as no-crate `tinyrustlm-slm-pack` gates.
-- Population review maps the population-based-training idea into a deterministic offline file: `promotion-ledger-plus-admission-records` becomes a ranked frontier candidate plus a parent pool for later recipes.
-- Parent-pool recipe turns that ranked review into a shared-contract parent recipe with normalized seed weights, ready for a future sign-aware recipe consumer.
+- Compatibility, lineage, blend, task-delta, sparse task-delta, adapter-delta, adapter-fuse, candidate manifests, multi-parent candidate manifests, promotion templates, multi-parent promotion templates, multi-parent admission records, runtime-smoke sidecars, selector admission records, promotion ledgers, population reviews, parent-pool recipes, sign-merge receipts, and selector registries now exist as no-crate `tinyrustlm-slm-pack` gates.
+- Population review maps the population-based-training idea into a deterministic offline file: `promotion-ledger-plus-admission-records` becomes a ranked frontier candidate plus a parent pool for later recipes, with objective-vector metadata that names the weighted scoring dimensions.
+- Parent-pool recipe turns that ranked review into a shared-contract parent recipe with normalized seed weights and deterministic relatedness identity; sign-merge receipts echo that identity, and multi-parent candidate manifests carry it forward.
 - The browser runtime remains downstream of admitted registry routes only; population work stays offline until a candidate has passed the ordinary `.slm`, manifest, runtime-smoke, eval, admission, and ledger gates.
 
 ## 2026-06-27 Reference Routing Refresh
 
-- The companion research page now routes diverse model-breeding references beyond the first merge set: FedAvg, evolution strategies, retention metrics, pruning masks, lottery-ticket sparsity, adapter families, and quantized adapter training.
+- The companion research page now routes diverse model-breeding references beyond the first merge set: FedAvg, evolution strategies, sparse receipt retention metrics, pruning masks, lottery-ticket sparsity, adapter families, and quantized adapter training.
+- The 2026-06-27 research refresh adds Model Breadcrumbs, model kinship, evolutionary merge recipes, Mergenetic-style adaptive search, and multi-objective evolutionary merging as planning metadata; sparse masks, parent relatedness, and weighted population objective vectors now have first receipt-level forms, while resource budgets and recipe search remain future typed lanes.
 - Use those references as future metadata and eval lanes: distributed parent updates, search budgets, old-task retention, task masks, compact candidate artifacts, and adapter manifests.
 - Keep the current implementation boundary unchanged: offline tools produce evidence-bound `.slm` or adapter artifacts, while browser selection consumes only admitted registry routes.
 
 ## Implementation Sequence
 
-1. Keep compatibility, lineage, operator receipts, manifests, promotion, admission, ledger, population review, and parent-pool recipe files as the offline model-breeding path.
-2. Add a sign-aware parent-pool recipe consumer before any broader multi-parent operator work.
+1. Keep compatibility, lineage, operator receipts, manifests, promotion, admission, ledger, population review, parent-pool recipe, sign-merge, and multi-parent candidate files as the offline model-breeding path.
+2. Extend planner/search work only when it can produce replayable recipe proposals, resource budgets, and eval sidecars that feed the same gates.
 3. Require every produced candidate `.slm` to pass native validation, manifest validation, runtime-smoke, and fixture eval gates.
 4. Add browser UI only after candidate provenance can be rendered as clean local model lineage.
 

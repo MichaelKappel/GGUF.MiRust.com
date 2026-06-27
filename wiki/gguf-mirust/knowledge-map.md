@@ -3,7 +3,7 @@ title: GGUF.MiRust.com Knowledge Map
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/knowledge-map/
 status: planned_pending_publication
-reviewed_utc: 2026-06-26T18:44:35Z
+reviewed_utc: 2026-06-27T15:10:00Z
 ---
 
 # Knowledge Map
@@ -23,6 +23,12 @@ reviewed_utc: 2026-06-26T18:44:35Z
 - Teleodynamic resource-bounded memory: `wiki/gguf-mirust/reports/teleodynamic-resource-bounded-memory-2026-06-25.md`
 - Brand product positioning memory: `wiki/gguf-mirust/reports/brand-product-positioning-memory-2026-06-25.md`
 - Model breeding ecology memory: `wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md`
+- Runtime adapter apply memory: `wiki/gguf-mirust/reports/runtime-adapter-apply-memory-2026-06-27.md`
+- Browser adapter sidecar memory: `wiki/gguf-mirust/reports/browser-adapter-sidecar-memory-2026-06-27.md`
+- Registry adapter sidecar memory: `wiki/gguf-mirust/reports/registry-adapter-sidecar-memory-2026-06-27.md`
+- Registry adapter family memory: `wiki/gguf-mirust/reports/registry-adapter-family-memory-2026-06-27.md`
+- Adapter family receipt memory: `wiki/gguf-mirust/reports/adapter-family-receipt-memory-2026-06-27.md`
+- Assembly receipt memory: `wiki/gguf-mirust/reports/assembly-receipt-memory-2026-06-27.md`
 - Model breeding reference ideas: `wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md`
 - Raw report evidence: `raw/gguf-mirust/report-intake-2026-06-25/`
 - Raw model-breeding evidence: `raw/gguf-mirust/report-intake-2026-06-26/`
@@ -33,5 +39,5 @@ reviewed_utc: 2026-06-26T18:44:35Z
 - `docs/architecture/browser-harness.md` defines implementation boundaries.
 - `wiki/gguf-mirust/source-memory-guide.md` is the public routing record for future agents.
 - Report synthesis records distribute active handoff reports by theme so agents can load governance, browser runtime, modular model, teleodynamic, or brand context without bulk-loading every original report.
-- Model breeding records route compatible merge, adapter, lineage, and candidate-evaluation research into future TinyRustLM work without changing current runtime authority.
+- Model breeding records route compatible merge, adapter, lineage, sparse-mask receipt metadata, population objective-vector fields, parent relatedness recipe/receipt/manifest fields, runtime f32/q8_0/q4_0 adapter apply, checked browser f32/q8_0/q4_0 adapter sidecars, registry-carried f32/q8_0/q4_0 adapter sidecars, registry-carried adapter families, adapter-family receipts, assembly receipts with evidence-file fetches, and candidate-evaluation research into future TinyRustLM work without changing current quality authority.
 - Raw evidence preserves exact report bytes with checksums; synthesis records carry reviewed interpretation, not source replacement authority.

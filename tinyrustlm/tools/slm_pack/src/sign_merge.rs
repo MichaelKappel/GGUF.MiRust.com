@@ -23,6 +23,13 @@ const PARENT_CONTRACT: &str = "matches-parent-pool-direct-parameter-contract";
 const OPERATOR_OUTPUT_STATUS: &str = "slm-validated";
 const REQUIRED_NEXT_GATE: &str = "multi-parent-candidate-manifest-plus-runtime-smoke-plus-eval";
 const PPM_DENOMINATOR: u64 = 1_000_000;
+const RELATEDNESS_KEYS: [&str; 5] = [
+    "relatedness_metric",
+    "relatedness_scope",
+    "relatedness_pair_count",
+    "relatedness_all_pairs_status",
+    "relatedness_contract_checksum",
+];
 
 #[derive(Clone)]
 struct RecipeParent {
@@ -43,6 +50,8 @@ struct RecipeParent {
     candidate_output_contract: String,
     candidate_tokenizer_checksum: String,
     candidate_tensor_layout_checksum: String,
+    relatedness_group: String,
+    relatedness_contract_checksum: String,
     population_fitness_ppm: String,
     seed_weight_ppm: u64,
     next_route: String,
@@ -166,7 +175,7 @@ fn read_bytes(paths: &[String], label: &str) -> io::Result<Vec<(String, Vec<u8>)
         .collect()
 }
 
-fn validate_candidate_text(
+pub(crate) fn validate_candidate_text(
     ledger_text: &str,
     review_text: &str,
     recipe_text: &str,
@@ -197,7 +206,7 @@ fn validate_candidate_text(
     Ok(())
 }
 
-fn build_candidate_bytes_and_receipt(
+pub(crate) fn build_candidate_bytes_and_receipt(
     ledger_text: &str,
     review_text: &str,
     recipe_text: &str,
@@ -312,6 +321,12 @@ fn parse_recipe_parents(fields: &HashMap<String, String>) -> io::Result<Vec<Reci
                 fields,
                 &prefix,
                 "candidate_tensor_layout_checksum",
+            )?,
+            relatedness_group: required_prefixed(fields, &prefix, "relatedness_group")?,
+            relatedness_contract_checksum: required_prefixed(
+                fields,
+                &prefix,
+                "relatedness_contract_checksum",
             )?,
             population_fitness_ppm: required_prefixed(fields, &prefix, "population_fitness_ppm")?,
             seed_weight_ppm,
@@ -615,6 +630,9 @@ fn build_receipt_text(
         "contract_tensor_layout_checksum",
         require_key(recipe_fields, "contract_tensor_layout_checksum")?,
     );
+    for key in RELATEDNESS_KEYS {
+        push_line(&mut text, key, require_key(recipe_fields, key)?);
+    }
     push_line(&mut text, "parent_count", &recipe_parents.len().to_string());
     for (index, (recipe_parent, artifact)) in recipe_parents.iter().zip(artifacts).enumerate() {
         push_parent_receipt_lines(&mut text, index, recipe_parent, artifact);
@@ -778,6 +796,16 @@ fn push_parent_receipt_lines(
         text,
         &format!("{prefix}.tensor_layout_checksum"),
         &hex64(artifact.report.tensor_layout_checksum()),
+    );
+    push_line(
+        text,
+        &format!("{prefix}.relatedness_group"),
+        &recipe_parent.relatedness_group,
+    );
+    push_line(
+        text,
+        &format!("{prefix}.relatedness_contract_checksum"),
+        &recipe_parent.relatedness_contract_checksum,
     );
     push_line(
         text,

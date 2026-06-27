@@ -5,6 +5,7 @@
 //! APIs. Early milestones expose a strict memory boundary, byte tokenizer,
 //! `.slm` parser, math kernels, diagnostics, and deterministic sampling.
 
+mod adapter;
 /// Causal attention helpers.
 pub mod attention;
 /// Runtime diagnostics and benchmark counters.

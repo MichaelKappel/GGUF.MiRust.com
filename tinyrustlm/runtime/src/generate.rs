@@ -127,6 +127,25 @@ impl Runtime {
         self.finish(ErrorCode::Ok)
     }
 
+    /// Applies a validated f32 adapter-delta package to the loaded model.
+    pub fn apply_adapter_delta(&mut self, bytes: &[u8]) -> ErrorCode {
+        let result = match self.model.as_mut() {
+            Some(model) => model.apply_adapter_delta(bytes),
+            None => Err(ErrorCode::ModelNotLoaded),
+        };
+        match result {
+            Ok(()) => {
+                self.clear_generation_state();
+                self.set_result("adapter applied");
+                self.finish(ErrorCode::Ok)
+            }
+            Err(error) => {
+                self.set_result(error.message());
+                self.finish(error)
+            }
+        }
+    }
+
     /// Generates text for a prompt with configured local decoding.
     pub fn generate(&mut self, prompt: &str, max_new_tokens: u32) -> ErrorCode {
         if self.model.is_none() {
@@ -719,6 +738,117 @@ fn update_generation_details(diagnostics: &mut Diagnostics, logits: &[f32], sele
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::adapter::{parameter_count, section_checksum, tensor_layout_checksum};
+    use crate::model_format::TensorEntry;
+
+    const ADAPTER_HEADER_LEN: usize = 64;
+    const ADAPTER_ENTRY_LEN: usize = 64;
+    const ADAPTER_CHECKSUM_OFFSET: usize = 56;
+    const TOKENIZER_CHECKSUM_SEED: u64 = 0x746f6b656e697a65;
+
+    fn build_zero_adapter_bytes(model: &Model, model_bytes: &[u8]) -> Vec<u8> {
+        let tensors = &model.parsed().tensors;
+        let data_offset = align_to_64(ADAPTER_HEADER_LEN + tensors.len() * ADAPTER_ENTRY_LEN);
+        let mut cursor = data_offset;
+        let mut offsets = Vec::with_capacity(tensors.len());
+        let mut lengths = Vec::with_capacity(tensors.len());
+        let mut payloads = Vec::with_capacity(tensors.len());
+        for tensor in tensors {
+            cursor = align_to_64(cursor);
+            offsets.push(cursor);
+            let byte_length = tensor_element_count(tensor) * 4;
+            lengths.push(byte_length);
+            let payload = vec![0u8; byte_length];
+            cursor += byte_length;
+            payloads.push(payload);
+        }
+
+        let tokenizer_checksum = tokenizer_checksum(model, model_bytes);
+        let mut bytes = vec![0u8; cursor];
+        bytes[0..4].copy_from_slice(b"ADP1");
+        write_u32(&mut bytes, 4, 1);
+        write_u32(&mut bytes, 8, ADAPTER_HEADER_LEN as u32);
+        write_u32(&mut bytes, 12, tensors.len() as u32);
+        write_u32(&mut bytes, 16, model.header().flags);
+        write_u32(&mut bytes, 20, ADAPTER_ENTRY_LEN as u32);
+        write_u64(&mut bytes, 24, parameter_count(tensors).unwrap());
+        write_u64(&mut bytes, 32, tensor_layout_checksum(tensors));
+        write_u64(&mut bytes, 40, tokenizer_checksum);
+        write_u64(&mut bytes, 48, data_offset as u64);
+        write_u64(&mut bytes, ADAPTER_CHECKSUM_OFFSET, 0);
+
+        for (index, tensor) in tensors.iter().enumerate() {
+            let entry = ADAPTER_HEADER_LEN + index * ADAPTER_ENTRY_LEN;
+            write_u64(&mut bytes, entry, tensor.name_hash);
+            write_u32(&mut bytes, entry + 8, tensor.rank);
+            write_u32(&mut bytes, entry + 12, tensor.dim0);
+            write_u32(&mut bytes, entry + 16, tensor.dim1);
+            write_u32(&mut bytes, entry + 20, tensor.dim2);
+            write_u32(&mut bytes, entry + 24, tensor.dim3);
+            write_u32(&mut bytes, entry + 28, 0);
+            write_u64(&mut bytes, entry + 32, offsets[index] as u64);
+            write_u64(&mut bytes, entry + 40, lengths[index] as u64);
+            write_u64(&mut bytes, entry + 48, tensor_element_count(tensor) as u64);
+            write_u64(
+                &mut bytes,
+                entry + 56,
+                adapter_payload_checksum(&payloads[index]),
+            );
+            bytes[offsets[index]..offsets[index] + lengths[index]]
+                .copy_from_slice(&payloads[index]);
+        }
+        let checksum = adapter_checksum(&bytes);
+        write_u64(&mut bytes, ADAPTER_CHECKSUM_OFFSET, checksum);
+        bytes
+    }
+
+    fn tokenizer_checksum(model: &Model, model_bytes: &[u8]) -> u64 {
+        let start = model.header().tokenizer_offset as usize;
+        let len = model.header().tokenizer_length as usize;
+        section_checksum(&model_bytes[start..start + len], TOKENIZER_CHECKSUM_SEED)
+    }
+
+    fn tensor_element_count(entry: &TensorEntry) -> usize {
+        [entry.dim0, entry.dim1, entry.dim2, entry.dim3]
+            .into_iter()
+            .take(entry.rank as usize)
+            .fold(1usize, |acc, dim| acc * dim as usize)
+    }
+
+    fn align_to_64(value: usize) -> usize {
+        (value + 63) & !63
+    }
+
+    fn adapter_checksum(bytes: &[u8]) -> u64 {
+        let mut acc = 0x6164617074657231u64;
+        for (index, byte) in bytes.iter().enumerate() {
+            let value = if (ADAPTER_CHECKSUM_OFFSET..ADAPTER_CHECKSUM_OFFSET + 8).contains(&index) {
+                0
+            } else {
+                *byte
+            };
+            acc ^= u64::from(value).wrapping_add((index as u64) << 3);
+            acc = acc.rotate_left(11).wrapping_mul(0x100000001b3);
+        }
+        acc
+    }
+
+    fn adapter_payload_checksum(bytes: &[u8]) -> u64 {
+        let mut acc = 0x64656c7461663332u64;
+        for (index, byte) in bytes.iter().enumerate() {
+            acc ^= u64::from(*byte).wrapping_add((index as u64) << 1);
+            acc = acc.rotate_left(7).wrapping_mul(0x100000001b3);
+        }
+        acc
+    }
+
+    fn write_u32(bytes: &mut [u8], offset: usize, value: u32) {
+        bytes[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+    }
+
+    fn write_u64(bytes: &mut [u8], offset: usize, value: u64) {
+        bytes[offset..offset + 8].copy_from_slice(&value.to_le_bytes());
+    }
 
     #[test]
     fn generation_stops_on_eos() {
@@ -884,6 +1014,70 @@ mod tests {
         assert!(diagnostics.contains("\"kv_cache_length\": 5"));
         assert!(diagnostics.contains("\"selected_next_token\": 101"));
         assert!(diagnostics.contains("\"active_quantization_mode\": \"q8_0\""));
+    }
+
+    #[test]
+    fn runtime_adapter_apply_resets_generation_diagnostics() {
+        let model_bytes = include_bytes!("../../models/tiny-test-model.slm");
+        let mut runtime = Runtime::new();
+        assert_eq!(runtime.load_model(model_bytes), ErrorCode::Ok);
+        assert_eq!(runtime.generate("hi", 1), ErrorCode::Ok);
+        assert!(core::str::from_utf8(runtime.diagnostics())
+            .unwrap()
+            .contains("\"generated_token_count\": 1"));
+        let adapter = {
+            let model = runtime.model.as_ref().unwrap();
+            build_zero_adapter_bytes(model, model_bytes)
+        };
+
+        assert_eq!(runtime.apply_adapter_delta(&adapter), ErrorCode::Ok);
+
+        assert_eq!(
+            core::str::from_utf8(runtime.last_result()).unwrap(),
+            "adapter applied"
+        );
+        assert!(runtime.tokens.is_empty());
+        assert_eq!(runtime.kv_cache.as_ref().map(KvCache::len), Some(0));
+        let diagnostics = core::str::from_utf8(runtime.diagnostics()).unwrap();
+        assert!(diagnostics.contains("\"last_error\": \"ok\""));
+        assert!(diagnostics.contains("\"model_loaded\": true"));
+        assert!(diagnostics.contains("\"active_quantization_mode\": \"f32\""));
+        assert!(diagnostics.contains("\"prompt_token_count\": 0"));
+        assert!(diagnostics.contains("\"generated_token_count\": 0"));
+        assert!(diagnostics.contains("\"kv_cache_length\": 0"));
+        assert!(diagnostics.contains("\"selected_next_token\": 0"));
+    }
+
+    #[test]
+    fn runtime_q8_adapter_apply_resets_generation_diagnostics() {
+        let model_bytes = include_bytes!("../../models/tiny-test-model-q8.slm");
+        let mut runtime = Runtime::new();
+        assert_eq!(runtime.load_model(model_bytes), ErrorCode::Ok);
+        assert_eq!(runtime.generate("hi", 1), ErrorCode::Ok);
+        assert!(core::str::from_utf8(runtime.diagnostics())
+            .unwrap()
+            .contains("\"generated_token_count\": 1"));
+        let adapter = {
+            let model = runtime.model.as_ref().unwrap();
+            build_zero_adapter_bytes(model, model_bytes)
+        };
+
+        assert_eq!(runtime.apply_adapter_delta(&adapter), ErrorCode::Ok);
+
+        assert_eq!(
+            core::str::from_utf8(runtime.last_result()).unwrap(),
+            "adapter applied"
+        );
+        assert!(runtime.tokens.is_empty());
+        assert_eq!(runtime.kv_cache.as_ref().map(KvCache::len), Some(0));
+        let diagnostics = core::str::from_utf8(runtime.diagnostics()).unwrap();
+        assert!(diagnostics.contains("\"last_error\": \"ok\""));
+        assert!(diagnostics.contains("\"model_loaded\": true"));
+        assert!(diagnostics.contains("\"active_quantization_mode\": \"q8_0\""));
+        assert!(diagnostics.contains("\"prompt_token_count\": 0"));
+        assert!(diagnostics.contains("\"generated_token_count\": 0"));
+        assert!(diagnostics.contains("\"kv_cache_length\": 0"));
+        assert!(diagnostics.contains("\"selected_next_token\": 0"));
     }
 
     #[test]

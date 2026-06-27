@@ -18,6 +18,10 @@ const RECIPE_KIND: &str = "sign-aware-parent-pool-v1";
 const PARENT_SELECTION: &str = "all-reviewed-candidates";
 const SEED_WEIGHT_FORMULA: &str = "population-fitness-normalized-ppm";
 const PARENT_CONTRACT_STATUS: &str = "shared-direct-parameter-contract";
+const RELATEDNESS_METRIC: &str = "shared-direct-parameter-contract-v1";
+const RELATEDNESS_SCOPE: &str = "selected-parent-pool";
+const RELATEDNESS_ALL_PAIRS_STATUS: &str = "shared-direct-parameter-contract";
+const RELATEDNESS_GROUP: &str = "direct-parameter-family.0";
 const FRONTIER_ROLE: &str = "frontier";
 const POOL_ROLE: &str = "parent-pool";
 const SELECTED_STATUS: &str = "selected-for-parent-pool-recipe";
@@ -120,6 +124,8 @@ pub(crate) fn build_recipe_text(
     let mut parents = parent_entries(&review_fields, &ledger_fields, parent_count)?;
     let contract = require_shared_contract(&parents)?;
     assign_seed_weights(&mut parents)?;
+    let relatedness_pair_count = relatedness_pair_count(parents.len())?;
+    let relatedness_contract_checksum = relatedness_contract_checksum(&contract, &parents);
 
     let mut text = String::new();
     push_line(
@@ -178,8 +184,25 @@ pub(crate) fn build_recipe_text(
         "contract_tensor_layout_checksum",
         &contract.tensor_layout_checksum,
     );
+    push_line(&mut text, "relatedness_metric", RELATEDNESS_METRIC);
+    push_line(&mut text, "relatedness_scope", RELATEDNESS_SCOPE);
+    push_line(
+        &mut text,
+        "relatedness_pair_count",
+        &relatedness_pair_count.to_string(),
+    );
+    push_line(
+        &mut text,
+        "relatedness_all_pairs_status",
+        RELATEDNESS_ALL_PAIRS_STATUS,
+    );
+    push_line(
+        &mut text,
+        "relatedness_contract_checksum",
+        &relatedness_contract_checksum,
+    );
     for (index, parent) in parents.iter().enumerate() {
-        push_parent_lines(&mut text, index, parent);
+        push_parent_lines(&mut text, index, parent, &relatedness_contract_checksum);
     }
     push_line(&mut text, "required_next_gate", REQUIRED_NEXT_GATE);
     Ok(text)
@@ -378,7 +401,77 @@ fn assign_seed_weights(parents: &mut [ParentEntry]) -> io::Result<()> {
     Ok(())
 }
 
-fn push_parent_lines(text: &mut String, index: usize, parent: &ParentEntry) {
+fn relatedness_pair_count(parent_count: usize) -> io::Result<u64> {
+    let count = parent_count as u128;
+    let pair_count = count
+        .checked_mul(count.saturating_sub(1))
+        .ok_or_else(|| invalid("parent-pool relatedness pair count overflow"))?
+        / 2;
+    pair_count
+        .try_into()
+        .map_err(|_| invalid("parent-pool relatedness pair count exceeded supported range"))
+}
+
+fn relatedness_contract_checksum(contract: &ParentContract, parents: &[ParentEntry]) -> String {
+    let mut text = String::new();
+    push_line(&mut text, "relatedness_metric", RELATEDNESS_METRIC);
+    push_line(&mut text, "relatedness_scope", RELATEDNESS_SCOPE);
+    push_line(&mut text, "parent_count", &parents.len().to_string());
+    push_line(&mut text, "contract_model_shape", &contract.model_shape);
+    push_line(&mut text, "contract_quantization", &contract.quantization);
+    push_line(
+        &mut text,
+        "contract_output_contract",
+        &contract.output_contract,
+    );
+    push_line(
+        &mut text,
+        "contract_tokenizer_checksum",
+        &contract.tokenizer_checksum,
+    );
+    push_line(
+        &mut text,
+        "contract_tensor_layout_checksum",
+        &contract.tensor_layout_checksum,
+    );
+    for (index, parent) in parents.iter().enumerate() {
+        let prefix = format!("parent.{index}");
+        push_line(
+            &mut text,
+            &format!("{prefix}.rank"),
+            &parent.rank.to_string(),
+        );
+        push_line(&mut text, &format!("{prefix}.role"), parent.role);
+        push_line(
+            &mut text,
+            &format!("{prefix}.candidate_id"),
+            &parent.candidate_id,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.selector_id"),
+            &parent.selector_id,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.operator_id"),
+            &parent.operator_id,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.candidate_slm_checksum"),
+            &parent.candidate_slm_checksum,
+        );
+    }
+    hex64(provenance::text_checksum(text.as_bytes()))
+}
+
+fn push_parent_lines(
+    text: &mut String,
+    index: usize,
+    parent: &ParentEntry,
+    relatedness_contract_checksum: &str,
+) {
     let prefix = format!("parent.{index}");
     push_line(text, &format!("{prefix}.rank"), &parent.rank.to_string());
     push_line(text, &format!("{prefix}.role"), parent.role);
@@ -444,6 +537,16 @@ fn push_parent_lines(text: &mut String, index: usize, parent: &ParentEntry) {
         text,
         &format!("{prefix}.candidate_tensor_layout_checksum"),
         &parent.candidate_tensor_layout_checksum,
+    );
+    push_line(
+        text,
+        &format!("{prefix}.relatedness_group"),
+        RELATEDNESS_GROUP,
+    );
+    push_line(
+        text,
+        &format!("{prefix}.relatedness_contract_checksum"),
+        relatedness_contract_checksum,
     );
     push_line(
         text,
@@ -561,8 +664,15 @@ mod tests {
         assert!(recipe.contains("recipe_kind=sign-aware-parent-pool-v1"));
         assert!(recipe.contains("frontier_candidate_id=tiny-alpha-candidate"));
         assert!(recipe.contains("parent_count=2"));
+        assert!(recipe.contains("relatedness_metric=shared-direct-parameter-contract-v1"));
+        assert!(recipe.contains("relatedness_scope=selected-parent-pool"));
+        assert!(recipe.contains("relatedness_pair_count=1"));
+        assert!(recipe.contains("relatedness_all_pairs_status=shared-direct-parameter-contract"));
+        assert!(recipe.contains("relatedness_contract_checksum=0x"));
         assert!(recipe.contains("parent.0.role=frontier"));
         assert!(recipe.contains("parent.1.role=parent-pool"));
+        assert!(recipe.contains("parent.0.relatedness_group=direct-parameter-family.0"));
+        assert!(recipe.contains("parent.1.relatedness_contract_checksum=0x"));
         assert!(recipe.contains("parent.0.seed_weight_ppm=500000"));
         assert!(recipe.contains("parent.1.seed_weight_ppm=500000"));
     }
@@ -613,6 +723,36 @@ mod tests {
 
         assert_eq!(error.kind(), io::ErrorKind::InvalidData);
         assert!(error.to_string().contains("frontier_candidate_id"));
+    }
+
+    #[test]
+    fn rejects_relatedness_checksum_drift() {
+        let alpha = fixture_admission(
+            "tiny-alpha-candidate",
+            "target/parent-pool/relatedness-alpha.slm",
+            tiny_fixture_f32_bytes_with_offset(0.0),
+        );
+        let beta = fixture_admission(
+            "tiny-beta-candidate",
+            "target/parent-pool/relatedness-beta.slm",
+            tiny_fixture_f32_bytes_with_offset(0.0045),
+        );
+        let ledger = ledger::build_ledger_text(&[alpha.clone(), beta.clone()]).unwrap();
+        let review =
+            population::build_review_text(&ledger, &[alpha.clone(), beta.clone()]).unwrap();
+        let recipe = build_recipe_text(&ledger, &review, &[alpha.clone(), beta.clone()]).unwrap();
+        let fields = parse_manifest(&recipe, "parent-pool recipe").unwrap();
+        let checksum = require_key(&fields, "relatedness_contract_checksum").unwrap();
+        let tampered_recipe = recipe.replace(
+            &format!("relatedness_contract_checksum={checksum}"),
+            "relatedness_contract_checksum=0x0000000000000000",
+        );
+
+        let error =
+            validate_recipe_text(&ledger, &review, &tampered_recipe, &[alpha, beta]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("relatedness_contract_checksum"));
     }
 
     #[test]

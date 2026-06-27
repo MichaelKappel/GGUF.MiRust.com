@@ -1,15 +1,20 @@
 //! Loaded model metadata and tensor storage.
 
+use crate::adapter::{
+    parameter_count, read_f32, section_checksum, tensor_layout_checksum, AdapterDelta,
+    AdapterDeltaPayload, AdapterExpected,
+};
 use crate::errors::ErrorCode;
 use crate::model_format::{
     name_hash, parse_slm, ParsedSlm, SlmHeader, TensorEntry, DTYPE_F32, DTYPE_Q4_0, DTYPE_Q8_0,
 };
 use crate::ops::matvec_f32;
-use crate::quant::{matvec_q4_0, matvec_q8_0};
+use crate::quant::{matvec_q4_0, matvec_q8_0, pack_q4_pair, quantize_q4_block, quantize_q8_row};
 use crate::tokenizer::Tokenizer;
 use std::convert::TryInto;
 
 const FLAG_TIED_OUTPUT: u32 = 1;
+const TOKENIZER_CHECKSUM_SEED: u64 = 0x746f6b656e697a65;
 
 /// Loaded model directory and header.
 #[derive(Debug)]
@@ -17,6 +22,9 @@ pub struct Model {
     parsed: ParsedSlm,
     tensors: Vec<LoadedTensor>,
     tokenizer: Tokenizer,
+    parameter_count: u64,
+    tensor_layout_checksum: u64,
+    tokenizer_checksum: u64,
     top_level_indices: TopLevelTensorIndices,
     layer_indices: Vec<LayerTensorIndices>,
 }
@@ -164,22 +172,86 @@ impl LoadedTensor {
             } => matvec_q4_0(packed, scales, *block_size, rows, cols, vector, out),
         }
     }
+
+    fn validate_adapter_payload(
+        &self,
+        bytes: &[u8],
+        payload: AdapterDeltaPayload,
+    ) -> Result<(), ErrorCode> {
+        if tensor_element_count(&self.entry)? != payload.element_count {
+            return Err(ErrorCode::ShapeMismatch);
+        }
+        for value_index in 0..payload.element_count {
+            let value =
+                self.f32_value_at(value_index)? + adapter_delta_value(bytes, payload, value_index)?;
+            if !value.is_finite() {
+                return Err(ErrorCode::InvalidHeader);
+            }
+        }
+        Ok(())
+    }
+
+    fn apply_adapter_payload(
+        &mut self,
+        bytes: &[u8],
+        payload: AdapterDeltaPayload,
+    ) -> Result<(), ErrorCode> {
+        match &mut self.storage {
+            TensorStorage::F32 { data } => apply_f32_adapter_payload(data, bytes, payload),
+            TensorStorage::Q8 { weights, scales } => {
+                apply_q8_adapter_payload(&self.entry, weights, scales, bytes, payload)
+            }
+            TensorStorage::Q4 {
+                packed,
+                scales,
+                block_size,
+            } => apply_q4_adapter_payload(&self.entry, packed, scales, *block_size, bytes, payload),
+        }
+    }
+
+    fn f32_value_at(&self, value_index: usize) -> Result<f32, ErrorCode> {
+        match &self.storage {
+            TensorStorage::F32 { data } => data
+                .get(value_index)
+                .copied()
+                .ok_or(ErrorCode::ShapeMismatch),
+            TensorStorage::Q8 { weights, scales } => {
+                let (_rows, cols) = tensor_matrix_shape(&self.entry)?;
+                let row = value_index / cols;
+                let weight = weights.get(value_index).ok_or(ErrorCode::ShapeMismatch)?;
+                let scale = scales.get(row).ok_or(ErrorCode::ShapeMismatch)?;
+                Ok(f32::from(*weight) * *scale)
+            }
+            TensorStorage::Q4 {
+                packed,
+                scales,
+                block_size,
+            } => q4_value_at(packed, scales, *block_size, &self.entry, value_index),
+        }
+    }
 }
 
 impl Model {
     /// Parses and validates model bytes into a loaded model directory.
     pub fn load(bytes: &[u8]) -> Result<Self, ErrorCode> {
         let parsed = parse_slm(bytes)?;
-        let tokenizer = parse_tokenizer(bytes, &parsed.header)?;
+        let tokenizer_section = tokenizer_section(bytes, &parsed.header)?;
+        let tokenizer = Tokenizer::from_section(tokenizer_section)?;
+        let tokenizer_checksum = section_checksum(tokenizer_section, TOKENIZER_CHECKSUM_SEED);
         validate_required_tensors(&parsed)?;
         validate_required_shapes(&parsed)?;
         let tensors = load_tensors(bytes, &parsed)?;
+        let parameter_count = parameter_count(&parsed.tensors)?;
+        let tensor_layout_checksum = tensor_layout_checksum(&parsed.tensors);
         let top_level_indices = resolve_top_level_indices(&parsed)?;
         let layer_indices = resolve_layer_indices(&parsed)?;
         Ok(Self {
             parsed,
             tensors,
             tokenizer,
+            parameter_count,
+            tensor_layout_checksum,
+            tokenizer_checksum,
             top_level_indices,
             layer_indices,
         })
@@ -317,6 +389,25 @@ impl Model {
         }
     }
 
+    /// Applies an `ADP1` f32 adapter-delta package to loaded f32, q8_0, or q4_0 tensors.
+    pub fn apply_adapter_delta(&mut self, bytes: &[u8]) -> Result<(), ErrorCode> {
+        let expected = AdapterExpected {
+            flags: self.parsed.header.flags,
+            tensors: &self.parsed.tensors,
+            parameter_count: self.parameter_count,
+            tensor_layout_checksum: self.tensor_layout_checksum,
+            tokenizer_checksum: self.tokenizer_checksum,
+        };
+        let adapter = AdapterDelta::parse(bytes, &expected)?;
+        for (tensor, payload) in self.tensors.iter().zip(adapter.entries()) {
+            tensor.validate_adapter_payload(bytes, payload)?;
+        }
+        for (tensor, payload) in self.tensors.iter_mut().zip(adapter.entries()) {
+            tensor.apply_adapter_payload(bytes, payload)?;
+        }
+        Ok(())
+    }
+
     fn loaded_tensor(&self, name: &str) -> Result<&LoadedTensor, ErrorCode> {
         let hash = name_hash(name);
         self.tensors
@@ -330,12 +421,11 @@ impl Model {
     }
 }
 
-fn parse_tokenizer(bytes: &[u8], header: &SlmHeader) -> Result<Tokenizer, ErrorCode> {
+fn tokenizer_section<'a>(bytes: &'a [u8], header: &SlmHeader) -> Result<&'a [u8], ErrorCode> {
     let start = usize::try_from(header.tokenizer_offset).map_err(|_| ErrorCode::InvalidLength)?;
     let len = usize::try_from(header.tokenizer_length).map_err(|_| ErrorCode::InvalidLength)?;
     let end = start.checked_add(len).ok_or(ErrorCode::InvalidLength)?;
-    let section = bytes.get(start..end).ok_or(ErrorCode::InvalidHeader)?;
-    Tokenizer::from_section(section)
+    bytes.get(start..end).ok_or(ErrorCode::InvalidHeader)
 }
 
 fn validate_required_tensors(parsed: &ParsedSlm) -> Result<(), ErrorCode> {
@@ -645,6 +735,156 @@ fn copy_q4_row_to_f32(
     Ok(())
 }
 
+fn apply_f32_adapter_payload(
+    data: &mut [f32],
+    bytes: &[u8],
+    payload: AdapterDeltaPayload,
+) -> Result<(), ErrorCode> {
+    if data.len() != payload.element_count {
+        return Err(ErrorCode::ShapeMismatch);
+    }
+    for (value_index, value) in data.iter_mut().enumerate() {
+        *value += adapter_delta_value(bytes, payload, value_index)?;
+    }
+    Ok(())
+}
+
+fn apply_q8_adapter_payload(
+    entry: &TensorEntry,
+    weights: &mut [i8],
+    scales: &mut [f32],
+    bytes: &[u8],
+    payload: AdapterDeltaPayload,
+) -> Result<(), ErrorCode> {
+    let (rows, cols) = tensor_matrix_shape(entry)?;
+    if payload.element_count != rows.checked_mul(cols).ok_or(ErrorCode::InvalidLength)?
+        || weights.len() != payload.element_count
+        || scales.len() != rows
+    {
+        return Err(ErrorCode::ShapeMismatch);
+    }
+    let mut row_values = vec![0.0f32; cols];
+    let mut row_weights = vec![0i8; cols];
+    for row in 0..rows {
+        let row_start = row.checked_mul(cols).ok_or(ErrorCode::InvalidLength)?;
+        let base_scale = scales[row];
+        for col in 0..cols {
+            let index = row_start + col;
+            row_values[col] = f32::from(weights[index]) * base_scale
+                + adapter_delta_value(bytes, payload, index)?;
+        }
+        scales[row] = quantize_q8_row(&row_values, &mut row_weights)?;
+        weights[row_start..row_start + cols].copy_from_slice(&row_weights);
+    }
+    Ok(())
+}
+
+fn apply_q4_adapter_payload(
+    entry: &TensorEntry,
+    packed: &mut [u8],
+    scales: &mut [f32],
+    block_size: usize,
+    bytes: &[u8],
+    payload: AdapterDeltaPayload,
+) -> Result<(), ErrorCode> {
+    let (rows, cols) = tensor_matrix_shape(entry)?;
+    if block_size == 0
+        || block_size % 2 != 0
+        || cols % block_size != 0
+        || payload.element_count != rows.checked_mul(cols).ok_or(ErrorCode::InvalidLength)?
+    {
+        return Err(ErrorCode::ShapeMismatch);
+    }
+    let bytes_per_row = cols / 2;
+    let blocks_per_row = cols / block_size;
+    if packed.len()
+        != rows
+            .checked_mul(bytes_per_row)
+            .ok_or(ErrorCode::InvalidLength)?
+        || scales.len()
+            != rows
+                .checked_mul(blocks_per_row)
+                .ok_or(ErrorCode::InvalidLength)?
+    {
+        return Err(ErrorCode::ShapeMismatch);
+    }
+    let mut block_values = vec![0.0f32; block_size];
+    let mut block_weights = vec![0i8; block_size];
+    for row in 0..rows {
+        for block in 0..blocks_per_row {
+            let scale_index = row * blocks_per_row + block;
+            let base_scale = scales[scale_index];
+            for block_col in 0..block_size {
+                let col = block * block_size + block_col;
+                let index = row * cols + col;
+                let byte_index = row * bytes_per_row + col / 2;
+                let byte = packed[byte_index];
+                let nibble = if col % 2 == 0 { byte & 0x0f } else { byte >> 4 };
+                block_values[block_col] = f32::from(sign_extend_4(nibble)) * base_scale
+                    + adapter_delta_value(bytes, payload, index)?;
+            }
+            scales[scale_index] = quantize_q4_block(&block_values, &mut block_weights)?;
+            let byte_start = row * bytes_per_row + block * (block_size / 2);
+            for pair in 0..block_size / 2 {
+                packed[byte_start + pair] =
+                    pack_q4_pair(block_weights[pair * 2], block_weights[pair * 2 + 1]);
+            }
+        }
+    }
+    Ok(())
+}
+
+fn q4_value_at(
+    packed: &[u8],
+    scales: &[f32],
+    block_size: usize,
+    entry: &TensorEntry,
+    value_index: usize,
+) -> Result<f32, ErrorCode> {
+    let (rows, cols) = tensor_matrix_shape(entry)?;
+    if block_size == 0 || block_size % 2 != 0 || cols % block_size != 0 {
+        return Err(ErrorCode::ShapeMismatch);
+    }
+    let element_count = rows.checked_mul(cols).ok_or(ErrorCode::InvalidLength)?;
+    if value_index >= element_count {
+        return Err(ErrorCode::ShapeMismatch);
+    }
+    let bytes_per_row = cols / 2;
+    let blocks_per_row = cols / block_size;
+    if packed.len()
+        != rows
+            .checked_mul(bytes_per_row)
+            .ok_or(ErrorCode::InvalidLength)?
+        || scales.len()
+            != rows
+                .checked_mul(blocks_per_row)
+                .ok_or(ErrorCode::InvalidLength)?
+    {
+        return Err(ErrorCode::ShapeMismatch);
+    }
+    let row = value_index / cols;
+    let col = value_index % cols;
+    let byte = packed[row * bytes_per_row + col / 2];
+    let nibble = if col % 2 == 0 { byte & 0x0f } else { byte >> 4 };
+    let scale = scales[row * blocks_per_row + col / block_size];
+    Ok(f32::from(sign_extend_4(nibble)) * scale)
+}
+
+fn adapter_delta_value(
+    bytes: &[u8],
+    payload: AdapterDeltaPayload,
+    value_index: usize,
+) -> Result<f32, ErrorCode> {
+    if value_index >= payload.element_count {
+        return Err(ErrorCode::ShapeMismatch);
+    }
+    let delta_offset = payload
+        .byte_offset
+        .checked_add(value_index.checked_mul(4).ok_or(ErrorCode::InvalidLength)?)
+        .ok_or(ErrorCode::InvalidLength)?;
+    read_f32(bytes, delta_offset)
+}
+
 fn tensor_dims(entry: &TensorEntry) -> Vec<u32> {
     [entry.dim0, entry.dim1, entry.dim2, entry.dim3]
         .into_iter()
@@ -700,6 +940,10 @@ mod tests {
     use crate::model_format::{simple_checksum, HEADER_LEN, SLM_VERSION, TENSOR_ENTRY_LEN};
     use crate::ops::matvec_f32;
 
+    const ADAPTER_HEADER_LEN: usize = 64;
+    const ADAPTER_ENTRY_LEN: usize = 64;
+    const ADAPTER_CHECKSUM_OFFSET: usize = 56;
+
     fn valid_header_without_tensors() -> Vec<u8> {
         let tokenizer = {
             let mut bytes = Vec::new();
@@ -743,6 +987,113 @@ mod tests {
         bytes
     }
 
+    fn build_adapter_bytes<F>(model: &Model, mut delta: F) -> Vec<u8>
+    where
+        F: FnMut(usize, usize, &TensorEntry) -> f32,
+    {
+        let tensors = &model.parsed().tensors;
+        let data_offset = align_to_64(ADAPTER_HEADER_LEN + tensors.len() * ADAPTER_ENTRY_LEN);
+        let mut cursor = data_offset;
+        let mut offsets = Vec::with_capacity(tensors.len());
+        let mut lengths = Vec::with_capacity(tensors.len());
+        let mut payloads = Vec::with_capacity(tensors.len());
+        for (tensor_index, tensor) in tensors.iter().enumerate() {
+            cursor = align_to_64(cursor);
+            offsets.push(cursor);
+            let element_count = tensor_element_count(tensor).unwrap();
+            let byte_length = element_count * 4;
+            lengths.push(byte_length);
+            let mut payload = vec![0u8; byte_length];
+            for value_index in 0..element_count {
+                let value = delta(tensor_index, value_index, tensor);
+                payload[value_index * 4..value_index * 4 + 4].copy_from_slice(&value.to_le_bytes());
+            }
+            cursor += byte_length;
+            payloads.push(payload);
+        }
+
+        let mut bytes = vec![0u8; cursor];
+        bytes[0..4].copy_from_slice(b"ADP1");
+        write_u32(&mut bytes, 4, 1);
+        write_u32(&mut bytes, 8, ADAPTER_HEADER_LEN as u32);
+        write_u32(&mut bytes, 12, tensors.len() as u32);
+        write_u32(&mut bytes, 16, model.header().flags);
+        write_u32(&mut bytes, 20, ADAPTER_ENTRY_LEN as u32);
+        write_u64(&mut bytes, 24, model.parameter_count);
+        write_u64(&mut bytes, 32, model.tensor_layout_checksum);
+        write_u64(&mut bytes, 40, model.tokenizer_checksum);
+        write_u64(&mut bytes, 48, data_offset as u64);
+        write_u64(&mut bytes, ADAPTER_CHECKSUM_OFFSET, 0);
+
+        for (index, tensor) in tensors.iter().enumerate() {
+            let entry = ADAPTER_HEADER_LEN + index * ADAPTER_ENTRY_LEN;
+            write_u64(&mut bytes, entry, tensor.name_hash);
+            write_u32(&mut bytes, entry + 8, tensor.rank);
+            write_u32(&mut bytes, entry + 12, tensor.dim0);
+            write_u32(&mut bytes, entry + 16, tensor.dim1);
+            write_u32(&mut bytes, entry + 20, tensor.dim2);
+            write_u32(&mut bytes, entry + 24, tensor.dim3);
+            write_u32(&mut bytes, entry + 28, 0);
+            write_u64(&mut bytes, entry + 32, offsets[index] as u64);
+            write_u64(&mut bytes, entry + 40, lengths[index] as u64);
+            write_u64(
+                &mut bytes,
+                entry + 48,
+                tensor_element_count(tensor).unwrap() as u64,
+            );
+            write_u64(
+                &mut bytes,
+                entry + 56,
+                adapter_payload_checksum(&payloads[index]),
+            );
+            let start = offsets[index];
+            bytes[start..start + lengths[index]].copy_from_slice(&payloads[index]);
+        }
+        refresh_adapter_checksum(&mut bytes);
+        bytes
+    }
+
+    fn refresh_adapter_checksum(bytes: &mut [u8]) {
+        write_u64(bytes, ADAPTER_CHECKSUM_OFFSET, 0);
+        let checksum = adapter_checksum(bytes);
+        write_u64(bytes, ADAPTER_CHECKSUM_OFFSET, checksum);
+    }
+
+    fn align_to_64(value: usize) -> usize {
+        (value + 63) & !63
+    }
+
+    fn adapter_checksum(bytes: &[u8]) -> u64 {
+        let mut acc = 0x6164617074657231u64;
+        for (index, byte) in bytes.iter().enumerate() {
+            let value = if (ADAPTER_CHECKSUM_OFFSET..ADAPTER_CHECKSUM_OFFSET + 8).contains(&index) {
+                0
+            } else {
+                *byte
+            };
+            acc ^= u64::from(value).wrapping_add((index as u64) << 3);
+            acc = acc.rotate_left(11).wrapping_mul(0x100000001b3);
+        }
+        acc
+    }
+
+    fn adapter_payload_checksum(bytes: &[u8]) -> u64 {
+        let mut acc = 0x64656c7461663332u64;
+        for (index, byte) in bytes.iter().enumerate() {
+            acc ^= u64::from(*byte).wrapping_add((index as u64) << 1);
+            acc = acc.rotate_left(7).wrapping_mul(0x100000001b3);
+        }
+        acc
+    }
+
+    fn write_u32(bytes: &mut [u8], offset: usize, value: u32) {
+        bytes[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+    }
+
+    fn write_u64(bytes: &mut [u8], offset: usize, value: u64) {
+        bytes[offset..offset + 8].copy_from_slice(&value.to_le_bytes());
+    }
+
     #[test]
     fn missing_tensor_rejection() {
         let error = Model::load(&valid_header_without_tensors()).unwrap_err();
@@ -781,6 +1132,132 @@ mod tests {
         for index in 0..direct.len() {
             assert!((direct[index] - decoded[index]).abs() < 0.0001);
         }
+    }
+
+    #[test]
+    fn applies_f32_adapter_delta_to_loaded_tensor() {
+        let mut model = Model::load(include_bytes!("../../models/tiny-test-model.slm")).unwrap();
+        let mut before = vec![0.0f32; 260 * 8];
+        model.copy_tensor_f32("output.weight", &mut before).unwrap();
+        let adapter = build_adapter_bytes(&model, |_tensor_index, value_index, tensor| {
+            if tensor.name_hash == name_hash("output.weight") && value_index == 0 {
+                0.25
+            } else {
+                0.0
+            }
+        });
+
+        model.apply_adapter_delta(&adapter).unwrap();
+
+        let mut after = vec![0.0f32; 260 * 8];
+        model.copy_tensor_f32("output.weight", &mut after).unwrap();
+        assert_eq!(after[0], before[0] + 0.25);
+        assert_eq!(after[1], before[1]);
+    }
+
+    #[test]
+    fn adapter_identity_drift_rejects_without_mutating_tensor() {
+        let mut model = Model::load(include_bytes!("../../models/tiny-test-model.slm")).unwrap();
+        let mut before = vec![0.0f32; 260 * 8];
+        model.copy_tensor_f32("output.weight", &mut before).unwrap();
+        let mut adapter = build_adapter_bytes(&model, |_tensor_index, value_index, tensor| {
+            if tensor.name_hash == name_hash("output.weight") && value_index == 0 {
+                0.25
+            } else {
+                0.0
+            }
+        });
+        write_u32(&mut adapter, 16, model.header().flags ^ 1);
+        refresh_adapter_checksum(&mut adapter);
+
+        assert_eq!(
+            model.apply_adapter_delta(&adapter).unwrap_err(),
+            ErrorCode::ShapeMismatch
+        );
+
+        let mut after = vec![0.0f32; 260 * 8];
+        model.copy_tensor_f32("output.weight", &mut after).unwrap();
+        assert_eq!(after, before);
+    }
+
+    #[test]
+    fn applies_q8_adapter_delta_to_loaded_compact_tensor() {
+        let mut model = Model::load(include_bytes!("../../models/tiny-test-model-q8.slm")).unwrap();
+        let mut before = vec![0.0f32; 260 * 8];
+        model.copy_tensor_f32("output.weight", &mut before).unwrap();
+        let adapter = build_adapter_bytes(&model, |_tensor_index, value_index, tensor| {
+            if tensor.name_hash == name_hash("output.weight") && value_index < 8 {
+                1.0
+            } else {
+                0.0
+            }
+        });
+
+        model.apply_adapter_delta(&adapter).unwrap();
+
+        let mut after = vec![0.0f32; 260 * 8];
+        model.copy_tensor_f32("output.weight", &mut after).unwrap();
+        let before_sum = before[..8].iter().sum::<f32>();
+        let after_sum = after[..8].iter().sum::<f32>();
+        assert!(after_sum > before_sum + 4.0);
+        assert_eq!(model.quantization_mode(), "q8_0");
+        assert_eq!(
+            model.tensor_f32("output.weight").unwrap_err(),
+            ErrorCode::UnsupportedDType
+        );
+    }
+
+    #[test]
+    fn applies_q4_adapter_delta_to_loaded_compact_tensor() {
+        let mut model = Model::load(include_bytes!("../../models/tiny-test-model-q4.slm")).unwrap();
+        let mut before = vec![0.0f32; 260 * 8];
+        model.copy_tensor_f32("output.weight", &mut before).unwrap();
+        let adapter = build_adapter_bytes(&model, |_tensor_index, value_index, tensor| {
+            if tensor.name_hash == name_hash("output.weight") && value_index < 8 {
+                1.0
+            } else {
+                0.0
+            }
+        });
+
+        model.apply_adapter_delta(&adapter).unwrap();
+
+        let mut after = vec![0.0f32; 260 * 8];
+        model.copy_tensor_f32("output.weight", &mut after).unwrap();
+        let before_sum = before[..8].iter().sum::<f32>();
+        let after_sum = after[..8].iter().sum::<f32>();
+        assert!(after_sum > before_sum + 3.0);
+        assert_eq!(model.quantization_mode(), "q4_0");
+        assert_eq!(
+            model.tensor_f32("output.weight").unwrap_err(),
+            ErrorCode::UnsupportedDType
+        );
+    }
+
+    #[test]
+    fn q8_adapter_identity_drift_rejects_without_mutating_tensor() {
+        let mut model = Model::load(include_bytes!("../../models/tiny-test-model-q8.slm")).unwrap();
+        let mut before = vec![0.0f32; 260 * 8];
+        model.copy_tensor_f32("output.weight", &mut before).unwrap();
+        let mut adapter = build_adapter_bytes(&model, |_tensor_index, value_index, tensor| {
+            if tensor.name_hash == name_hash("output.weight") && value_index < 8 {
+                1.0
+            } else {
+                0.0
+            }
+        });
+        write_u32(&mut adapter, 16, model.header().flags ^ 1);
+        refresh_adapter_checksum(&mut adapter);
+
+        assert_eq!(
+            model.apply_adapter_delta(&adapter).unwrap_err(),
+            ErrorCode::ShapeMismatch
+        );
+
+        let mut after = vec![0.0f32; 260 * 8];
+        model.copy_tensor_f32("output.weight", &mut after).unwrap();
+        assert_eq!(after, before);
+        assert_eq!(model.quantization_mode(), "q8_0");
     }
 
     #[test]

@@ -43,6 +43,16 @@ pub unsafe extern "C" fn load_model(ptr: *const u8, len: usize) -> u32 {
     with_runtime_mut(|runtime| runtime.load_model(bytes))
 }
 
+/// Applies an adapter-delta package from bytes already copied into WASM memory.
+#[no_mangle]
+pub unsafe extern "C" fn apply_adapter_delta(ptr: *const u8, len: usize) -> u32 {
+    let bytes = match slice_from_raw(ptr, len) {
+        Ok(bytes) => bytes,
+        Err(error) => return set_error(error),
+    };
+    with_runtime_mut(|runtime| runtime.apply_adapter_delta(bytes))
+}
+
 /// Generates text from a UTF-8 prompt copied into WASM memory.
 #[no_mangle]
 pub unsafe extern "C" fn generate(ptr: *const u8, len: usize, max_new_tokens: u32) -> u32 {

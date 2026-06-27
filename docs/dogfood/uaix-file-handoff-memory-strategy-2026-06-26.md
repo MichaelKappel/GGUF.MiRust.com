@@ -25,6 +25,12 @@ For model-breeding reports and research notes, the bodies live in raw evidence a
 
 The public-copy voice rule is part of that cycle: model-breeding, mutualist, and tiny-ecology page work should read `.uai/taboo.uai` before publishing wording on GGUF.MiRust.com.
 
+## 2026-06-27 Strategy Tightening
+
+Research references are treated like durable report memory: put the body in `wiki/gguf-mirust/research/`, route it from `.uai/report-synthesis.uai` and `.uai/short-term-memory.uai`, and keep `.uai/long-term-memory.uai` as a checksum pointer. Model-breeding concepts should appear across hot `.uai` files as routing rules, implementation boundaries, and next-step prompts, not as copied research bodies.
+
+The current model-breeding reference page now adds kinship metrics, sparse-mask breadcrumbs, evolutionary merge recipes, adaptive search, and multi-objective fitness as diverse lanes. Sparse-mask breadcrumbs have first receipt-level form in sparse-delta metadata, parent relatedness has first recipe/receipt/manifest form in parent-pool, sign-merge, and multi-parent candidate records, and multi-objective fitness has a first population-review objective-vector form; the remaining lanes stay planner/reference material until they become compatibility checks, receipts, eval sidecars, or promotion records.
+
 ## Dogfood Result
 
 The active model-breeding reports became a new durable intake, a model-breeding synthesis page, a research reference page, and hot `.uai` routes. This keeps the UAIX setup practical: raw evidence remains exact, long-term memory stays pointer-shaped, and short-term memory points future agents to the right durable node.

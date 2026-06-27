@@ -1,5 +1,5 @@
-profile: gguf-mirust.report-synthesis.v2
-updated_utc: 2026-06-27T03:21:25Z
+profile: gguf-mirust.report-synthesis.v3
+updated_utc: 2026-06-27T15:10:00Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/gguf-mirust/report-intake-2026-06-25/
@@ -14,6 +14,12 @@ source_authority:
     - wiki/gguf-mirust/reports/teleodynamic-resource-bounded-memory-2026-06-25.md
     - wiki/gguf-mirust/reports/brand-product-positioning-memory-2026-06-25.md
     - wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    - wiki/gguf-mirust/reports/runtime-adapter-apply-memory-2026-06-27.md
+    - wiki/gguf-mirust/reports/browser-adapter-sidecar-memory-2026-06-27.md
+    - wiki/gguf-mirust/reports/registry-adapter-sidecar-memory-2026-06-27.md
+    - wiki/gguf-mirust/reports/registry-adapter-family-memory-2026-06-27.md
+    - wiki/gguf-mirust/reports/adapter-family-receipt-memory-2026-06-27.md
+    - wiki/gguf-mirust/reports/assembly-receipt-memory-2026-06-27.md
   durable_research:
     - wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md
   uaix_strategy_source: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
@@ -86,19 +92,33 @@ report_clusters:
       - Keep browser inference stable; breeding operators belong in offline tooling until artifacts pass normal .slm admission and manifest gates.
       - Require exact base-family, tokenizer, tensor-shape, quantization, and output-head compatibility before any parameter-level merge.
       - Use sparse-delta-candidate for lineage-bound sparse task-vector .slm candidates before candidate-manifest.
-      - Use population-review for ledger-backed fitness ranking, frontier selection, and parent-pool routing after promotion-ledger.
-      - Use parent-pool-recipe after validate-population-review to require shared direct-parameter contracts and record fitness-normalized seed weights.
-      - Use the reference ideas page for diverse lanes spanning soups, Re-Basin alignment, task vectors, sparse/sign-aware composition, adapters, federated population updates, pruning masks, retention metrics, and evolution-style search.
+      - Use population-review for ledger-backed fitness ranking, weighted quality/frugality/quantization objective-vector metadata, frontier selection, and parent-pool routing after promotion-ledger.
+      - Use parent-pool-recipe after validate-population-review to require shared direct-parameter contracts and record fitness-normalized seed weights plus relatedness metric, scope, pair count, status, checksum, and per-parent groups.
+      - Use sign-merge-candidate after validate-parent-pool-recipe to turn reviewed compatible parent pools into seed-weighted sign-consensus .slm candidates with recomputable receipts that echo relatedness fields.
+      - Use multi-parent-candidate-manifest after validate-sign-merge-candidate to bind receipt checksum, recipe checksum, relatedness summary, parent summaries, candidate .slm fields, and pending promotion route.
+      - Use multi-parent-promotion-template after validate-multi-parent-candidate to bind candidate manifest checksum, receipt checksum, recipe checksum, parent count, candidate .slm fields, and pending runtime-smoke/eval status.
+      - Use multi-parent-admission-record after validate-multi-parent-promotion, validate-manifest, validate-runtime-smoke, and passed eval evidence to bind sign-merge promotion evidence before selector-registry consumes the record.
+      - Use runtime f32/q8_0/q4_0 ADP1 adapter apply only after loading a compatible base and validating package identity, checksums, tokenizer, tensor layout, tensor directory, finite deltas, and fused values; q8_0/q4_0 apply must re-quantize compact tensors.
+      - Use browser-smoke adapter-sidecar after Adapter Sidecar UI, local adapter route, app.js WASM transfer, or runtime apply state changes.
+      - Use browser-smoke adapter-sidecar-checksum-mismatch after browser-side ADP1 checksum changes to prove a corrupted sidecar is stopped before apply_adapter_delta and generation diagnostics stay intact.
+      - Use registry-carried f32/q8_0/q4_0 adapter-family fields only when the route apply status matches the admitted entry quantization, with local .adp1 routes, matching manifests, checksums, a local .adapter-family.receipt handle plus served .adp1.manifest files that the browser fetches and checksum-verifies, and adapter-sidecar-registry-file or quantized registry smoke evidence.
+      - Use registry-carried assembly receipt fields for generated multi-parent selector entries when the browser must verify a served receipt and then fetch/checksum the receipt-referenced ledger, review, recipe, operator, candidate, promotion, runtime, eval, admission, and adapter-family evidence.
+      - Use the Assembly Evidence panel and adapter-sidecar-registry-file browser smoke after generated bundle evidence staging, app.js assembly receipt parsing, or evidence-file fetch changes.
+      - Use browser-smoke multi-parent-registry after selector-registry route changes and multi-parent-registry-file after browser-multi-parent-bundle staging to prove both fixture and generated served selector routes; browser-multi-parent-bundle should emit a runnable app root, not models-only staging.
+      - Use the reference ideas page for diverse lanes spanning soups, Re-Basin alignment, task vectors, sparse/sign-aware composition, adapters, federated population updates, pruning masks, retention metrics, evolution-style search, model kinship, sparse-mask breadcrumbs, adaptive merge search, and multi-objective fitness.
+      - Use the 2026-06-27 diversity refresh as reference metadata: sparse masks now have first receipt-level evidence through sparse-delta density, nonzero-delta retention, and implicit mask checksums; population objective vectors now have first population-review fields and checksums; parent relatedness now has first recipe/receipt/manifest fields; replayable recipe chains, planner proposals, and resource budgets still need typed evidence before implementation claims.
       - Use distillation or retraining when compatibility breaks instead of direct tensor mixing.
-      - Record parent hashes, operator recipe, build tool route, and eval evidence in a future candidate manifest.
+      - Record parent hashes, operator recipe, build tool route, and eval evidence in candidate manifests.
       - Treat 4Fs as a helpful lens: fast, flexible, frugal, federated.
-      - Treat code beading as durable small work units: source manifest, compatibility result, candidate artifact, eval sidecar, promotion ledger, population review, parent-pool recipe, and selector registry.
+      - Treat code beading as durable small work units: source manifest, compatibility result, candidate artifact, eval sidecar, promotion ledger, population review with objective-vector checksum, parent-pool recipe with relatedness checksum, sign-merge receipt with relatedness echo fields, multi-parent candidate manifest with relatedness summary, multi-parent promotion template, multi-parent admission record, selector registry for both admission families, browser-verified adapter-family receipt plus manifests for generated compatible sidecar sets, and browser-verified assembly receipts plus fetched evidence files for generated multi-parent chains.
       - Follow .uai/taboo.uai for public website copy about model breeding, mutualism, and tiny model ecology.
     future_reference_lanes:
       - model soups and task vectors for compatible weight-space edits.
-      - TIES and DARE for sparse/sign-aware delta composition; sparse task-delta receipts and parent-pool recipes are implemented, while sign-aware candidate operators are future work.
-      - LoRA and adapters for compact skill deltas; adapter-delta and adapter-fuse are implemented offline gates while runtime apply remains future work.
-      - population-based training for candidate registries, fitness scores, staged promotion, implemented population-review records, and implemented parent-pool recipes.
+      - TIES and DARE for sparse/sign-aware delta composition; sparse task-delta receipts now include density, nonzero-delta retention, and implicit top-k mask checksums, and parent-pool recipes, sign-merge candidate receipts, multi-parent candidate manifests, multi-parent promotion templates, multi-parent admission records, selector route binding, browser-served registry smoke, generated browser bundle routing, and browser-verified assembly receipts with fetched evidence-file checksum checks are implemented.
+      - Model Breadcrumbs and model kinship for richer sparse-mask lineage, retention-aware eval sidecars, and parent-pool relatedness fields now first implemented before recipe consumers write candidates.
+      - Evolutionary merge recipes, Mergenetic-style adaptive search, and multi-objective evolutionary merging for planner-layer proposals, resource budgets, population objective vectors, and replayable receipt chains.
+      - LoRA and adapters for compact skill deltas; adapter-delta, adapter-fuse, f32/q8_0/q4_0 ADP1 runtime apply, checked browser f32/q8_0/q4_0 sidecar routes, registry-carried generated f32/q8_0/q4_0 adapter routes, and browser-verified adapter-family receipts plus manifests are implemented for the current typed lane while LoRA modules and compact adapter variants remain future work.
+      - population-based training for candidate registries, objective vectors, fitness scores, staged promotion, implemented population-review records, and implemented parent-pool recipes.
       - federated averaging, evolution strategies, adapter families, quantized adapter training, pruning, lottery tickets, and retention metrics for future recipe metadata, eval sidecars, and compact candidate artifacts.
     keep_separate:
       - Research references are future lanes, not current runtime claims.

@@ -3,7 +3,7 @@ title: GGUF.MiRust.com Source Memory Guide
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/source-memory-guide/
 status: planned_pending_publication
-reviewed_utc: 2026-06-26T18:44:35Z
+reviewed_utc: 2026-06-27T13:45:00Z
 ---
 
 # GGUF.MiRust.com Source Memory Guide
@@ -20,7 +20,9 @@ Reviewed durable memory lives in `wiki/gguf-mirust/` and publishes under `https:
 
 Report-derived long-term memory lives under `wiki/gguf-mirust/reports/`. Start with `reports/report-intake-index-2026-06-25.md` for the first processed batch and `reports/report-intake-index-2026-06-26.md` for model-breeding research, then load only the thematic synthesis record needed for the task.
 
-Model-breeding references live under `wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md`.
+For browser-served model-breeding evidence, load `reports/assembly-receipt-memory-2026-06-27.md` when selector assembly receipt fields, generated bundle evidence staging, evidence-file fetches, or browser Assembly Evidence rendering are in scope.
+
+Model-breeding references live under `wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md`; open it for sparse-mask breadcrumbs, population objective-vector metadata, parent relatedness metadata, evolutionary recipes, adaptive search, and multi-objective fitness routing.
 
 ## Active File Intake
 

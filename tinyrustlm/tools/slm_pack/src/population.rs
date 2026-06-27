@@ -17,6 +17,9 @@ const REVIEW_STATUS: &str = "ledger-reviewed";
 const REVIEW_BASIS: &str = "promotion-ledger-plus-admission-records";
 const RANKING_FORMULA: &str = "quality700-frugality200-quantization100";
 const RANKING_TIE_BREAK: &str = "fitness-desc-cases-passed-desc-model-bytes-asc-candidate-id-asc";
+const FITNESS_OBJECTIVE_VECTOR_VERSION: &str = "1";
+const FITNESS_OBJECTIVE_VECTOR_KIND: &str = "weighted-quality-frugality-quantization-v1";
+const FITNESS_OBJECTIVE_WEIGHT_UNIT: &str = "ppm";
 const FRONTIER_DECISION: &str = "frontier-candidate";
 const POOL_DECISION: &str = "candidate-kept-for-population";
 const FRONTIER_ROUTE: &str = "selector-registry";
@@ -27,6 +30,33 @@ const QUALITY_WEIGHT: u64 = 700;
 const FRUGALITY_WEIGHT: u64 = 200;
 const QUANTIZATION_WEIGHT: u64 = 100;
 const WEIGHT_DENOMINATOR: u64 = 1_000;
+const QUALITY_WEIGHT_PPM: u64 = (QUALITY_WEIGHT * PPM_DENOMINATOR) / WEIGHT_DENOMINATOR;
+const FRUGALITY_WEIGHT_PPM: u64 = (FRUGALITY_WEIGHT * PPM_DENOMINATOR) / WEIGHT_DENOMINATOR;
+const QUANTIZATION_WEIGHT_PPM: u64 = (QUANTIZATION_WEIGHT * PPM_DENOMINATOR) / WEIGHT_DENOMINATOR;
+
+struct FitnessObjective {
+    name: &'static str,
+    source: &'static str,
+    weight_ppm: u64,
+}
+
+const FITNESS_OBJECTIVES: [FitnessObjective; 3] = [
+    FitnessObjective {
+        name: "quality",
+        source: "cases-passed-over-case-count",
+        weight_ppm: QUALITY_WEIGHT_PPM,
+    },
+    FitnessObjective {
+        name: "frugality",
+        source: "minimum-artifact-bytes-over-candidate-artifact-bytes",
+        weight_ppm: FRUGALITY_WEIGHT_PPM,
+    },
+    FitnessObjective {
+        name: "quantization_fit",
+        source: "quantization-label-fit",
+        weight_ppm: QUANTIZATION_WEIGHT_PPM,
+    },
+];
 
 struct LedgerEntry {
     ledger_index: usize,
@@ -160,6 +190,12 @@ pub(crate) fn build_review_text(
     );
     push_line(&mut text, "ranking_formula", RANKING_FORMULA);
     push_line(&mut text, "ranking_tie_break", RANKING_TIE_BREAK);
+    text.push_str(&fitness_objective_vector_contract_text());
+    push_line(
+        &mut text,
+        "fitness_objective_vector_checksum",
+        &fitness_objective_vector_checksum(),
+    );
     push_line(
         &mut text,
         "reviewed_candidate_count",
@@ -333,6 +369,8 @@ fn push_ranked_entry(text: &mut String, rank_index: usize, ranked_entry: &Ranked
     let frugality_ppm = ranked_entry.frugality_ppm.to_string();
     let quantization_fit_ppm = ranked_entry.quantization_fit_ppm.to_string();
     let population_fitness_ppm = ranked_entry.population_fitness_ppm.to_string();
+    let fitness_objective_vector_checksum =
+        ranked_entry_fitness_objective_vector_checksum(rank_index, ranked_entry);
     let decision = if rank_index == 0 {
         FRONTIER_DECISION
     } else {
@@ -424,8 +462,114 @@ fn push_ranked_entry(text: &mut String, rank_index: usize, ranked_entry: &Ranked
         &format!("{prefix}.population_fitness_ppm"),
         &population_fitness_ppm,
     );
+    push_line(
+        text,
+        &format!("{prefix}.fitness_objective_vector_checksum"),
+        &fitness_objective_vector_checksum,
+    );
     push_line(text, &format!("{prefix}.review_decision"), decision);
     push_line(text, &format!("{prefix}.next_route"), next_route);
+}
+
+fn fitness_objective_vector_contract_text() -> String {
+    let mut text = String::new();
+    push_line(
+        &mut text,
+        "fitness_objective_vector_version",
+        FITNESS_OBJECTIVE_VECTOR_VERSION,
+    );
+    push_line(
+        &mut text,
+        "fitness_objective_vector_kind",
+        FITNESS_OBJECTIVE_VECTOR_KIND,
+    );
+    push_line(
+        &mut text,
+        "fitness_objective_weight_unit",
+        FITNESS_OBJECTIVE_WEIGHT_UNIT,
+    );
+    push_line(
+        &mut text,
+        "fitness_objective_weight_sum_ppm",
+        &fitness_objective_weight_sum_ppm().to_string(),
+    );
+    push_line(
+        &mut text,
+        "fitness_objective_count",
+        &FITNESS_OBJECTIVES.len().to_string(),
+    );
+    for (index, objective) in FITNESS_OBJECTIVES.iter().enumerate() {
+        let prefix = format!("fitness_objective.{index}");
+        push_line(&mut text, &format!("{prefix}.name"), objective.name);
+        push_line(&mut text, &format!("{prefix}.source"), objective.source);
+        push_line(
+            &mut text,
+            &format!("{prefix}.weight_ppm"),
+            &objective.weight_ppm.to_string(),
+        );
+    }
+    text
+}
+
+fn fitness_objective_vector_checksum() -> String {
+    let contract = fitness_objective_vector_contract_text();
+    hex64(provenance::text_checksum(contract.as_bytes()))
+}
+
+fn ranked_entry_fitness_objective_vector_checksum(
+    rank_index: usize,
+    ranked_entry: &RankedEntry,
+) -> String {
+    let mut text = fitness_objective_vector_contract_text();
+    push_line(
+        &mut text,
+        "fitness_objective_vector_checksum",
+        &fitness_objective_vector_checksum(),
+    );
+    push_line(&mut text, "entry.rank", &(rank_index + 1).to_string());
+    push_line(
+        &mut text,
+        "entry.source_ledger_entry",
+        &format!("entry.{}", ranked_entry.entry.ledger_index),
+    );
+    push_line(
+        &mut text,
+        "entry.candidate_id",
+        &ranked_entry.entry.candidate_id,
+    );
+    push_line(
+        &mut text,
+        "entry.candidate_slm_checksum",
+        &ranked_entry.entry.candidate_slm_checksum,
+    );
+    push_line(
+        &mut text,
+        "entry.quality_ppm",
+        &ranked_entry.quality_ppm.to_string(),
+    );
+    push_line(
+        &mut text,
+        "entry.frugality_ppm",
+        &ranked_entry.frugality_ppm.to_string(),
+    );
+    push_line(
+        &mut text,
+        "entry.quantization_fit_ppm",
+        &ranked_entry.quantization_fit_ppm.to_string(),
+    );
+    push_line(
+        &mut text,
+        "entry.population_fitness_ppm",
+        &ranked_entry.population_fitness_ppm.to_string(),
+    );
+    hex64(provenance::text_checksum(text.as_bytes()))
+}
+
+fn fitness_objective_weight_sum_ppm() -> u64 {
+    FITNESS_OBJECTIVES
+        .iter()
+        .map(|objective| objective.weight_ppm)
+        .sum()
 }
 
 fn require_entry_key<'a>(
@@ -523,7 +667,12 @@ mod tests {
         let review = build_review_text(&ledger, &[f32, q8]).unwrap();
 
         assert!(review.contains("frontier_candidate_id=tiny-q8-candidate"));
+        assert!(review
+            .contains("fitness_objective_vector_kind=weighted-quality-frugality-quantization-v1"));
+        assert!(review.contains("fitness_objective_weight_sum_ppm=1000000"));
+        assert!(review.contains("fitness_objective.0.weight_ppm=700000"));
         assert!(review.contains("entry.0.candidate_id=tiny-q8-candidate"));
+        assert!(review.contains("entry.0.fitness_objective_vector_checksum=0x"));
         assert!(review.contains("entry.0.review_decision=frontier-candidate"));
         assert!(review.contains("entry.0.next_route=selector-registry"));
         assert!(review.contains("entry.1.review_decision=candidate-kept-for-population"));
@@ -572,6 +721,32 @@ mod tests {
 
         assert_eq!(error.kind(), io::ErrorKind::InvalidData);
         assert!(error.to_string().contains("frontier_candidate_id"));
+    }
+
+    #[test]
+    fn rejects_objective_vector_checksum_drift() {
+        let q8 = fixture_admission(
+            "tiny-q8-candidate",
+            "target/population-review/objective-drift-q8.slm",
+            DTYPE_Q8_0,
+        );
+        let f32 = fixture_admission(
+            "tiny-f32-candidate",
+            "target/population-review/objective-drift-f32.slm",
+            DTYPE_F32,
+        );
+        let ledger = ledger::build_ledger_text(&[q8.clone(), f32.clone()]).unwrap();
+        let review = build_review_text(&ledger, &[q8.clone(), f32.clone()])
+            .unwrap()
+            .replace(
+                "fitness_objective.0.weight_ppm=700000",
+                "fitness_objective.0.weight_ppm=1",
+            );
+
+        let error = validate_review_text(&ledger, &review, &[q8, f32]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("fitness_objective.0.weight_ppm"));
     }
 
     #[test]

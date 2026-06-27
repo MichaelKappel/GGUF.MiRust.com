@@ -21,7 +21,8 @@ const ADAPTER_ARTIFACT_KIND: &str = "raw-f32-task-delta-v1";
 const ADAPTER_STATUS: &str = "artifact-written";
 const ADAPTER_DTYPE: &str = "f32-delta";
 const ADAPTER_BASE_CONTRACT: &str = "matches-parent-direct-parameter-contract";
-const ADAPTER_APPLY_STATUS: &str = "offline-artifact-only";
+const ADAPTER_APPLY_STATUS_F32: &str = "runtime-f32-compatible-or-fuse-to-slm";
+const ADAPTER_APPLY_STATUS_QUANTIZED: &str = "runtime-q8-q4-compatible-or-fuse-to-slm";
 const REQUIRED_NEXT_GATE: &str = "fuse-to-slm-plus-candidate-manifest-plus-runtime-smoke-plus-eval";
 const ADAPTER_FUSE_VERSION: &str = "1";
 const FUSE_OPERATOR_KIND: &str = "adapter-delta-fuse-to-slm";
@@ -593,9 +594,21 @@ fn build_manifest_text(
         &hex64(base_report.tensor_layout_checksum()),
     );
     push_line(&mut text, "adapter_base_contract", ADAPTER_BASE_CONTRACT);
-    push_line(&mut text, "adapter_apply_status", ADAPTER_APPLY_STATUS);
+    push_line(
+        &mut text,
+        "adapter_apply_status",
+        adapter_apply_status(base_report),
+    );
     push_line(&mut text, "required_next_gate", REQUIRED_NEXT_GATE);
     Ok(text)
+}
+
+fn adapter_apply_status(base_report: &ValidationReport) -> &'static str {
+    if base_report.quantization_label() == "f32" {
+        ADAPTER_APPLY_STATUS_F32
+    } else {
+        ADAPTER_APPLY_STATUS_QUANTIZED
+    }
 }
 
 fn build_fuse_receipt_text(
@@ -1065,7 +1078,7 @@ mod tests {
         .unwrap();
         assert_eq!(adapter.get(0..4), Some(&MAGIC[..]));
         assert!(manifest.contains("adapter_artifact_kind=raw-f32-task-delta-v1"));
-        assert!(manifest.contains("adapter_apply_status=offline-artifact-only"));
+        assert!(manifest.contains("adapter_apply_status=runtime-f32-compatible-or-fuse-to-slm"));
     }
 
     #[test]
@@ -1104,6 +1117,7 @@ mod tests {
         )
         .unwrap();
         assert!(manifest.contains("adapter_base_quantization=q8_0"));
+        assert!(manifest.contains("adapter_apply_status=runtime-q8-q4-compatible-or-fuse-to-slm"));
     }
 
     #[test]
@@ -1321,7 +1335,7 @@ mod tests {
         )
         .unwrap();
         let changed_manifest = manifest.replace(
-            "adapter_apply_status=offline-artifact-only",
+            "adapter_apply_status=runtime-f32-compatible-or-fuse-to-slm",
             "adapter_apply_status=fused",
         );
 
@@ -1363,7 +1377,7 @@ mod tests {
         )
         .unwrap();
         let changed_manifest = manifest.replace(
-            "adapter_apply_status=offline-artifact-only",
+            "adapter_apply_status=runtime-f32-compatible-or-fuse-to-slm",
             "adapter_apply_status=fused",
         );
 

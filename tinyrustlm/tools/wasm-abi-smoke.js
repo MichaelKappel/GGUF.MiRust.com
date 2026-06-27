@@ -8,6 +8,7 @@ const { TextDecoder, TextEncoder } = require("util");
 const root = path.resolve(__dirname, "..");
 const wasmPath = process.argv[2] || path.join(root, "runtime", "tinyrustlm.wasm");
 const modelPath = process.argv[3] || path.join(root, "models", "tinylm16-q8.slm");
+const adapterModelPath = process.argv[4] || path.join(root, "models", "tiny-test-model.slm");
 
 const ErrorCode = {
   Ok: 0,
@@ -19,6 +20,12 @@ const ErrorCode = {
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8");
+const U64_MASK = (1n << 64n) - 1n;
+const FNV_PRIME = 0x100000001b3n;
+const TOKENIZER_CHECKSUM_SEED = 0x746f6b656e697a65n;
+const ADAPTER_HEADER_LEN = 64;
+const ADAPTER_ENTRY_LEN = 64;
+const ADAPTER_CHECKSUM_OFFSET = 56;
 
 function fail(message) {
   throw new Error(message);
@@ -76,6 +83,182 @@ function expectLastError(exports, label, expectedCode, expectedMessage) {
   }
 }
 
+function alignTo64(value) {
+  return (value + 63) & ~63;
+}
+
+function readU32(bytes, offset) {
+  return bytes[offset]
+    | (bytes[offset + 1] << 8)
+    | (bytes[offset + 2] << 16)
+    | (bytes[offset + 3] << 24);
+}
+
+function readU64(bytes, offset) {
+  let value = 0n;
+  for (let index = 7; index >= 0; index -= 1) {
+    value = (value << 8n) | BigInt(bytes[offset + index]);
+  }
+  return value;
+}
+
+function writeU32(bytes, offset, value) {
+  bytes[offset] = value & 0xff;
+  bytes[offset + 1] = (value >>> 8) & 0xff;
+  bytes[offset + 2] = (value >>> 16) & 0xff;
+  bytes[offset + 3] = (value >>> 24) & 0xff;
+}
+
+function writeU64(bytes, offset, value) {
+  let cursor = BigInt(value);
+  for (let index = 0; index < 8; index += 1) {
+    bytes[offset + index] = Number(cursor & 0xffn);
+    cursor >>= 8n;
+  }
+}
+
+function rotateLeft64(value, shift) {
+  const bits = BigInt(shift);
+  return (((value << bits) & U64_MASK) | (value >> (64n - bits))) & U64_MASK;
+}
+
+function mixU64(acc, value) {
+  let cursor = BigInt(value);
+  let mixed = acc;
+  for (let index = 0; index < 8; index += 1) {
+    mixed ^= cursor & 0xffn;
+    mixed = (rotateLeft64(mixed, 11) * FNV_PRIME) & U64_MASK;
+    cursor >>= 8n;
+  }
+  return mixed;
+}
+
+function sectionChecksum(bytes, seed) {
+  let acc = seed;
+  for (let index = 0; index < bytes.length; index += 1) {
+    acc ^= BigInt(bytes[index]) + (BigInt(index) << 2n);
+    acc = (rotateLeft64(acc, 9) * FNV_PRIME) & U64_MASK;
+  }
+  return acc;
+}
+
+function payloadChecksum(bytes) {
+  let acc = 0x64656c7461663332n;
+  for (let index = 0; index < bytes.length; index += 1) {
+    acc ^= BigInt(bytes[index]) + (BigInt(index) << 1n);
+    acc = (rotateLeft64(acc, 7) * FNV_PRIME) & U64_MASK;
+  }
+  return acc;
+}
+
+function adapterChecksum(bytes) {
+  let acc = 0x6164617074657231n;
+  for (let index = 0; index < bytes.length; index += 1) {
+    const value = index >= ADAPTER_CHECKSUM_OFFSET && index < ADAPTER_CHECKSUM_OFFSET + 8
+      ? 0
+      : bytes[index];
+    acc ^= BigInt(value) + (BigInt(index) << 3n);
+    acc = (rotateLeft64(acc, 11) * FNV_PRIME) & U64_MASK;
+  }
+  return acc;
+}
+
+function parseSlmForAdapter(modelBytes) {
+  const tokenizerOffset = Number(readU64(modelBytes, 64));
+  const tokenizerLength = Number(readU64(modelBytes, 72));
+  const directoryOffset = Number(readU64(modelBytes, 80));
+  const tensorCount = readU32(modelBytes, 88);
+  const tensors = [];
+  for (let index = 0; index < tensorCount; index += 1) {
+    const entry = directoryOffset + index * 64;
+    const rank = readU32(modelBytes, entry + 12);
+    const dims = [
+      readU32(modelBytes, entry + 16),
+      readU32(modelBytes, entry + 20),
+      readU32(modelBytes, entry + 24),
+      readU32(modelBytes, entry + 28)
+    ];
+    const elementCount = dims.slice(0, rank).reduce((acc, dim) => acc * dim, 1);
+    tensors.push({
+      nameHash: readU64(modelBytes, entry),
+      dtype: readU32(modelBytes, entry + 8),
+      rank,
+      dims,
+      byteLength: readU64(modelBytes, entry + 40),
+      blockSize: readU32(modelBytes, entry + 56),
+      elementCount
+    });
+  }
+  return {
+    flags: readU32(modelBytes, 16),
+    tokenizer: modelBytes.slice(tokenizerOffset, tokenizerOffset + tokenizerLength),
+    tensors
+  };
+}
+
+function parameterCount(tensors) {
+  return tensors.reduce((acc, tensor) => acc + BigInt(tensor.elementCount), 0n);
+}
+
+function tensorLayoutChecksum(tensors) {
+  const sorted = [...tensors].sort((left, right) => (left.nameHash < right.nameHash ? -1 : 1));
+  let acc = 0x74656e736f722d6cn;
+  for (const tensor of sorted) {
+    acc = mixU64(acc, tensor.nameHash);
+    acc = mixU64(acc, BigInt(tensor.dtype));
+    acc = mixU64(acc, BigInt(tensor.rank));
+    for (const dim of tensor.dims) {
+      acc = mixU64(acc, BigInt(dim));
+    }
+    acc = mixU64(acc, BigInt(tensor.blockSize));
+    acc = mixU64(acc, tensor.byteLength);
+  }
+  return acc;
+}
+
+function buildZeroAdapter(modelBytes) {
+  const parsed = parseSlmForAdapter(modelBytes);
+  const dataOffset = alignTo64(ADAPTER_HEADER_LEN + parsed.tensors.length * ADAPTER_ENTRY_LEN);
+  let cursor = dataOffset;
+  const payloads = [];
+  for (const tensor of parsed.tensors) {
+    cursor = alignTo64(cursor);
+    const byteLength = tensor.elementCount * 4;
+    payloads.push({ offset: cursor, bytes: new Uint8Array(byteLength), tensor });
+    cursor += byteLength;
+  }
+  const bytes = new Uint8Array(cursor);
+  bytes.set(Buffer.from("ADP1"), 0);
+  writeU32(bytes, 4, 1);
+  writeU32(bytes, 8, ADAPTER_HEADER_LEN);
+  writeU32(bytes, 12, parsed.tensors.length);
+  writeU32(bytes, 16, parsed.flags);
+  writeU32(bytes, 20, ADAPTER_ENTRY_LEN);
+  writeU64(bytes, 24, parameterCount(parsed.tensors));
+  writeU64(bytes, 32, tensorLayoutChecksum(parsed.tensors));
+  writeU64(bytes, 40, sectionChecksum(parsed.tokenizer, TOKENIZER_CHECKSUM_SEED));
+  writeU64(bytes, 48, BigInt(dataOffset));
+  writeU64(bytes, ADAPTER_CHECKSUM_OFFSET, 0n);
+  payloads.forEach((payload, index) => {
+    const entry = ADAPTER_HEADER_LEN + index * ADAPTER_ENTRY_LEN;
+    const tensor = payload.tensor;
+    writeU64(bytes, entry, tensor.nameHash);
+    writeU32(bytes, entry + 8, tensor.rank);
+    writeU32(bytes, entry + 12, tensor.dims[0]);
+    writeU32(bytes, entry + 16, tensor.dims[1]);
+    writeU32(bytes, entry + 20, tensor.dims[2]);
+    writeU32(bytes, entry + 24, tensor.dims[3]);
+    writeU32(bytes, entry + 28, 0);
+    writeU64(bytes, entry + 32, BigInt(payload.offset));
+    writeU64(bytes, entry + 40, BigInt(payload.bytes.length));
+    writeU64(bytes, entry + 48, BigInt(tensor.elementCount));
+    writeU64(bytes, entry + 56, payloadChecksum(payload.bytes));
+    bytes.set(payload.bytes, payload.offset);
+  });
+  writeU64(bytes, ADAPTER_CHECKSUM_OFFSET, adapterChecksum(bytes));
+  return bytes;
+}
+
 function generateBytes(exports, label, bytes, maxNewTokens, expectedCode, expectedMessage) {
   const ptr = allocCopy(exports, bytes);
   try {
@@ -89,6 +272,7 @@ function generateBytes(exports, label, bytes, maxNewTokens, expectedCode, expect
 async function main() {
   const wasmBytes = fs.readFileSync(wasmPath);
   const modelBytes = fs.readFileSync(modelPath);
+  const adapterModelBytes = fs.readFileSync(adapterModelPath);
   const instance = await WebAssembly.instantiate(wasmBytes, {});
   const exports = instance.instance.exports;
 
@@ -197,6 +381,41 @@ async function main() {
     fail("generate_next_token diagnostics lost model_loaded state");
   }
 
+  const adapterModelPtr = allocCopy(exports, adapterModelBytes);
+  try {
+    expectCode("load adapter model", exports.load_model(adapterModelPtr, adapterModelBytes.length), ErrorCode.Ok);
+  } finally {
+    release(exports, adapterModelPtr, adapterModelBytes.length);
+  }
+  const adapterBytes = buildZeroAdapter(adapterModelBytes);
+  const adapterPtr = allocCopy(exports, adapterBytes);
+  try {
+    expectCode("apply_adapter_delta", exports.apply_adapter_delta(adapterPtr, adapterBytes.length), ErrorCode.Ok);
+  } finally {
+    release(exports, adapterPtr, adapterBytes.length);
+  }
+  const adapterText = readLastResult(exports);
+  if (adapterText !== "adapter applied") {
+    fail(`apply_adapter_delta result was ${JSON.stringify(adapterText)}, expected "adapter applied"`);
+  }
+  const adapterDiagnostics = readDiagnostics(exports);
+  if (adapterDiagnostics.last_error !== "ok") {
+    fail(`apply_adapter_delta diagnostics last_error was ${JSON.stringify(adapterDiagnostics.last_error)}`);
+  }
+  if (adapterDiagnostics.model_loaded !== true || adapterDiagnostics.active_quantization_mode !== "f32") {
+    fail(`apply_adapter_delta model state was ${JSON.stringify({
+      modelLoaded: adapterDiagnostics.model_loaded,
+      activeQuantizationMode: adapterDiagnostics.active_quantization_mode
+    })}`);
+  }
+  if (adapterDiagnostics.generated_token_count !== 0 || adapterDiagnostics.kv_cache_length !== 0 || adapterDiagnostics.selected_next_token !== 0) {
+    fail(`apply_adapter_delta reset state was ${JSON.stringify({
+      generatedTokenCount: adapterDiagnostics.generated_token_count,
+      kvCacheLength: adapterDiagnostics.kv_cache_length,
+      selectedNextToken: adapterDiagnostics.selected_next_token
+    })}`);
+  }
+
   expectCode("free_model", exports.free_model(), ErrorCode.Ok);
   const freeText = readLastResult(exports);
   if (freeText !== "model freed") {
@@ -235,6 +454,7 @@ async function main() {
     invalidSamplingConfig: "passed",
     recovery: recoveryText,
     generateNextToken: stepText,
+    adapterApply: adapterText,
     freeModel: freeText,
     postFreeGenerateNextToken: postFreeText,
     diagnostics: {
@@ -242,6 +462,7 @@ async function main() {
       recovery_selected_next_token: recoveryDiagnostics.selected_next_token,
       step_generated_token_count: stepDiagnostics.generated_token_count,
       step_kv_cache_length: stepDiagnostics.kv_cache_length,
+      adapter_active_quantization_mode: adapterDiagnostics.active_quantization_mode,
       active_quantization_mode: postFreeDiagnostics.active_quantization_mode,
       post_free_last_error: postFreeDiagnostics.last_error
     }
