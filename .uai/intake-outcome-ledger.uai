@@ -1,5 +1,5 @@
-profile: gguf-mirust.intake-outcome-ledger.v3
-updated_utc: 2026-06-25T00:00:00Z
+profile: gguf-mirust.intake-outcome-ledger.v4
+updated_utc: 2026-06-26T18:44:35Z
 active_scan:
   content_bucket: agent-file-handoff/Content/
   improvement_bucket: agent-file-handoff/Improvement/
@@ -8,12 +8,159 @@ active_scan:
   result: all_reports_processed_and_source_bucket_cleared
 shared_disposition_context:
   disposition: preserved-to-durable-memory
-  actual_source_work: Processed 23 Improvement reports into distributed long-term LLM Wiki memory under wiki/gguf-mirust/reports/, preserved exact originals under raw/gguf-mirust/report-intake-2026-06-25/, updated report navigation, and cleared processed source copies from the active handoff bucket.
-  hot_memory_update: .uai/short-term-memory.uai, .uai/file-handoff.uai, .uai/intake-outcome-ledger.uai, .uai/long-term-memory.uai, .uai/receiver-brief.uai, and wiki/gguf-mirust routing files updated.
-  durable_preservation_evidence: raw/gguf-mirust/MANIFEST.md and wiki/gguf-mirust/reports/report-intake-index-2026-06-25.md record all source files, checksums, duplicate relationships, and thematic synthesis routes.
-  checks: live bucket scan, raw copy count 23, source-to-raw SHA256 verification, report synthesis file creation, wiki route update, stale scaffold wording scan, exact filename correction for curly-apostrophe report.
+  actual_source_work: Processed 23 Improvement reports on 2026-06-25 and 26 model-breeding Improvement reports on 2026-06-26 into distributed long-term LLM Wiki memory, preserved exact originals under raw/gguf-mirust/, updated report navigation, and cleared processed source copies from the active handoff bucket.
+  hot_memory_update: .uai/short-term-memory.uai, .uai/report-synthesis.uai, .uai/file-handoff.uai, .uai/intake-outcome-ledger.uai, .uai/long-term-memory.uai, .uai/receiver-brief.uai, .uai/taboo.uai, and wiki/gguf-mirust routing files updated.
+  durable_preservation_evidence: raw/gguf-mirust/MANIFEST.md and report intake indexes for 2026-06-25 and 2026-06-26 record source files, checksums, duplicate relationships, and thematic synthesis routes.
+  checks: live bucket scan, raw copy counts 23 and 26, source-to-raw SHA256 verification, report synthesis file creation, wiki route update, stale scaffold wording scan, exact filename correction for curly-apostrophe report.
   blockers: none_current
   source_site_removal_or_keep_active_reason: Removed processed report copies from agent-file-handoff/Improvement/ after exact originals were preserved in raw evidence and durable synthesis records were created.
+report_intake_2026_06_26:
+  source_bucket: agent-file-handoff/Improvement/
+  raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/
+  durable_index: wiki/gguf-mirust/reports/report-intake-index-2026-06-26.md
+  durable_synthesis: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+  durable_research: wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md
+  source_count: 26
+  duplicate_groups:
+    - sha256:C9B395CF265EA6D4BA17BD7087A72AC6B18C5FA7896E03E443ABE6D1E3A83545 maps to two 4Fs/code-beading/model-breeding filenames.
+  disposition: preserved-to-durable-memory
+  actual_source_work: Synthesized model breeding, code beading, 4Fs, model merging, LoRA/adapters, on-device tiny LLM, teleodynamic, mutualist, and evolutionary reports into future candidate-lineage memory.
+  hot_memory_update: Updated report synthesis, architecture, coding standards, operations, workspace guidance, startup, receiver brief, short-term memory, file handoff, index, and taboo hot memory.
+  durable_preservation_evidence: raw/gguf-mirust/MANIFEST.md, report-intake-index-2026-06-26.md, model-breeding-ecology-memory-2026-06-26.md, and model-breeding-reference-ideas-2026-06-26.md.
+  checks: live bucket scan, raw copy count 26, source-to-raw SHA256 verification, durable synthesis creation, wiki route update.
+  blockers: none_current
+  source_site_removal_or_keep_active_reason: Remove processed source copies after exact originals, durable synthesis, hot routing, and pointer ledger records are complete.
+entries_2026_06_26:
+  - source_path: agent-file-handoff/Improvement/4Fs and code beadingmodel breeding.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/4Fs and code beadingmodel breeding.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to 4Fs, code beading, and model-breeding definitions with duplicate checksum handling.
+  - source_path: agent-file-handoff/Improvement/Adaptable, Resource-Efficient AI Ecosystems.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/Adaptable, Resource-Efficient AI Ecosystems.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to 4Fs, adaptability, code beading, model breeding, and interchangeable tiny-model systems.
+  - source_path: agent-file-handoff/Improvement/Aggressive Mutualism.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/Aggressive Mutualism.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to mutualist framing while public website copy routes through .uai/taboo.uai.
+  - source_path: agent-file-handoff/Improvement/AI Code Beading and Model Breeding.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/AI Code Beading and Model Breeding.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to code beading, mutable small models, teleodynamic convergence, and model-breeding mechanics.
+  - source_path: agent-file-handoff/Improvement/AI Evolution_ Small Models, Big Ecology.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/AI Evolution_ Small Models, Big Ecology.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to tiny-model populations, model ecology, evolution paths, and operations layers.
+  - source_path: agent-file-handoff/Improvement/AI Model Merging Architectures Explained.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/AI Model Merging Architectures Explained.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to model merging methods including soups, SLERP, task arithmetic, TIES, DARE, alignment, and memory management.
+  - source_path: agent-file-handoff/Improvement/AI's Cosmic Legacy and Survival.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/AI's Cosmic Legacy and Survival.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to long-horizon speculative metaphors while product copy stays focused on local craft.
+  - source_path: agent-file-handoff/Improvement/AI's Perfect Evolutionary Being.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/AI's Perfect Evolutionary Being.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to evolutionary evaluation, game theory, social dynamics, and future candidate fitness metaphors.
+  - source_path: agent-file-handoff/Improvement/Designing the Perfect Evolutionary AI System.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/Designing the Perfect Evolutionary AI System.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to evolutionary system architecture, benchmarks, metrics, and experiment planning.
+  - source_path: agent-file-handoff/Improvement/Designing the Perfect Evolutionary AI.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/Designing the Perfect Evolutionary AI.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to evolutionary AI design criteria and implementation roadmap ideas.
+  - source_path: agent-file-handoff/Improvement/Evolution, Legacy, and Societal Evaluation.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/Evolution, Legacy, and Societal Evaluation.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to human evaluation, legacy, status, and product-language metaphors.
+  - source_path: agent-file-handoff/Improvement/Evolutionary and Psychological Motivations.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/Evolutionary and Psychological Motivations.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to motivation, persistence, and evolutionary product framing.
+  - source_path: agent-file-handoff/Improvement/Human drive – the intrinsic motivation to survive.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/Human drive – the intrinsic motivation to survive.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to human drive, support, and thriving metaphors for user-centered copy.
+  - source_path: agent-file-handoff/Improvement/lightweight multi-model LLM system in Rust.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/lightweight multi-model LLM system in Rust.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to Rust multi-model architecture, adapters, parameter merging, packaging, and on-device deployment context.
+  - source_path: agent-file-handoff/Improvement/Model merging refers to combining multiple trained neural.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/Model merging refers to combining multiple trained neural.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to model merging taxonomy and compatible parameter-fusion concepts.
+  - source_path: agent-file-handoff/Improvement/Mutualist Persistence.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/Mutualist Persistence.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to mutualist public positioning, user agency, and constructive site language.
+  - source_path: agent-file-handoff/Improvement/Perfect Evolutionary AI.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/Perfect Evolutionary AI.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to evolutionary criteria, metrics, and candidate-evaluation metaphors.
+  - source_path: agent-file-handoff/Improvement/powerful AI systems will tend to develop instrumental drives.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/powerful AI systems will tend to develop instrumental drives.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to speculative agency background while site copy routes through .uai/taboo.uai.
+  - source_path: agent-file-handoff/Improvement/Rust Tiny LLM Model Breeding Pipeline.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/Rust Tiny LLM Model Breeding Pipeline.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to Rust-native candidate lineage, compatibility, merge operators, and traceability.
+  - source_path: agent-file-handoff/Improvement/Survival_ Drive, Strive, and Thrive.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/Survival_ Drive, Strive, and Thrive.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to thriving, meaning, and motivation metaphors for constructive public language.
+  - source_path: agent-file-handoff/Improvement/Teleodynamic Evolution of AI Ecosystems.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/Teleodynamic Evolution of AI Ecosystems.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to teleodynamic model ecology, component interchangeability, and resource constraints.
+  - source_path: agent-file-handoff/Improvement/The 4Fs framework—Fast, Flexible, Frugal, Federated.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/The 4Fs framework—Fast, Flexible, Frugal, Federated.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to the Fast, Flexible, Frugal, Federated lens for tiny-model ecology work.
+  - source_path: agent-file-handoff/Improvement/The rise of on-device, tiny language models part 2.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/The rise of on-device, tiny language models part 2.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to client-side multi-model strategies, tiny LLM architectures, and evaluation metrics.
+  - source_path: agent-file-handoff/Improvement/The rise of on-device, tiny language models.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/The rise of on-device, tiny language models.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to on-device tiny LLMs, model breeding algorithms, Rust integration, and benchmarks.
+  - source_path: agent-file-handoff/Improvement/The terms 4Fs and code beading model breeding.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/The terms 4Fs and code beading model breeding.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Duplicate checksum route for 4Fs, code beading, and model-breeding definitions.
+  - source_path: agent-file-handoff/Improvement/Tiny-LLM Adapters and LoRA.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/Tiny-LLM Adapters and LoRA.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    routing_summary: Routes agents to LoRA, adapters, compatibility, candidate evaluation, and Rust trait sketches.
 entries:
   - source_path: agent-file-handoff/Improvement/best practices and governance guidelines for enterprise Rust adoption.md
     raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/best practices and governance guidelines for enterprise Rust adoption.md
@@ -74,7 +221,7 @@ entries:
     raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Rust Design Patterns and SOLID Principles.md
     disposition: preserved-to-durable-memory
     durable_memory: wiki/gguf-mirust/reports/enterprise-rust-governance-memory-2026-06-25.md
-    routing_summary: Rust pattern guidance distilled into enums, typestate, newtypes, explicit errors, and warnings against object-oriented overfitting.
+    routing_summary: Rust pattern guidance distilled into enums, typestate, newtypes, explicit errors, and guidance away from object-oriented overfitting.
   - source_path: agent-file-handoff/Improvement/Rust In-Browser Teleodynamic AI Plan.md
     raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Rust In-Browser Teleodynamic AI Plan.md
     disposition: preserved-to-durable-memory
@@ -89,7 +236,7 @@ entries:
     raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Rust WebAssembly Teleodynamic AI Architecture.md
     disposition: preserved-to-durable-memory
     durable_memory: wiki/gguf-mirust/reports/teleodynamic-resource-bounded-memory-2026-06-25.md
-    routing_summary: Teleodynamic WASM architecture distilled into browser resource limits, future persistence, and adaptive behavior caution.
+    routing_summary: Teleodynamic WASM architecture distilled into browser resource limits, future persistence, and adaptive behavior scope notes.
   - source_path: agent-file-handoff/Improvement/Teleodynamic AI in the Browser.md
     raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Teleodynamic AI in the Browser.md
     disposition: preserved-to-durable-memory
@@ -109,7 +256,7 @@ entries:
     raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Teleodynamic AI refers to resource-bounded.md
     disposition: preserved-to-durable-memory
     durable_memory: wiki/gguf-mirust/reports/teleodynamic-resource-bounded-memory-2026-06-25.md
-    routing_summary: Resource-bounded AI report distilled into budgeted browser behavior, local privacy, and CI/deployment caution.
+    routing_summary: Resource-bounded AI report distilled into budgeted browser behavior, local privacy, and CI/deployment scope notes.
   - source_path: agent-file-handoff/Improvement/Teleodynamic Tiny Language Model Architecture.md
     raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-25/Teleodynamic Tiny Language Model Architecture.md
     disposition: preserved-to-durable-memory

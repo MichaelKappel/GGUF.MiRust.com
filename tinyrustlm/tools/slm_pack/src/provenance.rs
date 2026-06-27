@@ -9,8 +9,11 @@ use crate::slm_validate::{self, ValidationReport};
 
 const MANIFEST_VERSION: &str = "1";
 const EVAL_MANIFEST_VERSION: &str = "1";
+const RUNTIME_SMOKE_VERSION: &str = "1";
 const GATE_RUNTIME_SMOKE: &str = "runtime-smoke";
 const GATE_ASSISTANT_QUALITY: &str = "assistant-quality";
+const RUNTIME_SMOKE_DECISION: &str = "accepted-for-runtime-smoke";
+const RUNTIME_SMOKE_NEXT_GATE: &str = "promotion-eval-and-selector-admission";
 
 struct SourcePolicy {
     quality_claim: &'static str,
@@ -93,7 +96,48 @@ pub fn quality_gate_path(
     Ok(())
 }
 
-fn build_manifest_text(report: &ValidationReport, source_kind: &str) -> io::Result<String> {
+/// Writes a runtime-smoke sidecar bound to a validated model and provenance manifest.
+pub(crate) fn write_runtime_smoke_for_path(
+    input: &Path,
+    manifest: &Path,
+    output: &Path,
+) -> io::Result<()> {
+    let bytes = fs::read(input)?;
+    let report = slm_validate::validate_bytes(&bytes, &input.display().to_string())?;
+    let manifest_text = fs::read_to_string(manifest)?;
+    let manifest_fields = validate_manifest_text(&report, &manifest_text)?;
+    validate_quality_gate(&report, &manifest_text, GATE_RUNTIME_SMOKE, None)?;
+    let smoke_text = build_runtime_smoke_text(&report, &manifest_text, &manifest_fields)?;
+    if let Some(parent) = output.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(output, smoke_text)?;
+    println!("SLM runtime-smoke sidecar written: {}", output.display());
+    Ok(())
+}
+
+/// Validates a runtime-smoke sidecar against a local model and provenance manifest.
+pub(crate) fn validate_runtime_smoke_path(
+    input: &Path,
+    manifest: &Path,
+    runtime_smoke: &Path,
+) -> io::Result<()> {
+    let bytes = fs::read(input)?;
+    let report = slm_validate::validate_bytes(&bytes, &input.display().to_string())?;
+    let manifest_text = fs::read_to_string(manifest)?;
+    let runtime_smoke_text = fs::read_to_string(runtime_smoke)?;
+    validate_runtime_smoke_text(&report, &manifest_text, &runtime_smoke_text)?;
+    println!("SLM runtime-smoke validation: PASS");
+    println!("model: {}", report.path());
+    println!("manifest: {}", manifest.display());
+    println!("runtime_smoke: {}", runtime_smoke.display());
+    Ok(())
+}
+
+pub(crate) fn build_manifest_text(
+    report: &ValidationReport,
+    source_kind: &str,
+) -> io::Result<String> {
     let policy = policy_for_source_kind(source_kind)?;
     let mut text = String::new();
     push_line(
@@ -169,6 +213,78 @@ fn validate_manifest_text(
     Ok(fields)
 }
 
+pub(crate) fn build_runtime_smoke_text(
+    report: &ValidationReport,
+    manifest_text: &str,
+    manifest_fields: &HashMap<String, String>,
+) -> io::Result<String> {
+    let mut text = String::new();
+    push_line(
+        &mut text,
+        "tinyrustlm_runtime_smoke_version",
+        RUNTIME_SMOKE_VERSION,
+    );
+    push_line(&mut text, "gate", GATE_RUNTIME_SMOKE);
+    push_line(
+        &mut text,
+        "source_kind",
+        require_key(manifest_fields, "source_kind")?,
+    );
+    push_line(&mut text, "model_path", report.path());
+    push_line(
+        &mut text,
+        "manifest_checksum",
+        &format!("0x{:016x}", text_checksum(manifest_text.as_bytes())),
+    );
+    push_line(
+        &mut text,
+        "slm_checksum",
+        &format!("0x{:016x}", report.checksum()),
+    );
+    push_line(&mut text, "model_shape", &report.shape_summary());
+    push_line(&mut text, "runtime_smoke_status", "pass");
+    push_line(&mut text, "runtime_smoke_decision", RUNTIME_SMOKE_DECISION);
+    push_line(&mut text, "required_next_gate", RUNTIME_SMOKE_NEXT_GATE);
+    Ok(text)
+}
+
+pub(crate) fn validate_runtime_smoke_text(
+    report: &ValidationReport,
+    manifest_text: &str,
+    runtime_smoke_text: &str,
+) -> io::Result<HashMap<String, String>> {
+    let manifest_fields = validate_manifest_text(report, manifest_text)?;
+    validate_quality_gate(report, manifest_text, GATE_RUNTIME_SMOKE, None)?;
+    let fields = parse_manifest(runtime_smoke_text)?;
+    require_equal(
+        &fields,
+        "tinyrustlm_runtime_smoke_version",
+        RUNTIME_SMOKE_VERSION,
+    )?;
+    require_equal(&fields, "gate", GATE_RUNTIME_SMOKE)?;
+    require_equal(
+        &fields,
+        "source_kind",
+        require_key(&manifest_fields, "source_kind")?,
+    )?;
+    require_key(&fields, "model_path")?;
+    require_equal(
+        &fields,
+        "manifest_checksum",
+        &format!("0x{:016x}", text_checksum(manifest_text.as_bytes())),
+    )?;
+    require_equal(
+        &fields,
+        "slm_checksum",
+        &format!("0x{:016x}", report.checksum()),
+    )?;
+    require_equal(&fields, "model_shape", &report.shape_summary())?;
+    require_equal(&fields, "runtime_smoke_status", "pass")?;
+    require_equal(&fields, "runtime_smoke_decision", RUNTIME_SMOKE_DECISION)?;
+    require_equal(&fields, "required_next_gate", RUNTIME_SMOKE_NEXT_GATE)?;
+    Ok(fields)
+}
+
 fn build_eval_template_text(
     report: &ValidationReport,
     manifest_text: &str,
@@ -214,7 +330,7 @@ fn build_eval_template_text(
     Ok(text)
 }
 
-fn validate_quality_gate(
+pub(crate) fn validate_quality_gate(
     report: &ValidationReport,
     manifest_text: &str,
     gate: &str,
@@ -289,7 +405,7 @@ fn validate_assistant_quality_gate(
     Ok(())
 }
 
-fn parse_manifest(text: &str) -> io::Result<HashMap<String, String>> {
+pub(crate) fn parse_manifest(text: &str) -> io::Result<HashMap<String, String>> {
     let mut fields = HashMap::new();
     for (line_index, raw_line) in text.lines().enumerate() {
         let line = raw_line.trim();
@@ -459,7 +575,7 @@ fn push_line(text: &mut String, key: &str, value: &str) {
     text.push('\n');
 }
 
-fn text_checksum(bytes: &[u8]) -> u64 {
+pub(crate) fn text_checksum(bytes: &[u8]) -> u64 {
     let mut acc = 0x4d595df4d0f33173u64;
     for (index, byte) in bytes.iter().enumerate() {
         acc ^= u64::from(*byte).wrapping_add((index as u64) << 2);
@@ -523,6 +639,36 @@ mod tests {
         let manifest = build_manifest_text(&report, "deterministic-smoke").unwrap();
 
         validate_quality_gate(&report, &manifest, GATE_RUNTIME_SMOKE, None).unwrap();
+    }
+
+    #[test]
+    fn runtime_smoke_sidecar_round_trip_matches_manifest() {
+        let report = fixture_report();
+        let manifest = build_manifest_text(&report, "deterministic-smoke").unwrap();
+        let manifest_fields = parse_manifest(&manifest).unwrap();
+        let runtime_smoke = build_runtime_smoke_text(&report, &manifest, &manifest_fields).unwrap();
+
+        validate_runtime_smoke_text(&report, &manifest, &runtime_smoke).unwrap();
+        assert!(runtime_smoke.contains("runtime_smoke_status=pass"));
+        assert!(runtime_smoke.contains("runtime_smoke_decision=accepted-for-runtime-smoke"));
+    }
+
+    #[test]
+    fn runtime_smoke_sidecar_rejects_manifest_drift() {
+        let report = fixture_report();
+        let manifest = build_manifest_text(&report, "deterministic-smoke").unwrap();
+        let manifest_fields = parse_manifest(&manifest).unwrap();
+        let runtime_smoke = build_runtime_smoke_text(&report, &manifest, &manifest_fields).unwrap();
+        let changed_manifest = manifest.replace(
+            "quality_claim=runtime-execution-smoke-only",
+            "quality_claim=runtime-compatible-not-quality-verified",
+        );
+
+        let error =
+            validate_runtime_smoke_text(&report, &changed_manifest, &runtime_smoke).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("quality_claim"));
     }
 
     #[test]

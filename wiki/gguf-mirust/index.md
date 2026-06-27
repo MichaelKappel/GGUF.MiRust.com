@@ -3,7 +3,7 @@ title: GGUF.MiRust.com LLM Wiki Index
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/
 status: planned_pending_publication
-reviewed_utc: 2026-06-24T00:00:00Z
+reviewed_utc: 2026-06-26T18:44:35Z
 ---
 
 # GGUF.MiRust.com
@@ -16,6 +16,7 @@ This local LLM Wiki namespace routes durable memory for the GGUF.MiRust.com Rust
 - [Knowledge Map](knowledge-map.md)
 - [Log](log.md)
 - [Report Intake Index 2026-06-25](reports/report-intake-index-2026-06-25.md)
+- [Report Intake Index 2026-06-26](reports/report-intake-index-2026-06-26.md)
 
 ## Report Memory
 
@@ -24,6 +25,8 @@ This local LLM Wiki namespace routes durable memory for the GGUF.MiRust.com Rust
 - [TinyLM Modular Architecture Memory](reports/tinylm-modular-architecture-memory-2026-06-25.md)
 - [Teleodynamic Resource Bounded Memory](reports/teleodynamic-resource-bounded-memory-2026-06-25.md)
 - [Brand Product Positioning Memory](reports/brand-product-positioning-memory-2026-06-25.md)
+- [Model Breeding Ecology Memory](reports/model-breeding-ecology-memory-2026-06-26.md)
+- [Model Breeding Reference Ideas](research/model-breeding-reference-ideas-2026-06-26.md)
 
 ## Boundary
 

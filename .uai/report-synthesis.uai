@@ -1,21 +1,29 @@
-profile: gguf-mirust.report-synthesis.v1
-updated_utc: 2026-06-25T00:00:00Z
-purpose: Hot .uai synthesis of the 23 processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
+profile: gguf-mirust.report-synthesis.v2
+updated_utc: 2026-06-27T02:47:09Z
+purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/gguf-mirust/report-intake-2026-06-25/
+  raw_evidence_2026_06_26: raw/gguf-mirust/report-intake-2026-06-26/
   raw_manifest: raw/gguf-mirust/MANIFEST.md
   durable_index: wiki/gguf-mirust/reports/report-intake-index-2026-06-25.md
+  durable_index_2026_06_26: wiki/gguf-mirust/reports/report-intake-index-2026-06-26.md
   durable_synthesis:
     - wiki/gguf-mirust/reports/enterprise-rust-governance-memory-2026-06-25.md
     - wiki/gguf-mirust/reports/browser-local-runtime-memory-2026-06-25.md
     - wiki/gguf-mirust/reports/tinylm-modular-architecture-memory-2026-06-25.md
     - wiki/gguf-mirust/reports/teleodynamic-resource-bounded-memory-2026-06-25.md
     - wiki/gguf-mirust/reports/brand-product-positioning-memory-2026-06-25.md
+    - wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+  durable_research:
+    - wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md
+  uaix_strategy_source: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
 failure_dogfood:
   issue: First report-processing pass over-prioritized durable wiki files and pointer-ledger cleanliness, leaving hot .uai files too thin for cold-start agents.
   correction: Keep long-term-memory.uai pointer-only, but populate typed .uai files with enough report-derived routing, constraints, tensions, and next questions to guide work before wiki deep-loading.
   uaix_guidance_needed: UAIX and LLM Wiki setup guidance should say link-only is not memory-thin; every project needs hot .uai synthesis plus crawlable durable nodes.
   crawlability_rule: A future agent should be able to identify what to load next from .uai files within two minutes, without opening every report or wiki page.
+  uaix_file_handoff_strategy_2026_06_26: The active setup is File Handoff plus raw evidence, durable LLM Wiki synthesis, pointer-only long-term memory, and short-term routing into durable report nodes.
+  uaix_file_handoff_strategy_2026_06_27: Keep report bodies in durable wiki/raw evidence, keep short-term memory as current routing plus proof pointers, and keep long-term memory as checksum-bearing file routes.
 report_clusters:
   enterprise_rust_governance:
     sources: enterprise Rust adoption, Enterprise Rust Best Practices, Rust Design Patterns, Rust ownership/SOLID.
@@ -25,7 +33,7 @@ report_clusters:
       - Treat every browser/model boundary as a typed trust boundary with explicit errors.
       - Prefer enums, newtypes, ownership, and cohesive modules over object-oriented pattern translation.
       - Make tests and smoke outputs the authority for support claims.
-    watch_out:
+    routing_edges:
       - Do not import cargo-audit/cargo-deny/cargo-vet as project requirements while the no-crate/no-extra-tool prompt is active.
       - Do not add framework layers to look enterprise; proof and simplicity are the enterprise move here.
   browser_local_runtime:
@@ -37,7 +45,7 @@ report_clusters:
       - Distinguish missing file, malformed file, rejected model, context overflow, and generation failure in UI.
       - Preserve model selection recovery after model-specific failures.
       - Measure load time, prompt count, generated count, scratch use, KV length, and quantization mode.
-    watch_out:
+    routing_edges:
       - Treat WebGPU, OPFS, IndexedDB, workers, and framework runtimes as future comparison topics only.
       - Do not let JS parse .slm or own inference logic.
   tinylm_modular_architecture:
@@ -47,7 +55,7 @@ report_clusters:
       - Keep .slm metadata shaped like a future model ABI.
       - Preserve tokenizer and quantization extensibility without implementing marketplace behavior.
       - Document future compatibility requirements before adding adapters or routers.
-    watch_out:
+    routing_edges:
       - Do not implement LoRA, task arithmetic, mixture-of-agents, speculative decoding, or model marketplaces until the base runtime is correct and benchmarked.
   teleodynamic_resource_bounded_design:
     sources: Rust In-Browser Teleodynamic AI Plan, Rust WebAssembly Teleodynamic AI Architecture, Teleodynamic AI in Browser, resource-bounded reports, Teleodynamic Tiny Language Model Architecture, Teleodynamics framework.
@@ -56,7 +64,7 @@ report_clusters:
       - Treat Booting, Loading runtime, Loading model, Ready, Model rejected, Model load failed, and context exceeded as meaningful phase states.
       - Prefer graceful refusal or reset over hidden degradation when context or model boundaries fail.
       - Expose enough diagnostics for users and agents to see resource pressure.
-    watch_out:
+    routing_edges:
       - Do not let theory become decorative language.
       - Do not add adaptive behavior unless deterministic tests prove it.
   brand_product_positioning:
@@ -66,14 +74,39 @@ report_clusters:
       - Lead with local proof and custom runtime.
       - Say deterministic smoke models prove execution path, not assistant quality.
       - Keep public claims aligned with workspace.uai and test-plan.uai.
-    watch_out:
+    routing_edges:
       - Do not imply GGUF compatibility, Mini Browser automation, remote inference, or trained model quality before implementation evidence exists.
+  model_breeding_ecology:
+    sources: 26-report 2026-06-26 batch covering 4Fs, code beading, model breeding, model merging, LoRA/adapters, on-device tiny LLMs, mutualism, and evolutionary motivation.
+    hot_takeaway: Treat model breeding as traceable offline candidate lineage: compatible parents, operator metadata, generated artifact, eval sidecar, promotion record, and current-runtime admission gates.
+    apply_now:
+      - Route future model-breeding work to wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md.
+      - Use wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md for primary research references.
+      - Keep browser inference stable; breeding operators belong in offline tooling until artifacts pass normal .slm admission and manifest gates.
+      - Require exact base-family, tokenizer, tensor-shape, quantization, and output-head compatibility before any parameter-level merge.
+      - Use sparse-delta-candidate for lineage-bound sparse task-vector .slm candidates before candidate-manifest.
+      - Use population-review for ledger-backed fitness ranking, frontier selection, and parent-pool routing after promotion-ledger.
+      - Use distillation or retraining when compatibility breaks instead of direct tensor mixing.
+      - Record parent hashes, operator recipe, build tool route, and eval evidence in a future candidate manifest.
+      - Treat 4Fs as a helpful lens: fast, flexible, frugal, federated.
+      - Treat code beading as durable small work units: source manifest, compatibility result, candidate artifact, eval sidecar, promotion ledger, population review, and selector registry.
+      - Follow .uai/taboo.uai for public website copy about model breeding, mutualism, and tiny model ecology.
+    future_reference_lanes:
+      - model soups and task vectors for compatible weight-space edits.
+      - TIES and DARE for sparse/sign-aware delta composition; sparse task-delta receipts are implemented, sign-aware multi-parent recipes are future work.
+      - LoRA and adapters for compact skill deltas; adapter-delta and adapter-fuse are implemented offline gates while runtime apply remains future work.
+      - population-based training for candidate registries, fitness scores, staged promotion, and the implemented population-review record.
+    keep_separate:
+      - Research references are future lanes, not current runtime claims.
+      - Third-party framework suggestions in reports are comparison context while zero-dependency TinyRustLM remains active.
 report_distillation_questions:
   - What invariant should move from documentation into a test next?
   - Which UI state makes a local failure recoverable instead of mysterious?
   - What is the smallest useful model ABI that can support future tiny model routing without becoming a framework?
   - Which philosophical idea can be translated into a metric, error state, or user-visible budget?
   - What claim would become misleading if copied from a report into product copy today?
+  - Which model-breeding idea can become a manifest field, compatibility check, or tiny-fixture experiment first?
+  - Which public-copy phrase should route to .uai/taboo.uai before becoming site text?
 crawlability_requirements_for_future_memory:
   - .uai/index.uai must list every hot memory file.
   - .uai/startup-packet.uai must route to report-synthesis.uai before durable report wiki files.
@@ -81,3 +114,5 @@ crawlability_requirements_for_future_memory:
   - .uai/architecture.uai must include report-derived architecture pressure in typed fields.
   - .uai/coding-standards.uai must include report-derived engineering rules that are safe under the active prompt.
   - .uai/long-term-memory.uai must remain pointer-only with routing summaries and checksums.
+  - .uai/taboo.uai must be read before public site copy, model-breeding positioning, or mutualist language work.
+  - .uai/short-term-memory.uai must reference current report-intake indexes after every processed batch.

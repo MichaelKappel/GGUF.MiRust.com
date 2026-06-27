@@ -3,7 +3,7 @@ title: GGUF.MiRust.com LLM Wiki Log
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/log/
 status: planned_pending_publication
-reviewed_utc: 2026-06-24T00:00:00Z
+reviewed_utc: 2026-06-26T18:44:35Z
 ---
 
 # LLM Wiki Log
@@ -15,3 +15,8 @@ reviewed_utc: 2026-06-24T00:00:00Z
 - Routed durable memory to AIWikis.org under `/gguf-mirust/`.
 - Recorded dogfood feedback for UAIX and LLMWikis setup guidance.
 
+## 2026-06-26
+
+- Processed 26 active Improvement reports into raw evidence under `raw/gguf-mirust/report-intake-2026-06-26/`.
+- Added model-breeding durable memory, reference ideas, and report intake routing.
+- Added `.uai/taboo.uai` to route GGUF.MiRust.com public copy toward constructive local-model craft and lineage.

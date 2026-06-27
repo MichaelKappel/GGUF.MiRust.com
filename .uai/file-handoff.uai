@@ -1,5 +1,5 @@
-profile: gguf-mirust.file-handoff.v2
-updated_utc: 2026-06-25T00:00:00Z
+profile: gguf-mirust.file-handoff.v3
+updated_utc: 2026-06-27T02:23:33Z
 handoff_root: agent-file-handoff/
 active_buckets:
   content: agent-file-handoff/Content/
@@ -29,9 +29,9 @@ durable_preservation:
   manifest: raw/gguf-mirust/MANIFEST.md
   checksum_required: true
 current_scan:
-  scanned_utc: 2026-06-25T00:00:00Z
+  scanned_utc: 2026-06-27T02:23:33Z
   content_bucket_non_placeholder_files: 0
   improvement_bucket_non_placeholder_files: 0
   misplaced_root_files: 0
   status: all_reports_processed
-  action: 23 Improvement reports were preserved to raw/gguf-mirust/report-intake-2026-06-25/, synthesized into wiki/gguf-mirust/reports/, recorded in .uai/intake-outcome-ledger.uai, and removed from the active source bucket.
+  action: 23 Improvement reports were preserved on 2026-06-25 and 26 model-breeding reports were preserved on 2026-06-26, synthesized into wiki/gguf-mirust/, recorded in .uai/intake-outcome-ledger.uai, and removed from the active source bucket.

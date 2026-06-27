@@ -1,8 +1,21 @@
 //! TinyRustLM `.slm` packing utility.
 
+mod adapter;
+mod admission;
+mod blend;
+mod candidate;
+mod compatibility;
+mod delta;
+mod ledger;
+mod lineage;
+mod parent_pool;
+mod population;
+mod promotion;
 mod provenance;
 mod quant_writer;
+mod selector;
 mod slm_validate;
+mod sparse_delta;
 mod tensor_writer;
 mod tokenizer_writer;
 mod trained_source;
@@ -49,6 +62,1120 @@ fn run() -> io::Result<()> {
         };
         return slm_validate::validate_path(Path::new(&input));
     }
+    if output == "compatibility" {
+        let Some(left) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "compatibility requires a left parent .slm path",
+            ));
+        };
+        let Some(right) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "compatibility requires a right parent .slm path",
+            ));
+        };
+        let output_report = args.next();
+        return compatibility::report_path(
+            Path::new(&left),
+            Path::new(&right),
+            output_report.as_deref().map(Path::new),
+        );
+    }
+    if output == "lineage-template" {
+        let Some(compatibility_report) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "lineage-template requires an input compatibility report path",
+            ));
+        };
+        let Some(output_lineage) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "lineage-template requires an output lineage path",
+            ));
+        };
+        let Some(candidate_id) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "lineage-template requires a candidate id",
+            ));
+        };
+        let Some(operator_id) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "lineage-template requires an operator id",
+            ));
+        };
+        let resource_budget = args
+            .next()
+            .unwrap_or_else(|| "browser-local-constrained".to_string());
+        return lineage::write_template_path(
+            Path::new(&compatibility_report),
+            Path::new(&output_lineage),
+            &candidate_id,
+            &operator_id,
+            &resource_budget,
+        );
+    }
+    if output == "validate-lineage" {
+        let Some(compatibility_report) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-lineage requires an input compatibility report path",
+            ));
+        };
+        let Some(lineage_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-lineage requires an input lineage path",
+            ));
+        };
+        return lineage::validate_path(
+            Path::new(&compatibility_report),
+            Path::new(&lineage_manifest),
+        );
+    }
+    if output == "blend-candidate" {
+        let Some(compatibility_report) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "blend-candidate requires an input compatibility report path",
+            ));
+        };
+        let Some(lineage_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "blend-candidate requires an input lineage path",
+            ));
+        };
+        let Some(left_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "blend-candidate requires a left parent .slm path",
+            ));
+        };
+        let Some(right_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "blend-candidate requires a right parent .slm path",
+            ));
+        };
+        let Some(output_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "blend-candidate requires an output candidate .slm path",
+            ));
+        };
+        let Some(output_receipt) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "blend-candidate requires an output operator receipt path",
+            ));
+        };
+        let parent0_weight_ppm = args.next().unwrap_or_else(|| "500000".to_string());
+        return blend::write_candidate_path(
+            Path::new(&compatibility_report),
+            Path::new(&lineage_manifest),
+            Path::new(&left_parent),
+            Path::new(&right_parent),
+            Path::new(&output_slm),
+            Path::new(&output_receipt),
+            &parent0_weight_ppm,
+        );
+    }
+    if output == "validate-blend-candidate" {
+        let Some(compatibility_report) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-blend-candidate requires an input compatibility report path",
+            ));
+        };
+        let Some(lineage_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-blend-candidate requires an input lineage path",
+            ));
+        };
+        let Some(left_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-blend-candidate requires a left parent .slm path",
+            ));
+        };
+        let Some(right_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-blend-candidate requires a right parent .slm path",
+            ));
+        };
+        let Some(candidate_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-blend-candidate requires a candidate .slm path",
+            ));
+        };
+        let Some(receipt) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-blend-candidate requires an input operator receipt path",
+            ));
+        };
+        return blend::validate_candidate_path(
+            Path::new(&compatibility_report),
+            Path::new(&lineage_manifest),
+            Path::new(&left_parent),
+            Path::new(&right_parent),
+            Path::new(&candidate_slm),
+            Path::new(&receipt),
+        );
+    }
+    if output == "delta-candidate" {
+        let Some(compatibility_report) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "delta-candidate requires an input compatibility report path",
+            ));
+        };
+        let Some(lineage_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "delta-candidate requires an input lineage path",
+            ));
+        };
+        let Some(base_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "delta-candidate requires a base parent .slm path",
+            ));
+        };
+        let Some(target_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "delta-candidate requires a target parent .slm path",
+            ));
+        };
+        let Some(output_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "delta-candidate requires an output candidate .slm path",
+            ));
+        };
+        let Some(output_receipt) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "delta-candidate requires an output operator receipt path",
+            ));
+        };
+        let delta_weight_ppm = args.next().unwrap_or_else(|| "1000000".to_string());
+        return delta::write_candidate_path(
+            Path::new(&compatibility_report),
+            Path::new(&lineage_manifest),
+            Path::new(&base_parent),
+            Path::new(&target_parent),
+            Path::new(&output_slm),
+            Path::new(&output_receipt),
+            &delta_weight_ppm,
+        );
+    }
+    if output == "validate-delta-candidate" {
+        let Some(compatibility_report) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-delta-candidate requires an input compatibility report path",
+            ));
+        };
+        let Some(lineage_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-delta-candidate requires an input lineage path",
+            ));
+        };
+        let Some(base_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-delta-candidate requires a base parent .slm path",
+            ));
+        };
+        let Some(target_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-delta-candidate requires a target parent .slm path",
+            ));
+        };
+        let Some(candidate_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-delta-candidate requires a candidate .slm path",
+            ));
+        };
+        let Some(receipt) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-delta-candidate requires an input operator receipt path",
+            ));
+        };
+        return delta::validate_candidate_path(
+            Path::new(&compatibility_report),
+            Path::new(&lineage_manifest),
+            Path::new(&base_parent),
+            Path::new(&target_parent),
+            Path::new(&candidate_slm),
+            Path::new(&receipt),
+        );
+    }
+    if output == "sparse-delta-candidate" {
+        let Some(compatibility_report) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "sparse-delta-candidate requires an input compatibility report path",
+            ));
+        };
+        let Some(lineage_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "sparse-delta-candidate requires an input lineage path",
+            ));
+        };
+        let Some(base_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "sparse-delta-candidate requires a base parent .slm path",
+            ));
+        };
+        let Some(target_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "sparse-delta-candidate requires a target parent .slm path",
+            ));
+        };
+        let Some(output_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "sparse-delta-candidate requires an output candidate .slm path",
+            ));
+        };
+        let Some(output_receipt) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "sparse-delta-candidate requires an output operator receipt path",
+            ));
+        };
+        let delta_weight_ppm = args.next();
+        let keep_ppm = args.next();
+        return sparse_delta::write_candidate_path(
+            Path::new(&compatibility_report),
+            Path::new(&lineage_manifest),
+            Path::new(&base_parent),
+            Path::new(&target_parent),
+            Path::new(&output_slm),
+            Path::new(&output_receipt),
+            delta_weight_ppm.as_deref(),
+            keep_ppm.as_deref(),
+        );
+    }
+    if output == "validate-sparse-delta-candidate" {
+        let Some(compatibility_report) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-sparse-delta-candidate requires an input compatibility report path",
+            ));
+        };
+        let Some(lineage_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-sparse-delta-candidate requires an input lineage path",
+            ));
+        };
+        let Some(base_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-sparse-delta-candidate requires a base parent .slm path",
+            ));
+        };
+        let Some(target_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-sparse-delta-candidate requires a target parent .slm path",
+            ));
+        };
+        let Some(candidate_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-sparse-delta-candidate requires a candidate .slm path",
+            ));
+        };
+        let Some(receipt) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-sparse-delta-candidate requires an input operator receipt path",
+            ));
+        };
+        return sparse_delta::validate_candidate_path(
+            Path::new(&compatibility_report),
+            Path::new(&lineage_manifest),
+            Path::new(&base_parent),
+            Path::new(&target_parent),
+            Path::new(&candidate_slm),
+            Path::new(&receipt),
+        );
+    }
+    if output == "adapter-delta" {
+        let Some(compatibility_report) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "adapter-delta requires an input compatibility report path",
+            ));
+        };
+        let Some(lineage_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "adapter-delta requires an input lineage path",
+            ));
+        };
+        let Some(base_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "adapter-delta requires a base parent .slm path",
+            ));
+        };
+        let Some(target_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "adapter-delta requires a target parent .slm path",
+            ));
+        };
+        let Some(output_adapter) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "adapter-delta requires an output adapter artifact path",
+            ));
+        };
+        let Some(output_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "adapter-delta requires an output adapter manifest path",
+            ));
+        };
+        return adapter::write_artifact_path(
+            Path::new(&compatibility_report),
+            Path::new(&lineage_manifest),
+            Path::new(&base_parent),
+            Path::new(&target_parent),
+            Path::new(&output_adapter),
+            Path::new(&output_manifest),
+        );
+    }
+    if output == "validate-adapter-delta" {
+        let Some(compatibility_report) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-adapter-delta requires an input compatibility report path",
+            ));
+        };
+        let Some(lineage_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-adapter-delta requires an input lineage path",
+            ));
+        };
+        let Some(base_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-adapter-delta requires a base parent .slm path",
+            ));
+        };
+        let Some(target_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-adapter-delta requires a target parent .slm path",
+            ));
+        };
+        let Some(adapter_artifact) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-adapter-delta requires an input adapter artifact path",
+            ));
+        };
+        let Some(adapter_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-adapter-delta requires an input adapter manifest path",
+            ));
+        };
+        return adapter::validate_artifact_path(
+            Path::new(&compatibility_report),
+            Path::new(&lineage_manifest),
+            Path::new(&base_parent),
+            Path::new(&target_parent),
+            Path::new(&adapter_artifact),
+            Path::new(&adapter_manifest),
+        );
+    }
+    if output == "fuse-adapter-delta" {
+        let Some(compatibility_report) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "fuse-adapter-delta requires an input compatibility report path",
+            ));
+        };
+        let Some(lineage_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "fuse-adapter-delta requires an input lineage path",
+            ));
+        };
+        let Some(base_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "fuse-adapter-delta requires a base parent .slm path",
+            ));
+        };
+        let Some(target_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "fuse-adapter-delta requires a target parent .slm path",
+            ));
+        };
+        let Some(adapter_artifact) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "fuse-adapter-delta requires an input adapter artifact path",
+            ));
+        };
+        let Some(adapter_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "fuse-adapter-delta requires an input adapter manifest path",
+            ));
+        };
+        let Some(output_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "fuse-adapter-delta requires an output .slm path",
+            ));
+        };
+        let Some(output_receipt) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "fuse-adapter-delta requires an output operator receipt path",
+            ));
+        };
+        return adapter::fuse_artifact_path(
+            Path::new(&compatibility_report),
+            Path::new(&lineage_manifest),
+            Path::new(&base_parent),
+            Path::new(&target_parent),
+            Path::new(&adapter_artifact),
+            Path::new(&adapter_manifest),
+            Path::new(&output_slm),
+            Path::new(&output_receipt),
+        );
+    }
+    if output == "validate-fuse-adapter-delta" {
+        let Some(compatibility_report) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-fuse-adapter-delta requires an input compatibility report path",
+            ));
+        };
+        let Some(lineage_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-fuse-adapter-delta requires an input lineage path",
+            ));
+        };
+        let Some(base_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-fuse-adapter-delta requires a base parent .slm path",
+            ));
+        };
+        let Some(target_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-fuse-adapter-delta requires a target parent .slm path",
+            ));
+        };
+        let Some(adapter_artifact) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-fuse-adapter-delta requires an input adapter artifact path",
+            ));
+        };
+        let Some(adapter_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-fuse-adapter-delta requires an input adapter manifest path",
+            ));
+        };
+        let Some(candidate_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-fuse-adapter-delta requires a candidate .slm path",
+            ));
+        };
+        let Some(receipt) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-fuse-adapter-delta requires an input operator receipt path",
+            ));
+        };
+        return adapter::validate_fused_candidate_path(
+            Path::new(&compatibility_report),
+            Path::new(&lineage_manifest),
+            Path::new(&base_parent),
+            Path::new(&target_parent),
+            Path::new(&adapter_artifact),
+            Path::new(&adapter_manifest),
+            Path::new(&candidate_slm),
+            Path::new(&receipt),
+        );
+    }
+    if output == "candidate-manifest" {
+        let Some(compatibility_report) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "candidate-manifest requires an input compatibility report path",
+            ));
+        };
+        let Some(lineage_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "candidate-manifest requires an input lineage path",
+            ));
+        };
+        let Some(candidate_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "candidate-manifest requires a candidate .slm path",
+            ));
+        };
+        let Some(output_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "candidate-manifest requires an output candidate manifest path",
+            ));
+        };
+        return candidate::write_manifest_path(
+            Path::new(&compatibility_report),
+            Path::new(&lineage_manifest),
+            Path::new(&candidate_slm),
+            Path::new(&output_manifest),
+        );
+    }
+    if output == "validate-candidate" {
+        let Some(compatibility_report) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-candidate requires an input compatibility report path",
+            ));
+        };
+        let Some(lineage_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-candidate requires an input lineage path",
+            ));
+        };
+        let Some(candidate_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-candidate requires a candidate .slm path",
+            ));
+        };
+        let Some(candidate_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-candidate requires an input candidate manifest path",
+            ));
+        };
+        return candidate::validate_manifest_path(
+            Path::new(&compatibility_report),
+            Path::new(&lineage_manifest),
+            Path::new(&candidate_slm),
+            Path::new(&candidate_manifest),
+        );
+    }
+    if output == "promotion-template" {
+        let Some(compatibility_report) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "promotion-template requires an input compatibility report path",
+            ));
+        };
+        let Some(lineage_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "promotion-template requires an input lineage path",
+            ));
+        };
+        let Some(candidate_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "promotion-template requires a candidate .slm path",
+            ));
+        };
+        let Some(candidate_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "promotion-template requires an input candidate manifest path",
+            ));
+        };
+        let Some(output_promotion) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "promotion-template requires an output promotion path",
+            ));
+        };
+        let promoter_id = args
+            .next()
+            .unwrap_or_else(|| "local-smoke-runner".to_string());
+        let promotion_scope = args
+            .next()
+            .unwrap_or_else(|| promotion::DEFAULT_PROMOTION_SCOPE.to_string());
+        return promotion::write_template_path(
+            Path::new(&compatibility_report),
+            Path::new(&lineage_manifest),
+            Path::new(&candidate_slm),
+            Path::new(&candidate_manifest),
+            Path::new(&output_promotion),
+            &promoter_id,
+            &promotion_scope,
+        );
+    }
+    if output == "validate-promotion" {
+        let Some(compatibility_report) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-promotion requires an input compatibility report path",
+            ));
+        };
+        let Some(lineage_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-promotion requires an input lineage path",
+            ));
+        };
+        let Some(candidate_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-promotion requires a candidate .slm path",
+            ));
+        };
+        let Some(candidate_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-promotion requires an input candidate manifest path",
+            ));
+        };
+        let Some(promotion_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-promotion requires an input promotion path",
+            ));
+        };
+        return promotion::validate_path(
+            Path::new(&compatibility_report),
+            Path::new(&lineage_manifest),
+            Path::new(&candidate_slm),
+            Path::new(&candidate_manifest),
+            Path::new(&promotion_manifest),
+        );
+    }
+    if output == "admission-record" {
+        let Some(compatibility_report) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "admission-record requires an input compatibility report path",
+            ));
+        };
+        let Some(lineage_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "admission-record requires an input lineage path",
+            ));
+        };
+        let Some(candidate_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "admission-record requires a candidate .slm path",
+            ));
+        };
+        let Some(candidate_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "admission-record requires an input candidate manifest path",
+            ));
+        };
+        let Some(promotion_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "admission-record requires an input promotion path",
+            ));
+        };
+        let Some(provenance_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "admission-record requires an input provenance manifest path",
+            ));
+        };
+        let Some(runtime_smoke) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "admission-record requires an input runtime-smoke sidecar path",
+            ));
+        };
+        let Some(eval_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "admission-record requires an input evaluation manifest path",
+            ));
+        };
+        let Some(output_admission) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "admission-record requires an output admission path",
+            ));
+        };
+        let selector_id = args
+            .next()
+            .unwrap_or_else(|| admission::DEFAULT_ADMISSION_SELECTOR_ID.to_string());
+        return admission::write_record_path(
+            Path::new(&compatibility_report),
+            Path::new(&lineage_manifest),
+            Path::new(&candidate_slm),
+            Path::new(&candidate_manifest),
+            Path::new(&promotion_manifest),
+            Path::new(&provenance_manifest),
+            Path::new(&runtime_smoke),
+            Path::new(&eval_manifest),
+            Path::new(&output_admission),
+            &selector_id,
+        );
+    }
+    if output == "validate-admission" {
+        let Some(compatibility_report) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-admission requires an input compatibility report path",
+            ));
+        };
+        let Some(lineage_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-admission requires an input lineage path",
+            ));
+        };
+        let Some(candidate_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-admission requires a candidate .slm path",
+            ));
+        };
+        let Some(candidate_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-admission requires an input candidate manifest path",
+            ));
+        };
+        let Some(promotion_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-admission requires an input promotion path",
+            ));
+        };
+        let Some(provenance_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-admission requires an input provenance manifest path",
+            ));
+        };
+        let Some(runtime_smoke) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-admission requires an input runtime-smoke sidecar path",
+            ));
+        };
+        let Some(eval_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-admission requires an input evaluation manifest path",
+            ));
+        };
+        let Some(admission_record) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-admission requires an input admission path",
+            ));
+        };
+        return admission::validate_record_path(
+            Path::new(&compatibility_report),
+            Path::new(&lineage_manifest),
+            Path::new(&candidate_slm),
+            Path::new(&candidate_manifest),
+            Path::new(&promotion_manifest),
+            Path::new(&provenance_manifest),
+            Path::new(&runtime_smoke),
+            Path::new(&eval_manifest),
+            Path::new(&admission_record),
+        );
+    }
+    if output == "selector-registry" {
+        let Some(output_registry) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "selector-registry requires an output registry path",
+            ));
+        };
+        let admission_records: Vec<String> = args.collect();
+        return selector::write_registry_path(Path::new(&output_registry), &admission_records);
+    }
+    if output == "promotion-ledger" {
+        let Some(output_ledger) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "promotion-ledger requires an output ledger path",
+            ));
+        };
+        let admission_records: Vec<String> = args.collect();
+        return ledger::write_ledger_path(Path::new(&output_ledger), &admission_records);
+    }
+    if output == "validate-promotion-ledger" {
+        let Some(input_ledger) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-promotion-ledger requires an input ledger path",
+            ));
+        };
+        let admission_records: Vec<String> = args.collect();
+        return ledger::validate_ledger_path(Path::new(&input_ledger), &admission_records);
+    }
+    if output == "population-review" {
+        let Some(input_ledger) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "population-review requires an input ledger path",
+            ));
+        };
+        let Some(output_review) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "population-review requires an output review path",
+            ));
+        };
+        let admission_records: Vec<String> = args.collect();
+        return population::write_review_path(
+            Path::new(&input_ledger),
+            Path::new(&output_review),
+            &admission_records,
+        );
+    }
+    if output == "validate-population-review" {
+        let Some(input_ledger) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-population-review requires an input ledger path",
+            ));
+        };
+        let Some(input_review) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-population-review requires an input review path",
+            ));
+        };
+        let admission_records: Vec<String> = args.collect();
+        return population::validate_review_path(
+            Path::new(&input_ledger),
+            Path::new(&input_review),
+            &admission_records,
+        );
+    }
+    if output == "parent-pool-recipe" {
+        let Some(input_ledger) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "parent-pool-recipe requires an input ledger path",
+            ));
+        };
+        let Some(input_review) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "parent-pool-recipe requires an input review path",
+            ));
+        };
+        let Some(output_recipe) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "parent-pool-recipe requires an output recipe path",
+            ));
+        };
+        let admission_records: Vec<String> = args.collect();
+        return parent_pool::write_recipe_path(
+            Path::new(&input_ledger),
+            Path::new(&input_review),
+            Path::new(&output_recipe),
+            &admission_records,
+        );
+    }
+    if output == "validate-parent-pool-recipe" {
+        let Some(input_ledger) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-parent-pool-recipe requires an input ledger path",
+            ));
+        };
+        let Some(input_review) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-parent-pool-recipe requires an input review path",
+            ));
+        };
+        let Some(input_recipe) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-parent-pool-recipe requires an input recipe path",
+            ));
+        };
+        let admission_records: Vec<String> = args.collect();
+        return parent_pool::validate_recipe_path(
+            Path::new(&input_ledger),
+            Path::new(&input_review),
+            Path::new(&input_recipe),
+            &admission_records,
+        );
+    }
+    if output == "validate-selector-registry" {
+        let Some(input_registry) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-selector-registry requires an input registry path",
+            ));
+        };
+        let admission_records: Vec<String> = args.collect();
+        return selector::validate_registry_path(Path::new(&input_registry), &admission_records);
+    }
     if output == "manifest" {
         let Some(input) = args.next() else {
             print_usage();
@@ -89,6 +1216,62 @@ fn run() -> io::Result<()> {
             ));
         };
         return provenance::validate_manifest_path(Path::new(&input), Path::new(&manifest));
+    }
+    if output == "runtime-smoke" {
+        let Some(input) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "runtime-smoke requires an input .slm path",
+            ));
+        };
+        let Some(manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "runtime-smoke requires an input manifest path",
+            ));
+        };
+        let Some(runtime_smoke) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "runtime-smoke requires an output sidecar path",
+            ));
+        };
+        return provenance::write_runtime_smoke_for_path(
+            Path::new(&input),
+            Path::new(&manifest),
+            Path::new(&runtime_smoke),
+        );
+    }
+    if output == "validate-runtime-smoke" {
+        let Some(input) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-runtime-smoke requires an input .slm path",
+            ));
+        };
+        let Some(manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-runtime-smoke requires an input manifest path",
+            ));
+        };
+        let Some(runtime_smoke) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-runtime-smoke requires an input sidecar path",
+            ));
+        };
+        return provenance::validate_runtime_smoke_path(
+            Path::new(&input),
+            Path::new(&manifest),
+            Path::new(&runtime_smoke),
+        );
     }
     if output == "eval-template" {
         let Some(input) = args.next() else {
@@ -270,7 +1453,13 @@ fn run() -> io::Result<()> {
 
 fn print_usage() {
     eprintln!(
-        "usage: tinyrustlm-slm-pack <output.slm> [tiny-fixture|tiny-fixture-tied|tiny-fixture-q8|tiny-fixture-q4|tiny-fixture-bpe|tinylm16-f32|tinylm16-q8|tinylm16-q4]\n       tinyrustlm-slm-pack validate <input.slm>\n       tinyrustlm-slm-pack manifest <input.slm> <output.manifest> [deterministic-smoke|converted-trained]\n       tinyrustlm-slm-pack validate-manifest <input.slm> <input.manifest>\n       tinyrustlm-slm-pack eval-template <input.slm> <input.manifest> <output.eval> [assistant-quality]\n       tinyrustlm-slm-pack quality-gate <input.slm> <input.manifest> <runtime-smoke|assistant-quality> [input.eval]\n       tinyrustlm-slm-pack source-template <output-source-dir> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied]\n       tinyrustlm-slm-pack validate-source <input-source-dir>\n       tinyrustlm-slm-pack convert-trained <input-source-dir> <output.slm> [f32|q8_0|q4_0]"
+        "usage: tinyrustlm-slm-pack <output.slm> [tiny-fixture|tiny-fixture-tied|tiny-fixture-q8|tiny-fixture-q4|tiny-fixture-bpe|tinylm16-f32|tinylm16-q8|tinylm16-q4]\n       tinyrustlm-slm-pack validate <input.slm>\n       tinyrustlm-slm-pack compatibility <left-parent.slm> <right-parent.slm> [output.compat]\n       tinyrustlm-slm-pack lineage-template <input.compat> <output.lineage> <candidate-id> <operator-id> [resource-budget]\n       tinyrustlm-slm-pack validate-lineage <input.compat> <input.lineage>\n       tinyrustlm-slm-pack blend-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <output.slm> <output.operator> [parent0-weight-ppm]\n       tinyrustlm-slm-pack validate-blend-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm]\n       tinyrustlm-slm-pack validate-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack sparse-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm] [keep-ppm]\n       tinyrustlm-slm-pack validate-sparse-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.adapter> <output.adapter.manifest>\n       tinyrustlm-slm-pack validate-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest>\n       tinyrustlm-slm-pack fuse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest> <output.slm> <output.operator>\n       tinyrustlm-slm-pack validate-fuse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack candidate-manifest <input.compat> <input.lineage> <candidate.slm> <output.candidate>\n       tinyrustlm-slm-pack validate-candidate <input.compat> <input.lineage> <candidate.slm> <input.candidate>\n       tinyrustlm-slm-pack promotion-template <input.compat> <input.lineage> <candidate.slm> <input.candidate> <output.promotion> [promoter-id] [promotion-scope]\n       tinyrustlm-slm-pack validate-promotion <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion>\n       tinyrustlm-slm-pack admission-record <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion> <input.manifest> <input.runtime> <input.eval> <output.admission> [selector-id]\n       tinyrustlm-slm-pack validate-admission <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion> <input.manifest> <input.runtime> <input.eval> <input.admission>\n       tinyrustlm-slm-pack promotion-ledger <output.ledger> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-promotion-ledger <input.ledger> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack selector-registry <output.registry> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-selector-registry <input.registry> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack manifest <input.slm> <output.manifest> [deterministic-smoke|converted-trained]\n       tinyrustlm-slm-pack validate-manifest <input.slm> <input.manifest>\n       tinyrustlm-slm-pack runtime-smoke <input.slm> <input.manifest> <output.runtime>\n       tinyrustlm-slm-pack validate-runtime-smoke <input.slm> <input.manifest> <input.runtime>\n       tinyrustlm-slm-pack eval-template <input.slm> <input.manifest> <output.eval> [assistant-quality]\n       tinyrustlm-slm-pack quality-gate <input.slm> <input.manifest> <runtime-smoke|assistant-quality> [input.eval]\n       tinyrustlm-slm-pack source-template <output-source-dir> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied]\n       tinyrustlm-slm-pack validate-source <input-source-dir>\n       tinyrustlm-slm-pack convert-trained <input-source-dir> <output.slm> [f32|q8_0|q4_0]"
+    );
+    eprintln!(
+        "       tinyrustlm-slm-pack population-review <input.ledger> <output.review> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-population-review <input.ledger> <input.review> <input.admission> [...input.admission]"
+    );
+    eprintln!(
+        "       tinyrustlm-slm-pack parent-pool-recipe <input.ledger> <input.review> <output.recipe> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-parent-pool-recipe <input.ledger> <input.review> <input.recipe> <input.admission> [...input.admission]"
     );
 }
 

@@ -1,5 +1,5 @@
-profile: gguf-mirust.uai-index.v2
-updated_utc: 2026-06-25T11:30:16Z
+profile: gguf-mirust.uai-index.v3
+updated_utc: 2026-06-26T18:44:35Z
 files:
   - .uai/system-profile.uai
   - .uai/workspace-guidance.uai
@@ -12,7 +12,8 @@ files:
   - .uai/long-term-memory.uai
   - .uai/test-plan.uai
   - .uai/receiver-brief.uai
+  - .uai/taboo.uai
   - .uai/startup-packet.uai
   - .uai/operations.uai
   - .uai/next-recursive-prompt.uai
-startup_hint: Read report-synthesis.uai after architecture and coding-standards when report-derived design pressure, governance, or UAIX dogfood context matters.
+startup_hint: Read report-synthesis.uai after architecture and coding-standards when report-derived design pressure, governance, model breeding, or UAIX dogfood context matters; read taboo.uai before public site copy.

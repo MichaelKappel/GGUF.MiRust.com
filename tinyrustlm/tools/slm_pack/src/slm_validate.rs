@@ -58,6 +58,8 @@ pub(crate) struct ValidationReport {
     tensors: Vec<TensorEntry>,
     parameter_count: u64,
     quantization_label: &'static str,
+    tokenizer_checksum: u64,
+    tensor_layout_checksum: u64,
 }
 
 impl ValidationReport {
@@ -74,6 +76,11 @@ impl ValidationReport {
     /// Returns the parsed `.slm` version.
     pub(crate) fn slm_version(&self) -> u32 {
         self.header.version
+    }
+
+    /// Returns the v1 format flags field.
+    pub(crate) fn flags(&self) -> u32 {
+        self.header.flags
     }
 
     /// Returns a compact deterministic model shape string for manifests.
@@ -106,6 +113,25 @@ impl ValidationReport {
         self.quantization_label
     }
 
+    /// Returns the output-head contract label implied by the v1 flags.
+    pub(crate) fn output_contract_label(&self) -> &'static str {
+        if self.header.flags & 1 != 0 {
+            "tied-output"
+        } else {
+            "explicit-output"
+        }
+    }
+
+    /// Returns a stable checksum over the tokenizer section bytes.
+    pub(crate) fn tokenizer_checksum(&self) -> u64 {
+        self.tokenizer_checksum
+    }
+
+    /// Returns a stable checksum over logical tensor names, dtypes, ranks, shapes, and blocks.
+    pub(crate) fn tensor_layout_checksum(&self) -> u64 {
+        self.tensor_layout_checksum
+    }
+
     /// Returns the `.slm` header checksum.
     pub(crate) fn checksum(&self) -> u64 {
         self.header.checksum
@@ -130,6 +156,8 @@ pub(crate) fn validate_bytes(bytes: &[u8], path: &str) -> io::Result<ValidationR
     validate_unique_tensors(&tensors)?;
     validate_required_tensors(&header, &tensors)?;
     validate_tensor_payloads(bytes, &tensors)?;
+    let tokenizer_checksum = tokenizer_checksum(bytes, &header)?;
+    let tensor_layout_checksum = tensor_layout_checksum(&tensors);
     let parameter_count = tensors.iter().try_fold(0u64, |acc, tensor| {
         acc.checked_add(element_count(tensor))
             .ok_or_else(|| invalid("parameter count overflow"))
@@ -141,6 +169,8 @@ pub(crate) fn validate_bytes(bytes: &[u8], path: &str) -> io::Result<ValidationR
         quantization_label: quantization_label(&tensors),
         tensors,
         parameter_count,
+        tokenizer_checksum,
+        tensor_layout_checksum,
     })
 }
 
@@ -674,6 +704,51 @@ fn quantization_label(tensors: &[TensorEntry]) -> &'static str {
     }
 }
 
+fn tokenizer_checksum(bytes: &[u8], header: &SlmHeader) -> io::Result<u64> {
+    let start = as_usize(header.tokenizer_offset)?;
+    let len = as_usize(header.tokenizer_length)?;
+    let end = start
+        .checked_add(len)
+        .ok_or_else(|| invalid("tokenizer checksum range overflow"))?;
+    let section = bytes
+        .get(start..end)
+        .ok_or_else(|| invalid("tokenizer checksum range escapes the file"))?;
+    Ok(section_checksum(section, 0x746f6b656e697a65))
+}
+
+fn tensor_layout_checksum(tensors: &[TensorEntry]) -> u64 {
+    let mut sorted = tensors.iter().collect::<Vec<_>>();
+    sorted.sort_by_key(|tensor| tensor.name_hash);
+    let mut acc = 0x74656e736f722d6cu64;
+    for tensor in sorted {
+        mix_u64(&mut acc, tensor.name_hash);
+        mix_u64(&mut acc, u64::from(tensor.dtype));
+        mix_u64(&mut acc, u64::from(tensor.rank));
+        for dim in tensor.dims {
+            mix_u64(&mut acc, u64::from(dim));
+        }
+        mix_u64(&mut acc, u64::from(tensor.block_size));
+        mix_u64(&mut acc, tensor.byte_length);
+    }
+    acc
+}
+
+fn section_checksum(bytes: &[u8], seed: u64) -> u64 {
+    let mut acc = seed;
+    for (index, byte) in bytes.iter().enumerate() {
+        acc ^= u64::from(*byte).wrapping_add((index as u64) << 2);
+        acc = acc.rotate_left(9).wrapping_mul(0x100000001b3);
+    }
+    acc
+}
+
+fn mix_u64(acc: &mut u64, value: u64) {
+    for byte in value.to_le_bytes() {
+        *acc ^= u64::from(byte);
+        *acc = acc.rotate_left(11).wrapping_mul(0x100000001b3);
+    }
+}
+
 fn read_u32(bytes: &[u8], offset: usize) -> io::Result<u32> {
     let end = offset
         .checked_add(4)
@@ -757,6 +832,8 @@ mod tests {
         assert_eq!(report.header.hidden_size, 8);
         assert_eq!(report.tensors.len(), 12);
         assert_eq!(report.quantization_label, "f32");
+        assert_ne!(report.tokenizer_checksum(), 0);
+        assert_ne!(report.tensor_layout_checksum(), 0);
     }
 
     #[test]

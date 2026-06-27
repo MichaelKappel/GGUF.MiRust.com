@@ -3,36 +3,45 @@
 
   const paths = {
     wasm: "../runtime/tinyrustlm.wasm",
+    registry: "../models/selector.registry",
     models: {
       tinylm16q8: {
+        label: "TinyLM-16M q8_0",
         path: "../models/tinylm16-q8.slm",
         maxTokens: 8
       },
       tinylm16q4: {
+        label: "TinyLM-16M q4_0",
         path: "../models/tinylm16-q4.slm",
         maxTokens: 8
       },
       tinylm16f32: {
+        label: "TinyLM-16M f32",
         path: "../models/tinylm16-f32.slm",
         maxTokens: 8
       },
       tinyf32: {
+        label: "Tiny Fixture f32",
         path: "../models/tiny-test-model.slm",
         maxTokens: 16
       },
       tinytied: {
+        label: "Tiny Fixture tied-output f32",
         path: "../models/tiny-test-model-tied.slm",
         maxTokens: 16
       },
       tinyq8: {
+        label: "Tiny Fixture q8_0",
         path: "../models/tiny-test-model-q8.slm",
         maxTokens: 16
       },
       tinyq4: {
+        label: "Tiny Fixture q4_0",
         path: "../models/tiny-test-model-q4.slm",
         maxTokens: 16
       },
       tinybpe: {
+        label: "Tiny Fixture BPE f32",
         path: "../models/tiny-test-model-bpe.slm",
         maxTokens: 16
       }
@@ -49,6 +58,7 @@
     lastMeasuredTokens: 0,
     modelLoadSequence: 0,
     modelManifest: null,
+    selectorRegistry: null,
     hasContext: false,
     messages: []
   };
@@ -270,6 +280,90 @@
     return fields && fields[key] ? fields[key] : "unavailable";
   }
 
+  function renderModelOptions(models) {
+    const selected = el.modelSelect.value;
+    el.modelSelect.replaceChildren();
+    let firstKey = "";
+    for (const key of Object.keys(models)) {
+      const option = document.createElement("option");
+      option.value = key;
+      option.textContent = models[key].label || key;
+      el.modelSelect.append(option);
+      if (!firstKey) {
+        firstKey = key;
+      }
+    }
+    el.modelSelect.value = models[selected] ? selected : firstKey;
+  }
+
+  function isSafeRegistryModelPath(value) {
+    if (!value || !value.startsWith("../models/") || !value.endsWith(".slm")) {
+      return false;
+    }
+    if (value.includes("\\") || value.includes("://") || value.includes("//")) {
+      return false;
+    }
+    const rest = value.slice("../models/".length);
+    return rest.split("/").every((part) => part && part !== "." && part !== "..");
+  }
+
+  function registryModelEntries(fields) {
+    if (!fields || fields.tinyrustlm_selector_registry_version !== "1") {
+      return null;
+    }
+    if (fields.registry_status !== "admitted-records-only") {
+      return null;
+    }
+    const entryCount = Number.parseInt(fields.entry_count || "0", 10);
+    if (!Number.isInteger(entryCount) || entryCount < 1 || entryCount > 64) {
+      return null;
+    }
+    const models = Object.create(null);
+    for (let index = 0; index < entryCount; index += 1) {
+      const prefix = `entry.${index}`;
+      if (fields[`${prefix}.selector_status`] !== "admitted") {
+        return null;
+      }
+      const modelPath = fields[`${prefix}.model_path`];
+      if (!isSafeRegistryModelPath(modelPath)) {
+        return null;
+      }
+      const candidateId = fields[`${prefix}.candidate_id`];
+      if (!candidateId) {
+        return null;
+      }
+      if (models[candidateId]) {
+        return null;
+      }
+      const maxTokens = clampInteger(fields[`${prefix}.max_tokens`], 1, 512, 8);
+      models[candidateId] = {
+        label: fields[`${prefix}.display_name`] || candidateId,
+        path: modelPath,
+        maxTokens
+      };
+    }
+    return models;
+  }
+
+  async function loadSelectorRegistry() {
+    try {
+      const response = await fetch(paths.registry);
+      if (!response.ok) {
+        return;
+      }
+      const fields = parseManifest(await response.text());
+      const models = registryModelEntries(fields);
+      if (!models) {
+        return;
+      }
+      paths.models = models;
+      state.selectorRegistry = fields;
+      renderModelOptions(paths.models);
+    } catch (_error) {
+      state.selectorRegistry = null;
+    }
+  }
+
   function renderProvenance(status, fields, isError) {
     setText(el.provenanceState, status, isError);
     el.provenanceSourceKind.textContent = manifestValue(fields, "source_kind");
@@ -395,6 +489,7 @@
         renderDiagnostics();
         return;
       }
+      await loadSelectorRegistry();
       await loadSelectedModel();
     } catch (error) {
       setText(el.runtimeStatus, "Boot failed", true);

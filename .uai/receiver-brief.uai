@@ -1,6 +1,6 @@
-profile: gguf-mirust.receiver-brief.v1
-updated_utc: 2026-06-25T00:00:00Z
-brief: GGUF.MiRust.com now contains TinyRustLM, a zero-dependency Rust/WASM browser-local SLM runtime and UI. Treat trained-model quality, GGUF compatibility, Mini Browser work, and broader orchestration as pending until source and tests prove them.
+profile: gguf-mirust.receiver-brief.v2
+updated_utc: 2026-06-26T18:44:35Z
+brief: GGUF.MiRust.com now contains TinyRustLM, a zero-dependency Rust/WASM browser-local SLM runtime and UI. Model breeding is durable research and future candidate-lineage pressure until source and tests prove concrete runtime support.
 must_read:
   - AGENTS.md
   - workspace.uai
@@ -8,9 +8,13 @@ must_read:
   - .uai/file-handoff.uai
   - .uai/long-term-memory.uai
   - .uai/test-plan.uai
+  - .uai/taboo.uai
   - tinyrustlm/README.md
   - wiki/gguf-mirust/reports/report-intake-index-2026-06-25.md
+  - wiki/gguf-mirust/reports/report-intake-index-2026-06-26.md
+  - wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
 do_not:
   - Create agent-file-handoff/Archive/ as default memory.
   - Store durable reports inside .uai/long-term-memory.uai.
   - Claim trained-quality model behavior, GGUF import, Mini Browser automation, WebGPU acceleration, or remote inference support from report memory alone.
+  - Claim model-breeding runtime operators, LoRA support, adapter application, or population training until implementation and tests exist.

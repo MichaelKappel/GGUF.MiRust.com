@@ -1,6 +1,6 @@
 # GGUF.MiRust.com Raw Evidence Manifest
 
-Reviewed: 2026-06-25
+Reviewed: 2026-06-26
 
 ## Report Intake 2026-06-25
 
@@ -41,3 +41,46 @@ Source-site removal or keep-active reason: source handoff copies may be removed 
 | Teleodynamics is a theoretical framework .md | report-intake-2026-06-25/Teleodynamics is a theoretical framework .md | AED5AC457EB29A648B960E4201068E5BC278A6BDB8ED8E82E18968AA808C50E6 |
 | Tiny Language Models Architecture.md | report-intake-2026-06-25/Tiny Language Models Architecture.md | 2769072DA2BB333D953F801C73C126E716EA685ABBBE6290631D0368281FA5EE |
 | To run a TinyLM-16M transformer in-browser.md | report-intake-2026-06-25/To run a TinyLM-16M transformer in-browser.md | BACB21BCF5F15DB102044311256A921014DE9E73B3C43EFFC4F17AEDA649B92C |
+
+## Report Intake 2026-06-26
+
+Source site: `agent-file-handoff/Improvement/`
+
+Destination: `raw/gguf-mirust/report-intake-2026-06-26/`
+
+Disposition: preserved-to-durable-memory and synthesized into `wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md`.
+
+Review state: reviewed into thematic long-term memory.
+
+Promotion status: local durable memory, planned pending publication through `https://aiwikis.org/gguf-mirust/`.
+
+Source-site removal or keep-active reason: source handoff copies may be removed after the intake ledger is updated because exact originals are preserved here.
+
+| Source file | Destination file | SHA256 |
+| --- | --- | --- |
+| 4Fs and code beadingmodel breeding.md | report-intake-2026-06-26/4Fs and code beadingmodel breeding.md | C9B395CF265EA6D4BA17BD7087A72AC6B18C5FA7896E03E443ABE6D1E3A83545 |
+| Adaptable, Resource-Efficient AI Ecosystems.md | report-intake-2026-06-26/Adaptable, Resource-Efficient AI Ecosystems.md | 41BCB67FEEB7018C987C47BE89E1BABFFF1D9274694385B70098EBA940091F93 |
+| Aggressive Mutualism.md | report-intake-2026-06-26/Aggressive Mutualism.md | 91DD6DA9CEC06068698AFA0107283467DF5AFF22DF2928DE445E7611478FCB0C |
+| AI Code Beading and Model Breeding.md | report-intake-2026-06-26/AI Code Beading and Model Breeding.md | 4E3F836C01BF7B801BD32BF8AD560AB2DD481AB0C5587F5E168096B3127B6D68 |
+| AI Evolution_ Small Models, Big Ecology.md | report-intake-2026-06-26/AI Evolution_ Small Models, Big Ecology.md | FBBCC2EBBDB3986DF84D4499557F59FC7C76677EFA7616DF159BD199AF98DB0E |
+| AI Model Merging Architectures Explained.md | report-intake-2026-06-26/AI Model Merging Architectures Explained.md | 00AF4011D1AA1C092BDA79C92CB08FCEC5F2375A0573CFAB22964113AA26FD9A |
+| AI's Cosmic Legacy and Survival.md | report-intake-2026-06-26/AI's Cosmic Legacy and Survival.md | 1CA83C0A56258E2003C788188334760A2D60E708396AEDF02F181926BCFC0485 |
+| AI's Perfect Evolutionary Being.md | report-intake-2026-06-26/AI's Perfect Evolutionary Being.md | D513358C57DC051A37F4143F5BA6BFA4FFD0D211162BAE79D94A3C60B1BEC31A |
+| Designing the Perfect Evolutionary AI System.md | report-intake-2026-06-26/Designing the Perfect Evolutionary AI System.md | 9E128AFFD9B4820DB3D00F6341C1009E213E1942A9246CC20F0F15A723101090 |
+| Designing the Perfect Evolutionary AI.md | report-intake-2026-06-26/Designing the Perfect Evolutionary AI.md | 99B36CD92B99D7B1E52A412200FA3E2BEA61BEC351AC4A548F92EA16F366DF04 |
+| Evolution, Legacy, and Societal Evaluation.md | report-intake-2026-06-26/Evolution, Legacy, and Societal Evaluation.md | 3A89B96DE48D6BB349868BB80441544E60E5D3633B831D242ED0FE181D10759A |
+| Evolutionary and Psychological Motivations.md | report-intake-2026-06-26/Evolutionary and Psychological Motivations.md | F7ABC73E307042E68819A57C0C45A0DEC8A28998FC0685A203B82BF11D014F30 |
+| Human drive – the intrinsic motivation to survive.md | report-intake-2026-06-26/Human drive – the intrinsic motivation to survive.md | 7DC69C173147A3AC77E9B0574B7E522D0E9474D6892CD176EA4803F1B0968D3E |
+| lightweight multi-model LLM system in Rust.md | report-intake-2026-06-26/lightweight multi-model LLM system in Rust.md | 0A098D4C95ADC2778F65A2AD53245645C3761304B8C51366AF744AD774C1B60A |
+| Model merging refers to combining multiple trained neural.md | report-intake-2026-06-26/Model merging refers to combining multiple trained neural.md | 1E47985328FD767905C0B8A81BFAD812813FDD671843778DD3EC81FC5D590358 |
+| Mutualist Persistence.md | report-intake-2026-06-26/Mutualist Persistence.md | 994958596FF14D98C3AB9EA7FEFB5B22653689E4F76AEB0E473E90D6EDC7E22B |
+| Perfect Evolutionary AI.md | report-intake-2026-06-26/Perfect Evolutionary AI.md | A5100FF2A285103814FCED49934FADADA842B9AFBB704FC45547BDE8A0364171 |
+| powerful AI systems will tend to develop instrumental drives.md | report-intake-2026-06-26/powerful AI systems will tend to develop instrumental drives.md | 81277A7101F3716FD470C3569B4F0A6F3611F7210454F9F8E0C9DB5CC4D86EC4 |
+| Rust Tiny LLM Model Breeding Pipeline.md | report-intake-2026-06-26/Rust Tiny LLM Model Breeding Pipeline.md | 71AE9B36F84EACC85545F1143C0576B1501A1CA98988645D5A3DCF6874E80A8F |
+| Survival_ Drive, Strive, and Thrive.md | report-intake-2026-06-26/Survival_ Drive, Strive, and Thrive.md | E45E0F1D08B11939AF4EAE8D1C07BABF15B692F33B2E83891360D27E4BD73107 |
+| Teleodynamic Evolution of AI Ecosystems.md | report-intake-2026-06-26/Teleodynamic Evolution of AI Ecosystems.md | FD28C1844C1F6B04FA6773EDF28F77E2C3B7D347C01524D0A15A3A6A2AC3CECB |
+| The 4Fs framework—Fast, Flexible, Frugal, Federated.md | report-intake-2026-06-26/The 4Fs framework—Fast, Flexible, Frugal, Federated.md | BAAACDFDDF387EEC003F7856018FD5FA5651FD62A6C416E30FB233E979DB5ADA |
+| The rise of on-device, tiny language models part 2.md | report-intake-2026-06-26/The rise of on-device, tiny language models part 2.md | 8C29B3464D077F898E57834E38E31F55ECD4B48002E76EB4B3487F81D24DE55A |
+| The rise of on-device, tiny language models.md | report-intake-2026-06-26/The rise of on-device, tiny language models.md | BA9444DF20FD357747BF320B125613E657B3124A2436CA5E82ECC33F317E1CCC |
+| The terms 4Fs and code beading model breeding.md | report-intake-2026-06-26/The terms 4Fs and code beading model breeding.md | C9B395CF265EA6D4BA17BD7087A72AC6B18C5FA7896E03E443ABE6D1E3A83545 |
+| Tiny-LLM Adapters and LoRA.md | report-intake-2026-06-26/Tiny-LLM Adapters and LoRA.md | 7ECA22D6E00B6BBF0AE5A5CF99C0CC2BECAE3AEC6461D4DCA028C36FFF23889A |

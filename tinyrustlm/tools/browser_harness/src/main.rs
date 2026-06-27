@@ -278,6 +278,16 @@ fn audit_static_contract(root: &Path, checks: &mut Vec<String>) -> Result<(), Ha
     require_contains("app.js local fetch", &js, "fetch(")?;
     require_contains("app.js manifest fetch", &js, "model.path")?;
     require_contains("app.js manifest fetch", &js, ".manifest")?;
+    require_contains(
+        "app.js selector registry fetch",
+        &js,
+        "../models/selector.registry",
+    )?;
+    require_contains(
+        "app.js selector registry status",
+        &js,
+        "admitted-records-only",
+    )?;
     for export in REQUIRED_JS_EXPORTS {
         require_contains("app.js wasm export", &js, export)?;
     }

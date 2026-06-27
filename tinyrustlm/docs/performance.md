@@ -18,7 +18,7 @@ The current TinyLM-16M f32 file is about 68 MB. The current TinyLM-16M q8_0 file
 
 ## Failure Cases
 
-Context overflow, scratch arena exhaustion, output buffer overflow, non-finite softmax sums, and malformed quant blocks are correctness failures, not performance warnings.
+Context overflow, scratch arena exhaustion, output buffer overflow, non-finite softmax sums, and malformed quant blocks are correctness failures, not performance metrics.
 
 ## Validation Rules
 

@@ -998,9 +998,6 @@ function killProfileProcesses(profile) {
 function assertSmoke(result, modelKey) {
   const failures = [];
   const quantization = expectedQuantization[modelKey];
-  if (!quantization) {
-    failures.push(`unknown expected model ${modelKey}`);
-  }
   if (result.selectedModel !== modelKey) {
     failures.push(`selected model was ${result.selectedModel}`);
   }

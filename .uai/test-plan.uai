@@ -1,5 +1,5 @@
 profile: gguf-mirust.test-plan.v2
-updated_utc: 2026-06-25T13:59:11Z
+updated_utc: 2026-06-27T02:47:09Z
 available_now:
   - node --check tinyrustlm/app/app.js passed after browser Step Token edits.
   - node --check tinyrustlm/tools/static-server.js passed.
@@ -12,6 +12,12 @@ toolchain_now_available:
   - C:\Users\AI\.cargo\bin\rustc.exe
   - C:\Users\AI\.cargo\bin\rustup.exe
 completed_toolchain_checks:
+  - 2026-06-27 cargo fmt --all -- --check, cargo test -p tinyrustlm-slm-pack population:: with 6 population-review tests, cargo test -p tinyrustlm-slm-pack with 102 tests, cargo test --workspace with 176 tests, strict slm_pack rustdoc, cargo build -p tinyrustlm-slm-pack, CLI promotion-ledger-population-review-validate-population-review chain, dependency-section scan, public-copy scan, and git diff --check line-ending-only passed after adding population-review and validate-population-review.
+  - 2026-06-27 cargo fmt --all, cargo fmt --all -- --check, cargo test -p tinyrustlm-slm-pack sparse_delta:: with 6 sparse-delta tests, cargo test -p tinyrustlm-slm-pack with 96 tests, cargo test --workspace with 170 tests, strict slm_pack rustdoc, cargo build -p tinyrustlm-slm-pack, CLI q8 compatibility-lineage-sparse-delta-validate-sparse-delta-candidate-manifest-validate-candidate chain, dependency-section scan, public-copy scan, and git diff --check line-ending-only passed after adding sparse-delta-candidate and validate-sparse-delta-candidate.
+  - 2026-06-27 cargo fmt --all, cargo fmt --all -- --check, cargo test -p tinyrustlm-slm-pack adapter:: with 9 adapter tests, cargo test -p tinyrustlm-slm-pack with 90 tests, cargo test --workspace with 164 tests, strict slm_pack rustdoc, CLI compatibility-lineage-adapter-write-validate-fuse-validate chain, dependency-section scan, public-copy scan, git diff --check line-ending-only, and cargo build -p tinyrustlm-slm-pack passed after adding fuse-adapter-delta and validate-fuse-adapter-delta.
+  - 2026-06-27 cargo fmt --all, cargo fmt --all -- --check, cargo test -p tinyrustlm-slm-pack with 86 tests, cargo test --workspace with 160 tests, strict slm_pack rustdoc, CLI q8 compatibility-lineage-adapter-write-validate chain, dependency-section scan, public-doc taboo scan, and git diff --check line-ending-only passed after adding adapter-delta and validate-adapter-delta.
+  - 2026-06-27 cargo fmt --all, cargo fmt --all -- --check, cargo test -p tinyrustlm-slm-pack with 81 tests, cargo test --workspace with 155 tests, strict slm_pack rustdoc, CLI q8 compatibility-lineage-delta-validate-delta-validate-candidate chain, CLI invalid delta weight refusal, dependency-section scan, public-doc taboo scan, and git diff --check line-ending-only passed after adding delta-candidate and validate-delta-candidate.
+  - 2026-06-27 cargo fmt --all, cargo fmt --all -- --check, cargo test -p tinyrustlm-slm-pack with 76 tests, cargo test --workspace with 150 tests, strict slm_pack rustdoc, CLI converted-trained q8 compatibility-lineage-candidate-promotion-runtime-eval-admission-ledger chain, CLI promotion-ledger drift refusal, dependency-section scan, public-doc taboo scan, and git diff --check line-ending-only passed after adding promotion-ledger and validate-promotion-ledger.
   - 2026-06-25 node --check tinyrustlm/app/app.js, node --check tinyrustlm/tools/browser-smoke.js, cargo fmt --all -- --check, cargo test --workspace with 102 tests, cargo run -p tinyrustlm-browser-harness -- tinyrustlm, focused browser-smoke step-token, and tools/vs/Test-TinyRustLM.ps1 -BrowserSmoke -BrowserSmokePort 18460 -PortSearchLimit 5 passed after adding the browser Step Token control.
   - 2026-06-25 cargo fmt --all -- --check, cargo test --workspace, strict rustdoc gates, WASM rebuild/copy, WASM ABI smoke, Rust browser harness, and tools/vs/Test-TinyRustLM.ps1 passed after output-buffer hardening; workspace coverage is 102 tests with 63 runtime tests.
   - 2026-06-25 cargo fmt --all -- --check, node --check tinyrustlm/app/app.js, node --check tinyrustlm/tools/browser-smoke.js, node --check tinyrustlm/tools/wasm-abi-smoke.js, and tools/vs/Test-TinyRustLM.ps1 parse check passed after tied-output trained-source conversion work.
@@ -52,11 +58,11 @@ completed_toolchain_checks:
   - tools/vs/Test-TinyRustLM.ps1 parse check passed after PerformanceSoak parameters were added.
   - Focused Run-TinyRustLM busy-port fallback passed from unrelated occupied 18180 to free 18181.
   - Focused Run-TinyRustLM verified-server reuse passed on 18182 without starting a second server.
-  - Focused tools/vs/Test-TinyRustLM.ps1 -PerformanceSoak -PerformanceSoakCycles 1 -PerformanceSoakTokens 1 -BrowserSmokePort 18291 -PortSearchLimit 5 passed through Rust local-server startup; the browser harness clamps soak minimums to two cycles and two tokens, then completed with only a temporary profile cleanup warning.
+  - Focused tools/vs/Test-TinyRustLM.ps1 -PerformanceSoak -PerformanceSoakCycles 1 -PerformanceSoakTokens 1 -BrowserSmokePort 18291 -PortSearchLimit 5 passed through Rust local-server startup; the browser harness clamps soak minimums to two cycles and two tokens, then completed with only a temporary profile cleanup notice.
   - cargo run -p tinyrustlm-browser-harness -- tinyrustlm passed the static app contract with 8 checks, including Rust WASM export-definition crawl.
   - cargo run -p tinyrustlm-browser-harness -- tinyrustlm --http http://127.0.0.1:18315/app/ passed the loopback route/content-type contract with 8 checks against the Rust local server.
-  - tools/vs/Test-TinyRustLM.ps1 -PerformanceSoak -PerformanceSoakCycles 2 -PerformanceSoakTokens 2 -BrowserSmokePort 18320 -PortSearchLimit 5 passed after Rust browser harness integration; it exercised the default static harness and server-backed --http harness path, then completed with only a temporary profile cleanup warning.
-  - tools/vs/Test-TinyRustLM.ps1 -BrowserSmoke -BrowserSmokePort 18340 -PortSearchLimit 5 passed after local transcript UI work, including q8/q4 transcript assertions and desktop/mobile ui-audit Clear-button state; only temporary Chrome profile cleanup warnings remained.
+  - tools/vs/Test-TinyRustLM.ps1 -PerformanceSoak -PerformanceSoakCycles 2 -PerformanceSoakTokens 2 -BrowserSmokePort 18320 -PortSearchLimit 5 passed after Rust browser harness integration; it exercised the default static harness and server-backed --http harness path, then completed with only a temporary profile cleanup notice.
+  - tools/vs/Test-TinyRustLM.ps1 -BrowserSmoke -BrowserSmokePort 18340 -PortSearchLimit 5 passed after local transcript UI work, including q8/q4 transcript assertions and desktop/mobile ui-audit Clear-button state; only temporary Chrome profile cleanup notices remained.
   - node tinyrustlm/tools/browser-smoke.js http://127.0.0.1:18350/app/ 9240 tinylm16q8 ui-audit passed after adding the Clear-click cleared transcript snapshot.
 pending_build_artifact_checks:
   - none_for_current_source_slice
