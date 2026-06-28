@@ -3,7 +3,7 @@ title: GGUF.MiRust.com Source Memory Guide
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/source-memory-guide/
 status: planned_pending_publication
-reviewed_utc: 2026-06-28T15:30:00Z
+reviewed_utc: 2026-06-28T20:20:00Z
 ---
 
 # GGUF.MiRust.com Source Memory Guide
@@ -50,6 +50,8 @@ For combined selector cycle proof, load `reports/browser-combined-selector-cycle
 
 For combined selector route-soak proof, load `reports/browser-combined-selector-route-soak-memory-2026-06-28.md` when `combined-selector-route-soak`, repeated generated self-assembly route counts, no-store local fetch behavior, or longer q4_0/q8_0/f32 selector pressure is in scope.
 
+For combined selector extended route-soak proof, load `reports/browser-combined-selector-extended-route-soak-memory-2026-06-28.md` when `combined-selector-route-extended-soak`, five-cycle q4_0/q8_0/f32 route pressure, fifteen generated assemblies, path-flexible total-budget checks, or extended route-count proof is in scope.
+
 For combined selector reload-soak proof, load `reports/browser-combined-selector-reload-soak-memory-2026-06-28.md` when `combined-selector-reload-soak`, registry default boot selection, fresh page-lifetime self-assembly, or reload route-count proof is in scope.
 
 For browser module-plan profile proof, load `reports/browser-module-plan-profile-memory-2026-06-28.md` when `browser-constrained-v1`, selector-to-receipt self-assembly profile matching, generated module-plan profile fields, or `module-plan-profile-drift` is in scope.
@@ -63,6 +65,10 @@ For browser module-plan origin-policy proof, load `reports/browser-module-plan-o
 For browser module-plan runtime scratch proof, load `reports/browser-module-plan-runtime-scratch-memory-2026-06-28.md` when `module_plan_runtime_scratch_byte_budget`, Module Plan `Scratch Budget`, browser runtime scratch envelopes, or `module-plan-runtime-scratch-drift` is in scope.
 
 For browser module-plan total budget proof, load `reports/browser-module-plan-total-budget-memory-2026-06-28.md` when `module_plan_total_byte_budget`, Module Plan `Total Budget`, exact module-plan self-assembly totals, or `module-plan-total-budget-drift` is in scope.
+
+For browser module-plan WASM memory proof, load `reports/browser-module-plan-wasm-memory-memory-2026-06-28.md` when `module_plan_wasm_memory_initial_pages`, Module Plan `WASM Pages`, pre-init exported WASM memory page checks, or `module-plan-wasm-memory-drift` is in scope.
+
+For browser module-plan count drift proof, load `reports/browser-module-plan-count-drift-memory-2026-06-28.md` when selector `module_plan_module_count`, receipt `module_count`, module-plan cardinality, or `module-plan-count-drift` is in scope.
 
 For browser assembly trace proof, load `reports/browser-assembly-trace-memory-2026-06-28.md` when the Module Plan Trace row, browser load checkpoints, generated all-root trace assertion, or ready-state sequencing is in scope.
 

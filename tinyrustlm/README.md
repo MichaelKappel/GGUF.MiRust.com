@@ -286,18 +286,22 @@ cargo run -p tinyrustlm-slm-pack -- browser-multi-parent-bundle .\target\browser
 cargo run -p tinyrustlm-local-server -- .\target\browser-served-multi-parent-all\tinyrustlm 8095
 node .\tinyrustlm\tools\browser-smoke.js http://127.0.0.1:8095/app/ 9246 multi-parent-sign-merge-q4 combined-selector-cycle 2
 node .\tinyrustlm\tools\browser-smoke.js http://127.0.0.1:8095/app/ 9247 multi-parent-sign-merge-q4 combined-selector-route-soak 3
-node .\tinyrustlm\tools\browser-smoke.js http://127.0.0.1:8095/app/ 9248 multi-parent-sign-merge-q4 module-plan-profile-drift
-node .\tinyrustlm\tools\browser-smoke.js http://127.0.0.1:8095/app/ 9249 multi-parent-sign-merge-q4 module-plan-execution-profile-drift
-node .\tinyrustlm\tools\browser-smoke.js http://127.0.0.1:8095/app/ 9250 multi-parent-sign-merge-q4 module-plan-fetch-policy-drift
-node .\tinyrustlm\tools\browser-smoke.js http://127.0.0.1:8095/app/ 9251 multi-parent-sign-merge-q4 module-plan-origin-policy-drift
-node .\tinyrustlm\tools\browser-smoke.js http://127.0.0.1:8095/app/ 9252 multi-parent-sign-merge-q4 module-plan-runtime-scratch-drift
+node .\tinyrustlm\tools\browser-smoke.js http://127.0.0.1:8095/app/ 9248 multi-parent-sign-merge-q4 combined-selector-route-extended-soak
+node .\tinyrustlm\tools\browser-smoke.js http://127.0.0.1:8095/app/ 9249 multi-parent-sign-merge-q4 module-plan-profile-drift
+node .\tinyrustlm\tools\browser-smoke.js http://127.0.0.1:8095/app/ 9250 multi-parent-sign-merge-q4 module-plan-execution-profile-drift
+node .\tinyrustlm\tools\browser-smoke.js http://127.0.0.1:8095/app/ 9251 multi-parent-sign-merge-q4 module-plan-fetch-policy-drift
+node .\tinyrustlm\tools\browser-smoke.js http://127.0.0.1:8095/app/ 9252 multi-parent-sign-merge-q4 module-plan-origin-policy-drift
+node .\tinyrustlm\tools\browser-smoke.js http://127.0.0.1:8095/app/ 9253 multi-parent-sign-merge-q4 module-plan-runtime-scratch-drift
+node .\tinyrustlm\tools\browser-smoke.js http://127.0.0.1:8095/app/ 9254 multi-parent-sign-merge-q4 module-plan-count-drift
 ```
 
 The combined selector cycle keeps one generated `all` root open, repeats q4_0/q8_0/f32 selection, releases the prior WASM model before each post-initial assembly, and proves each new entry validates and applies its ADP1/ASP1/ALR1 stack before generation.
 The route-soak smoke also requires each generated module-plan, model, manifest, assembly, evidence, adapter-family, adapter manifest, and ADP1/ASP1/ALR1 stack route to be requested once per pass; the app fetches local assembly resources with no-store cache behavior for that proof.
+The extended route-soak smoke raises that browser proof to five q4_0/q8_0/f32 cycles, so one page must complete fifteen generated assemblies with fresh route requests.
 The profile-drift smoke keeps the selector checksum aligned with a mutated module-plan receipt and proves the browser stops before generated model or adapter routes when `module_plan_profile` is not `browser-constrained-v1`.
 The execution-profile drift smoke keeps the selector checksum aligned with a mutated module-plan receipt and proves the browser stops before generated model or adapter routes when `module_plan_execution_profile` is not `single-threaded-wasm-local-v1`.
 The fetch-policy drift smoke keeps the selector checksum aligned with a mutated module-plan receipt and proves the browser stops before generated model or adapter routes when `module_plan_fetch_policy` is not `local-no-store-v1`.
+The count-drift smoke keeps the selector checksum aligned with a mutated module-plan receipt and proves the browser stops before generated model or adapter routes when receipt `module_count` diverges from selector `module_plan_module_count`.
 
 WASM ABI boundary smoke:
 

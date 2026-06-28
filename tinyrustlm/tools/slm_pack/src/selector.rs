@@ -42,6 +42,7 @@ const MODULE_PLAN_PROFILE: &str = "browser-constrained-v1";
 const MODULE_PLAN_EXECUTION_PROFILE: &str = "single-threaded-wasm-local-v1";
 const MODULE_PLAN_FETCH_POLICY: &str = "local-no-store-v1";
 const MODULE_PLAN_ORIGIN_POLICY: &str = "same-origin-loopback-local-v1";
+const MODULE_PLAN_WASM_MEMORY_INITIAL_PAGES: u64 = 17;
 const MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET: u64 = 64 * 1024;
 const MODULE_PLAN_TOTAL_BYTE_BUDGET_LIMIT: u64 = SELECTOR_MODEL_BYTE_BUDGET
     + ADAPTER_AUTO_APPLY_BYTE_BUDGET
@@ -91,6 +92,7 @@ const MODULE_PLAN_KEY_SUFFIXES: &[&str] = &[
     "module_plan_execution_profile",
     "module_plan_fetch_policy",
     "module_plan_origin_policy",
+    "module_plan_wasm_memory_initial_pages",
     "module_plan_model_byte_budget",
     "module_plan_adapter_byte_budget",
     "module_plan_runtime_scratch_byte_budget",
@@ -180,6 +182,7 @@ pub(crate) struct RegistryModulePlanRoute {
     pub(crate) execution_profile: String,
     pub(crate) fetch_policy: String,
     pub(crate) origin_policy: String,
+    pub(crate) wasm_memory_initial_pages: u64,
     pub(crate) model_byte_budget: u64,
     pub(crate) adapter_byte_budget: u64,
     pub(crate) runtime_scratch_byte_budget: u64,
@@ -681,6 +684,11 @@ pub(crate) fn build_registry_text_with_module_plan_routes(
                 &mut text,
                 &format!("{prefix}.module_plan_origin_policy"),
                 &module_plan.origin_policy,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_wasm_memory_initial_pages"),
+                &module_plan.wasm_memory_initial_pages.to_string(),
             );
             push_line(
                 &mut text,
@@ -1226,6 +1234,21 @@ fn module_plan_routes_from_registry(
                 .to_string(),
             origin_policy: require_key(fields, &format!("{prefix}.module_plan_origin_policy"))?
                 .to_string(),
+            wasm_memory_initial_pages: {
+                let value = require_key(
+                    fields,
+                    &format!("{prefix}.module_plan_wasm_memory_initial_pages"),
+                )?;
+                let pages = value.parse::<u64>().map_err(|_| {
+                    invalid("selector registry module plan wasm memory initial pages is invalid")
+                })?;
+                if pages == 0 || pages.to_string() != value {
+                    return Err(invalid(
+                        "selector registry module plan wasm memory initial pages is invalid",
+                    ));
+                }
+                pages
+            },
             model_byte_budget: parse_module_plan_byte_budget(
                 fields,
                 &format!("{prefix}.module_plan_model_byte_budget"),
@@ -1451,6 +1474,7 @@ pub(crate) fn validate_registry_assembly_route(route: &RegistryAssemblyRoute) ->
     Ok(())
 }
 
+/// Validates the selector-side module-plan envelope before it is mirrored into browser intake.
 pub(crate) fn validate_registry_module_plan_route(
     route: &RegistryModulePlanRoute,
 ) -> io::Result<()> {
@@ -1497,6 +1521,11 @@ pub(crate) fn validate_registry_module_plan_route(
     if route.origin_policy != MODULE_PLAN_ORIGIN_POLICY {
         return Err(invalid(
             "selector registry module plan origin policy is invalid",
+        ));
+    }
+    if route.wasm_memory_initial_pages != MODULE_PLAN_WASM_MEMORY_INITIAL_PAGES {
+        return Err(invalid(
+            "selector registry module plan wasm memory initial pages is invalid",
         ));
     }
     if route.model_byte_budget == 0 || route.model_byte_budget > SELECTOR_MODEL_BYTE_BUDGET {
@@ -2191,6 +2220,7 @@ mod tests {
         assert!(
             registry.contains("entry.0.module_plan_origin_policy=same-origin-loopback-local-v1")
         );
+        assert!(registry.contains("entry.0.module_plan_wasm_memory_initial_pages=17"));
         assert!(registry.contains(&format!(
             "entry.0.module_plan_model_byte_budget={}",
             tiny_fixture_f32_bytes().len()
@@ -2449,6 +2479,41 @@ mod tests {
 
         assert_eq!(error.kind(), io::ErrorKind::InvalidData);
         assert!(error.to_string().contains("runtime scratch byte budget"));
+    }
+
+    #[test]
+    fn rejects_module_plan_wasm_memory_initial_pages_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_wasm_memory_initial_pages=17",
+            "entry.0.module_plan_wasm_memory_initial_pages=18",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("module plan wasm memory initial pages"));
     }
 
     #[test]
@@ -2862,6 +2927,7 @@ mod tests {
             execution_profile: MODULE_PLAN_EXECUTION_PROFILE.to_string(),
             fetch_policy: MODULE_PLAN_FETCH_POLICY.to_string(),
             origin_policy: MODULE_PLAN_ORIGIN_POLICY.to_string(),
+            wasm_memory_initial_pages: MODULE_PLAN_WASM_MEMORY_INITIAL_PAGES,
             model_byte_budget: tiny_fixture_f32_bytes().len() as u64,
             adapter_byte_budget: ADAPTER_AUTO_APPLY_BYTE_BUDGET,
             runtime_scratch_byte_budget: MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET,

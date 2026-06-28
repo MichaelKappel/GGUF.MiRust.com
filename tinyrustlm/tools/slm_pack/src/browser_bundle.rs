@@ -42,6 +42,7 @@ const MODULE_PLAN_PROFILE: &str = "browser-constrained-v1";
 const MODULE_PLAN_EXECUTION_PROFILE: &str = "single-threaded-wasm-local-v1";
 const MODULE_PLAN_FETCH_POLICY: &str = "local-no-store-v1";
 const MODULE_PLAN_ORIGIN_POLICY: &str = "same-origin-loopback-local-v1";
+const MODULE_PLAN_WASM_MEMORY_INITIAL_PAGES: u64 = 17;
 const MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET: u64 = 64 * 1024;
 const SOURCE_KIND: &str = "converted-trained";
 const APP_FILES: [&str; 3] = ["index.html", "app.css", "app.js"];
@@ -465,6 +466,12 @@ fn write_bundle_module_plan_receipt(
         "module_plan_origin_policy",
         MODULE_PLAN_ORIGIN_POLICY,
     );
+    // The page count mirrors the runtime's exported linear-memory size before init.
+    push_line(
+        &mut text,
+        "module_plan_wasm_memory_initial_pages",
+        &MODULE_PLAN_WASM_MEMORY_INITIAL_PAGES.to_string(),
+    );
     push_line(
         &mut text,
         "module_plan_model_byte_budget",
@@ -641,6 +648,7 @@ fn write_bundle_module_plan_receipt(
         execution_profile: MODULE_PLAN_EXECUTION_PROFILE.to_string(),
         fetch_policy: MODULE_PLAN_FETCH_POLICY.to_string(),
         origin_policy: MODULE_PLAN_ORIGIN_POLICY.to_string(),
+        wasm_memory_initial_pages: MODULE_PLAN_WASM_MEMORY_INITIAL_PAGES,
         model_byte_budget,
         adapter_byte_budget,
         runtime_scratch_byte_budget: MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET,
@@ -1322,6 +1330,7 @@ mod tests {
         assert!(registry.contains("module_plan_execution_profile=single-threaded-wasm-local-v1"));
         assert!(registry.contains("module_plan_fetch_policy=local-no-store-v1"));
         assert!(registry.contains("module_plan_origin_policy=same-origin-loopback-local-v1"));
+        assert!(registry.contains("module_plan_wasm_memory_initial_pages=17"));
         assert!(registry.contains(&format!("module_plan_model_byte_budget={model_bytes}")));
         assert!(registry.contains("module_plan_adapter_byte_budget=1048576"));
         assert!(registry.contains("module_plan_runtime_scratch_byte_budget=65536"));
@@ -1339,6 +1348,7 @@ mod tests {
         assert!(module_plan.contains("module_plan_execution_profile=single-threaded-wasm-local-v1"));
         assert!(module_plan.contains("module_plan_fetch_policy=local-no-store-v1"));
         assert!(module_plan.contains("module_plan_origin_policy=same-origin-loopback-local-v1"));
+        assert!(module_plan.contains("module_plan_wasm_memory_initial_pages=17"));
         assert!(module_plan.contains(&format!("module_plan_model_byte_budget={model_bytes}")));
         assert!(module_plan.contains("module_plan_adapter_byte_budget=1048576"));
         assert!(module_plan.contains("module_plan_runtime_scratch_byte_budget=65536"));

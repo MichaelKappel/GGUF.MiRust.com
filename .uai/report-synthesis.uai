@@ -1,5 +1,5 @@
-profile: gguf-mirust.report-synthesis.v23
-updated_utc: 2026-06-28T15:30:00Z
+profile: gguf-mirust.report-synthesis.v26
+updated_utc: 2026-06-28T20:20:00Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/gguf-mirust/report-intake-2026-06-25/
@@ -56,6 +56,7 @@ source_authority:
     - wiki/gguf-mirust/reports/browser-combined-selector-assembly-memory-2026-06-28.md
     - wiki/gguf-mirust/reports/browser-combined-selector-cycle-memory-2026-06-28.md
     - wiki/gguf-mirust/reports/browser-combined-selector-route-soak-memory-2026-06-28.md
+    - wiki/gguf-mirust/reports/browser-combined-selector-extended-route-soak-memory-2026-06-28.md
     - wiki/gguf-mirust/reports/browser-combined-selector-reload-soak-memory-2026-06-28.md
     - wiki/gguf-mirust/reports/browser-assembly-trace-memory-2026-06-28.md
     - wiki/gguf-mirust/reports/browser-eval-case-evidence-checksum-memory-2026-06-28.md
@@ -73,6 +74,8 @@ source_authority:
     - wiki/gguf-mirust/reports/browser-module-plan-origin-policy-memory-2026-06-28.md
     - wiki/gguf-mirust/reports/browser-module-plan-runtime-scratch-memory-2026-06-28.md
     - wiki/gguf-mirust/reports/browser-module-plan-total-budget-memory-2026-06-28.md
+    - wiki/gguf-mirust/reports/browser-module-plan-wasm-memory-memory-2026-06-28.md
+    - wiki/gguf-mirust/reports/browser-module-plan-count-drift-memory-2026-06-28.md
   durable_research:
     - wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md
   uaix_strategy_source: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
@@ -89,6 +92,15 @@ strategy_refresh_2026_06_28:
   report_memory_shape: All current report pages stay in wiki/gguf-mirust/reports/, research pages stay in wiki/gguf-mirust/research/, and both route from short-term memory plus long-term checksum records.
   model_breeding_concept_lanes: The research page now includes heritable-artifact, mate-selection, phenotype-evidence, and speciation-and-fit lanes beside merge, sparse, adapter, population, local-update, browser-assembly, and UAIX strategy lanes.
   site_voice_route: .uai/taboo.uai carries the direct site voice rule; public copy should center proof, craft, lineage, fit, local agency, routes, and implementation evidence.
+latest_browser_module_plan_wasm_memory:
+  route: wiki/gguf-mirust/reports/browser-module-plan-wasm-memory-memory-2026-06-28.md
+  synthesis: Generated selector entries and module-plan receipts now bind the WASM runtime's pre-init exported memory page count, render `WASM Pages`, and prove drift stops before generated model bytes.
+latest_browser_module_plan_count_drift:
+  route: wiki/gguf-mirust/reports/browser-module-plan-count-drift-memory-2026-06-28.md
+  synthesis: `module-plan-count-drift` mutates receipt `module_count` while refreshing selector checksum, proving selector cardinality remains authoritative before generated model or stack routes.
+latest_browser_combined_selector_extended_route_soak:
+  route: wiki/gguf-mirust/reports/browser-combined-selector-extended-route-soak-memory-2026-06-28.md
+  synthesis: `combined-selector-route-extended-soak` runs five q4_0/q8_0/f32 cycles from one generated all-root, proving fifteen assemblies with fresh route requests and path-flexible total-budget checks.
 failure_dogfood:
   issue: First report-processing pass over-prioritized durable wiki files and pointer-ledger cleanliness, leaving hot .uai files too thin for cold-start agents.
   correction: Keep long-term-memory.uai pointer-only, but populate typed .uai files with enough report-derived routing, constraints, tensions, and next questions to guide work before wiki deep-loading.
@@ -175,6 +187,7 @@ report_clusters:
       - Use browser-smoke `combined-selector-assembly` when a single generated `all` root must prove q4_0 default selection, q4_0/q8_0/f32 selector switching, plan-before-model order, and stack auto-assembly before generation in one browser session.
       - Use browser-smoke `combined-selector-cycle` when a single generated `all` root must prove repeated q4_0/q8_0/f32 switching, release-before-reassembly sequencing, per-pass stack validation/apply deltas, reset diagnostics, and generation across multiple passes in one browser session.
       - Use browser-smoke `combined-selector-route-soak` when a single generated `all` root must prove longer q4_0/q8_0/f32 reuse, no-store local fetch behavior, and per-pass requests for every self-assembly route in one browser session.
+      - Use browser-smoke `combined-selector-route-extended-soak` when a single generated `all` root needs five-cycle q4_0/q8_0/f32 route pressure, fifteen assembly passes, and path-flexible total-budget assertions.
       - Use browser-smoke `combined-selector-reload-soak` when a generated `all` root must prove q4_0 registry-default boot selection and q4_0/q8_0/f32 self-assembly across separate page lifetimes.
       - Use browser-smoke `adapter-stack-rust-validate-drift` when browser metadata and internal adapter checksums remain aligned but Rust adapter identity validation must stop a generated stack before mutation.
       - Use the Browser Runtime Assembly Diagnostics report when runtime diagnostics assembly fields, adapter apply accounting, WASM ABI diagnostics, checked manual adapter sidecar assertions, or generated q4_0/q8_0/f32 auto-stack runtime state assertions change.
@@ -192,6 +205,7 @@ report_clusters:
       - Use browser module-plan origin policies when generated selector entries need a same-origin local assembly contract before generated model bytes; selector fields and served plans carry `same-origin-loopback-local-v1`, and `module-plan-origin-policy-drift` proves drift stops before `.slm` or stack routes.
       - Use browser module-plan resource envelopes when generated selector entries must prove constrained self-assembly before model fetch; selector fields and served plans carry `browser-constrained-local-assembly`, admitted model byte budget, and adapter-family byte budget.
       - Use browser module-plan total budgets when generated selector entries must prove the exact local self-assembly envelope before model fetch; selector fields and served plans carry `module_plan_total_byte_budget`, and `module-plan-total-budget-drift` proves drift stops at the module-plan receipt.
+      - Use browser-smoke `module-plan-count-drift` after selector module-plan count or receipt cardinality parsing changes to prove checksum-consistent `module_count` drift stops before generated `.slm` or stack routes.
       - Use browser-smoke `module-plan-resource-drift` after module-plan resource-envelope changes to prove checksum-consistent receipt budget drift stops before generated `.slm` fetch.
       - Use browser-smoke `module-plan-graph-drift` after module-plan graph validation changes to prove checksum-consistent receipt route drift stops before generated `.slm` fetch.
       - Use browser-smoke `module-plan-stack-drift` after module-plan stack member validation changes to prove checksum-consistent stack route drift stops before generated `.slm`, ADP1, ASP1, or adapter-manifest fetch.
@@ -234,6 +248,7 @@ report_clusters:
       - Eval-case evidence checksums now bind passed eval sidecars into selector admissions, promotion-ledger copies, selector registry entries, generated assembly receipts, and Model Provenance display; combined-selector-assembly proves q4_0/q8_0/f32 generated entries share checksum `0xabdeb569ab3eea3e`, assembly-eval-case-drift proves mismatched generated assembly digests stop before evidence or adapter-family routes, assembly-evidence-file-drift proves fetched evidence body drift stops before later evidence or adapter-family routes, adapter-family-receipt-drift proves post-evidence receipt drift stops before adapter manifests or stack artifacts, adapter-manifest-drift proves same-byte family ADP1 manifest drift stops before later manifests or stack artifacts, adapter-artifact-drift proves first family ADP1 bytes stop before later stack artifacts or Rust adapter apply, adapter-stack-prefetch-drift proves sparse ASP1 byte drift after family ADP1 fetch still stops before low-rank ALR1 fetch or Rust adapter apply, and adapter-stack Rust validation proves all fetched stack members pass Rust semantic checks before the first apply.
       - Runtime assembly diagnostics now make Rust the final proof point for applied stacks: generated q4_0/q8_0/f32 auto assembly reports `adapter_apply_count=3`, checked manual sidecars report count 1 after apply, and model free clears assembly state.
       - Combined selector route-soak now records three generated q4_0/q8_0/f32 cycles with per-pass requests for every module-plan, model, manifest, assembly, evidence, adapter-family, adapter manifest, and stack artifact route.
+      - Combined selector extended route-soak now records five q4_0/q8_0/f32 cycles, fifteen generated assemblies, fresh local route requests on every pass, and path-flexible total-budget checks for non-canonical generated roots.
       - Combined selector reload-soak now records two fresh browser page lifetimes that each start on the q4_0 registry default and rebuild q4_0/q8_0/f32 generated self-assembly from local module-plan, assembly, adapter-family, manifest, and stack routes.
       - Heritable-artifact, mate-selection, phenotype-evidence, and speciation-and-fit are now research routing concepts: they should become compatibility fields, receipt or manifest fields, eval/provenance fields, or browser-smoke assertions before implementation claims.
       - Model Breadcrumbs and model kinship for richer sparse-mask lineage, retention-aware eval sidecars, and parent-pool relatedness fields now first implemented before recipe consumers write candidates.

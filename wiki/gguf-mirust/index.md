@@ -3,7 +3,7 @@ title: GGUF.MiRust.com LLM Wiki Index
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/
 status: planned_pending_publication
-reviewed_utc: 2026-06-28T15:30:00Z
+reviewed_utc: 2026-06-28T20:20:00Z
 ---
 
 # GGUF.MiRust.com
@@ -71,9 +71,12 @@ This local LLM Wiki namespace routes durable memory for the GGUF.MiRust.com Rust
 - [Browser Module Plan Origin Policy Memory](reports/browser-module-plan-origin-policy-memory-2026-06-28.md)
 - [Browser Module Plan Runtime Scratch Memory](reports/browser-module-plan-runtime-scratch-memory-2026-06-28.md)
 - [Browser Module Plan Total Budget Memory](reports/browser-module-plan-total-budget-memory-2026-06-28.md)
+- [Browser Module Plan WASM Memory Memory](reports/browser-module-plan-wasm-memory-memory-2026-06-28.md)
+- [Browser Module Plan Count Drift Memory](reports/browser-module-plan-count-drift-memory-2026-06-28.md)
 - [Browser Combined Selector Assembly Memory](reports/browser-combined-selector-assembly-memory-2026-06-28.md)
 - [Browser Combined Selector Cycle Memory](reports/browser-combined-selector-cycle-memory-2026-06-28.md)
 - [Browser Combined Selector Route Soak Memory](reports/browser-combined-selector-route-soak-memory-2026-06-28.md)
+- [Browser Combined Selector Extended Route Soak Memory](reports/browser-combined-selector-extended-route-soak-memory-2026-06-28.md)
 - [Browser Combined Selector Reload Soak Memory](reports/browser-combined-selector-reload-soak-memory-2026-06-28.md)
 - [Browser Assembly Trace Memory](reports/browser-assembly-trace-memory-2026-06-28.md)
 - [Browser Eval Case Evidence Checksum Memory](reports/browser-eval-case-evidence-checksum-memory-2026-06-28.md)
@@ -93,4 +96,4 @@ This local LLM Wiki namespace routes durable memory for the GGUF.MiRust.com Rust
 
 This namespace is a source memory plan for TinyRustLM. Current implementation claims must still be verified through `workspace.uai`, `.uai/test-plan.uai`, source files, and local test output before being repeated publicly.
 
-Latest route: Browser Module Plan Total Budget Memory records `module_plan_total_byte_budget`, exact module-plan self-assembly totals, Total Budget display, and checksum-consistent total drift proof before generated model fetch; load `.uai/short-term-memory.uai`, `.uai/long-term-memory.uai`, the source-backed ALR1 route report, the Browser Runtime Assembly Diagnostics report, the Browser Adapter Stack Rust Validate reports, the Browser Combined Selector reports, the Browser Module Plan reports, the Browser Assembly reports, the Model Breeding reference page, and the UAIX dogfood note for the current memory map.
+Latest route: Browser Module Plan Count Drift Memory records checksum-consistent receipt `module_count` drift against selector `module_plan_module_count` before generated model or stack route fetch; load `.uai/short-term-memory.uai`, `.uai/long-term-memory.uai`, the source-backed ALR1 route report, the Browser Runtime Assembly Diagnostics report, the Browser Adapter Stack Rust Validate reports, the Browser Combined Selector reports, the Browser Module Plan reports, the Browser Assembly reports, the Model Breeding reference page, and the UAIX dogfood note for the current memory map.

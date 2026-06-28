@@ -106,6 +106,7 @@
   const registryModulePlanExecutionProfile = "single-threaded-wasm-local-v1";
   const registryModulePlanFetchPolicy = "local-no-store-v1";
   const registryModulePlanOriginPolicy = "same-origin-loopback-local-v1";
+  const registryModulePlanWasmMemoryInitialPages = 17;
   const registryModulePlanRuntimeScratchByteBudget = 64 * 1024;
   const runtimeWasmKind = "tinyrustlm-rust-wasm";
   const runtimeWasmStatus = "validated-local-runtime";
@@ -201,6 +202,7 @@
     lastGenerateMs: 0,
     lastMeasuredTokens: 0,
     modelLoadSequence: 0,
+    wasmMemoryInitialPages: 0,
     activeModelKey: "",
     modelLoaded: false,
     modelManifest: null,
@@ -264,6 +266,7 @@
     modulePlanExecution: document.getElementById("modulePlanExecution"),
     modulePlanFetch: document.getElementById("modulePlanFetch"),
     modulePlanOrigin: document.getElementById("modulePlanOrigin"),
+    modulePlanWasmPages: document.getElementById("modulePlanWasmPages"),
     modulePlanModules: document.getElementById("modulePlanModules"),
     modulePlanModelBudget: document.getElementById("modulePlanModelBudget"),
     modulePlanAdapterBudget: document.getElementById("modulePlanAdapterBudget"),
@@ -314,6 +317,16 @@
     if (ptr) {
       state.exports.dealloc(ptr, len);
     }
+  }
+
+  // Captures the static exported memory footprint before runtime init can grow it.
+  function wasmMemoryInitialPages() {
+    const pageBytes = 64 * 1024;
+    const byteLength = state.exports.memory.buffer.byteLength;
+    if (byteLength % pageBytes !== 0) {
+      throw new Error("WASM memory byte length was not page aligned");
+    }
+    return byteLength / pageBytes;
   }
 
   function renderDiagnostics() {
@@ -884,6 +897,7 @@
       "module_plan_execution_profile",
       "module_plan_fetch_policy",
       "module_plan_origin_policy",
+      "module_plan_wasm_memory_initial_pages",
       "module_plan_model_byte_budget",
       "module_plan_adapter_byte_budget",
       "module_plan_runtime_scratch_byte_budget",
@@ -897,6 +911,10 @@
     const receiptPath = fields[`${prefix}.module_plan_path`];
     const receiptChecksum = fields[`${prefix}.module_plan_checksum`];
     const moduleCount = Number.parseInt(fields[`${prefix}.module_plan_module_count`] || "0", 10);
+    const wasmMemoryInitialPages = Number.parseInt(
+      fields[`${prefix}.module_plan_wasm_memory_initial_pages`] || "0",
+      10
+    );
     const modelByteBudget = registryDecimalByteCount(fields[`${prefix}.module_plan_model_byte_budget`]);
     const adapterByteBudget = registryDecimalByteCount(fields[`${prefix}.module_plan_adapter_byte_budget`]);
     const runtimeScratchByteBudget = registryDecimalByteCount(
@@ -928,6 +946,13 @@
       return null;
     }
     if (fields[`${prefix}.module_plan_origin_policy`] !== registryModulePlanOriginPolicy) {
+      return null;
+    }
+    if (
+      !Number.isInteger(wasmMemoryInitialPages) ||
+      String(wasmMemoryInitialPages) !== fields[`${prefix}.module_plan_wasm_memory_initial_pages`] ||
+      wasmMemoryInitialPages !== registryModulePlanWasmMemoryInitialPages
+    ) {
       return null;
     }
     if (!adapterFamily || !assembly) {
@@ -968,6 +993,7 @@
       executionProfile: fields[`${prefix}.module_plan_execution_profile`],
       fetchPolicy: fields[`${prefix}.module_plan_fetch_policy`],
       originPolicy: fields[`${prefix}.module_plan_origin_policy`],
+      wasmMemoryInitialPages,
       modelByteBudget,
       adapterByteBudget,
       runtimeScratchByteBudget,
@@ -1380,6 +1406,7 @@
     el.modulePlanExecution.textContent = manifestValue(fields, "module_plan_execution_profile");
     el.modulePlanFetch.textContent = manifestValue(fields, "module_plan_fetch_policy");
     el.modulePlanOrigin.textContent = manifestValue(fields, "module_plan_origin_policy");
+    el.modulePlanWasmPages.textContent = manifestValue(fields, "module_plan_wasm_memory_initial_pages");
     el.modulePlanModules.textContent = manifestValue(fields, "module_count");
     el.modulePlanModelBudget.textContent = modulePlanByteSummary(fields, "module_plan_model_byte_budget");
     el.modulePlanAdapterBudget.textContent = modulePlanByteSummary(fields, "module_plan_adapter_byte_budget");
@@ -1755,6 +1782,17 @@
     requireManifestEqual(fields, "module_plan_execution_profile", plan.executionProfile, source);
     requireManifestEqual(fields, "module_plan_fetch_policy", plan.fetchPolicy, source);
     requireManifestEqual(fields, "module_plan_origin_policy", plan.originPolicy, source);
+    const wasmMemoryInitialPages = requireManifestField(
+      fields,
+      "module_plan_wasm_memory_initial_pages",
+      source
+    );
+    if (
+      wasmMemoryInitialPages !== String(plan.wasmMemoryInitialPages) ||
+      plan.wasmMemoryInitialPages !== state.wasmMemoryInitialPages
+    ) {
+      throw new Error("Module plan WASM memory initial pages mismatch");
+    }
     const modelByteBudget = requireModulePlanByteBudget(
       fields,
       "module_plan_model_byte_budget",
@@ -2657,6 +2695,7 @@
       const wasmBytes = await loadRuntimeWasmBytes();
       state.instance = await WebAssembly.instantiate(wasmBytes, {});
       state.exports = state.instance.instance.exports;
+      state.wasmMemoryInitialPages = wasmMemoryInitialPages();
       const initCode = state.exports.init_runtime();
       setText(el.wasmState, initCode === 0 ? "loaded" : `error ${initCode}`, initCode !== 0);
       if (initCode !== 0) {

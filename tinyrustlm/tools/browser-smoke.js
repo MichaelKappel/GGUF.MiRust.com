@@ -11,13 +11,14 @@ const path = require("path");
 const appUrl = process.argv[2] || "http://127.0.0.1:8080/app/";
 const port = Number(process.argv[3] || 9223);
 const smokeMode = process.argv[5] || "single";
-const expectedModel = process.argv[4] || (smokeMode === "multi-parent-registry" ? "multi-parent-sign-merge-q8" : smokeMode === "adapter-sidecar-registry-q8" ? "tinyq8" : smokeMode === "adapter-manifest-budget" || smokeMode === "adapter-family-receipt-drift" || smokeMode === "adapter-manifest-drift" || smokeMode === "source-backed-alr1-manifest-drift" || smokeMode === "adapter-artifact-drift" || smokeMode === "adapter-stack-prefetch-drift" || smokeMode === "adapter-stack-rust-validate-drift" || smokeMode === "module-plan-profile-drift" || smokeMode === "module-plan-execution-profile-drift" || smokeMode === "module-plan-fetch-policy-drift" || smokeMode === "module-plan-origin-policy-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-runtime-scratch-drift" || smokeMode === "module-plan-total-budget-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift" || smokeMode === "assembly-eval-case-drift" || smokeMode === "assembly-evidence-file-drift" || smokeMode === "combined-selector-assembly" || smokeMode === "combined-selector-cycle" || smokeMode === "combined-selector-route-soak" || smokeMode === "combined-selector-reload-soak" ? "multi-parent-sign-merge-q4" : smokeMode === "multi-parent-registry-file" || smokeMode === "adapter-sidecar-registry-file" ? "multi-parent-sign-merge-f32" : smokeMode === "adapter-sidecar" || smokeMode === "adapter-sidecar-checksum-mismatch" ? "tinyf32" : "tinylm16q8");
+const combinedSelectorRouteSoakMode = smokeMode === "combined-selector-route-soak" || smokeMode === "combined-selector-route-extended-soak";
+const expectedModel = process.argv[4] || (smokeMode === "multi-parent-registry" ? "multi-parent-sign-merge-q8" : smokeMode === "adapter-sidecar-registry-q8" ? "tinyq8" : smokeMode === "adapter-manifest-budget" || smokeMode === "adapter-family-receipt-drift" || smokeMode === "adapter-manifest-drift" || smokeMode === "source-backed-alr1-manifest-drift" || smokeMode === "adapter-artifact-drift" || smokeMode === "adapter-stack-prefetch-drift" || smokeMode === "adapter-stack-rust-validate-drift" || smokeMode === "module-plan-profile-drift" || smokeMode === "module-plan-execution-profile-drift" || smokeMode === "module-plan-fetch-policy-drift" || smokeMode === "module-plan-origin-policy-drift" || smokeMode === "module-plan-wasm-memory-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-runtime-scratch-drift" || smokeMode === "module-plan-total-budget-drift" || smokeMode === "module-plan-count-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift" || smokeMode === "assembly-eval-case-drift" || smokeMode === "assembly-evidence-file-drift" || smokeMode === "combined-selector-assembly" || smokeMode === "combined-selector-cycle" || combinedSelectorRouteSoakMode || smokeMode === "combined-selector-reload-soak" ? "multi-parent-sign-merge-q4" : smokeMode === "multi-parent-registry-file" || smokeMode === "adapter-sidecar-registry-file" ? "multi-parent-sign-merge-f32" : smokeMode === "adapter-sidecar" || smokeMode === "adapter-sidecar-checksum-mismatch" ? "tinyf32" : "tinylm16q8");
 const enduranceCycles = Math.max(2, Math.min(20, Number.parseInt(process.argv[6] || "4", 10) || 4));
 const performanceTokens = Math.max(2, Math.min(8, Number.parseInt(process.argv[6] || "4", 10) || 4));
 const performanceSoakCycles = Math.max(2, Math.min(10, Number.parseInt(process.argv[6] || "3", 10) || 3));
 const performanceSoakTokens = Math.max(2, Math.min(8, Number.parseInt(process.argv[7] || "4", 10) || 4));
-const combinedSelectorDefaultCycles = smokeMode === "combined-selector-route-soak" ? "3" : "2";
-const combinedSelectorMinCycles = smokeMode === "combined-selector-route-soak" ? 3 : 2;
+const combinedSelectorDefaultCycles = smokeMode === "combined-selector-route-extended-soak" ? "5" : smokeMode === "combined-selector-route-soak" ? "3" : "2";
+const combinedSelectorMinCycles = smokeMode === "combined-selector-route-extended-soak" ? 5 : smokeMode === "combined-selector-route-soak" ? 3 : 2;
 const combinedSelectorCycles = Math.max(combinedSelectorMinCycles, Math.min(6, Number.parseInt(process.argv[6] || combinedSelectorDefaultCycles, 10) || Number.parseInt(combinedSelectorDefaultCycles, 10)));
 const combinedSelectorReloads = Math.max(2, Math.min(6, Number.parseInt(process.argv[6] || "2", 10) || 2));
 const checksumMask64 = (1n << 64n) - 1n;
@@ -129,6 +130,7 @@ const expectedModulePlanRoutes = {
 const expectedModulePlanExecutionProfile = "single-threaded-wasm-local-v1";
 const expectedModulePlanFetchPolicy = "local-no-store-v1";
 const expectedModulePlanOriginPolicy = "same-origin-loopback-local-v1";
+const expectedModulePlanWasmMemoryInitialPages = "17";
 
 const expectedModulePlanModelBudgets = {
   "multi-parent-sign-merge-q8": "8832 bytes",
@@ -137,21 +139,21 @@ const expectedModulePlanModelBudgets = {
 };
 
 const expectedModulePlanTotalBudgets = {
-  "multi-parent-sign-merge-q8": "105000 bytes",
-  "multi-parent-sign-merge-q4": "102760 bytes",
-  "multi-parent-sign-merge-f32": "116534 bytes"
+  "multi-parent-sign-merge-q8": "104999 bytes",
+  "multi-parent-sign-merge-q4": "102759 bytes",
+  "multi-parent-sign-merge-f32": "116533 bytes"
 };
 
 const expectedModulePlanBytes = {
-  "multi-parent-sign-merge-q8": "0: 8832 bytes, 1: 593 bytes, 2: 1896 bytes, 3: 5999 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 1088 bytes",
-  "multi-parent-sign-merge-q4": "0: 6592 bytes, 1: 593 bytes, 2: 1896 bytes, 3: 5999 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 1088 bytes",
-  "multi-parent-sign-merge-f32": "0: 20352 bytes, 1: 594 bytes, 2: 1909 bytes, 3: 5999 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 1088 bytes"
+  "multi-parent-sign-merge-q8": "0: 8832 bytes, 1: 592 bytes, 2: 1896 bytes, 3: 5999 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 1088 bytes",
+  "multi-parent-sign-merge-q4": "0: 6592 bytes, 1: 592 bytes, 2: 1896 bytes, 3: 5999 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 1088 bytes",
+  "multi-parent-sign-merge-f32": "0: 20352 bytes, 1: 593 bytes, 2: 1909 bytes, 3: 5999 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 1088 bytes"
 };
 
 const expectedModulePlanChecksums = {
-  "multi-parent-sign-merge-q8": "0: 0x0132bc82d5a0d7d6, 1: 0x015ac4b54852f757, 2: 0x7197eb205c6f0a78, 3: 0x925a150091da76ac, 4: 0x8194a8a671285019, 5: 0x6fa5d29bee9b7cfb, 6: 0x1ed9d08142edfda9",
-  "multi-parent-sign-merge-q4": "0: 0x1a6808e3098d1ce0, 1: 0xbbb2b5e597dd4833, 2: 0xc8a384340def74ed, 3: 0xed55ac1d881df08c, 4: 0x0bd71e0020bc6ebf, 5: 0x69638218a1dd1eb6, 6: 0xcaf46ccfc262fad2",
-  "multi-parent-sign-merge-f32": "0: 0x8a0e6c4c01998199, 1: 0xfdb00cb26ee48f1b, 2: 0xfe92c249570d5f6d, 3: 0x397e342f59aa5817, 4: 0xe9669ade4571fd42, 5: 0x34008cedc028ed5c, 6: 0x1c64143141c223b5"
+  "multi-parent-sign-merge-q8": "0: 0x0132bc82d5a0d7d6, 1: 0xa057c2ed7a3b614b, 2: 0x77f4b0d6ea4e0f4f, 3: 0x3fd79a1199458a98, 4: 0x8194a8a671285019, 5: 0x6fa5d29bee9b7cfb, 6: 0x1ed9d08142edfda9",
+  "multi-parent-sign-merge-q4": "0: 0x1a6808e3098d1ce0, 1: 0x20c772a471d34448, 2: 0x18553450b9ce4036, 3: 0xadf9bc30a3625656, 4: 0x0bd71e0020bc6ebf, 5: 0x69638218a1dd1eb6, 6: 0xcaf46ccfc262fad2",
+  "multi-parent-sign-merge-f32": "0: 0x8a0e6c4c01998199, 1: 0x408da471f3c64a2e, 2: 0x6ee2ab952802942f, 3: 0x84e40864dc6aedde, 4: 0xe9669ade4571fd42, 5: 0x34008cedc028ed5c, 6: 0x1c64143141c223b5"
 };
 
 const expectedModulePlanRoles =
@@ -415,6 +417,28 @@ function driftModulePlanTotalBudget(receiptText) {
     throw new Error("module plan total byte budget field was invalid");
   }
   return receiptText.replace(totalMatch[0], `module_plan_total_byte_budget=${total - 1}`);
+}
+
+// Mutates only receipt cardinality so selector-declared module counts must remain authoritative.
+function driftModulePlanCount(receiptText) {
+  const countMatch = receiptText.match(/^module_count=(\d+)$/m);
+  if (!countMatch) {
+    throw new Error("module plan module count field was not found");
+  }
+  const count = Number.parseInt(countMatch[1], 10);
+  if (!Number.isSafeInteger(count) || count < 2) {
+    throw new Error("module plan module count field was invalid");
+  }
+  return receiptText.replace(countMatch[0], `module_count=${count - 1}`);
+}
+
+function driftModulePlanWasmMemory(receiptText) {
+  const original = `module_plan_wasm_memory_initial_pages=${expectedModulePlanWasmMemoryInitialPages}`;
+  const drifted = "module_plan_wasm_memory_initial_pages=18";
+  if (!receiptText.includes(original)) {
+    throw new Error("module plan WASM memory initial pages field was not found");
+  }
+  return receiptText.replace(original, drifted);
 }
 
 function driftModulePlanProfile(receiptText) {
@@ -1064,6 +1088,7 @@ async function runPageAdapterSidecarSmoke(client, modelKey, expectAutoAssembly) 
         modulePlanExecution: byId("modulePlanExecution").textContent,
         modulePlanFetch: byId("modulePlanFetch").textContent,
         modulePlanOrigin: byId("modulePlanOrigin").textContent,
+        modulePlanWasmPages: byId("modulePlanWasmPages").textContent,
         modulePlanModules: byId("modulePlanModules").textContent,
         modulePlanModelBudget: byId("modulePlanModelBudget").textContent,
         modulePlanAdapterBudget: byId("modulePlanAdapterBudget").textContent,
@@ -1229,6 +1254,7 @@ async function runPageCombinedSelectorAssemblySmoke(client, cycles) {
           modulePlanExecution: byId("modulePlanExecution").textContent,
           modulePlanFetch: byId("modulePlanFetch").textContent,
           modulePlanOrigin: byId("modulePlanOrigin").textContent,
+          modulePlanWasmPages: byId("modulePlanWasmPages").textContent,
           modulePlanModules: byId("modulePlanModules").textContent,
           modulePlanModelBudget: byId("modulePlanModelBudget").textContent,
           modulePlanAdapterBudget: byId("modulePlanAdapterBudget").textContent,
@@ -1528,6 +1554,7 @@ async function runPageModelErrorSmoke(client) {
         modulePlanExecution: byId("modulePlanExecution").textContent,
         modulePlanFetch: byId("modulePlanFetch").textContent,
         modulePlanOrigin: byId("modulePlanOrigin").textContent,
+        modulePlanWasmPages: byId("modulePlanWasmPages").textContent,
         selectedModel: byId("modelSelect").value,
         generateDisabled: byId("generateButton").disabled,
         stepTokenDisabled: byId("stepTokenButton").disabled,
@@ -2079,6 +2106,7 @@ async function runPageUiAudit(client) {
           modulePlanExecution: byId("modulePlanExecution").textContent,
           modulePlanFetch: byId("modulePlanFetch").textContent,
           modulePlanOrigin: byId("modulePlanOrigin").textContent,
+          modulePlanWasmPages: byId("modulePlanWasmPages").textContent,
           modulePlanModules: byId("modulePlanModules").textContent,
           modulePlanModelBudget: byId("modulePlanModelBudget").textContent,
           modulePlanAdapterBudget: byId("modulePlanAdapterBudget").textContent,
@@ -2448,6 +2476,47 @@ function assertModulePlanTotalBudgetDriftSmoke(result, modelKey, networkRequests
     networkRequests,
     "module plan total budget drift",
     "Module plan module plan total byte budget mismatch"
+  );
+}
+
+// Asserts receipt cardinality drift stops before generated model or adapter routes are fetched.
+function assertModulePlanCountDriftSmoke(result, modelKey, networkRequests) {
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan count drift",
+    "Module plan module count mismatch"
+  );
+  const failures = [];
+  const adapterFamilyRoute = expectedAdapterFamilyReceiptRoutes[modelKey];
+  if (adapterFamilyRoute && networkIncludesPath(networkRequests, adapterFamilyRoute)) {
+    failures.push(`adapter family route was requested after module plan count drift: ${adapterFamilyRoute}`);
+  }
+  const stackRoutes = expectedAdapterStackRoutes[modelKey] || [];
+  for (const stackRoute of stackRoutes) {
+    if (networkIncludesPath(networkRequests, stackRoute)) {
+      failures.push(`adapter stack route was requested after module plan count drift: ${stackRoute}`);
+    }
+  }
+  const manifestRoutes = expectedAdapterManifestRoutes[modelKey] || [];
+  for (const manifestRoute of manifestRoutes) {
+    if (networkIncludesPath(networkRequests, manifestRoute)) {
+      failures.push(`adapter manifest route was requested after module plan count drift: ${manifestRoute}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertModulePlanWasmMemoryDriftSmoke(result, modelKey, networkRequests) {
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan WASM memory drift",
+    "Module plan WASM memory initial pages mismatch"
   );
 }
 
@@ -3815,6 +3884,9 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
     if (result.modulePlanOrigin !== expectedModulePlanOriginPolicy) {
       failures.push(`module plan origin policy was ${result.modulePlanOrigin}`);
     }
+    if (result.modulePlanWasmPages !== expectedModulePlanWasmMemoryInitialPages) {
+      failures.push(`module plan WASM pages was ${result.modulePlanWasmPages}`);
+    }
     const expectedModuleCount = String(4 + (expectedAdapterStackRoutes[modelKey] || []).length);
     if (result.modulePlanModules !== expectedModuleCount) {
       failures.push(`module plan module count was ${result.modulePlanModules}`);
@@ -3829,11 +3901,11 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
     if (result.modulePlanScratchBudget !== "65536 bytes") {
       failures.push(`module plan scratch budget was ${result.modulePlanScratchBudget}`);
     }
-    const expectedTotalBudget = expectedModulePlanTotalBudgets[modelKey];
-    if (expectedTotalBudget && result.modulePlanTotalBudget !== expectedTotalBudget) {
-      failures.push(`module plan total budget was ${result.modulePlanTotalBudget}`);
-    }
     if (checkExactModulePlanSummaries) {
+      const expectedTotalBudget = expectedModulePlanTotalBudgets[modelKey];
+      if (expectedTotalBudget && result.modulePlanTotalBudget !== expectedTotalBudget) {
+        failures.push(`module plan total budget was ${result.modulePlanTotalBudget}`);
+      }
       const expectedBytes = expectedModulePlanBytes[modelKey];
       if (expectedBytes && result.modulePlanBytes !== expectedBytes) {
         failures.push(`module plan bytes were ${result.modulePlanBytes}`);
@@ -3843,6 +3915,9 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
         failures.push(`module plan checksums were ${result.modulePlanChecksums}`);
       }
     } else {
+      if (!/^\d+ bytes$/.test(String(result.modulePlanTotalBudget || ""))) {
+        failures.push(`module plan total budget was ${result.modulePlanTotalBudget}`);
+      }
       if (!/^0: \d+ bytes, 1: \d+ bytes, 2: \d+ bytes, 3: \d+ bytes, 4: \d+ bytes, 5: \d+ bytes, 6: \d+ bytes$/.test(String(result.modulePlanBytes || ""))) {
         failures.push(`module plan bytes were ${result.modulePlanBytes}`);
       }
@@ -4947,6 +5022,9 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
   if (snapshot.modulePlanOrigin !== "unavailable") {
     failures.push(`${prefix} module plan origin policy was ${snapshot.modulePlanOrigin}`);
   }
+  if (snapshot.modulePlanWasmPages !== "unavailable") {
+    failures.push(`${prefix} module plan WASM pages was ${snapshot.modulePlanWasmPages}`);
+  }
   if (snapshot.modulePlanBytes !== "unavailable") {
     failures.push(`${prefix} module plan bytes were ${snapshot.modulePlanBytes}`);
   }
@@ -5422,6 +5500,15 @@ function installModulePlanRuntimeScratchDriftInterceptor(client, modelKey) {
 
 function installModulePlanTotalBudgetDriftInterceptor(client, modelKey) {
   installModulePlanDriftInterceptor(client, modelKey, driftModulePlanTotalBudget);
+}
+
+// Hooks count drift into checksum-consistent module-plan receipt interception.
+function installModulePlanCountDriftInterceptor(client, modelKey) {
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanCount);
+}
+
+function installModulePlanWasmMemoryDriftInterceptor(client, modelKey) {
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanWasmMemory);
 }
 
 function installModulePlanProfileDriftInterceptor(client, modelKey) {
@@ -5961,7 +6048,7 @@ async function main() {
     await client.send("Page.enable", {});
     await client.send("Runtime.enable", {});
     await client.send("Network.enable", {});
-    if (smokeMode === "model-error" || smokeMode === "missing-model" || smokeMode === "multi-parent-registry" || smokeMode === "selector-budget" || smokeMode === "sidecar-budget-contract" || smokeMode === "runtime-manifest-drift" || smokeMode === "module-plan-profile-drift" || smokeMode === "module-plan-execution-profile-drift" || smokeMode === "module-plan-fetch-policy-drift" || smokeMode === "module-plan-origin-policy-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-runtime-scratch-drift" || smokeMode === "module-plan-total-budget-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift" || smokeMode === "assembly-eval-case-drift" || smokeMode === "assembly-evidence-file-drift" || smokeMode === "adapter-family-receipt-drift" || smokeMode === "adapter-manifest-drift" || smokeMode === "source-backed-alr1-manifest-drift" || smokeMode === "adapter-artifact-drift" || smokeMode === "adapter-stack-prefetch-drift" || smokeMode === "adapter-stack-rust-validate-drift" || smokeMode === "adapter-sidecar-registry-q8" || smokeMode === "adapter-sidecar-checksum-mismatch" || smokeMode === "adapter-manifest-budget") {
+    if (smokeMode === "model-error" || smokeMode === "missing-model" || smokeMode === "multi-parent-registry" || smokeMode === "selector-budget" || smokeMode === "sidecar-budget-contract" || smokeMode === "runtime-manifest-drift" || smokeMode === "module-plan-profile-drift" || smokeMode === "module-plan-execution-profile-drift" || smokeMode === "module-plan-fetch-policy-drift" || smokeMode === "module-plan-origin-policy-drift" || smokeMode === "module-plan-wasm-memory-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-runtime-scratch-drift" || smokeMode === "module-plan-total-budget-drift" || smokeMode === "module-plan-count-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift" || smokeMode === "assembly-eval-case-drift" || smokeMode === "assembly-evidence-file-drift" || smokeMode === "adapter-family-receipt-drift" || smokeMode === "adapter-manifest-drift" || smokeMode === "source-backed-alr1-manifest-drift" || smokeMode === "adapter-artifact-drift" || smokeMode === "adapter-stack-prefetch-drift" || smokeMode === "adapter-stack-rust-validate-drift" || smokeMode === "adapter-sidecar-registry-q8" || smokeMode === "adapter-sidecar-checksum-mismatch" || smokeMode === "adapter-manifest-budget") {
       if (smokeMode === "model-error") {
         installMalformedModelInterceptor(client);
       } else if (smokeMode === "missing-model") {
@@ -5976,12 +6063,16 @@ async function main() {
         installModulePlanFetchPolicyDriftInterceptor(client, expectedModel);
       } else if (smokeMode === "module-plan-origin-policy-drift") {
         installModulePlanOriginPolicyDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-wasm-memory-drift") {
+        installModulePlanWasmMemoryDriftInterceptor(client, expectedModel);
       } else if (smokeMode === "module-plan-resource-drift") {
         installModulePlanResourceDriftInterceptor(client, expectedModel);
       } else if (smokeMode === "module-plan-runtime-scratch-drift") {
         installModulePlanRuntimeScratchDriftInterceptor(client, expectedModel);
       } else if (smokeMode === "module-plan-total-budget-drift") {
         installModulePlanTotalBudgetDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-count-drift") {
+        installModulePlanCountDriftInterceptor(client, expectedModel);
       } else if (smokeMode === "module-plan-graph-drift") {
         installModulePlanGraphDriftInterceptor(client, expectedModel);
       } else if (smokeMode === "module-plan-stack-drift") {
@@ -6168,7 +6259,7 @@ async function main() {
       }
       assertCombinedSelectorAssemblySmoke(result, networkRequests);
       result.networkRequests = networkRequests;
-    } else if (smokeMode === "combined-selector-cycle" || smokeMode === "combined-selector-route-soak") {
+    } else if (smokeMode === "combined-selector-cycle" || combinedSelectorRouteSoakMode) {
       await client.send("Page.reload", { ignoreCache: true });
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
@@ -6181,7 +6272,7 @@ async function main() {
           }
         }
       }
-      if (smokeMode === "combined-selector-route-soak") {
+      if (combinedSelectorRouteSoakMode) {
         assertCombinedSelectorRouteSoakSmoke(result, networkRequests, combinedSelectorCycles);
       } else {
         assertCombinedSelectorCycleSmoke(result, networkRequests, combinedSelectorCycles);
@@ -6340,7 +6431,7 @@ async function main() {
       }
       assertAssemblyEvidenceFileDriftSmoke(result, expectedModel, networkRequests);
       result.networkRequests = networkRequests;
-    } else if (smokeMode === "module-plan-profile-drift" || smokeMode === "module-plan-execution-profile-drift" || smokeMode === "module-plan-fetch-policy-drift" || smokeMode === "module-plan-origin-policy-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-runtime-scratch-drift" || smokeMode === "module-plan-total-budget-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift") {
+    } else if (smokeMode === "module-plan-profile-drift" || smokeMode === "module-plan-execution-profile-drift" || smokeMode === "module-plan-fetch-policy-drift" || smokeMode === "module-plan-origin-policy-drift" || smokeMode === "module-plan-wasm-memory-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-runtime-scratch-drift" || smokeMode === "module-plan-total-budget-drift" || smokeMode === "module-plan-count-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift") {
       networkRequests.length = 0;
       await client.send("Page.reload", { ignoreCache: true });
       for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -6362,12 +6453,16 @@ async function main() {
         assertModulePlanFetchPolicyDriftSmoke(result, expectedModel, networkRequests);
       } else if (smokeMode === "module-plan-origin-policy-drift") {
         assertModulePlanOriginPolicyDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-wasm-memory-drift") {
+        assertModulePlanWasmMemoryDriftSmoke(result, expectedModel, networkRequests);
       } else if (smokeMode === "module-plan-resource-drift") {
         assertModulePlanResourceDriftSmoke(result, expectedModel, networkRequests);
       } else if (smokeMode === "module-plan-runtime-scratch-drift") {
         assertModulePlanRuntimeScratchDriftSmoke(result, expectedModel, networkRequests);
       } else if (smokeMode === "module-plan-total-budget-drift") {
         assertModulePlanTotalBudgetDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-count-drift") {
+        assertModulePlanCountDriftSmoke(result, expectedModel, networkRequests);
       } else if (smokeMode === "module-plan-graph-drift") {
         assertModulePlanGraphDriftSmoke(result, expectedModel, networkRequests);
       } else if (smokeMode === "module-plan-stack-drift") {

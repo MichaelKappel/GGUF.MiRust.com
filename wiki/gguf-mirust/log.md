@@ -3,7 +3,7 @@ title: GGUF.MiRust.com LLM Wiki Log
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/log/
 status: planned_pending_publication
-reviewed_utc: 2026-06-28T15:30:00Z
+reviewed_utc: 2026-06-28T20:20:00Z
 ---
 
 # LLM Wiki Log
@@ -66,6 +66,8 @@ reviewed_utc: 2026-06-28T15:30:00Z
 
 ## 2026-06-28
 
+- Added browser module-plan count drift proof so checksum-consistent receipt `module_count` drift rejects against selector `module_plan_module_count` before generated `.slm`, adapter-family, adapter-manifest, or stack artifact routes.
+- Added browser module-plan WASM memory pages so generated selector entries and `.module-plan.receipt` files carry `module_plan_wasm_memory_initial_pages=17`, the Module Plan panel renders `WASM Pages`, and `module-plan-wasm-memory-drift` proves page-count mismatch stops before `.slm`, adapter-family, adapter-manifest, or stack artifact routes.
 - Added browser module-plan total budget so generated selector entries and `.module-plan.receipt` files carry `module_plan_total_byte_budget`, the Module Plan panel renders `Total Budget`, and `module-plan-total-budget-drift` proves total mismatch stops before `.slm`, adapter-family, adapter-manifest, or stack artifact routes.
 - Added browser-smoke `combined-selector-reload-soak` so a generated `browser-multi-parent-bundle all` root proves q4_0 default boot selection and q4_0/q8_0/f32 self-assembly across separate page lifetimes with repeated local route requests.
 - Added browser source-backed ALR1 contract proof so source-backed `.alr1` manifests must match exact kind/dtype pairs and adapter-family receipt source echoes; `source-backed-alr1-manifest-drift` proves source contract drift stops before ADP1/ASP1/ALR1 stack artifact fetch.
@@ -79,6 +81,7 @@ reviewed_utc: 2026-06-28T15:30:00Z
 - Added browser module-plan runtime scratch budget so generated selector entries and `.module-plan.receipt` files carry `module_plan_runtime_scratch_byte_budget=65536`, the Module Plan panel renders `Scratch Budget`, and `module-plan-runtime-scratch-drift` proves scratch-budget mismatch stops before `.slm`, adapter-family, adapter-manifest, or stack artifact routes.
 - Added browser module-plan profile contract so generated selector entries and `.module-plan.receipt` files carry `browser-constrained-v1`, Rust and browser validation require it before generated model fetch, and `module-plan-profile-drift` proves profile mismatch stops before `.slm`, adapter-family, adapter-manifest, or stack artifact routes.
 - Added browser-smoke `combined-selector-route-soak` so one generated `browser-multi-parent-bundle all` root runs three q4_0/q8_0/f32 cycles and proves every module-plan, model, manifest, assembly, evidence, adapter-family, adapter-manifest, and ADP1/ASP1/ALR1 stack route is requested once per pass.
+- Added browser-smoke `combined-selector-route-extended-soak` so one generated `browser-multi-parent-bundle all` root runs five q4_0/q8_0/f32 cycles, proves fifteen assemblies, keeps path-flexible total-budget assertions, and requires every generated self-assembly route once per pass.
 - Added browser-smoke `combined-selector-cycle` so one generated `browser-multi-parent-bundle all` root cycles q4_0, q8_0, and f32 twice in one page while post-initial passes release the prior WASM model before fresh Rust stack validation, stack apply, stack completion, reset diagnostics, and one-token generation.
 - Added browser adapter stack Rust validation so generated auto assembly fetches/checks the ADP1/ASP1/ALR1 stack, calls `validate_adapter_delta` for every fetched member, then applies the stack only after semantic preflight passes.
 - Added browser-smoke `adapter-stack-rust-validate-drift` so checksum-consistent family ADP1 identity drift passes browser byte gates, reaches Rust `validate_adapter_delta`, returns `shape mismatch`, and stops before any `apply_adapter_delta`.
