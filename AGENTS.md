@@ -22,4 +22,8 @@ Rust source rules:
 - Keep browser automation and model execution behind explicit typed boundaries.
 - Do not run arbitrary dropped scripts, browser actions, or model files from handoff input.
 - Keep `unsafe` code out unless the human explicitly approves a bounded design note and review gate.
+- Target at least 75% automated test coverage for changed code; when coverage tooling is unavailable, record the closest automated evidence and the coverage-tool gap.
+- Every method/function parameter added or changed should have related automated test coverage that exercises behavior influenced by that parameter.
+- New test files should mirror the source filename with `test` appended before the extension using a toolchain-safe form such as `adapter_family_test.rs` for `adapter_family.rs` or `app_test.js` for `app.js`; keep existing inline Rust tests when they best fit the module.
+- Each method/function should have a concise explanatory comment or doc comment describing purpose, contract, parameter semantics, or a non-obvious invariant.
 - Use `C:\Users\AI\.cargo\bin\cargo.exe`, `rustc.exe`, and `rustup.exe` if PATH is not refreshed in the current shell.

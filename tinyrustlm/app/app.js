@@ -116,6 +116,13 @@
   const manifestTextByteBudget = 64 * 1024;
   const receiptTextByteBudget = 128 * 1024;
   const evidenceTextByteBudget = 128 * 1024;
+  const registryModulePlanTotalByteBudgetLimit =
+    selectorModelByteBudget +
+    registryAdapterAutoApplyByteBudget +
+    manifestTextByteBudget +
+    receiptTextByteBudget +
+    receiptTextByteBudget +
+    registryModulePlanRuntimeScratchByteBudget;
   const adapterFamilyReceiptStatus = "validated";
   const assemblyReceiptStatus = "validated";
   const assemblyReceiptStrategy = "multi-parent-sign-merge";
@@ -123,27 +130,35 @@
   const localFetchOptions = Object.freeze({ cache: "no-store" });
   const adapterManifestArtifactVersion = "1";
   const adapterManifestStatus = "artifact-written";
+  const sourceBackedLowRankAdapterKind = "trained-source-low-rank-f32-v1";
+  const sourceBackedLowRankManifestFields = [
+    ["adapter_source_manifest", "source_manifest", "adapter-source.manifest", false],
+    ["adapter_source_manifest_checksum", "source_manifest_checksum", "", true],
+    ["adapter_source_layout", "source_layout", "low-rank-f32-factor-files-v1", false],
+    ["adapter_source_format", "source_format", "trained-low-rank-factors-v1", false],
+    ["adapter_source_base_contract", "source_base_contract", "matches-reviewed-adapter-source-base-contract", false]
+  ];
   const adapterManifestFormats = [
     {
       extension: ".adp1",
-      artifactKinds: ["raw-f32-task-delta-v1"],
-      dtypes: ["f32-delta"],
+      kindDtypePairs: [["raw-f32-task-delta-v1", "f32-delta"]],
       defaultLabel: "ADP1 adapter",
       applyStatus: registryAdapterApplyStatus,
       quantizedApplyStatus: registryQuantizedAdapterApplyStatus
     },
     {
       extension: ".asp1",
-      artifactKinds: ["sparse-f32-task-delta-v1"],
-      dtypes: ["sparse-f32-delta"],
+      kindDtypePairs: [["sparse-f32-task-delta-v1", "sparse-f32-delta"]],
       defaultLabel: "ASP1 adapter",
       applyStatus: registryAdapterApplyStatus,
       quantizedApplyStatus: registryQuantizedAdapterApplyStatus
     },
     {
       extension: ".alr1",
-      artifactKinds: ["low-rank-f32-task-delta-v1", "trained-source-low-rank-f32-v1"],
-      dtypes: ["low-rank-f32-delta", "low-rank-f32-source-delta"],
+      kindDtypePairs: [
+        ["low-rank-f32-task-delta-v1", "low-rank-f32-delta"],
+        [sourceBackedLowRankAdapterKind, "low-rank-f32-source-delta"]
+      ],
       defaultLabel: "ALR1 adapter",
       applyStatus: registryLowRankAdapterApplyStatus,
       quantizedApplyStatus: registryQuantizedLowRankAdapterApplyStatus
@@ -253,6 +268,7 @@
     modulePlanModelBudget: document.getElementById("modulePlanModelBudget"),
     modulePlanAdapterBudget: document.getElementById("modulePlanAdapterBudget"),
     modulePlanScratchBudget: document.getElementById("modulePlanScratchBudget"),
+    modulePlanTotalBudget: document.getElementById("modulePlanTotalBudget"),
     modulePlanBytes: document.getElementById("modulePlanBytes"),
     modulePlanChecksums: document.getElementById("modulePlanChecksums"),
     modulePlanSlots: document.getElementById("modulePlanSlots"),
@@ -460,8 +476,9 @@
     return fields && fields[key] ? fields[key] : "unavailable";
   }
 
-  function renderModelOptions(models) {
-    const selected = el.modelSelect.value;
+  // Renders selector entries while allowing registry boot to prefer its declared default.
+  function renderModelOptions(models, preferDeclaredDefault) {
+    const selected = preferDeclaredDefault ? "" : el.modelSelect.value;
     el.modelSelect.replaceChildren();
     let firstKey = "";
     for (const key of Object.keys(models)) {
@@ -605,6 +622,28 @@
     if (!expectedValues.includes(actual)) {
       throw new Error(`${source || "Receipt"} field ${key} was ${actual}`);
     }
+  }
+
+  // Validates 64-bit checksum text before using a manifest field as a route contract.
+  function requireHex64ManifestField(fields, key, source) {
+    const actual = requireManifestField(fields, key, source ? source.toLowerCase() : undefined);
+    if (!isRegistryHex64(actual)) {
+      throw new Error(`${source || "Receipt"} field ${key} was ${actual}`);
+    }
+    return actual;
+  }
+
+  // Keeps adapter kind and dtype coupled so source-backed ALR1 cannot masquerade as plain ALR1.
+  function requireAdapterKindDtypePair(fields, kindKey, dtypeKey, kindDtypePairs, source) {
+    const kind = requireManifestField(fields, kindKey, source ? source.toLowerCase() : undefined);
+    const dtype = requireManifestField(fields, dtypeKey, source ? source.toLowerCase() : undefined);
+    const matched = kindDtypePairs.some(([acceptedKind, acceptedDtype]) => {
+      return kind === acceptedKind && dtype === acceptedDtype;
+    });
+    if (!matched) {
+      throw new Error(`${source || "Receipt"} adapter kind/dtype pair was ${kind}/${dtype}`);
+    }
+    return kind;
   }
 
   function requireChecksumEqual(actual, expected, label) {
@@ -848,6 +887,7 @@
       "module_plan_model_byte_budget",
       "module_plan_adapter_byte_budget",
       "module_plan_runtime_scratch_byte_budget",
+      "module_plan_total_byte_budget",
       "module_plan_module_count"
     ];
     const hasModulePlan = keys.some((key) => fields[`${prefix}.${key}`]);
@@ -862,6 +902,7 @@
     const runtimeScratchByteBudget = registryDecimalByteCount(
       fields[`${prefix}.module_plan_runtime_scratch_byte_budget`]
     );
+    const totalByteBudget = registryDecimalByteCount(fields[`${prefix}.module_plan_total_byte_budget`]);
     if (!isSafeRegistryModulePlanPath(receiptPath) || !isRegistryHex64(receiptChecksum)) {
       return null;
     }
@@ -904,6 +945,13 @@
     ) {
       return null;
     }
+    if (
+      totalByteBudget === null ||
+      totalByteBudget < modelBytes + runtimeScratchByteBudget ||
+      totalByteBudget > registryModulePlanTotalByteBudgetLimit
+    ) {
+      return null;
+    }
     const expectedModuleCount = 4 + adapterFamily.autoApplyStackCount;
     if (!Number.isInteger(moduleCount) || moduleCount !== expectedModuleCount) {
       return null;
@@ -923,6 +971,7 @@
       modelByteBudget,
       adapterByteBudget,
       runtimeScratchByteBudget,
+      totalByteBudget,
       moduleCount
     };
   }
@@ -1092,6 +1141,7 @@
     return candidateId;
   }
 
+  // Loads the optional generated selector registry before the first model is chosen.
   async function loadSelectorRegistry() {
     try {
       const text = await fetchTextWithinBudget(
@@ -1111,7 +1161,7 @@
       paths.models = registry.models;
       state.selectorRegistry = fields;
       state.selectorDefaultModelKey = registry.defaultModelKey || "";
-      renderModelOptions(paths.models);
+      renderModelOptions(paths.models, Boolean(state.selectorDefaultModelKey));
     } catch (_error) {
       state.selectorRegistry = null;
       state.selectorDefaultModelKey = "";
@@ -1337,6 +1387,7 @@
       fields,
       "module_plan_runtime_scratch_byte_budget"
     );
+    el.modulePlanTotalBudget.textContent = modulePlanByteSummary(fields, "module_plan_total_byte_budget");
     el.modulePlanBytes.textContent = modulePlanModuleByteSummary(fields);
     el.modulePlanChecksums.textContent = modulePlanChecksumSummary(fields);
     el.modulePlanSlots.textContent = modulePlanSlotSummary(fields);
@@ -1467,6 +1518,7 @@
     return indexes;
   }
 
+  // Verifies receipt-declared adapter members before any generated adapter manifest is trusted.
   function validateAdapterFamilyReceipt(model, receiptText) {
     const family = model.adapterFamily;
     if (!family) {
@@ -1508,6 +1560,18 @@
         adapter.manifestChecksum,
         `adapter ${index} manifest`
       );
+      const adapterFormat = adapterFormatForPath(adapter.path);
+      if (!adapterFormat) {
+        throw new Error("Adapter route format mismatch");
+      }
+      const artifactKind = requireAdapterKindDtypePair(
+        fields,
+        `${prefix}.kind`,
+        `${prefix}.dtype`,
+        adapterFormat.kindDtypePairs,
+        "adapter family receipt"
+      );
+      validateSourceBackedReceiptFields(fields, prefix, artifactKind);
       for (const key of adapterFamilyIdentityKeys) {
         requireManifestEqual(fields, `${prefix}.${key}`, requireManifestField(fields, `family.${key}`));
       }
@@ -1515,6 +1579,23 @@
     return fields;
   }
 
+  // Checks source-backed ALR1 receipt echoes while the receipt checksum is still the authority.
+  function validateSourceBackedReceiptFields(fields, prefix, artifactKind) {
+    if (artifactKind !== sourceBackedLowRankAdapterKind) {
+      return;
+    }
+    for (const [manifestKey, receiptKey, expectedValue, isChecksum] of sourceBackedLowRankManifestFields) {
+      const fieldKey = `${prefix}.${receiptKey}`;
+      const value = isChecksum
+        ? requireHex64ManifestField(fields, fieldKey, "adapter family receipt")
+        : requireManifestField(fields, fieldKey, "adapter family receipt");
+      if (expectedValue && value !== expectedValue) {
+        throw new Error(`Adapter family receipt field ${fieldKey} was ${value}`);
+      }
+    }
+  }
+
+  // Verifies one fetched adapter manifest against both its route and receipt-backed source fields.
   function validateAdapterManifest(adapter, manifestText, receiptFields, index) {
     requireChecksumEqual(textChecksumHex(manifestText), adapter.manifestChecksum, `adapter ${index} manifest`);
     const fields = parseManifest(manifestText);
@@ -1524,9 +1605,14 @@
       throw new Error("Adapter route format mismatch");
     }
     requireManifestEqual(fields, "tinyrustlm_adapter_artifact_version", adapterManifestArtifactVersion, source);
-    requireManifestOneOf(fields, "adapter_artifact_kind", adapterFormat.artifactKinds, source);
+    const artifactKind = requireAdapterKindDtypePair(
+      fields,
+      "adapter_artifact_kind",
+      "adapter_dtype",
+      adapterFormat.kindDtypePairs,
+      source
+    );
     requireManifestEqual(fields, "adapter_status", adapterManifestStatus, source);
-    requireManifestOneOf(fields, "adapter_dtype", adapterFormat.dtypes, source);
     requireManifestEqual(fields, "adapter_base_quantization", adapter.baseQuantization, source);
     requireManifestEqual(fields, "adapter_apply_status", adapter.applyStatus, source);
     requireChecksumEqual(
@@ -1552,7 +1638,38 @@
         source
       );
     }
+    validateSourceBackedAdapterManifest(fields, receiptFields, receiptPrefix, artifactKind, source);
     return fields;
+  }
+
+  // Binds source-backed ALR1 manifest provenance to the already-verified adapter-family receipt.
+  function validateSourceBackedAdapterManifest(fields, receiptFields, receiptPrefix, artifactKind, source) {
+    if (artifactKind !== sourceBackedLowRankAdapterKind) {
+      return;
+    }
+    requireManifestEqual(
+      fields,
+      "adapter_base_contract",
+      "matches-parent-direct-parameter-contract",
+      source
+    );
+    for (const [manifestKey, receiptKey, expectedValue, isChecksum] of sourceBackedLowRankManifestFields) {
+      const receiptValue = isChecksum
+        ? requireHex64ManifestField(receiptFields, `${receiptPrefix}.${receiptKey}`, "adapter family receipt")
+        : requireManifestField(receiptFields, `${receiptPrefix}.${receiptKey}`, "adapter family receipt");
+      if (expectedValue && receiptValue !== expectedValue) {
+        throw new Error(`Adapter family receipt field ${receiptPrefix}.${receiptKey} was ${receiptValue}`);
+      }
+      if (isChecksum) {
+        requireChecksumEqual(
+          requireManifestField(fields, manifestKey, source.toLowerCase()),
+          receiptValue,
+          `adapter ${receiptPrefix} source manifest`
+        );
+      } else {
+        requireManifestEqual(fields, manifestKey, receiptValue, source);
+      }
+    }
   }
 
   function adapterManifestArtifactBytes(fields, source) {
@@ -1652,6 +1769,11 @@
       fields,
       "module_plan_runtime_scratch_byte_budget",
       plan.runtimeScratchByteBudget
+    );
+    const totalByteBudget = requireModulePlanByteBudget(
+      fields,
+      "module_plan_total_byte_budget",
+      plan.totalByteBudget
     );
     if (modelByteBudget !== model.modelBytes) {
       throw new Error("Module plan model byte budget mismatch");
@@ -1807,6 +1929,9 @@
         seen.add(adapterIndex);
       }
     }
+    if (modulePlanDeclaredByteTotal(fields, moduleCount, runtimeScratchByteBudget) !== totalByteBudget) {
+      throw new Error("Module plan total byte budget mismatch");
+    }
     return fields;
   }
 
@@ -1852,6 +1977,21 @@
       throw new Error(`Module plan ${key.replace(/_/g, " ")} mismatch`);
     }
     return bytes;
+  }
+
+  // Recomputes the receipt-declared self-assembly total before generated bytes are used.
+  function modulePlanDeclaredByteTotal(fields, moduleCount, runtimeScratchByteBudget) {
+    let total = runtimeScratchByteBudget;
+    for (let index = 0; index < moduleCount; index += 1) {
+      const bytes = registryDecimalByteCount(
+        requireManifestField(fields, `module.${index}.byte_count`, "Module plan")
+      );
+      if (bytes === null) {
+        throw new Error("Module plan module byte count mismatch");
+      }
+      total += bytes;
+    }
+    return total;
   }
 
   function requireModulePlanByteCount(fields, prefix, expected, max, source) {

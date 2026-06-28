@@ -427,6 +427,14 @@ fn write_bundle_module_plan_receipt(
             "module plan adapter stack count must match adapter family route",
         ));
     }
+    let stack_byte_counts = module_plan_stack_byte_counts(&stack_indexes, bundle_adapter_routes)?;
+    let total_byte_budget = module_plan_total_byte_budget(
+        model_byte_budget,
+        manifest_byte_count,
+        assembly_receipt_byte_count,
+        adapter_family_receipt_byte_count,
+        &stack_byte_counts,
+    )?;
 
     let mut text = String::new();
     push_line(&mut text, "tinyrustlm_module_plan_version", "1");
@@ -471,6 +479,11 @@ fn write_bundle_module_plan_receipt(
         &mut text,
         "module_plan_runtime_scratch_byte_budget",
         &MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET.to_string(),
+    );
+    push_line(
+        &mut text,
+        "module_plan_total_byte_budget",
+        &total_byte_budget.to_string(),
     );
     push_line(&mut text, "model_path", &model_path);
     push_line(&mut text, "manifest_path", &manifest_path);
@@ -561,7 +574,7 @@ fn write_bundle_module_plan_receipt(
         } else {
             format!("module.{}", module_index - 1)
         };
-        let artifact_byte_count = file_byte_count(&bundle_route.artifact_path)?;
+        let artifact_byte_count = stack_byte_counts[stack_position];
         push_line(&mut text, &format!("{prefix}.kind"), "adapter-stack-member");
         push_line(
             &mut text,
@@ -631,9 +644,51 @@ fn write_bundle_module_plan_receipt(
         model_byte_budget,
         adapter_byte_budget,
         runtime_scratch_byte_budget: MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET,
+        total_byte_budget,
         receipt_checksum: hex64(provenance::text_checksum(text.as_bytes())),
         module_count,
     })
+}
+
+// Computes the exact staged adapter artifact bytes used by module-plan totals.
+fn module_plan_stack_byte_counts(
+    stack_indexes: &[usize],
+    bundle_adapter_routes: &[BundleAdapterRoute],
+) -> io::Result<Vec<u64>> {
+    let mut byte_counts = Vec::with_capacity(stack_indexes.len());
+    for adapter_index in stack_indexes {
+        byte_counts.push(file_byte_count(
+            &bundle_adapter_routes[*adapter_index].artifact_path,
+        )?);
+    }
+    Ok(byte_counts)
+}
+
+// Builds the browser-local assembly envelope from exact staged modules plus runtime scratch.
+fn module_plan_total_byte_budget(
+    model_byte_budget: u64,
+    manifest_byte_count: u64,
+    assembly_receipt_byte_count: u64,
+    adapter_family_receipt_byte_count: u64,
+    stack_byte_counts: &[u64],
+) -> io::Result<u64> {
+    let mut total = model_byte_budget;
+    for byte_count in [
+        manifest_byte_count,
+        assembly_receipt_byte_count,
+        adapter_family_receipt_byte_count,
+        MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET,
+    ] {
+        total = total
+            .checked_add(byte_count)
+            .ok_or_else(|| invalid("module plan total byte budget overflow"))?;
+    }
+    for byte_count in stack_byte_counts {
+        total = total
+            .checked_add(*byte_count)
+            .ok_or_else(|| invalid("module plan total byte budget overflow"))?;
+    }
+    Ok(total)
 }
 
 fn push_module_plan_line(
@@ -1349,6 +1404,20 @@ mod tests {
         )));
     }
 
+    fn assert_source_backed_alr1_receipt_fields(family_receipt: &str, id: &str) {
+        // Confirms the source-backed low-rank adapter member carries source provenance echoes.
+        assert!(family_receipt.contains(&format!("adapter.3.path=../models/{id}-low-rank.alr1")));
+        assert!(family_receipt.contains("adapter.3.kind=trained-source-low-rank-f32-v1"));
+        assert!(family_receipt.contains("adapter.3.dtype=low-rank-f32-source-delta"));
+        assert!(family_receipt.contains("adapter.3.source_manifest=adapter-source.manifest"));
+        assert!(family_receipt.contains("adapter.3.source_manifest_checksum=0x"));
+        assert!(family_receipt.contains("adapter.3.source_layout=low-rank-f32-factor-files-v1"));
+        assert!(family_receipt.contains("adapter.3.source_format=trained-low-rank-factors-v1"));
+        assert!(family_receipt.contains(
+            "adapter.3.source_base_contract=matches-reviewed-adapter-source-base-contract"
+        ));
+    }
+
     #[test]
     fn writes_browser_multi_parent_bundle() {
         let root = unique_dir("bundle").join("tinyrustlm");
@@ -1419,6 +1488,7 @@ mod tests {
         assert!(family_receipt.contains(
             "adapter_family_auto_apply_stack.2.adapter_path=../models/multi-parent-sign-merge-f32-low-rank.alr1"
         ));
+        assert_source_backed_alr1_receipt_fields(&family_receipt, "multi-parent-sign-merge-f32");
         assert!(registry.contains(
             "entry.0.assembly_receipt_path=../models/multi-parent-sign-merge-f32.assembly.receipt"
         ));
@@ -1572,6 +1642,7 @@ mod tests {
             assert!(family_receipt.contains(&format!(
                 "adapter_family_auto_apply_stack.2.adapter_path=../models/{id}-low-rank.alr1"
             )));
+            assert_source_backed_alr1_receipt_fields(&family_receipt, &id);
             assert_module_plan(&root, &id, quantization, &registry);
             let assembly_receipt =
                 fs::read_to_string(root.join("models").join(format!("{id}.assembly.receipt")))
@@ -1666,6 +1737,7 @@ mod tests {
             assert!(family_receipt.contains(&format!(
                 "adapter_family_auto_apply_stack.2.adapter_path=../models/{id}-low-rank.alr1"
             )));
+            assert_source_backed_alr1_receipt_fields(&family_receipt, &id);
             assert_module_plan(&root, &id, quantization, &registry);
             assert!(root.join("models").join(format!("{id}.slm")).exists());
             assert!(root

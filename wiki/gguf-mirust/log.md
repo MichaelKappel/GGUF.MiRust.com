@@ -3,7 +3,7 @@ title: GGUF.MiRust.com LLM Wiki Log
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/log/
 status: planned_pending_publication
-reviewed_utc: 2026-06-28T11:25:34Z
+reviewed_utc: 2026-06-28T15:30:00Z
 ---
 
 # LLM Wiki Log
@@ -66,6 +66,9 @@ reviewed_utc: 2026-06-28T11:25:34Z
 
 ## 2026-06-28
 
+- Added browser module-plan total budget so generated selector entries and `.module-plan.receipt` files carry `module_plan_total_byte_budget`, the Module Plan panel renders `Total Budget`, and `module-plan-total-budget-drift` proves total mismatch stops before `.slm`, adapter-family, adapter-manifest, or stack artifact routes.
+- Added browser-smoke `combined-selector-reload-soak` so a generated `browser-multi-parent-bundle all` root proves q4_0 default boot selection and q4_0/q8_0/f32 self-assembly across separate page lifetimes with repeated local route requests.
+- Added browser source-backed ALR1 contract proof so source-backed `.alr1` manifests must match exact kind/dtype pairs and adapter-family receipt source echoes; `source-backed-alr1-manifest-drift` proves source contract drift stops before ADP1/ASP1/ALR1 stack artifact fetch.
 - Added browser source-backed ALR1 routing so generated bundles convert reviewed adapter source templates into served `.alr1` stack members, browser `.alr1` manifest checks accept the source-backed kind/dtype, and `combined-selector-assembly` proves q4_0/q8_0/f32 apply ADP1 plus ASP1 plus source-backed ALR1 before generation.
 - Added trained adapter source ALR1 conversion so `convert-adapter-source` packs reviewed low-rank f32 factor bundles into runtime `ALR1` packages and `validate-converted-adapter-source` recomputes the artifact and manifest from source plus base `.slm`.
 - Added trained low-rank adapter source intake so `adapter-source-template` writes `adapter-source.manifest` plus raw f32 factor files and `validate-adapter-source` recomputes target tensor, factor rank, checksum, finite-factor, parameter-count, and delta-L1 fields before future ALR1 packaging.

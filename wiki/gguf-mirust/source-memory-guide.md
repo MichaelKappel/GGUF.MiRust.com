@@ -3,7 +3,7 @@ title: GGUF.MiRust.com Source Memory Guide
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/source-memory-guide/
 status: planned_pending_publication
-reviewed_utc: 2026-06-28T11:25:34Z
+reviewed_utc: 2026-06-28T15:30:00Z
 ---
 
 # GGUF.MiRust.com Source Memory Guide
@@ -36,6 +36,8 @@ For browser low-rank adapter routing, load `reports/browser-low-rank-adapter-rou
 
 For browser source-backed ALR1 routing, load `reports/browser-source-backed-alr1-route-memory-2026-06-28.md` when generated bundles should convert reviewed adapter source templates into served source-backed `.alr1` stack members, or when app `.alr1` manifest kind/dtype acceptance changes.
 
+For browser source-backed ALR1 contracts, load `reports/browser-source-backed-alr1-contract-memory-2026-06-28.md` when source-backed `.alr1` kind/dtype pairing, adapter-family receipt source echoes, manifest-vs-receipt provenance checks, or `source-backed-alr1-manifest-drift` smoke expectations are in scope.
+
 For browser sparse adapter routing, load `reports/browser-sparse-adapter-route-memory-2026-06-27.md` when selector adapter routes, generated adapter families, served `.asp1` artifacts, browser manifest checks, or `adapter-sidecar-registry-file` smoke are in scope.
 
 For browser preferred adapter routing, load `reports/browser-preferred-adapter-route-memory-2026-06-27.md` when adapter-family receipt preferred fields, browser default adapter selection, generated sparse ASP1 preference, or smoke assertions around `selectedAdapterBeforeApply` are in scope.
@@ -48,6 +50,8 @@ For combined selector cycle proof, load `reports/browser-combined-selector-cycle
 
 For combined selector route-soak proof, load `reports/browser-combined-selector-route-soak-memory-2026-06-28.md` when `combined-selector-route-soak`, repeated generated self-assembly route counts, no-store local fetch behavior, or longer q4_0/q8_0/f32 selector pressure is in scope.
 
+For combined selector reload-soak proof, load `reports/browser-combined-selector-reload-soak-memory-2026-06-28.md` when `combined-selector-reload-soak`, registry default boot selection, fresh page-lifetime self-assembly, or reload route-count proof is in scope.
+
 For browser module-plan profile proof, load `reports/browser-module-plan-profile-memory-2026-06-28.md` when `browser-constrained-v1`, selector-to-receipt self-assembly profile matching, generated module-plan profile fields, or `module-plan-profile-drift` is in scope.
 
 For browser module-plan execution profile proof, load `reports/browser-module-plan-execution-profile-memory-2026-06-28.md` when `single-threaded-wasm-local-v1`, Module Plan `Execution`, generated module-plan execution fields, or `module-plan-execution-profile-drift` is in scope.
@@ -57,6 +61,8 @@ For browser module-plan fetch-policy proof, load `reports/browser-module-plan-fe
 For browser module-plan origin-policy proof, load `reports/browser-module-plan-origin-policy-memory-2026-06-28.md` when `same-origin-loopback-local-v1`, Module Plan `Origin`, generated module-plan origin fields, same-origin local assembly behavior, or `module-plan-origin-policy-drift` is in scope.
 
 For browser module-plan runtime scratch proof, load `reports/browser-module-plan-runtime-scratch-memory-2026-06-28.md` when `module_plan_runtime_scratch_byte_budget`, Module Plan `Scratch Budget`, browser runtime scratch envelopes, or `module-plan-runtime-scratch-drift` is in scope.
+
+For browser module-plan total budget proof, load `reports/browser-module-plan-total-budget-memory-2026-06-28.md` when `module_plan_total_byte_budget`, Module Plan `Total Budget`, exact module-plan self-assembly totals, or `module-plan-total-budget-drift` is in scope.
 
 For browser assembly trace proof, load `reports/browser-assembly-trace-memory-2026-06-28.md` when the Module Plan Trace row, browser load checkpoints, generated all-root trace assertion, or ready-state sequencing is in scope.
 

@@ -1,6 +1,15 @@
-profile: gguf-mirust.short-term-memory.v26
-updated_utc: 2026-06-28T11:25:34Z
+profile: gguf-mirust.short-term-memory.v29
+updated_utc: 2026-06-28T15:30:00Z
 current_state:
+  - 2026-06-28 added browser module-plan total budget proof: generated selector entries and `.module-plan.receipt` files now bind `module_plan_total_byte_budget` as the exact staged module bytes plus runtime scratch before generated model fetch.
+  - Verification passed for module-plan total budget: JS syntax checks, cargo fmt check, slm_pack module_plan tests with 11 tests, browser_bundle tests with 4 tests, browser_harness unit/static checks, generated `target/module-plan-total-budget-drift/tinyrustlm all`, `combined-selector-assembly`, `module-plan-total-budget-drift`, and cargo test --workspace.
+  - Durable browser module-plan total budget report added at wiki/gguf-mirust/reports/browser-module-plan-total-budget-memory-2026-06-28.md and routed through this short-term memory, report synthesis, wiki route files, and the long-term pointer ledger.
+  - 2026-06-28 added browser combined selector reload-soak proof: generated `all` roots now honor the selector registry q4_0 default on every fresh page lifetime and `combined-selector-reload-soak` rebuilds q4_0/q8_0/f32 self-assembly after separate navigations.
+  - Verification passed for combined selector reload-soak: JS syntax checks, cargo fmt check, browser_harness unit and static checks, browser_bundle tests, generated `target/combined-selector-reload-soak/tinyrustlm all`, `combined-selector-reload-soak 2`, and strict `combined-selector-assembly` on http://127.0.0.1:8186/app/.
+  - Durable browser combined selector reload-soak report added at wiki/gguf-mirust/reports/browser-combined-selector-reload-soak-memory-2026-06-28.md and routed through this short-term memory, report synthesis, wiki route files, and the long-term pointer ledger.
+  - 2026-06-28 added browser source-backed ALR1 contract proof: source-backed `.alr1` manifests now require exact kind/dtype pairs plus adapter-family receipt source echoes for manifest, source checksum, layout, format, and source-base contract before stack artifacts are fetched.
+  - Verification passed for browser source-backed ALR1 contract proof: cargo fmt, cargo fmt check, JS syntax checks, focused adapter_family/browser_bundle tests, generated all-root bundle staging under target/source-backed-alr1-contract, source-backed-alr1-manifest-drift smoke, combined-selector-assembly smoke on http://127.0.0.1:8176/app/, and cargo test --workspace.
+  - Durable browser source-backed ALR1 contract report added at wiki/gguf-mirust/reports/browser-source-backed-alr1-contract-memory-2026-06-28.md and routed through this short-term memory, report synthesis, wiki route files, and the long-term pointer ledger.
   - 2026-06-28 added browser source-backed ALR1 routing: generated bundles now stage reviewed adapter source templates, convert them into source-backed ALR1 artifacts, and serve those artifacts as the low-rank auto-stack member for q4_0/q8_0/f32 generated roots.
   - Verification passed for browser source-backed ALR1 routing: cargo fmt, cargo fmt check, JS syntax checks, focused adapter_family/browser_bundle/trained_adapter_source tests, full slm_pack tests with 186 tests, browser_harness tests with 6 tests, generated all-root bundle staging under target/source-backed-alr1-route, combined-selector-assembly browser smoke on http://127.0.0.1:18770/app/, and cargo test --workspace with 277 checks.
   - Durable browser source-backed ALR1 route report added at wiki/gguf-mirust/reports/browser-source-backed-alr1-route-memory-2026-06-28.md and routed through this short-term memory, report synthesis, Model Breeding reference ideas, wiki route files, and the long-term pointer ledger.
@@ -532,7 +541,7 @@ current_report_routes:
   strategy_source: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
   active_bucket_scan: agent-file-handoff/Content/ and agent-file-handoff/Improvement/ currently contain no non-placeholder files.
   uaix_strategy_dogfood: docs/dogfood/uaix-file-handoff-memory-strategy-2026-06-26.md
-  report_pointer_audit: All 65 current wiki/gguf-mirust/reports/*.md files and 1 wiki/gguf-mirust/research/*.md page are represented in .uai/long-term-memory.uai as of 2026-06-28T11:25:34Z; checksum audit passed with 0 mismatches.
+  report_pointer_audit: All 68 current wiki/gguf-mirust/reports/*.md files and 1 wiki/gguf-mirust/research/*.md page are represented in .uai/long-term-memory.uai as of 2026-06-28T15:30:00Z; checksum audit passed with 0 mismatches.
   durable_raw_evidence:
     - raw/gguf-mirust/report-intake-2026-06-25/
     - raw/gguf-mirust/report-intake-2026-06-26/
@@ -545,12 +554,14 @@ current_report_routes:
   latest_adapter_package_report: wiki/gguf-mirust/reports/low-rank-adapter-package-memory-2026-06-28.md
   latest_browser_low_rank_route_report: wiki/gguf-mirust/reports/browser-low-rank-adapter-route-memory-2026-06-28.md
   latest_browser_source_backed_alr1_route_report: wiki/gguf-mirust/reports/browser-source-backed-alr1-route-memory-2026-06-28.md
+  latest_browser_source_backed_alr1_contract_report: wiki/gguf-mirust/reports/browser-source-backed-alr1-contract-memory-2026-06-28.md
   latest_browser_module_plan_report: wiki/gguf-mirust/reports/browser-assembly-trace-memory-2026-06-28.md
   latest_browser_module_plan_profile_report: wiki/gguf-mirust/reports/browser-module-plan-profile-memory-2026-06-28.md
   latest_browser_module_plan_execution_profile_report: wiki/gguf-mirust/reports/browser-module-plan-execution-profile-memory-2026-06-28.md
   latest_browser_module_plan_fetch_policy_report: wiki/gguf-mirust/reports/browser-module-plan-fetch-policy-memory-2026-06-28.md
   latest_browser_module_plan_origin_policy_report: wiki/gguf-mirust/reports/browser-module-plan-origin-policy-memory-2026-06-28.md
   latest_browser_module_plan_runtime_scratch_report: wiki/gguf-mirust/reports/browser-module-plan-runtime-scratch-memory-2026-06-28.md
+  latest_browser_module_plan_total_budget_report: wiki/gguf-mirust/reports/browser-module-plan-total-budget-memory-2026-06-28.md
   latest_browser_combined_selector_cycle_report: wiki/gguf-mirust/reports/browser-combined-selector-cycle-memory-2026-06-28.md
   latest_browser_eval_case_checksum_report: wiki/gguf-mirust/reports/browser-eval-case-evidence-checksum-memory-2026-06-28.md
   latest_browser_assembly_eval_case_drift_report: wiki/gguf-mirust/reports/browser-assembly-eval-case-drift-memory-2026-06-28.md
@@ -562,8 +573,9 @@ current_report_routes:
   latest_browser_adapter_stack_rust_validate_report: wiki/gguf-mirust/reports/browser-adapter-stack-rust-validate-memory-2026-06-28.md
   latest_browser_adapter_stack_rust_validate_drift_report: wiki/gguf-mirust/reports/browser-adapter-stack-rust-validate-drift-memory-2026-06-28.md
   latest_browser_combined_selector_route_soak_report: wiki/gguf-mirust/reports/browser-combined-selector-route-soak-memory-2026-06-28.md
+  latest_browser_combined_selector_reload_soak_report: wiki/gguf-mirust/reports/browser-combined-selector-reload-soak-memory-2026-06-28.md
   latest_browser_runtime_assembly_diagnostics_report: wiki/gguf-mirust/reports/browser-runtime-assembly-diagnostics-memory-2026-06-28.md
-  model_breeding_reference: wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md carries compatible merge, sparse-lineage, adapter-ecology including trained low-rank adapter source bundles, source-backed ALR1 manifests, source-backed browser ALR1 routes, and ADP1/ASP1/ALR1, population-search, federated/local-update, browser-constrained-assembly, UAIX-memory-strategy, heritable-artifact, mate-selection, phenotype-evidence, and speciation-and-fit lanes.
+  model_breeding_reference: wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md carries compatible merge, sparse-lineage, adapter-ecology including trained low-rank adapter source bundles, source-backed ALR1 manifests, source-backed browser ALR1 routes, source-backed ALR1 receipt source echoes, and ADP1/ASP1/ALR1, population-search, federated/local-update, browser-constrained-assembly, UAIX-memory-strategy, heritable-artifact, mate-selection, phenotype-evidence, and speciation-and-fit lanes.
   model_breeding_concept_routes:
     - heritable artifacts: .slm files, manifests, adapter packages, module-plan receipts, assembly receipts, eval sidecars, and selector entries.
     - mate selection: compatibility reports, population reviews, parent-pool recipes, relatedness checksums, seed weights, and objective vectors.
@@ -573,6 +585,7 @@ current_report_routes:
   long_term_pointer_ledger: .uai/long-term-memory.uai
   site_voice_route: .uai/taboo.uai keeps public copy on proof, craft, lineage, fit, local agency, routes, and implementation evidence.
 active_next_steps:
+  - For browser module-plan total budget work, preserve `module_plan_total_byte_budget` in selector registry routes and served receipts, recompute it from exact model, manifest, assembly receipt, adapter-family receipt, ordered stack artifact bytes, and runtime scratch, render the verified `Total Budget` row, and run `module-plan-total-budget-drift` plus `combined-selector-assembly` after total-envelope changes.
   - For trained adapter source ALR1 work, preserve source manifest validation before packaging, base `.slm` shape/tied-output/tokenizer/layout checks, source target hash/rank/dim matching, ALR1 package checksum and payload checksum recomputation, source-backed manifest equality, and f32/q8_0/q4_0 runtime apply-status routing.
   - For browser runtime assembly diagnostics work, preserve Rust-owned `adapter_apply_count`, `last_adapter_checksum`, and `assembly_state_checksum`; model load should seed nonzero assembly state, adapter apply should increment count and update checksums, free/load failure should clear the fields, and wasm-abi-smoke plus manual adapter-sidecar and generated combined-selector smokes should assert the fields.
   - For browser module-plan origin-policy work, preserve `module_plan_origin_policy=same-origin-loopback-local-v1` in selector registry routes and served receipts, verify it before generated `.slm` fetch, render the verified `Origin` row, and run `module-plan-origin-policy-drift` plus a normal generated-root assembly smoke after origin-boundary changes.
@@ -593,7 +606,7 @@ active_next_steps:
   - For browser text-sidecar contract work, preserve generated selector registry header fields for selector registry 256 KiB, manifest 64 KiB, receipt 128 KiB, and evidence 128 KiB; run selector:: tests, browser_bundle:: tests, sidecar-budget-contract smoke, selector-budget smoke, and one generated-root adapter-sidecar-registry-file smoke after contract changes.
   - For browser text-sidecar work, preserve selector registry 256 KiB, manifest 64 KiB, receipt 128 KiB, and evidence 128 KiB pre-parse limits; run adapter-manifest-budget plus at least one generated-root adapter-sidecar-registry-file smoke after app.js text fetch changes.
   - For browser auto-assembly work, preserve explicit selector adapter auto-apply fields, require receipt-preferred compatible strategy, and run generated-root adapter-sidecar-registry-file smokes for q4_0, q8_0, and f32 after app.js, selector registry, adapter-family, or bundle staging changes.
-  - For combined selector assembly work, run `browser-multi-parent-bundle ... all` plus browser-smoke `combined-selector-assembly`; run `combined-selector-cycle` when longer same-page selector reuse, repeated q4_0/q8_0/f32 switching, model-switch release sequencing, or fresh generated-root path-flexible Module Plan summaries are in scope; run `combined-selector-route-soak` when no-store local fetch behavior, repeated generated self-assembly route counts, or longer selector-route exercises are in scope; preserve q4_0 default selection, q4_0/q8_0/f32 switching, module-plan-before-model ordering, local-only requests, free_model release before every post-initial reassembly, and pre-generation ADP1 plus ASP1 plus ALR1 stack auto assembly for every generated entry.
+  - For combined selector assembly work, run `browser-multi-parent-bundle ... all` plus browser-smoke `combined-selector-assembly`; run `combined-selector-cycle` when longer same-page selector reuse, repeated q4_0/q8_0/f32 switching, model-switch release sequencing, or fresh generated-root path-flexible Module Plan summaries are in scope; run `combined-selector-route-soak` when no-store local fetch behavior, repeated generated self-assembly route counts, or longer selector-route exercises are in scope; run `combined-selector-reload-soak` when registry default boot selection, separate page lifetimes, or reload route-count proof is in scope; preserve q4_0 default selection, q4_0/q8_0/f32 switching, module-plan-before-model ordering, local-only requests, free_model release before every post-initial reassembly, and pre-generation ADP1 plus ASP1 plus ALR1 stack auto assembly for every generated entry.
   - For browser selector registry intake work, preserve `entry.N.model_bytes` as an up-front browser budget gate, keep static fallback models available when registry entries are invalid, and run browser-smoke selector-budget after app.js or registry parsing changes.
   - For selector-registry source work, preserve `selector_model_byte_budget=33554432` as a generated and validated Rust contract, then run selector:: tests, browser_bundle:: tests, selector-budget smoke, and one generated-root adapter-sidecar-registry-file smoke after budget contract changes.
   - For model-breeding reference work, route bodies through wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md, keep concept lanes as compatibility fields, receipts/manifests, eval/provenance fields, or browser-smoke assertions, update .uai/report-synthesis.uai and this file, then refresh checksum pointers in .uai/long-term-memory.uai.

@@ -28,6 +28,12 @@ const ADAPTER_DTYPE: &str = "f32-delta";
 const SPARSE_ADAPTER_DTYPE: &str = "sparse-f32-delta";
 const LOW_RANK_ADAPTER_DTYPE: &str = "low-rank-f32-delta";
 const SOURCE_LOW_RANK_ADAPTER_DTYPE: &str = "low-rank-f32-source-delta";
+const SOURCE_LOW_RANK_ADAPTER_SOURCE_MANIFEST: &str = "adapter-source.manifest";
+const SOURCE_LOW_RANK_ADAPTER_SOURCE_LAYOUT: &str = "low-rank-f32-factor-files-v1";
+const SOURCE_LOW_RANK_ADAPTER_SOURCE_FORMAT: &str = "trained-low-rank-factors-v1";
+const SOURCE_LOW_RANK_ADAPTER_BASE_CONTRACT: &str = "matches-parent-direct-parameter-contract";
+const SOURCE_LOW_RANK_ADAPTER_SOURCE_BASE_CONTRACT: &str =
+    "matches-reviewed-adapter-source-base-contract";
 const ADAPTER_APPLY_STATUS_F32: &str = "runtime-f32-compatible-or-fuse-to-slm";
 const ADAPTER_APPLY_STATUS_QUANTIZED: &str = "runtime-q8-q4-compatible-or-fuse-to-slm";
 const LOW_RANK_APPLY_STATUS_F32: &str = "runtime-f32-compatible-low-rank";
@@ -42,6 +48,16 @@ const SHARED_IDENTITY_KEYS: &[&str] = &[
     "adapter_tokenizer_checksum",
     "adapter_tensor_layout_checksum",
     "adapter_base_contract",
+];
+const SOURCE_BACKED_RECEIPT_FIELDS: &[(&str, &str)] = &[
+    ("adapter_source_manifest", "source_manifest"),
+    (
+        "adapter_source_manifest_checksum",
+        "source_manifest_checksum",
+    ),
+    ("adapter_source_layout", "source_layout"),
+    ("adapter_source_format", "source_format"),
+    ("adapter_source_base_contract", "source_base_contract"),
 ];
 
 /// One adapter manifest and its registry route for a family receipt.
@@ -272,19 +288,11 @@ fn validate_member_manifest(
         ADAPTER_ARTIFACT_VERSION,
     )?;
     let format = adapter_format_for_route(&route.adapter_path)?;
-    require_one_of(
-        fields,
-        "adapter_artifact_kind",
-        format.artifact_kinds,
-        "adapter family member artifact kind is invalid",
-    )?;
+    let artifact_kind = validate_kind_dtype_pair(fields, &format)?;
     require_equal(fields, "adapter_status", ADAPTER_STATUS)?;
-    require_one_of(
-        fields,
-        "adapter_dtype",
-        format.dtypes,
-        "adapter family member dtype is invalid",
-    )?;
+    if artifact_kind == SOURCE_LOW_RANK_ADAPTER_ARTIFACT_KIND {
+        validate_source_backed_low_rank_manifest(fields)?;
+    }
     let base_quantization = require_key(fields, "adapter_base_quantization")?;
     validate_apply_status_for_quantization(&format, &route.apply_status, &base_quantization)?;
     require_equal(fields, "adapter_apply_status", &route.apply_status)?;
@@ -306,8 +314,7 @@ fn validate_member_manifest(
 }
 
 struct AdapterManifestFormat {
-    artifact_kinds: &'static [&'static str],
-    dtypes: &'static [&'static str],
+    kind_dtype_pairs: &'static [(&'static str, &'static str)],
     apply_status_f32: &'static str,
     apply_status_quantized: &'static str,
 }
@@ -315,27 +322,27 @@ struct AdapterManifestFormat {
 fn adapter_format_for_route(adapter_path: &str) -> io::Result<AdapterManifestFormat> {
     if adapter_path.ends_with(".adp1") {
         return Ok(AdapterManifestFormat {
-            artifact_kinds: &[ADAPTER_ARTIFACT_KIND],
-            dtypes: &[ADAPTER_DTYPE],
+            kind_dtype_pairs: &[(ADAPTER_ARTIFACT_KIND, ADAPTER_DTYPE)],
             apply_status_f32: ADAPTER_APPLY_STATUS_F32,
             apply_status_quantized: ADAPTER_APPLY_STATUS_QUANTIZED,
         });
     }
     if adapter_path.ends_with(".asp1") {
         return Ok(AdapterManifestFormat {
-            artifact_kinds: &[SPARSE_ADAPTER_ARTIFACT_KIND],
-            dtypes: &[SPARSE_ADAPTER_DTYPE],
+            kind_dtype_pairs: &[(SPARSE_ADAPTER_ARTIFACT_KIND, SPARSE_ADAPTER_DTYPE)],
             apply_status_f32: ADAPTER_APPLY_STATUS_F32,
             apply_status_quantized: ADAPTER_APPLY_STATUS_QUANTIZED,
         });
     }
     if adapter_path.ends_with(".alr1") {
         return Ok(AdapterManifestFormat {
-            artifact_kinds: &[
-                LOW_RANK_ADAPTER_ARTIFACT_KIND,
-                SOURCE_LOW_RANK_ADAPTER_ARTIFACT_KIND,
+            kind_dtype_pairs: &[
+                (LOW_RANK_ADAPTER_ARTIFACT_KIND, LOW_RANK_ADAPTER_DTYPE),
+                (
+                    SOURCE_LOW_RANK_ADAPTER_ARTIFACT_KIND,
+                    SOURCE_LOW_RANK_ADAPTER_DTYPE,
+                ),
             ],
-            dtypes: &[LOW_RANK_ADAPTER_DTYPE, SOURCE_LOW_RANK_ADAPTER_DTYPE],
             apply_status_f32: LOW_RANK_APPLY_STATUS_F32,
             apply_status_quantized: LOW_RANK_APPLY_STATUS_QUANTIZED,
         });
@@ -361,15 +368,64 @@ fn validate_apply_status_for_quantization(
     Ok(())
 }
 
-fn require_one_of(
-    fields: &HashMap<String, String>,
-    key: &str,
-    accepted: &[&str],
-    error: &str,
-) -> io::Result<()> {
-    let actual = require_key(fields, key)?;
-    if !accepted.contains(&actual) {
-        return Err(invalid(error));
+/// Validates that an adapter manifest uses one route-allowed kind/dtype pair.
+fn validate_kind_dtype_pair<'a>(
+    fields: &'a HashMap<String, String>,
+    format: &AdapterManifestFormat,
+) -> io::Result<&'a str> {
+    let artifact_kind = require_key(fields, "adapter_artifact_kind")?;
+    let dtype = require_key(fields, "adapter_dtype")?;
+    if !format
+        .kind_dtype_pairs
+        .iter()
+        .any(|(kind, accepted_dtype)| artifact_kind == *kind && dtype == *accepted_dtype)
+    {
+        return Err(invalid("adapter family member kind/dtype pair is invalid"));
+    }
+    Ok(artifact_kind)
+}
+
+/// Requires source-backed ALR1 manifests to carry reviewed-source provenance fields.
+fn validate_source_backed_low_rank_manifest(fields: &HashMap<String, String>) -> io::Result<()> {
+    require_equal(
+        fields,
+        "adapter_base_contract",
+        SOURCE_LOW_RANK_ADAPTER_BASE_CONTRACT,
+    )?;
+    require_equal(
+        fields,
+        "adapter_source_manifest",
+        SOURCE_LOW_RANK_ADAPTER_SOURCE_MANIFEST,
+    )?;
+    require_hex64_field(fields, "adapter_source_manifest_checksum")?;
+    require_equal(
+        fields,
+        "adapter_source_layout",
+        SOURCE_LOW_RANK_ADAPTER_SOURCE_LAYOUT,
+    )?;
+    require_equal(
+        fields,
+        "adapter_source_format",
+        SOURCE_LOW_RANK_ADAPTER_SOURCE_FORMAT,
+    )?;
+    require_equal(
+        fields,
+        "adapter_source_base_contract",
+        SOURCE_LOW_RANK_ADAPTER_SOURCE_BASE_CONTRACT,
+    )?;
+    Ok(())
+}
+
+/// Reads a manifest field that must be a 64-bit hexadecimal checksum.
+fn require_hex64_field(fields: &HashMap<String, String>, key: &str) -> io::Result<()> {
+    let value = require_key(fields, key)?;
+    let is_hex = value.len() == 18
+        && value.starts_with("0x")
+        && value[2..].bytes().all(|byte| byte.is_ascii_hexdigit());
+    if !is_hex {
+        return Err(invalid(&format!(
+            "manifest key {key} must be a hex64 value"
+        )));
     }
     Ok(())
 }
@@ -456,11 +512,33 @@ fn push_member_lines(
         &format!("{prefix}.dtype"),
         require_key(&member.fields, "adapter_dtype")?,
     );
+    push_source_backed_member_lines(text, &prefix, member)?;
     for key in SHARED_IDENTITY_KEYS {
         push_line(
             text,
             &format!("{prefix}.{key}"),
             require_key(&member.fields, key)?,
+        );
+    }
+    Ok(())
+}
+
+/// Echoes source-backed ALR1 provenance fields into the family receipt.
+fn push_source_backed_member_lines(
+    text: &mut String,
+    prefix: &str,
+    member: &AdapterFamilyMember<'_>,
+) -> io::Result<()> {
+    if require_key(&member.fields, "adapter_artifact_kind")?
+        != SOURCE_LOW_RANK_ADAPTER_ARTIFACT_KIND
+    {
+        return Ok(());
+    }
+    for (manifest_key, receipt_key) in SOURCE_BACKED_RECEIPT_FIELDS {
+        push_line(
+            text,
+            &format!("{prefix}.{receipt_key}"),
+            require_key(&member.fields, manifest_key)?,
         );
     }
     Ok(())
@@ -715,13 +793,11 @@ mod tests {
         let dir = unique_dir("source-low-rank-family");
         fs::create_dir_all(&dir).unwrap();
         let first_manifest = member_manifest("0x00000000000000aa", "0x00000000000000f1");
-        let second_manifest = member_manifest_with_format(
+        let second_manifest = source_low_rank_member_manifest(
             "0x00000000000000bc",
             "0x00000000000000f1",
             "f32",
             LOW_RANK_APPLY_STATUS_F32,
-            SOURCE_LOW_RANK_ADAPTER_ARTIFACT_KIND,
-            SOURCE_LOW_RANK_ADAPTER_DTYPE,
         );
         let first_manifest_path = dir.join("first.adp1.manifest");
         let second_manifest_path = dir.join("source.alr1.manifest");
@@ -766,7 +842,128 @@ mod tests {
         assert!(receipt.contains("adapter.1.path=../models/source.alr1"));
         assert!(receipt.contains("adapter.1.kind=trained-source-low-rank-f32-v1"));
         assert!(receipt.contains("adapter.1.dtype=low-rank-f32-source-delta"));
+        assert!(receipt.contains("adapter.1.source_manifest=adapter-source.manifest"));
+        assert!(receipt.contains("adapter.1.source_manifest_checksum=0x00000000000000d1"));
+        assert!(receipt.contains("adapter.1.source_layout=low-rank-f32-factor-files-v1"));
+        assert!(receipt.contains("adapter.1.source_format=trained-low-rank-factors-v1"));
+        assert!(receipt.contains(
+            "adapter.1.source_base_contract=matches-reviewed-adapter-source-base-contract"
+        ));
 
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rejects_source_backed_low_rank_member_with_dtype_pair_drift() {
+        // Exercises the ALR1 kind/dtype pair gate with a source-backed kind and plain dtype.
+        let dir = unique_dir("source-low-rank-dtype-drift");
+        fs::create_dir_all(&dir).unwrap();
+        let first_manifest = member_manifest("0x00000000000000aa", "0x00000000000000f1");
+        let second_manifest = source_low_rank_member_manifest(
+            "0x00000000000000bc",
+            "0x00000000000000f1",
+            "f32",
+            LOW_RANK_APPLY_STATUS_F32,
+        )
+        .replace(
+            "adapter_dtype=low-rank-f32-source-delta",
+            "adapter_dtype=low-rank-f32-delta",
+        );
+        let first_manifest_path = dir.join("first.adp1.manifest");
+        let second_manifest_path = dir.join("source.alr1.manifest");
+        fs::write(&first_manifest_path, &first_manifest).unwrap();
+        fs::write(&second_manifest_path, &second_manifest).unwrap();
+        let first = route(
+            "../models/first.adp1",
+            "First ADP1",
+            "0x00000000000000aa",
+            &first_manifest,
+        );
+        let second = route_with_apply_status(
+            "../models/source.alr1",
+            "Source ALR1",
+            "0x00000000000000bc",
+            &second_manifest,
+            LOW_RANK_APPLY_STATUS_F32,
+        );
+        let inputs = [
+            AdapterFamilyInput {
+                route: &first,
+                manifest_path: &first_manifest_path,
+            },
+            AdapterFamilyInput {
+                route: &second,
+                manifest_path: &second_manifest_path,
+            },
+        ];
+
+        let error = build_receipt_text(
+            "candidate-a",
+            "Candidate source ALR1 family",
+            "../models/candidate-source-low-rank.adapter-family.receipt",
+            &inputs,
+        )
+        .unwrap_err();
+
+        assert!(error.to_string().contains("kind/dtype pair"));
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rejects_source_backed_low_rank_member_with_source_checksum_drift() {
+        // Exercises the source manifest checksum gate before receipt lines are emitted.
+        let dir = unique_dir("source-low-rank-source-checksum-drift");
+        fs::create_dir_all(&dir).unwrap();
+        let first_manifest = member_manifest("0x00000000000000aa", "0x00000000000000f1");
+        let second_manifest = source_low_rank_member_manifest(
+            "0x00000000000000bc",
+            "0x00000000000000f1",
+            "f32",
+            LOW_RANK_APPLY_STATUS_F32,
+        )
+        .replace(
+            "adapter_source_manifest_checksum=0x00000000000000d1",
+            "adapter_source_manifest_checksum=source-drift",
+        );
+        let first_manifest_path = dir.join("first.adp1.manifest");
+        let second_manifest_path = dir.join("source.alr1.manifest");
+        fs::write(&first_manifest_path, &first_manifest).unwrap();
+        fs::write(&second_manifest_path, &second_manifest).unwrap();
+        let first = route(
+            "../models/first.adp1",
+            "First ADP1",
+            "0x00000000000000aa",
+            &first_manifest,
+        );
+        let second = route_with_apply_status(
+            "../models/source.alr1",
+            "Source ALR1",
+            "0x00000000000000bc",
+            &second_manifest,
+            LOW_RANK_APPLY_STATUS_F32,
+        );
+        let inputs = [
+            AdapterFamilyInput {
+                route: &first,
+                manifest_path: &first_manifest_path,
+            },
+            AdapterFamilyInput {
+                route: &second,
+                manifest_path: &second_manifest_path,
+            },
+        ];
+
+        let error = build_receipt_text(
+            "candidate-a",
+            "Candidate source ALR1 family",
+            "../models/candidate-source-low-rank.adapter-family.receipt",
+            &inputs,
+        )
+        .unwrap_err();
+
+        assert!(error
+            .to_string()
+            .contains("adapter_source_manifest_checksum"));
         fs::remove_dir_all(dir).unwrap();
     }
 
@@ -882,6 +1079,49 @@ mod tests {
             ADAPTER_ARTIFACT_KIND,
             ADAPTER_DTYPE,
         )
+    }
+
+    fn source_low_rank_member_manifest(
+        artifact_checksum: &str,
+        layout_checksum: &str,
+        base_quantization: &str,
+        apply_status: &str,
+    ) -> String {
+        // Builds a valid source-backed low-rank adapter manifest for receipt tests.
+        let mut text = member_manifest_with_format(
+            artifact_checksum,
+            layout_checksum,
+            base_quantization,
+            apply_status,
+            SOURCE_LOW_RANK_ADAPTER_ARTIFACT_KIND,
+            SOURCE_LOW_RANK_ADAPTER_DTYPE,
+        );
+        push_line(
+            &mut text,
+            "adapter_source_manifest",
+            SOURCE_LOW_RANK_ADAPTER_SOURCE_MANIFEST,
+        );
+        push_line(
+            &mut text,
+            "adapter_source_manifest_checksum",
+            "0x00000000000000d1",
+        );
+        push_line(
+            &mut text,
+            "adapter_source_layout",
+            SOURCE_LOW_RANK_ADAPTER_SOURCE_LAYOUT,
+        );
+        push_line(
+            &mut text,
+            "adapter_source_format",
+            SOURCE_LOW_RANK_ADAPTER_SOURCE_FORMAT,
+        );
+        push_line(
+            &mut text,
+            "adapter_source_base_contract",
+            SOURCE_LOW_RANK_ADAPTER_SOURCE_BASE_CONTRACT,
+        );
+        text
     }
 
     fn member_manifest_with_format(
