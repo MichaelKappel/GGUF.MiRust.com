@@ -11,7 +11,7 @@ const path = require("path");
 const appUrl = process.argv[2] || "http://127.0.0.1:8080/app/";
 const port = Number(process.argv[3] || 9223);
 const smokeMode = process.argv[5] || "single";
-const expectedModel = process.argv[4] || (smokeMode === "multi-parent-registry" ? "multi-parent-sign-merge-q8" : smokeMode === "adapter-sidecar-registry-q8" ? "tinyq8" : smokeMode === "adapter-manifest-budget" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-dependency-drift" ? "multi-parent-sign-merge-q4" : smokeMode === "multi-parent-registry-file" || smokeMode === "adapter-sidecar-registry-file" ? "multi-parent-sign-merge-f32" : smokeMode === "adapter-sidecar" || smokeMode === "adapter-sidecar-checksum-mismatch" ? "tinyf32" : "tinylm16q8");
+const expectedModel = process.argv[4] || (smokeMode === "multi-parent-registry" ? "multi-parent-sign-merge-q8" : smokeMode === "adapter-sidecar-registry-q8" ? "tinyq8" : smokeMode === "adapter-manifest-budget" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift" || smokeMode === "assembly-eval-case-drift" || smokeMode === "assembly-evidence-file-drift" || smokeMode === "combined-selector-assembly" ? "multi-parent-sign-merge-q4" : smokeMode === "multi-parent-registry-file" || smokeMode === "adapter-sidecar-registry-file" ? "multi-parent-sign-merge-f32" : smokeMode === "adapter-sidecar" || smokeMode === "adapter-sidecar-checksum-mismatch" ? "tinyf32" : "tinylm16q8");
 const enduranceCycles = Math.max(2, Math.min(20, Number.parseInt(process.argv[6] || "4", 10) || 4));
 const performanceTokens = Math.max(2, Math.min(8, Number.parseInt(process.argv[6] || "4", 10) || 4));
 const performanceSoakCycles = Math.max(2, Math.min(10, Number.parseInt(process.argv[6] || "3", 10) || 3));
@@ -54,17 +54,20 @@ const expectedAdapterLabels = {
   "multi-parent-sign-merge-f32": [
     "Multi-parent sign-merge f32 self ADP1",
     "Multi-parent sign-merge f32 family ADP1",
-    "Multi-parent sign-merge f32 sparse ASP1"
+    "Multi-parent sign-merge f32 sparse ASP1",
+    "Multi-parent sign-merge f32 low-rank ALR1"
   ],
   "multi-parent-sign-merge-q8": [
     "Multi-parent sign-merge q8_0 self ADP1",
     "Multi-parent sign-merge q8_0 family ADP1",
-    "Multi-parent sign-merge q8_0 sparse ASP1"
+    "Multi-parent sign-merge q8_0 sparse ASP1",
+    "Multi-parent sign-merge q8_0 low-rank ALR1"
   ],
   "multi-parent-sign-merge-q4": [
     "Multi-parent sign-merge q4_0 self ADP1",
     "Multi-parent sign-merge q4_0 family ADP1",
-    "Multi-parent sign-merge q4_0 sparse ASP1"
+    "Multi-parent sign-merge q4_0 sparse ASP1",
+    "Multi-parent sign-merge q4_0 low-rank ALR1"
   ]
 };
 
@@ -80,15 +83,18 @@ const expectedAdapterRoutes = {
 const expectedAdapterStackRoutes = {
   "multi-parent-sign-merge-q8": [
     "/models/multi-parent-sign-merge-q8-family.adp1",
-    "/models/multi-parent-sign-merge-q8-sparse.asp1"
+    "/models/multi-parent-sign-merge-q8-sparse.asp1",
+    "/models/multi-parent-sign-merge-q8-low-rank.alr1"
   ],
   "multi-parent-sign-merge-q4": [
     "/models/multi-parent-sign-merge-q4-family.adp1",
-    "/models/multi-parent-sign-merge-q4-sparse.asp1"
+    "/models/multi-parent-sign-merge-q4-sparse.asp1",
+    "/models/multi-parent-sign-merge-q4-low-rank.alr1"
   ],
   "multi-parent-sign-merge-f32": [
     "/models/multi-parent-sign-merge-f32-family.adp1",
-    "/models/multi-parent-sign-merge-f32-sparse.asp1"
+    "/models/multi-parent-sign-merge-f32-sparse.asp1",
+    "/models/multi-parent-sign-merge-f32-low-rank.alr1"
   ]
 };
 
@@ -116,14 +122,32 @@ const expectedModulePlanModelBudgets = {
   "multi-parent-sign-merge-f32": "20352 bytes"
 };
 
+const expectedModulePlanBytes = {
+  "multi-parent-sign-merge-q8": "0: 8832 bytes, 1: 591 bytes, 2: 1896 bytes, 3: 5421 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 832 bytes",
+  "multi-parent-sign-merge-q4": "0: 6592 bytes, 1: 591 bytes, 2: 1896 bytes, 3: 5421 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 832 bytes",
+  "multi-parent-sign-merge-f32": "0: 20352 bytes, 1: 592 bytes, 2: 1909 bytes, 3: 5421 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 832 bytes"
+};
+
+const expectedModulePlanChecksums = {
+  "multi-parent-sign-merge-q8": "0: 0x0132bc82d5a0d7d6, 1: 0xaf0ad5aac4a6b848, 2: 0xe8046cd15655b310, 3: 0x5dee995825b6763f, 4: 0x8194a8a671285019, 5: 0x6fa5d29bee9b7cfb, 6: 0x3f8c127d335dcd96",
+  "multi-parent-sign-merge-q4": "0: 0x1a6808e3098d1ce0, 1: 0xb89d3aabe67dd9d0, 2: 0xa2847d74c0277ca3, 3: 0x07f1d173c6da2d45, 4: 0x0bd71e0020bc6ebf, 5: 0x69638218a1dd1eb6, 6: 0x199a2b73d817476a",
+  "multi-parent-sign-merge-f32": "0: 0x8a0e6c4c01998199, 1: 0x0c63646e17a3e93b, 2: 0xee3ff7100b66299e, 3: 0x1b6c7c1f933c6a61, 4: 0xe9669ade4571fd42, 5: 0x34008cedc028ed5c, 6: 0xbddf0c5c088bce18"
+};
+
 const expectedModulePlanRoles =
-  "0: runtime-model, 1: model-provenance-manifest, 2: assembly-evidence, 3: adapter-family, 4: adapter-stack-family-delta, 5: adapter-stack-sparse-delta";
+  "0: runtime-model, 1: model-provenance-manifest, 2: assembly-evidence, 3: adapter-family, 4: adapter-stack-family-delta, 5: adapter-stack-sparse-delta, 6: adapter-stack-low-rank-delta";
 
 const expectedModulePlanSlots =
-  "0: runtime-model, 1: model-manifest, 2: assembly-receipt, 3: adapter-family-receipt, 4: adapter-stack-0, 5: adapter-stack-1";
+  "0: runtime-model, 1: model-manifest, 2: assembly-receipt, 3: adapter-family-receipt, 4: adapter-stack-0, 5: adapter-stack-1, 6: adapter-stack-2";
+
+const expectedModulePlanPhases =
+  "0: load-model-bytes, 1: verify-model-manifest, 2: verify-assembly-evidence, 3: verify-adapter-family, 4: apply-adapter-stack-0, 5: apply-adapter-stack-1, 6: apply-adapter-stack-2";
 
 const expectedModulePlanDependencies =
-  "0: runtime-wasm, 1: module.0, 2: module.1, 3: module.2, 4: module.3, 5: module.4";
+  "0: runtime-wasm, 1: module.0, 2: module.1, 3: module.2, 4: module.3, 5: module.4, 6: module.5";
+
+const expectedModulePlanTrace =
+  "0: plan verified, 1: model accepted, 2: manifest verified, 3: assembly evidence verified, 4: adapter family verified, 5: adapter stack applied, 6: ready";
 
 const expectedAssemblyEvidenceRoutes = {
   "multi-parent-sign-merge-q8": multiParentEvidenceRoutes("multi-parent-sign-merge-q8"),
@@ -135,17 +159,20 @@ const expectedAdapterManifestRoutes = {
   "multi-parent-sign-merge-q8": [
     "/models/multi-parent-sign-merge-q8-self.adp1.manifest",
     "/models/multi-parent-sign-merge-q8-family.adp1.manifest",
-    "/models/multi-parent-sign-merge-q8-sparse.asp1.manifest"
+    "/models/multi-parent-sign-merge-q8-sparse.asp1.manifest",
+    "/models/multi-parent-sign-merge-q8-low-rank.alr1.manifest"
   ],
   "multi-parent-sign-merge-q4": [
     "/models/multi-parent-sign-merge-q4-self.adp1.manifest",
     "/models/multi-parent-sign-merge-q4-family.adp1.manifest",
-    "/models/multi-parent-sign-merge-q4-sparse.asp1.manifest"
+    "/models/multi-parent-sign-merge-q4-sparse.asp1.manifest",
+    "/models/multi-parent-sign-merge-q4-low-rank.alr1.manifest"
   ],
   "multi-parent-sign-merge-f32": [
     "/models/multi-parent-sign-merge-f32-self.adp1.manifest",
     "/models/multi-parent-sign-merge-f32-family.adp1.manifest",
-    "/models/multi-parent-sign-merge-f32-sparse.asp1.manifest"
+    "/models/multi-parent-sign-merge-f32-sparse.asp1.manifest",
+    "/models/multi-parent-sign-merge-f32-low-rank.alr1.manifest"
   ]
 };
 
@@ -186,6 +213,16 @@ function expectedRouteForModel(modelKey) {
 
 function networkIncludesPath(networkRequests, expectedPath) {
   return networkRequests.some((requestUrl) => {
+    try {
+      return new URL(requestUrl).pathname === expectedPath;
+    } catch (_error) {
+      return requestUrl === expectedPath;
+    }
+  });
+}
+
+function networkPathIndex(networkRequests, expectedPath) {
+  return networkRequests.findIndex((requestUrl) => {
     try {
       return new URL(requestUrl).pathname === expectedPath;
     } catch (_error) {
@@ -311,12 +348,54 @@ function driftModulePlanSlot(receiptText) {
   return receiptText.replace(slotMatch[0], "module.4.assembly_slot=adapter-stack-slot-drift");
 }
 
+function driftModulePlanPhase(receiptText) {
+  const phaseMatch = receiptText.match(/^module\.4\.phase=([^\r\n]+)$/m);
+  if (!phaseMatch) {
+    throw new Error("module plan stack member phase field was not found");
+  }
+  return receiptText.replace(phaseMatch[0], "module.4.phase=adapter-stack-phase-drift");
+}
+
+function driftModulePlanByteCount(receiptText) {
+  const byteMatch = receiptText.match(/^module\.0\.byte_count=([0-9]+)$/m);
+  if (!byteMatch) {
+    throw new Error("module plan model byte count field was not found");
+  }
+  const byteCount = Number.parseInt(byteMatch[1], 10);
+  const drifted = Number.isSafeInteger(byteCount) && byteCount > 1 ? byteCount - 1 : byteCount + 1;
+  return receiptText.replace(byteMatch[0], `module.0.byte_count=${drifted}`);
+}
+
+function driftModulePlanChecksum(receiptText) {
+  const checksumMatch = receiptText.match(/^module\.4\.checksum=(0x[0-9a-fA-F]{16})$/m);
+  if (!checksumMatch) {
+    throw new Error("module plan stack member checksum field was not found");
+  }
+  const checksum = BigInt(checksumMatch[1]);
+  const drifted = `0x${(checksum ^ 1n).toString(16).padStart(16, "0")}`;
+  return receiptText.replace(checksumMatch[0], `module.4.checksum=${drifted}`);
+}
+
 function driftModulePlanDependency(receiptText) {
   const dependencyMatch = receiptText.match(/^module\.4\.depends_on=([^\r\n]+)$/m);
   if (!dependencyMatch) {
     throw new Error("module plan stack member dependency field was not found");
   }
   return receiptText.replace(dependencyMatch[0], "module.4.depends_on=module.2");
+}
+
+function driftAssemblyEvalCaseEvidenceChecksum(receiptText) {
+  const checksumMatch = receiptText.match(/^eval_case_evidence_checksum=(0x[0-9a-fA-F]{16})$/m);
+  if (!checksumMatch) {
+    throw new Error("assembly eval case evidence checksum field was not found");
+  }
+  const checksum = BigInt(checksumMatch[1]);
+  const drifted = `0x${(checksum ^ 1n).toString(16).padStart(16, "0")}`;
+  return receiptText.replace(checksumMatch[0], `eval_case_evidence_checksum=${drifted}`);
+}
+
+function driftAssemblyEvidenceFileText(evidenceText) {
+  return `${evidenceText.replace(/\s*$/, "")}\nproof_drift=assembly-evidence-file-drift\n`;
 }
 
 function updateRegistryModulePlanChecksum(registryText, candidateId, checksum) {
@@ -332,6 +411,32 @@ function updateRegistryModulePlanChecksum(registryText, candidateId, checksum) {
   return registryText.replace(checksumPattern, `${prefix}.module_plan_checksum=${checksum}`);
 }
 
+function updateRegistryAssemblyReceiptChecksum(registryText, candidateId, checksum) {
+  const candidateMatch = registryText.match(new RegExp(`^entry\\.(\\d+)\\.candidate_id=${candidateId}$`, "m"));
+  if (!candidateMatch) {
+    throw new Error(`selector registry entry was not found for ${candidateId}`);
+  }
+  const prefix = `entry.${candidateMatch[1]}`;
+  const checksumPattern = new RegExp(`^${prefix}\\.assembly_receipt_checksum=0x[0-9a-fA-F]{16}$`, "m");
+  if (!checksumPattern.test(registryText)) {
+    throw new Error(`assembly receipt checksum field was not found for ${candidateId}`);
+  }
+  return registryText.replace(checksumPattern, `${prefix}.assembly_receipt_checksum=${checksum}`);
+}
+
+function updateModulePlanAssemblyReceiptChecksum(receiptText, checksum) {
+  let updated = receiptText;
+  for (const key of ["assembly_receipt_checksum", "module.2.checksum"]) {
+    const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const checksumPattern = new RegExp(`^${escapedKey}=0x[0-9a-fA-F]{16}$`, "m");
+    if (!checksumPattern.test(updated)) {
+      throw new Error(`module plan ${key} field was not found`);
+    }
+    updated = updated.replace(checksumPattern, `${key}=${checksum}`);
+  }
+  return updated;
+}
+
 function fulfillTextRequest(client, requestId, text) {
   const body = Buffer.from(text, "utf8");
   return client.send("Fetch.fulfillRequest", {
@@ -345,8 +450,20 @@ function fulfillTextRequest(client, requestId, text) {
   });
 }
 
-function continuePausedRequest(client, requestId) {
-  return client.send("Fetch.continueRequest", { requestId });
+function isStaleFetchInterception(error) {
+  const message = error && error.message ? error.message : String(error || "");
+  return message.includes('"code":-32602') && message.includes("Invalid InterceptionId");
+}
+
+async function continuePausedRequest(client, requestId) {
+  try {
+    return await client.send("Fetch.continueRequest", { requestId });
+  } catch (error) {
+    if (isStaleFetchInterception(error)) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 function parseEvaluateValue(result) {
@@ -671,6 +788,8 @@ async function runPageAdapterSidecarSmoke(client, modelKey, expectAutoAssembly) 
         selectedModel: byId("modelSelect").value,
         modelOptions,
         adapterState: byId("adapterState").textContent,
+        provenanceEvalCases: byId("provenanceEvalCases").textContent,
+        provenanceEvalChecksum: byId("provenanceEvalChecksum").textContent,
         assemblyState: byId("assemblyState").textContent,
         assemblyKind: byId("assemblyKind").textContent,
         assemblyParents: byId("assemblyParents").textContent,
@@ -683,9 +802,13 @@ async function runPageAdapterSidecarSmoke(client, modelKey, expectAutoAssembly) 
         modulePlanModules: byId("modulePlanModules").textContent,
         modulePlanModelBudget: byId("modulePlanModelBudget").textContent,
         modulePlanAdapterBudget: byId("modulePlanAdapterBudget").textContent,
+        modulePlanBytes: byId("modulePlanBytes").textContent,
+        modulePlanChecksums: byId("modulePlanChecksums").textContent,
         modulePlanSlots: byId("modulePlanSlots").textContent,
         modulePlanRoles: byId("modulePlanRoles").textContent,
+        modulePlanPhases: byId("modulePlanPhases").textContent,
         modulePlanDepends: byId("modulePlanDepends").textContent,
+        modulePlanTrace: byId("modulePlanTrace").textContent,
         modulePlanModel: byId("modulePlanModel").textContent,
         modulePlanStack: byId("modulePlanStack").textContent,
         adapterOptions,
@@ -713,6 +836,157 @@ async function runPageAdapterSidecarSmoke(client, modelKey, expectAutoAssembly) 
     awaitPromise: true,
     returnByValue: true,
     timeout: 120000
+  });
+  return parseEvaluateValue(result);
+}
+
+async function runPageCombinedSelectorAssemblySmoke(client) {
+  const expression = `
+    (async () => {
+      const expectedModels = [
+        "multi-parent-sign-merge-q4",
+        "multi-parent-sign-merge-q8",
+        "multi-parent-sign-merge-f32"
+      ];
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const byId = (id) => document.getElementById(id);
+      const parseDiagnostics = () => {
+        try {
+          return JSON.parse(byId("diagnostics").textContent);
+        } catch (_error) {
+          return {};
+        }
+      };
+      const waitForReadyAssembly = async (modelKey) => {
+        for (let index = 0; index < 900; index += 1) {
+          const ready = byId("modelSelect").value === modelKey &&
+            byId("generateButton") &&
+            !byId("generateButton").disabled &&
+            byId("runtimeStatus").textContent === "Ready";
+          const assembled = byId("adapterState") && byId("adapterState").textContent === "applied";
+          if (ready && assembled) {
+            return true;
+          }
+          await sleep(100);
+        }
+        return false;
+      };
+      for (let index = 0; index < 900; index += 1) {
+        const options = Array.from(byId("modelSelect").options).map((option) => option.value);
+        if (
+          expectedModels.every((modelKey) => options.includes(modelKey)) &&
+          byId("runtimeStatus").textContent === "Ready" &&
+          byId("adapterState").textContent === "applied"
+        ) {
+          break;
+        }
+        await sleep(100);
+      }
+      const initialSelectedModel = byId("modelSelect").value;
+      const modelOptions = Array.from(byId("modelSelect").options).map((option) => ({
+        value: option.value,
+        label: option.textContent.trim()
+      }));
+      const steps = [];
+      for (const modelKey of expectedModels) {
+        if (byId("modelSelect").value !== modelKey) {
+          byId("modelSelect").value = modelKey;
+          byId("modelSelect").dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        await waitForReadyAssembly(modelKey);
+        const adapterOptions = Array.from(byId("adapterSelect").options).map((option) => ({
+          value: option.value,
+          label: option.textContent.trim()
+        }));
+        const selectedAdapterBeforeApply = byId("adapterSelect").value;
+        const adapterSelectDisabledBefore = byId("adapterSelect").disabled;
+        const applyDisabledBefore = byId("applyAdapterButton").disabled;
+        const adapterStateBeforeGenerate = byId("adapterState").textContent;
+        const diagnosticsBeforeGenerate = parseDiagnostics();
+        const consoleBeforeGenerate = byId("console").textContent;
+        byId("maxTokens").value = "1";
+        byId("prompt").value = "hi";
+        byId("generateButton").click();
+        for (let index = 0; index < 900; index += 1) {
+          const diagnostics = parseDiagnostics();
+          if (
+            byId("response").textContent === "e" &&
+            diagnostics.generated_token_count === 1 &&
+            byId("errorState").textContent === "none"
+          ) {
+            break;
+          }
+          if (byId("errorState").textContent !== "none") {
+            break;
+          }
+          await sleep(100);
+        }
+        steps.push({
+          modelKey,
+          runtimeStatus: byId("runtimeStatus").textContent,
+          modelState: byId("modelState").textContent,
+          errorState: byId("errorState").textContent,
+          response: byId("response").textContent,
+          console: byId("console").textContent,
+          initialSelectedModel,
+          selectedModel: byId("modelSelect").value,
+          modelOptions,
+          adapterState: byId("adapterState").textContent,
+          provenanceEvalCases: byId("provenanceEvalCases").textContent,
+          provenanceEvalChecksum: byId("provenanceEvalChecksum").textContent,
+          assemblyState: byId("assemblyState").textContent,
+          assemblyKind: byId("assemblyKind").textContent,
+          assemblyParents: byId("assemblyParents").textContent,
+          assemblyOperator: byId("assemblyOperator").textContent,
+          assemblyLedger: byId("assemblyLedger").textContent,
+          assemblyNextGate: byId("assemblyNextGate").textContent,
+          modulePlanState: byId("modulePlanState").textContent,
+          modulePlanKind: byId("modulePlanKind").textContent,
+          modulePlanResource: byId("modulePlanResource").textContent,
+          modulePlanModules: byId("modulePlanModules").textContent,
+          modulePlanModelBudget: byId("modulePlanModelBudget").textContent,
+          modulePlanAdapterBudget: byId("modulePlanAdapterBudget").textContent,
+          modulePlanBytes: byId("modulePlanBytes").textContent,
+          modulePlanChecksums: byId("modulePlanChecksums").textContent,
+          modulePlanSlots: byId("modulePlanSlots").textContent,
+          modulePlanRoles: byId("modulePlanRoles").textContent,
+          modulePlanPhases: byId("modulePlanPhases").textContent,
+          modulePlanDepends: byId("modulePlanDepends").textContent,
+          modulePlanTrace: byId("modulePlanTrace").textContent,
+          modulePlanModel: byId("modulePlanModel").textContent,
+          modulePlanStack: byId("modulePlanStack").textContent,
+          adapterOptions,
+          selectedAdapterBeforeApply,
+          adapterSelectDisabledBefore,
+          applyDisabledBefore,
+          adapterStateBeforeGenerate,
+          autoAppliedBeforeGenerate: adapterStateBeforeGenerate === "applied",
+          diagnosticsBeforeGenerate,
+          consoleBeforeGenerate,
+          afterGenerateDiagnostics: parseDiagnostics(),
+          stepDisabledAfterGenerate: byId("stepTokenButton").disabled,
+          stepDisabledBeforeApply: byId("stepTokenButton").disabled,
+          stepDisabledAfterApply: byId("stepTokenButton").disabled,
+          generateDisabledAfterApply: byId("generateButton").disabled,
+          applyDisabledAfterApply: byId("applyAdapterButton").disabled,
+          beforeApplyDiagnostics: parseDiagnostics(),
+          afterApplyDiagnostics: diagnosticsBeforeGenerate,
+          diagnosticsText: byId("diagnostics").textContent
+        });
+      }
+      return JSON.stringify({
+        initialSelectedModel,
+        modelOptions,
+        finalSelectedModel: byId("modelSelect").value,
+        steps
+      });
+    })()
+  `;
+  const result = await client.send("Runtime.evaluate", {
+    expression,
+    awaitPromise: true,
+    returnByValue: true,
+    timeout: 240000
   });
   return parseEvaluateValue(result);
 }
@@ -919,6 +1193,59 @@ async function runPageModelErrorSmoke(client) {
     awaitPromise: true,
     returnByValue: true,
     timeout: 90000
+  });
+  return parseEvaluateValue(result);
+}
+
+async function runPageAssemblyEvalCaseDriftSmoke(client) {
+  const expression = `
+    (async () => {
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const byId = (id) => document.getElementById(id);
+      const parseDiagnostics = () => {
+        try {
+          return JSON.parse(byId("diagnostics").textContent);
+        } catch (_error) {
+          return {};
+        }
+      };
+      for (let index = 0; index < 800; index += 1) {
+        const status = byId("runtimeStatus") ? byId("runtimeStatus").textContent : "Booting";
+        const assemblyState = byId("assemblyState") ? byId("assemblyState").textContent : "";
+        if (
+          status === "Model load failed" ||
+          assemblyState.includes("assembly eval case evidence checksum mismatch")
+        ) {
+          break;
+        }
+        await sleep(100);
+      }
+      return JSON.stringify({
+        runtimeStatus: byId("runtimeStatus").textContent,
+        wasmState: byId("wasmState").textContent,
+        modelState: byId("modelState").textContent,
+        assemblyState: byId("assemblyState").textContent,
+        modulePlanState: byId("modulePlanState").textContent,
+        modulePlanTrace: byId("modulePlanTrace").textContent,
+        adapterState: byId("adapterState").textContent,
+        errorState: byId("errorState").textContent,
+        diagnostics: parseDiagnostics(),
+        diagnosticsText: byId("diagnostics").textContent,
+        response: byId("response").textContent,
+        console: byId("console").textContent,
+        selectedModel: byId("modelSelect").value,
+        generateDisabled: byId("generateButton").disabled,
+        stepTokenDisabled: byId("stepTokenButton").disabled,
+        resetDisabled: byId("resetButton").disabled,
+        modelSelectDisabled: byId("modelSelect").disabled
+      });
+    })()
+  `;
+  const result = await client.send("Runtime.evaluate", {
+    expression,
+    awaitPromise: true,
+    returnByValue: true,
+    timeout: 120000
   });
   return parseEvaluateValue(result);
 }
@@ -1388,6 +1715,8 @@ async function runPageUiAudit(client) {
           provenanceAdmission: byId("provenanceAdmission").textContent,
           provenanceQualityClaim: byId("provenanceQualityClaim").textContent,
           provenanceTrainedClaim: byId("provenanceTrainedClaim").textContent,
+          provenanceEvalCases: byId("provenanceEvalCases").textContent,
+          provenanceEvalChecksum: byId("provenanceEvalChecksum").textContent,
           provenanceChecksum: byId("provenanceChecksum").textContent,
           provenanceNextGate: byId("provenanceNextGate").textContent,
           assemblyState: byId("assemblyState").textContent,
@@ -1402,9 +1731,13 @@ async function runPageUiAudit(client) {
           modulePlanModules: byId("modulePlanModules").textContent,
           modulePlanModelBudget: byId("modulePlanModelBudget").textContent,
           modulePlanAdapterBudget: byId("modulePlanAdapterBudget").textContent,
+          modulePlanBytes: byId("modulePlanBytes").textContent,
+          modulePlanChecksums: byId("modulePlanChecksums").textContent,
           modulePlanSlots: byId("modulePlanSlots").textContent,
           modulePlanRoles: byId("modulePlanRoles").textContent,
+          modulePlanPhases: byId("modulePlanPhases").textContent,
           modulePlanDepends: byId("modulePlanDepends").textContent,
+          modulePlanTrace: byId("modulePlanTrace").textContent,
           modulePlanModel: byId("modulePlanModel").textContent,
           modulePlanStack: byId("modulePlanStack").textContent,
           benchLoadMs: byId("benchLoadMs").textContent,
@@ -1833,6 +2166,84 @@ function assertModulePlanSlotDriftSmoke(result, modelKey, networkRequests) {
   }
 }
 
+function assertModulePlanPhaseDriftSmoke(result, modelKey, networkRequests) {
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan phase drift",
+    "Module plan field module.4.phase was"
+  );
+  const failures = [];
+  const stackRoutes = expectedAdapterStackRoutes[modelKey] || [];
+  for (const stackRoute of stackRoutes) {
+    if (networkIncludesPath(networkRequests, stackRoute)) {
+      failures.push(`adapter stack route was requested after module plan phase drift: ${stackRoute}`);
+    }
+  }
+  const manifestRoutes = expectedAdapterManifestRoutes[modelKey] || [];
+  for (const manifestRoute of manifestRoutes) {
+    if (networkIncludesPath(networkRequests, manifestRoute)) {
+      failures.push(`adapter manifest route was requested after module plan phase drift: ${manifestRoute}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertModulePlanByteDriftSmoke(result, modelKey, networkRequests) {
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan byte drift",
+    "Module plan field module.0.byte_count was"
+  );
+  const failures = [];
+  const stackRoutes = expectedAdapterStackRoutes[modelKey] || [];
+  for (const stackRoute of stackRoutes) {
+    if (networkIncludesPath(networkRequests, stackRoute)) {
+      failures.push(`adapter stack route was requested after module plan byte drift: ${stackRoute}`);
+    }
+  }
+  const manifestRoutes = expectedAdapterManifestRoutes[modelKey] || [];
+  for (const manifestRoute of manifestRoutes) {
+    if (networkIncludesPath(networkRequests, manifestRoute)) {
+      failures.push(`adapter manifest route was requested after module plan byte drift: ${manifestRoute}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertModulePlanChecksumDriftSmoke(result, modelKey, networkRequests) {
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan checksum drift",
+    "module plan adapter module checksum mismatch"
+  );
+  const failures = [];
+  const stackRoutes = expectedAdapterStackRoutes[modelKey] || [];
+  for (const stackRoute of stackRoutes) {
+    if (networkIncludesPath(networkRequests, stackRoute)) {
+      failures.push(`adapter stack route was requested after module plan checksum drift: ${stackRoute}`);
+    }
+  }
+  const manifestRoutes = expectedAdapterManifestRoutes[modelKey] || [];
+  for (const manifestRoute of manifestRoutes) {
+    if (networkIncludesPath(networkRequests, manifestRoute)) {
+      failures.push(`adapter manifest route was requested after module plan checksum drift: ${manifestRoute}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
 function assertStepTokenSmoke(result, modelKey, networkRequests) {
   const failures = [];
   const quantization = expectedQuantization[modelKey];
@@ -1944,6 +2355,185 @@ function assertModulePlanDependencyDriftSmoke(result, modelKey, networkRequests)
   }
 }
 
+function assertAssemblyEvalCaseDriftSmoke(result, modelKey, networkRequests) {
+  const failures = [];
+  if (result.selectedModel !== modelKey) {
+    failures.push(`selected model was ${result.selectedModel}`);
+  }
+  if (result.runtimeStatus !== "Model load failed") {
+    failures.push(`runtime status was ${result.runtimeStatus}`);
+  }
+  if (result.modelState !== "assembly evidence rejected") {
+    failures.push(`model state was ${result.modelState}`);
+  }
+  if (!String(result.errorState || "").includes("assembly eval case evidence checksum mismatch")) {
+    failures.push(`error state was ${result.errorState}`);
+  }
+  if (!String(result.assemblyState || "").includes("assembly eval case evidence checksum mismatch")) {
+    failures.push(`assembly state was ${result.assemblyState}`);
+  }
+  if (result.adapterState !== "assembly evidence rejected") {
+    failures.push(`adapter state was ${result.adapterState}`);
+  }
+  if (!String(result.modulePlanTrace || "").includes("assembly evidence rejected")) {
+    failures.push(`module plan trace was ${result.modulePlanTrace}`);
+  }
+  if (String(result.modulePlanTrace || "").includes("ready")) {
+    failures.push(`module plan trace reached ready after assembly drift: ${result.modulePlanTrace}`);
+  }
+  if (!result.generateDisabled || !result.resetDisabled || !result.stepTokenDisabled) {
+    failures.push("runtime controls were enabled after assembly eval-case drift");
+  }
+  if (result.modelSelectDisabled) {
+    failures.push("model selector was disabled after assembly eval-case drift");
+  }
+  if (!result.diagnostics || result.diagnostics.model_loaded !== false) {
+    failures.push(`diagnostics model_loaded was ${JSON.stringify(result.diagnostics)}`);
+  }
+  if (!networkIncludesPath(networkRequests, "/models/selector.registry")) {
+    failures.push("selector registry route was not requested");
+  }
+  const expectedModulePlanRoute = expectedModulePlanRoutes[modelKey];
+  if (!expectedModulePlanRoute || !networkIncludesPath(networkRequests, expectedModulePlanRoute)) {
+    failures.push(`module plan route was not requested: ${expectedModulePlanRoute}`);
+  }
+  const expectedModelRoute = expectedRouteForModel(modelKey);
+  if (expectedModelRoute && !networkIncludesPath(networkRequests, expectedModelRoute)) {
+    failures.push(`generated model route was not requested: ${expectedModelRoute}`);
+  }
+  const expectedAssemblyReceiptRoute = expectedAssemblyReceiptRoutes[modelKey];
+  if (!expectedAssemblyReceiptRoute || !networkIncludesPath(networkRequests, expectedAssemblyReceiptRoute)) {
+    failures.push(`assembly receipt route was not requested: ${expectedAssemblyReceiptRoute}`);
+  }
+  for (const evidenceRoute of expectedAssemblyEvidenceRoutes[modelKey] || []) {
+    if (networkIncludesPath(networkRequests, evidenceRoute)) {
+      failures.push(`assembly evidence route was requested after eval-case drift: ${evidenceRoute}`);
+    }
+  }
+  const adapterFamilyRoute = expectedAdapterFamilyReceiptRoutes[modelKey];
+  if (adapterFamilyRoute && networkIncludesPath(networkRequests, adapterFamilyRoute)) {
+    failures.push(`adapter family receipt route was requested after assembly drift: ${adapterFamilyRoute}`);
+  }
+  for (const stackRoute of expectedAdapterStackRoutes[modelKey] || []) {
+    if (networkIncludesPath(networkRequests, stackRoute)) {
+      failures.push(`adapter stack route was requested after assembly drift: ${stackRoute}`);
+    }
+  }
+  for (const manifestRoute of expectedAdapterManifestRoutes[modelKey] || []) {
+    if (networkIncludesPath(networkRequests, manifestRoute)) {
+      failures.push(`adapter manifest route was requested after assembly drift: ${manifestRoute}`);
+    }
+  }
+  const allowedOrigin = new URL(appUrl).origin;
+  for (const requestUrl of networkRequests) {
+    if (!requestUrl.startsWith("http://") && !requestUrl.startsWith("https://")) {
+      continue;
+    }
+    const origin = new URL(requestUrl).origin;
+    if (origin !== allowedOrigin) {
+      failures.push(`remote request observed: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertAssemblyEvidenceFileDriftSmoke(result, modelKey, networkRequests) {
+  const failures = [];
+  if (result.selectedModel !== modelKey) {
+    failures.push(`selected model was ${result.selectedModel}`);
+  }
+  if (result.runtimeStatus !== "Model load failed") {
+    failures.push(`runtime status was ${result.runtimeStatus}`);
+  }
+  if (result.modelState !== "assembly evidence rejected") {
+    failures.push(`model state was ${result.modelState}`);
+  }
+  const errorState = String(result.errorState || "");
+  if (!errorState.includes("assembly evidence") || !errorState.includes("checksum mismatch")) {
+    failures.push(`error state was ${result.errorState}`);
+  }
+  const assemblyState = String(result.assemblyState || "");
+  if (!assemblyState.includes("assembly evidence") || !assemblyState.includes("checksum mismatch")) {
+    failures.push(`assembly state was ${result.assemblyState}`);
+  }
+  if (result.adapterState !== "assembly evidence rejected") {
+    failures.push(`adapter state was ${result.adapterState}`);
+  }
+  if (!String(result.modulePlanTrace || "").includes("assembly evidence rejected")) {
+    failures.push(`module plan trace was ${result.modulePlanTrace}`);
+  }
+  if (String(result.modulePlanTrace || "").includes("ready")) {
+    failures.push(`module plan trace reached ready after assembly evidence-file drift: ${result.modulePlanTrace}`);
+  }
+  if (!result.generateDisabled || !result.resetDisabled || !result.stepTokenDisabled) {
+    failures.push("runtime controls were enabled after assembly evidence-file drift");
+  }
+  if (result.modelSelectDisabled) {
+    failures.push("model selector was disabled after assembly evidence-file drift");
+  }
+  if (!result.diagnostics || result.diagnostics.model_loaded !== false) {
+    failures.push(`diagnostics model_loaded was ${JSON.stringify(result.diagnostics)}`);
+  }
+  if (!networkIncludesPath(networkRequests, "/models/selector.registry")) {
+    failures.push("selector registry route was not requested");
+  }
+  const expectedModulePlanRoute = expectedModulePlanRoutes[modelKey];
+  if (!expectedModulePlanRoute || !networkIncludesPath(networkRequests, expectedModulePlanRoute)) {
+    failures.push(`module plan route was not requested: ${expectedModulePlanRoute}`);
+  }
+  const expectedModelRoute = expectedRouteForModel(modelKey);
+  if (expectedModelRoute && !networkIncludesPath(networkRequests, expectedModelRoute)) {
+    failures.push(`generated model route was not requested: ${expectedModelRoute}`);
+  }
+  const expectedManifestRoute = expectedModelRoute ? `${expectedModelRoute}.manifest` : "";
+  if (expectedManifestRoute && !networkIncludesPath(networkRequests, expectedManifestRoute)) {
+    failures.push(`model manifest route was not requested: ${expectedManifestRoute}`);
+  }
+  const expectedAssemblyReceiptRoute = expectedAssemblyReceiptRoutes[modelKey];
+  if (!expectedAssemblyReceiptRoute || !networkIncludesPath(networkRequests, expectedAssemblyReceiptRoute)) {
+    failures.push(`assembly receipt route was not requested: ${expectedAssemblyReceiptRoute}`);
+  }
+  const evidenceRoutes = expectedAssemblyEvidenceRoutes[modelKey] || [];
+  const driftedEvidenceRoute = evidenceRoutes[0];
+  if (!driftedEvidenceRoute || !networkIncludesPath(networkRequests, driftedEvidenceRoute)) {
+    failures.push(`drifted assembly evidence route was not requested: ${driftedEvidenceRoute}`);
+  }
+  for (const evidenceRoute of evidenceRoutes.slice(1)) {
+    if (networkIncludesPath(networkRequests, evidenceRoute)) {
+      failures.push(`later assembly evidence route was requested after evidence-file drift: ${evidenceRoute}`);
+    }
+  }
+  const adapterFamilyRoute = expectedAdapterFamilyReceiptRoutes[modelKey];
+  if (adapterFamilyRoute && networkIncludesPath(networkRequests, adapterFamilyRoute)) {
+    failures.push(`adapter family receipt route was requested after assembly evidence-file drift: ${adapterFamilyRoute}`);
+  }
+  for (const stackRoute of expectedAdapterStackRoutes[modelKey] || []) {
+    if (networkIncludesPath(networkRequests, stackRoute)) {
+      failures.push(`adapter stack route was requested after assembly evidence-file drift: ${stackRoute}`);
+    }
+  }
+  for (const manifestRoute of expectedAdapterManifestRoutes[modelKey] || []) {
+    if (networkIncludesPath(networkRequests, manifestRoute)) {
+      failures.push(`adapter manifest route was requested after assembly evidence-file drift: ${manifestRoute}`);
+    }
+  }
+  const allowedOrigin = new URL(appUrl).origin;
+  for (const requestUrl of networkRequests) {
+    if (!requestUrl.startsWith("http://") && !requestUrl.startsWith("https://")) {
+      continue;
+    }
+    const origin = new URL(requestUrl).origin;
+    if (origin !== allowedOrigin) {
+      failures.push(`remote request observed: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
 function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAutoAssembly) {
   const failures = [];
   if (result.selectedModel !== modelKey) {
@@ -1999,7 +2589,7 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
     if (applyCalls.length < Math.max(1, expectedStackRoutes.length)) {
       failures.push("pre-generation console did not include apply_adapter_delta");
     }
-    if (expectedStackRoutes.length > 1 && !String(result.consoleBeforeGenerate || "").includes("adapter_stack_applied(2)")) {
+    if (expectedStackRoutes.length > 1 && !String(result.consoleBeforeGenerate || "").includes(`adapter_stack_applied(${expectedStackRoutes.length})`)) {
       failures.push("pre-generation console did not include adapter stack completion");
     }
     if (!result.autoAppliedBeforeGenerate) {
@@ -2062,6 +2652,17 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
     if (origin !== allowedOrigin) {
       failures.push(`remote request observed: ${requestUrl}`);
     }
+  }
+  const registryBacked = networkRequests.some((requestUrl) => requestUrl.includes("/models/selector.registry"));
+  if (registryBacked) {
+    if (result.provenanceEvalCases !== "1 passed") {
+      failures.push(`provenance eval cases were ${result.provenanceEvalCases}`);
+    }
+    if (!/^0x[0-9a-fA-F]{16}$/.test(String(result.provenanceEvalChecksum || ""))) {
+      failures.push(`provenance eval checksum was ${result.provenanceEvalChecksum}`);
+    }
+  } else if (result.provenanceEvalCases !== "unavailable" || result.provenanceEvalChecksum !== "unavailable") {
+    failures.push(`manual model eval proof was ${result.provenanceEvalCases}/${result.provenanceEvalChecksum}`);
   }
   const expectedAdapterRoute = expectedAdapterRoutes[modelKey] || "/models/tiny-test-model-self.adp1";
   if (!networkIncludesPath(networkRequests, expectedAdapterRoute)) {
@@ -2130,14 +2731,28 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
     if (result.modulePlanAdapterBudget !== "1048576 bytes") {
       failures.push(`module plan adapter budget was ${result.modulePlanAdapterBudget}`);
     }
+    const expectedBytes = expectedModulePlanBytes[modelKey];
+    if (expectedBytes && result.modulePlanBytes !== expectedBytes) {
+      failures.push(`module plan bytes were ${result.modulePlanBytes}`);
+    }
+    const expectedChecksums = expectedModulePlanChecksums[modelKey];
+    if (expectedChecksums && result.modulePlanChecksums !== expectedChecksums) {
+      failures.push(`module plan checksums were ${result.modulePlanChecksums}`);
+    }
     if (result.modulePlanSlots !== expectedModulePlanSlots) {
       failures.push(`module plan slots were ${result.modulePlanSlots}`);
     }
     if (result.modulePlanRoles !== expectedModulePlanRoles) {
       failures.push(`module plan roles were ${result.modulePlanRoles}`);
     }
+    if (result.modulePlanPhases !== expectedModulePlanPhases) {
+      failures.push(`module plan phases were ${result.modulePlanPhases}`);
+    }
     if (result.modulePlanDepends !== expectedModulePlanDependencies) {
       failures.push(`module plan dependencies were ${result.modulePlanDepends}`);
+    }
+    if (result.modulePlanTrace !== expectedModulePlanTrace) {
+      failures.push(`module plan trace was ${result.modulePlanTrace}`);
     }
     const expectedModelRoute = expectedRouteForModel(modelKey);
     if (expectedModelRoute && result.modulePlanModel !== `..${expectedModelRoute}`) {
@@ -2161,6 +2776,80 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
   }
   if (modelKey.startsWith("multi-parent-sign-merge-") && !networkRequests.some((requestUrl) => requestUrl.includes("/models/selector.registry"))) {
     failures.push("selector registry route was not requested");
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertCombinedSelectorAssemblySmoke(result, networkRequests) {
+  const failures = [];
+  const expectedModels = [
+    "multi-parent-sign-merge-q4",
+    "multi-parent-sign-merge-q8",
+    "multi-parent-sign-merge-f32"
+  ];
+  if (result.initialSelectedModel !== "multi-parent-sign-merge-q4") {
+    failures.push(`combined selector default was ${result.initialSelectedModel}`);
+  }
+  const optionValues = Array.isArray(result.modelOptions)
+    ? result.modelOptions.map((option) => option.value)
+    : [];
+  for (const modelKey of expectedModels) {
+    if (!optionValues.includes(modelKey)) {
+      failures.push(`combined selector option was missing: ${modelKey}`);
+    }
+  }
+  if (optionValues.length !== expectedModels.length) {
+    failures.push(`combined selector options were ${JSON.stringify(result.modelOptions)}`);
+  }
+  if (!Array.isArray(result.steps) || result.steps.length !== expectedModels.length) {
+    failures.push(`combined selector steps were ${JSON.stringify(result.steps)}`);
+  } else {
+    for (let index = 0; index < expectedModels.length; index += 1) {
+      const modelKey = expectedModels[index];
+      const step = result.steps[index];
+      if (!step || step.modelKey !== modelKey) {
+        failures.push(`combined selector step ${index} was ${JSON.stringify(step)}`);
+        continue;
+      }
+      try {
+        assertAdapterSidecarSmoke(step, modelKey, networkRequests, true);
+      } catch (error) {
+        failures.push(`${modelKey}: ${error.message}`);
+      }
+      const planRoute = expectedModulePlanRoutes[modelKey];
+      const modelRoute = expectedRouteForModel(modelKey);
+      const planIndex = networkPathIndex(networkRequests, planRoute);
+      const modelIndex = networkPathIndex(networkRequests, modelRoute);
+      if (planIndex < 0) {
+        failures.push(`module plan route was not requested for ${modelKey}: ${planRoute}`);
+      }
+      if (modelIndex < 0) {
+        failures.push(`model route was not requested for ${modelKey}: ${modelRoute}`);
+      }
+      if (planIndex >= 0 && modelIndex >= 0 && planIndex > modelIndex) {
+        failures.push(`model bytes were requested before module plan for ${modelKey}`);
+      }
+      for (const stackRoute of expectedAdapterStackRoutes[modelKey] || []) {
+        const stackIndex = networkPathIndex(networkRequests, stackRoute);
+        if (stackIndex < 0) {
+          failures.push(`adapter stack route was not requested for ${modelKey}: ${stackRoute}`);
+        } else if (planIndex >= 0 && stackIndex < planIndex) {
+          failures.push(`adapter stack route was requested before module plan for ${modelKey}: ${stackRoute}`);
+        }
+      }
+    }
+  }
+  const allowedOrigin = new URL(appUrl).origin;
+  for (const requestUrl of networkRequests) {
+    if (!requestUrl.startsWith("http://") && !requestUrl.startsWith("https://")) {
+      continue;
+    }
+    const origin = new URL(requestUrl).origin;
+    if (origin !== allowedOrigin) {
+      failures.push(`remote request observed: ${requestUrl}`);
+    }
   }
   if (failures.length > 0) {
     throw new Error(failures.join("; "));
@@ -2966,6 +3655,12 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
   if (snapshot.provenanceTrainedClaim !== "not-claimed") {
     failures.push(`${prefix} provenance trained claim was ${snapshot.provenanceTrainedClaim}`);
   }
+  if (snapshot.provenanceEvalCases !== "unavailable") {
+    failures.push(`${prefix} provenance eval cases were ${snapshot.provenanceEvalCases}`);
+  }
+  if (snapshot.provenanceEvalChecksum !== "unavailable") {
+    failures.push(`${prefix} provenance eval checksum was ${snapshot.provenanceEvalChecksum}`);
+  }
   if (!String(snapshot.provenanceChecksum).startsWith("0x")) {
     failures.push(`${prefix} provenance checksum was ${snapshot.provenanceChecksum}`);
   }
@@ -2984,14 +3679,26 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
   if (snapshot.modulePlanAdapterBudget !== "unavailable") {
     failures.push(`${prefix} module plan adapter budget was ${snapshot.modulePlanAdapterBudget}`);
   }
+  if (snapshot.modulePlanBytes !== "unavailable") {
+    failures.push(`${prefix} module plan bytes were ${snapshot.modulePlanBytes}`);
+  }
+  if (snapshot.modulePlanChecksums !== "unavailable") {
+    failures.push(`${prefix} module plan checksums were ${snapshot.modulePlanChecksums}`);
+  }
   if (snapshot.modulePlanSlots !== "unavailable") {
     failures.push(`${prefix} module plan slots were ${snapshot.modulePlanSlots}`);
   }
   if (snapshot.modulePlanRoles !== "unavailable") {
     failures.push(`${prefix} module plan roles were ${snapshot.modulePlanRoles}`);
   }
+  if (snapshot.modulePlanPhases !== "unavailable") {
+    failures.push(`${prefix} module plan phases were ${snapshot.modulePlanPhases}`);
+  }
   if (snapshot.modulePlanDepends !== "unavailable") {
     failures.push(`${prefix} module plan dependencies were ${snapshot.modulePlanDepends}`);
+  }
+  if (snapshot.modulePlanTrace !== "unavailable") {
+    failures.push(`${prefix} module plan trace was ${snapshot.modulePlanTrace}`);
   }
   if (!(snapshot.benchLoadMsValue > 0)) {
     failures.push(`${prefix} benchmark load value was ${snapshot.benchLoadMs}`);
@@ -3209,6 +3916,7 @@ function installMultiParentRegistryInterceptor(client) {
         "entry.0.promotion_manifest_checksum=0x0000000000000051",
         "entry.0.runtime_smoke_manifest_checksum=0x0000000000000052",
         "entry.0.eval_manifest_checksum=0x0000000000000053",
+        "entry.0.eval_case_evidence_checksum=0x0000000000000054",
         "entry.0.quality_scope=tiny-fixture-runtime-eval-only",
         "entry.0.quality_boundary=fixture-runtime-and-eval-plumbing-not-product-assistant-quality",
         "entry.0.eval_dataset=tinyrustlm/tests/fixtures/assistant-quality-eval-cases.txt",
@@ -3270,6 +3978,7 @@ function installSelectorBudgetRegistryInterceptor(client) {
         "entry.0.promotion_manifest_checksum=0x0000000000000084",
         "entry.0.runtime_smoke_manifest_checksum=0x0000000000000085",
         "entry.0.eval_manifest_checksum=0x0000000000000086",
+        "entry.0.eval_case_evidence_checksum=0x0000000000000087",
         "entry.0.quality_scope=tiny-fixture-runtime-eval-only",
         "entry.0.quality_boundary=fixture-runtime-and-eval-plumbing-not-product-assistant-quality",
         "entry.0.eval_dataset=tinyrustlm/tests/fixtures/assistant-quality-eval-cases.txt",
@@ -3331,6 +4040,7 @@ function installSidecarBudgetContractRegistryInterceptor(client) {
         "entry.0.promotion_manifest_checksum=0x0000000000000094",
         "entry.0.runtime_smoke_manifest_checksum=0x0000000000000095",
         "entry.0.eval_manifest_checksum=0x0000000000000096",
+        "entry.0.eval_case_evidence_checksum=0x0000000000000097",
         "entry.0.quality_scope=tiny-fixture-runtime-eval-only",
         "entry.0.quality_boundary=fixture-runtime-and-eval-plumbing-not-product-assistant-quality",
         "entry.0.eval_dataset=tinyrustlm/tests/fixtures/assistant-quality-eval-cases.txt",
@@ -3454,8 +4164,98 @@ function installModulePlanSlotDriftInterceptor(client, modelKey) {
   installModulePlanDriftInterceptor(client, modelKey, driftModulePlanSlot);
 }
 
+function installModulePlanPhaseDriftInterceptor(client, modelKey) {
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanPhase);
+}
+
+function installModulePlanByteDriftInterceptor(client, modelKey) {
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanByteCount);
+}
+
+function installModulePlanChecksumDriftInterceptor(client, modelKey) {
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanChecksum);
+}
+
 function installModulePlanDependencyDriftInterceptor(client, modelKey) {
   installModulePlanDriftInterceptor(client, modelKey, driftModulePlanDependency);
+}
+
+function installAssemblyEvalCaseDriftInterceptor(client, modelKey) {
+  const assemblyReceiptRoute = expectedAssemblyReceiptRoutes[modelKey];
+  const modulePlanRoute = expectedModulePlanRoutes[modelKey];
+  if (!assemblyReceiptRoute || !modulePlanRoute) {
+    throw new Error(`no generated assembly route is known for ${modelKey}`);
+  }
+  async function driftedAssemblyText(requestUrl) {
+    const receiptUrl = new URL(assemblyReceiptRoute, requestUrl).toString();
+    return driftAssemblyEvalCaseEvidenceChecksum(await getText(receiptUrl));
+  }
+  async function driftedModulePlanText(requestUrl, assemblyChecksum) {
+    const modulePlanUrl = new URL(modulePlanRoute, requestUrl).toString();
+    return updateModulePlanAssemblyReceiptChecksum(await getText(modulePlanUrl), assemblyChecksum);
+  }
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    (async () => {
+      if (requestUrl.includes("/models/selector.registry")) {
+        const registryText = await getText(requestUrl);
+        const assemblyText = await driftedAssemblyText(requestUrl);
+        const assemblyChecksum = textChecksumHex(assemblyText);
+        const modulePlanText = await driftedModulePlanText(requestUrl, assemblyChecksum);
+        let driftedRegistryText = updateRegistryAssemblyReceiptChecksum(
+          registryText,
+          modelKey,
+          assemblyChecksum
+        );
+        driftedRegistryText = updateRegistryModulePlanChecksum(
+          driftedRegistryText,
+          modelKey,
+          textChecksumHex(modulePlanText)
+        );
+        await fulfillTextRequest(client, params.requestId, driftedRegistryText);
+        return;
+      }
+      if (requestUrl.includes(modulePlanRoute)) {
+        const assemblyText = await driftedAssemblyText(requestUrl);
+        const modulePlanText = await driftedModulePlanText(requestUrl, textChecksumHex(assemblyText));
+        await fulfillTextRequest(client, params.requestId, modulePlanText);
+        return;
+      }
+      if (requestUrl.includes(assemblyReceiptRoute)) {
+        await fulfillTextRequest(client, params.requestId, await driftedAssemblyText(requestUrl));
+        return;
+      }
+      await continuePausedRequest(client, params.requestId);
+    })().catch((error) => {
+      console.error(error);
+      continuePausedRequest(client, params.requestId).catch((continueError) => {
+        console.error(continueError);
+      });
+    });
+  });
+}
+
+function installAssemblyEvidenceFileDriftInterceptor(client, modelKey) {
+  const evidenceRoute = (expectedAssemblyEvidenceRoutes[modelKey] || [])[0];
+  if (!evidenceRoute) {
+    throw new Error(`no generated assembly evidence route is known for ${modelKey}`);
+  }
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    (async () => {
+      if (requestUrl.includes(evidenceRoute)) {
+        const evidenceText = await getText(requestUrl);
+        await fulfillTextRequest(client, params.requestId, driftAssemblyEvidenceFileText(evidenceText));
+        return;
+      }
+      await continuePausedRequest(client, params.requestId);
+    })().catch((error) => {
+      console.error(error);
+      continuePausedRequest(client, params.requestId).catch((continueError) => {
+        console.error(continueError);
+      });
+    });
+  });
 }
 
 function installQuantizedAdapterRegistryInterceptor(client) {
@@ -3489,6 +4289,7 @@ function installQuantizedAdapterRegistryInterceptor(client) {
         "entry.0.promotion_manifest_checksum=0x0000000000000063",
         "entry.0.runtime_smoke_manifest_checksum=0x0000000000000064",
         "entry.0.eval_manifest_checksum=0x0000000000000065",
+        "entry.0.eval_case_evidence_checksum=0x0000000000000066",
         "entry.0.quality_scope=tiny-fixture-runtime-eval-only",
         "entry.0.quality_boundary=fixture-runtime-and-eval-plumbing-not-product-assistant-quality",
         "entry.0.eval_dataset=tinyrustlm/tests/fixtures/assistant-quality-eval-cases.txt",
@@ -3561,7 +4362,7 @@ async function main() {
     await client.send("Page.enable", {});
     await client.send("Runtime.enable", {});
     await client.send("Network.enable", {});
-    if (smokeMode === "model-error" || smokeMode === "missing-model" || smokeMode === "multi-parent-registry" || smokeMode === "selector-budget" || smokeMode === "sidecar-budget-contract" || smokeMode === "runtime-manifest-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-dependency-drift" || smokeMode === "adapter-sidecar-registry-q8" || smokeMode === "adapter-sidecar-checksum-mismatch" || smokeMode === "adapter-manifest-budget") {
+    if (smokeMode === "model-error" || smokeMode === "missing-model" || smokeMode === "multi-parent-registry" || smokeMode === "selector-budget" || smokeMode === "sidecar-budget-contract" || smokeMode === "runtime-manifest-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift" || smokeMode === "assembly-eval-case-drift" || smokeMode === "assembly-evidence-file-drift" || smokeMode === "adapter-sidecar-registry-q8" || smokeMode === "adapter-sidecar-checksum-mismatch" || smokeMode === "adapter-manifest-budget") {
       if (smokeMode === "model-error") {
         installMalformedModelInterceptor(client);
       } else if (smokeMode === "missing-model") {
@@ -3578,8 +4379,18 @@ async function main() {
         installModulePlanRoleDriftInterceptor(client, expectedModel);
       } else if (smokeMode === "module-plan-slot-drift") {
         installModulePlanSlotDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-phase-drift") {
+        installModulePlanPhaseDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-byte-drift") {
+        installModulePlanByteDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-checksum-drift") {
+        installModulePlanChecksumDriftInterceptor(client, expectedModel);
       } else if (smokeMode === "module-plan-dependency-drift") {
         installModulePlanDependencyDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "assembly-eval-case-drift") {
+        installAssemblyEvalCaseDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "assembly-evidence-file-drift") {
+        installAssemblyEvidenceFileDriftInterceptor(client, expectedModel);
       } else if (smokeMode === "adapter-sidecar-checksum-mismatch") {
         installCorruptAdapterInterceptor(client);
       } else if (smokeMode === "adapter-manifest-budget") {
@@ -3719,6 +4530,21 @@ async function main() {
       }
       assertStepTokenSmoke(result, expectedModel, networkRequests);
       result.networkRequests = networkRequests;
+    } else if (smokeMode === "combined-selector-assembly") {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageCombinedSelectorAssemblySmoke(client);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertCombinedSelectorAssemblySmoke(result, networkRequests);
+      result.networkRequests = networkRequests;
     } else if (smokeMode === "adapter-sidecar" || smokeMode === "adapter-sidecar-registry-file" || smokeMode === "adapter-sidecar-registry-q8" || smokeMode === "adapter-sidecar-checksum-mismatch") {
       await client.send("Page.reload", { ignoreCache: true });
       for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -3811,7 +4637,37 @@ async function main() {
       }
       assertRuntimeManifestDriftSmoke(result, networkRequests);
       result.networkRequests = networkRequests;
-    } else if (smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-dependency-drift") {
+    } else if (smokeMode === "assembly-eval-case-drift") {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageAssemblyEvalCaseDriftSmoke(client);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertAssemblyEvalCaseDriftSmoke(result, expectedModel, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (smokeMode === "assembly-evidence-file-drift") {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageAssemblyEvalCaseDriftSmoke(client);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertAssemblyEvidenceFileDriftSmoke(result, expectedModel, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift") {
       await client.send("Page.reload", { ignoreCache: true });
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
@@ -3834,6 +4690,12 @@ async function main() {
         assertModulePlanRoleDriftSmoke(result, expectedModel, networkRequests);
       } else if (smokeMode === "module-plan-slot-drift") {
         assertModulePlanSlotDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-phase-drift") {
+        assertModulePlanPhaseDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-byte-drift") {
+        assertModulePlanByteDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-checksum-drift") {
+        assertModulePlanChecksumDriftSmoke(result, expectedModel, networkRequests);
       } else {
         assertModulePlanDependencyDriftSmoke(result, expectedModel, networkRequests);
       }

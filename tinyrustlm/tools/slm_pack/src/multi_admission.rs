@@ -301,6 +301,7 @@ pub(crate) fn validate_record_summary_text(
     require_hex64(&admission, "provenance_manifest_checksum")?;
     require_hex64(&admission, "runtime_smoke_manifest_checksum")?;
     require_hex64(&admission, "eval_manifest_checksum")?;
+    require_hex64(&admission, "eval_case_evidence_checksum")?;
     require_hex64(&admission, "operator_receipt_checksum")?;
     require_hex64(&admission, "parent_pool_recipe_checksum")?;
     require_hex64(&admission, "population_review_checksum")?;
@@ -435,6 +436,11 @@ fn render_record_text(
         &mut text,
         "eval_manifest_checksum",
         &hex64(provenance::text_checksum(eval_text.as_bytes())),
+    );
+    push_line(
+        &mut text,
+        "eval_case_evidence_checksum",
+        &provenance::eval_case_evidence_checksum(&evidence.eval)?,
     );
     for key in CANDIDATE_KEYS {
         push_line(&mut text, key, require_key(&evidence.promotion, key)?);
@@ -596,6 +602,7 @@ mod tests {
         assert!(admission.contains("admission_kind=multi-parent-sign-merge"));
         assert!(admission.contains("candidate_id=tiny-alpha-candidate"));
         assert!(admission.contains("parent_count=3"));
+        assert!(admission.contains("eval_case_evidence_checksum=0x"));
         assert!(admission.contains("browser_selector_status=admitted"));
         assert!(
             admission.contains("required_next_gate=multi-parent-selector-registry-route-binding")

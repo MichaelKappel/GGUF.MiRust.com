@@ -15,7 +15,7 @@ const ENTRY_STATUS: &str = "promoted-and-admitted";
 const ZERO_CHECKSUM: &str = "0x0000000000000000";
 const REQUIRED_NEXT_GATE: &str = "selector-registry-or-offline-population-review";
 
-const ENTRY_KEYS: [&str; 31] = [
+const ENTRY_KEYS: [&str; 32] = [
     "candidate_id",
     "selector_id",
     "admission_status",
@@ -36,6 +36,7 @@ const ENTRY_KEYS: [&str; 31] = [
     "provenance_manifest_checksum",
     "runtime_smoke_manifest_checksum",
     "eval_manifest_checksum",
+    "eval_case_evidence_checksum",
     "runtime_smoke_status",
     "eval_status",
     "quality_gate",

@@ -1,6 +1,6 @@
-profile: gguf-mirust.receiver-brief.v2
-updated_utc: 2026-06-26T18:44:35Z
-brief: GGUF.MiRust.com now contains TinyRustLM, a zero-dependency Rust/WASM browser-local SLM runtime and UI. Model breeding is durable research and future candidate-lineage pressure until source and tests prove concrete runtime support.
+profile: gguf-mirust.receiver-brief.v6
+updated_utc: 2026-06-28T05:30:00Z
+brief: GGUF.MiRust.com now contains TinyRustLM, a zero-dependency Rust/WASM browser-local SLM runtime and UI with ADP1/ASP1/ALR1 runtime adapter apply, browser-routed ADP1/ASP1/ALR1 adapter-family stacks, browser-verified module-plan receipts, assembly traces, eval-case evidence checksum display, assembly eval-digest proof, fetched evidence-file integrity proof, and generated q4/q8/f32 selector roots. Model Breeding routes through durable research, report synthesis, short-term routes, checksum pointers, and concept lanes for heritable artifacts, mate selection, phenotype evidence, and local fit until source and tests prove concrete runtime support.
 must_read:
   - AGENTS.md
   - workspace.uai
@@ -8,13 +8,22 @@ must_read:
   - .uai/file-handoff.uai
   - .uai/long-term-memory.uai
   - .uai/test-plan.uai
+  - .uai/report-synthesis.uai
   - .uai/taboo.uai
   - tinyrustlm/README.md
   - wiki/gguf-mirust/reports/report-intake-index-2026-06-25.md
   - wiki/gguf-mirust/reports/report-intake-index-2026-06-26.md
   - wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+  - wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md
+  - docs/dogfood/uaix-file-handoff-memory-strategy-2026-06-26.md
+  - wiki/gguf-mirust/reports/low-rank-adapter-package-memory-2026-06-28.md
+  - wiki/gguf-mirust/reports/browser-assembly-trace-memory-2026-06-28.md
+  - wiki/gguf-mirust/reports/browser-eval-case-evidence-checksum-memory-2026-06-28.md
+  - wiki/gguf-mirust/reports/browser-assembly-eval-case-drift-memory-2026-06-28.md
+  - wiki/gguf-mirust/reports/browser-assembly-evidence-file-drift-memory-2026-06-28.md
 do_not:
   - Create agent-file-handoff/Archive/ as default memory.
   - Store durable reports inside .uai/long-term-memory.uai.
   - Claim trained-quality model behavior, GGUF import, Mini Browser automation, WebGPU acceleration, or remote inference support from report memory alone.
-  - Claim model-breeding runtime operators, LoRA support, adapter application, or population training until implementation and tests exist.
+  - Store report bodies in .uai/short-term-memory.uai; it should route to durable report/research nodes and the long-term pointer ledger.
+  - Claim trained LoRA support, broader adapter formats, or population training until implementation and tests exist.

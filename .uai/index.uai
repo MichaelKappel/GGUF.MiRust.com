@@ -1,5 +1,5 @@
-profile: gguf-mirust.uai-index.v3
-updated_utc: 2026-06-27T22:07:39Z
+profile: gguf-mirust.uai-index.v7
+updated_utc: 2026-06-28T05:30:00Z
 files:
   - .uai/system-profile.uai
   - .uai/workspace-guidance.uai
@@ -16,4 +16,4 @@ files:
   - .uai/startup-packet.uai
   - .uai/operations.uai
   - .uai/next-recursive-prompt.uai
-startup_hint: Read report-synthesis.uai after architecture and coding-standards when report-derived design pressure, governance, model breeding, sparse adapter packages, combined browser selector roots, browser frugal selector defaults, browser selector budgets or budget contracts, browser auto assembly, browser auto-assembly byte budgets, browser adapter stacks, browser module plans, Module Plan display, budget display, role display, or slot display, module-plan resource envelopes, resource-drift proof, graph-drift proof, stack-drift proof, role-drift proof, slot-drift proof, browser text-sidecar budgets or text-sidecar budget contracts, browser runtime WASM manifests, or UAIX dogfood context matters; read taboo.uai before public site copy.
+startup_hint: Read report-synthesis.uai after architecture and coding-standards when report-derived design pressure, governance, model breeding, Model Breeding concept lanes, sparse adapter packages, low-rank ALR1 adapter packages, browser low-rank ALR1 routes, combined browser selector roots, same-page combined-selector assembly, browser assembly trace, browser eval-case evidence checksums, browser assembly eval-case drift, browser assembly evidence-file drift, browser frugal selector defaults, browser selector budgets or budget contracts, browser auto assembly, browser auto-assembly byte budgets, browser adapter stacks, browser module plans, Module Plan display, budget display, byte-count display, checksum display, role display, slot display, dependency display, phase display, or trace display, module-plan resource envelopes, resource-drift proof, graph-drift proof, stack-drift proof, role-drift proof, slot-drift proof, dependency-drift proof, phase-drift proof, byte-drift proof, checksum-drift proof, browser text-sidecar budgets or text-sidecar budget contracts, browser runtime WASM manifests, UAIX dogfood context, setup-file-handoff strategy, report-pointer audit, or diverse Model Breeding research routing matters; read taboo.uai before public site copy.

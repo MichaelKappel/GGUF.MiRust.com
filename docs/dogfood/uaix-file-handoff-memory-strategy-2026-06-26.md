@@ -31,6 +31,24 @@ Research references are treated like durable report memory: put the body in `wik
 
 The current model-breeding reference page now adds kinship metrics, sparse-mask breadcrumbs, evolutionary merge recipes, adaptive search, and multi-objective fitness as diverse lanes. Sparse-mask breadcrumbs have first receipt-level form in sparse-delta metadata, parent relatedness has first recipe/receipt/manifest form in parent-pool, sign-merge, and multi-parent candidate records, and multi-objective fitness has a first population-review objective-vector form; the remaining lanes stay planner/reference material until they become compatibility checks, receipts, eval sidecars, or promotion records.
 
+## 2026-06-27 Direct Request Refresh
+
+The setup-file-handoff source is now paired with a report pointer audit: current `wiki/gguf-mirust/reports/*.md` pages are all represented in `.uai/long-term-memory.uai`, while `.uai/short-term-memory.uai` exposes the current report indexes, latest browser module-plan report, Model Breeding synthesis, research reference page, this dogfood note, and the long-term pointer ledger.
+
+Model Breeding reference routing now names seven diverse lanes: architecture-preserving merge, sparse-lineage, adapter-ecology, population-search, federated/local update, browser-constrained assembly, and UAIX memory strategy. The durable research page carries the body; hot `.uai` files carry routing, boundaries, and next-step prompts.
+
+GGUF.MiRust.com public-copy work routes through `.uai/taboo.uai`, using proof, craft, lineage, fit, local agency, and implementation evidence as the site voice.
+
+## 2026-06-28 Setup File Handoff Refresh
+
+The setup-file-handoff source is now applied as an agent-startup loop for this workspace: open the project root, scan `agent-file-handoff/Content/` and `agent-file-handoff/Improvement/`, preserve reviewed bodies under raw/wiki memory, refresh hot `.uai` routing, and keep `.uai/long-term-memory.uai` as checksum-bearing pointers.
+
+Report bodies stay in durable Markdown and raw evidence. `.uai/short-term-memory.uai` names the report indexes, latest browser proof reports, durable research page, this strategy dogfood note, site voice file, active bucket scan, and long-term pointer ledger so a cold-start agent can decide what to open next.
+
+Model Breeding concepts now route through the research page as diverse lanes: architecture-preserving merges, sparse lineage, adapter ecology, population search, local update recipes, browser-constrained assembly, UAIX memory strategy, heritable artifacts, mate selection, phenotype evidence, and fit boundaries. The durable page carries the body; hot `.uai` files carry the routing and next-step prompts.
+
+The public-copy voice rule remains local to GGUF.MiRust.com: Model Breeding and UAIX strategy copy should read as route, lineage, proof, fit, local agency, and implementation evidence.
+
 ## Dogfood Result
 
 The active model-breeding reports became a new durable intake, a model-breeding synthesis page, a research reference page, and hot `.uai` routes. This keeps the UAIX setup practical: raw evidence remains exact, long-term memory stays pointer-shaped, and short-term memory points future agents to the right durable node.

@@ -3,7 +3,7 @@ title: GGUF.MiRust.com LLM Wiki Log
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/log/
 status: planned_pending_publication
-reviewed_utc: 2026-06-27T22:07:39Z
+reviewed_utc: 2026-06-28T05:30:00Z
 ---
 
 # LLM Wiki Log
@@ -23,6 +23,11 @@ reviewed_utc: 2026-06-27T22:07:39Z
 
 ## 2026-06-27
 
+- Added browser Module Plan checksums so generated `.module-plan.receipt` files carry uniform `module.N.checksum` fields, the UI renders the checksum summary, and `module-plan-checksum-drift` proves checksum mismatches stop before generated `.slm`, ADP1, ASP1, or adapter-manifest routes.
+- Refreshed UAIX File Handoff memory strategy so reports stay in durable raw/wiki memory, short-term memory routes current report/research/dogfood paths, long-term memory keeps checksum pointers, and the Model Breeding reference page names diverse research lanes.
+- Added browser Module Plan byte counts so generated `.module-plan.receipt` files carry `module.N.byte_count` fields, the UI renders the byte summary, and `module-plan-byte-drift` proves byte-count mismatches stop before generated `.slm`, ADP1, ASP1, or adapter-manifest routes.
+- Added browser Module Plan phases so generated `.module-plan.receipt` files carry `module.N.phase` fields, the UI renders the phase summary, and `module-plan-phase-drift` proves phase mismatches stop before generated `.slm`, ADP1, ASP1, or adapter-manifest routes.
+- Added browser Module Plan dependencies so generated `.module-plan.receipt` files carry `module.N.depends_on` fields, the UI renders the dependency summary, and `module-plan-dependency-drift` proves dependency mismatches stop before generated `.slm`, ADP1, ASP1, or adapter-manifest routes.
 - Added browser Module Plan assembly slots so generated `.module-plan.receipt` files carry typed `module.N.assembly_slot` fields, the UI renders the slot summary, and `module-plan-slot-drift` proves slot mismatches stop before generated `.slm`, ADP1, ASP1, or adapter-manifest routes.
 - Added browser-smoke `module-plan-role-drift` so a checksum-consistent generated q4 module-plan receipt role mismatch stops before generated `.slm`, ADP1, ASP1, or adapter-manifest routes.
 - Added browser Module Plan role display so generated `.module-plan.receipt` files carry planner-readable `module.N.role` fields, source fallback reads unavailable, and generated q4 smoke asserts the rendered runtime/model-manifest/assembly/adapter-family/stack role summary.
@@ -58,3 +63,13 @@ reviewed_utc: 2026-06-27T22:07:39Z
 - Added browser-frugal selector defaults so combined generated roots start on q4_0 before any model bytes load while still allowing q8_0 and f32 entry switching.
 - Added parent-pool relatedness metadata: recipes write relatedness metric, scope, pair count, shared-family checksum, and per-parent group fields; sign-merge receipts echo them; multi-parent candidate manifests carry the summary.
 - Added population-review objective-vector metadata: reviews write quality/frugality/quantization fit weights plus per-entry objective-vector checksums before parent-pool routing.
+
+## 2026-06-28
+
+- Added low-rank `ALR1` adapter packages with write/validate commands, deterministic factor manifests, and runtime f32/q8_0/q4_0 low-rank apply.
+- Added browser Module Plan Trace so generated roots render a browser-owned checkpoint chain from plan verification through model acceptance, manifest, assembly evidence, adapter-family verification, adapter-stack apply, and ready state.
+- Added browser-smoke `combined-selector-assembly` so one generated `browser-multi-parent-bundle all` root starts on q4_0, switches through q4_0, q8_0, and f32 entries, verifies each module plan before model bytes, auto-applies each ADP1 plus ASP1 stack before generation, and keeps requests local.
+- Added browser-routed low-rank `ALR1` adapter-family members so generated f32/q8_0/q4_0 bundles stage `{id}-low-rank.alr1`, module plans declare a third stack member, and browser smokes prove ADP1 plus ASP1 plus ALR1 auto assembly before generation.
+- Added browser eval-case evidence checksums so passed eval sidecars now flow through admissions, promotion ledgers, selector registries, generated assembly receipts, and Model Provenance; `combined-selector-assembly` proves q4_0/q8_0/f32 entries display the same eval digest.
+- Added browser-smoke `assembly-eval-case-drift` so a checksum-consistent generated assembly receipt with a mismatched eval digest stops before evidence files, adapter-family receipts, adapter manifests, or adapter stack routes.
+- Added browser-smoke `assembly-evidence-file-drift` so a generated root with valid selector, module-plan, model, manifest, and assembly receipt bytes rejects one drifted fetched evidence file before later evidence, adapter-family, adapter manifest, or stack routes.

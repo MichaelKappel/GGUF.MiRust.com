@@ -23,6 +23,8 @@ const RECEIPT_TEXT_BYTE_BUDGET: u64 = 128 * 1024;
 const EVIDENCE_TEXT_BYTE_BUDGET: u64 = 128 * 1024;
 const ADAPTER_APPLY_STATUS_F32: &str = "runtime-f32-compatible-or-fuse-to-slm";
 const ADAPTER_APPLY_STATUS_QUANTIZED: &str = "runtime-q8-q4-compatible-or-fuse-to-slm";
+const LOW_RANK_APPLY_STATUS_F32: &str = "runtime-f32-compatible-low-rank";
+const LOW_RANK_APPLY_STATUS_QUANTIZED: &str = "runtime-q8-q4-compatible-low-rank";
 const ADAPTER_FAMILY_STATUS: &str = "receipt-validated";
 const ADAPTER_FAMILY_STRATEGY: &str = "single-adapter-selection";
 const ADAPTER_AUTO_APPLY_STATUS: &str = "enabled";
@@ -95,6 +97,7 @@ struct RegistryEntry {
     promotion_manifest_checksum: String,
     runtime_smoke_manifest_checksum: String,
     eval_manifest_checksum: String,
+    eval_case_evidence_checksum: String,
     quality_scope: String,
     quality_boundary: String,
     eval_dataset: String,
@@ -413,6 +416,11 @@ pub(crate) fn build_registry_text_with_module_plan_routes(
             &mut text,
             &format!("{prefix}.eval_manifest_checksum"),
             &entry.eval_manifest_checksum,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.eval_case_evidence_checksum"),
+            &entry.eval_case_evidence_checksum,
         );
         push_line(
             &mut text,
@@ -800,6 +808,8 @@ fn entries_from_admissions(admission_texts: &[String]) -> io::Result<Vec<Registr
             )?
             .to_string(),
             eval_manifest_checksum: require_key(&fields, "eval_manifest_checksum")?.to_string(),
+            eval_case_evidence_checksum: require_key(&fields, "eval_case_evidence_checksum")?
+                .to_string(),
             quality_scope: require_key(&fields, "quality_scope")?.to_string(),
             quality_boundary: require_key(&fields, "quality_boundary")?.to_string(),
             eval_dataset: require_key(&fields, "eval_dataset")?.to_string(),
@@ -836,10 +846,7 @@ fn attach_adapter_routes(
                 route.candidate_id
             )));
         };
-        validate_adapter_apply_status_for_quantization(
-            &route.apply_status,
-            &entries[index].quantization,
-        )?;
+        validate_adapter_apply_status_for_quantization(route, &entries[index].quantization)?;
         entries[index].adapters.push(route.clone());
     }
     Ok(())
@@ -1245,28 +1252,43 @@ pub(crate) fn validate_registry_adapter_route(route: &RegistryAdapterRoute) -> i
 }
 
 fn is_supported_adapter_apply_status(status: &str) -> bool {
-    status == ADAPTER_APPLY_STATUS_F32 || status == ADAPTER_APPLY_STATUS_QUANTIZED
+    status == ADAPTER_APPLY_STATUS_F32
+        || status == ADAPTER_APPLY_STATUS_QUANTIZED
+        || status == LOW_RANK_APPLY_STATUS_F32
+        || status == LOW_RANK_APPLY_STATUS_QUANTIZED
 }
 
 fn validate_adapter_apply_status_for_quantization(
-    status: &str,
+    route: &RegistryAdapterRoute,
     quantization: &str,
 ) -> io::Result<()> {
+    let (expected_f32, expected_quantized) =
+        adapter_apply_status_pair_for_path(&route.adapter_path)?;
     let expected = match quantization {
-        "f32" => ADAPTER_APPLY_STATUS_F32,
-        "q8_0" | "q4_0" => ADAPTER_APPLY_STATUS_QUANTIZED,
+        "f32" => expected_f32,
+        "q8_0" | "q4_0" => expected_quantized,
         _ => {
             return Err(invalid(
                 "selector registry adapter routes require f32, q8_0, or q4_0 entries",
             ));
         }
     };
-    if status != expected {
+    if route.apply_status != expected {
         return Err(invalid(
             "selector registry adapter apply status does not match entry quantization",
         ));
     }
     Ok(())
+}
+
+fn adapter_apply_status_pair_for_path(path: &str) -> io::Result<(&'static str, &'static str)> {
+    if path.ends_with(".alr1") {
+        return Ok((LOW_RANK_APPLY_STATUS_F32, LOW_RANK_APPLY_STATUS_QUANTIZED));
+    }
+    if path.ends_with(".adp1") || path.ends_with(".asp1") {
+        return Ok((ADAPTER_APPLY_STATUS_F32, ADAPTER_APPLY_STATUS_QUANTIZED));
+    }
+    Err(invalid("selector registry adapter route is invalid"))
 }
 
 pub(crate) fn validate_registry_adapter_family_route(
@@ -1515,7 +1537,7 @@ fn validate_adapter_route_path(path: &str) -> io::Result<()> {
 }
 
 fn is_supported_adapter_artifact_name(path: &str) -> bool {
-    path.ends_with(".adp1") || path.ends_with(".asp1")
+    path.ends_with(".adp1") || path.ends_with(".asp1") || path.ends_with(".alr1")
 }
 
 fn validate_adapter_family_receipt_path(path: &str) -> io::Result<()> {
@@ -1813,6 +1835,27 @@ mod tests {
         validate_registry_text(&registry, &[admission]).unwrap();
         assert!(registry.contains("entry.0.adapter_path=../models/tiny-f32-sparse.asp1"));
         assert!(registry.contains("entry.0.adapter_label=Tiny f32 sparse ASP1"));
+    }
+
+    #[test]
+    fn writes_and_validates_selector_registry_with_low_rank_adapter_route() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let route = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-low-rank.alr1".to_string(),
+            manifest_path: "../models/tiny-f32-low-rank.alr1.manifest".to_string(),
+            label: "Tiny f32 low-rank ALR1".to_string(),
+            apply_status: LOW_RANK_APPLY_STATUS_F32.to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+
+        let registry =
+            build_registry_text_with_adapters(&[admission.clone()], &[route.clone()]).unwrap();
+
+        validate_registry_text(&registry, &[admission]).unwrap();
+        assert!(registry.contains("entry.0.adapter_path=../models/tiny-f32-low-rank.alr1"));
+        assert!(registry.contains("entry.0.adapter_label=Tiny f32 low-rank ALR1"));
+        assert!(registry.contains("entry.0.adapter_apply_status=runtime-f32-compatible-low-rank"));
     }
 
     #[test]
@@ -2481,6 +2524,11 @@ mod tests {
             "0x000000000000000a",
         );
         push_line(&mut text, "eval_manifest_checksum", "0x000000000000000b");
+        push_line(
+            &mut text,
+            "eval_case_evidence_checksum",
+            "0x0000000000000015",
+        );
         push_line(&mut text, "candidate_artifact_path", candidate_path);
         push_line(&mut text, "candidate_artifact_bytes", "1024");
         push_line(&mut text, "candidate_slm_version", "1");

@@ -3,7 +3,7 @@ title: GGUF.MiRust.com LLM Wiki Index
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/
 status: planned_pending_publication
-reviewed_utc: 2026-06-27T22:07:39Z
+reviewed_utc: 2026-06-28T05:30:00Z
 ---
 
 # GGUF.MiRust.com
@@ -28,6 +28,8 @@ This local LLM Wiki namespace routes durable memory for the GGUF.MiRust.com Rust
 - [Model Breeding Ecology Memory](reports/model-breeding-ecology-memory-2026-06-26.md)
 - [Runtime Adapter Apply Memory](reports/runtime-adapter-apply-memory-2026-06-27.md)
 - [Sparse Adapter Package Memory](reports/sparse-adapter-package-memory-2026-06-27.md)
+- [Low-Rank Adapter Package Memory](reports/low-rank-adapter-package-memory-2026-06-28.md)
+- [Browser Low-Rank Adapter Route Memory](reports/browser-low-rank-adapter-route-memory-2026-06-28.md)
 - [Browser Adapter Sidecar Memory](reports/browser-adapter-sidecar-memory-2026-06-27.md)
 - [Registry Adapter Sidecar Memory](reports/registry-adapter-sidecar-memory-2026-06-27.md)
 - [Registry Adapter Family Memory](reports/registry-adapter-family-memory-2026-06-27.md)
@@ -55,10 +57,20 @@ This local LLM Wiki namespace routes durable memory for the GGUF.MiRust.com Rust
 - [Browser Module Plan Budget Display Memory](reports/browser-module-plan-budget-display-memory-2026-06-27.md)
 - [Browser Module Plan Role Display Memory](reports/browser-module-plan-role-display-memory-2026-06-27.md)
 - [Browser Module Plan Slots Memory](reports/browser-module-plan-slots-memory-2026-06-27.md)
+- [Browser Module Plan Dependencies Memory](reports/browser-module-plan-dependencies-memory-2026-06-27.md)
+- [Browser Module Plan Phases Memory](reports/browser-module-plan-phases-memory-2026-06-27.md)
+- [Browser Module Plan Byte Counts Memory](reports/browser-module-plan-byte-counts-memory-2026-06-27.md)
+- [Browser Module Plan Checksums Memory](reports/browser-module-plan-checksums-memory-2026-06-27.md)
+- [Browser Combined Selector Assembly Memory](reports/browser-combined-selector-assembly-memory-2026-06-28.md)
+- [Browser Assembly Trace Memory](reports/browser-assembly-trace-memory-2026-06-28.md)
+- [Browser Eval Case Evidence Checksum Memory](reports/browser-eval-case-evidence-checksum-memory-2026-06-28.md)
+- [Browser Assembly Eval Case Drift Memory](reports/browser-assembly-eval-case-drift-memory-2026-06-28.md)
+- [Browser Assembly Evidence File Drift Memory](reports/browser-assembly-evidence-file-drift-memory-2026-06-28.md)
 - [Model Breeding Reference Ideas](research/model-breeding-reference-ideas-2026-06-26.md)
+- [UAIX File Handoff Memory Strategy Dogfood](../../docs/dogfood/uaix-file-handoff-memory-strategy-2026-06-26.md)
 
 ## Boundary
 
 This namespace is a source memory plan for TinyRustLM. Current implementation claims must still be verified through `workspace.uai`, `.uai/test-plan.uai`, source files, and local test output before being repeated publicly.
 
-Latest route: browser-smoke `module-plan-slot-drift` now proves checksum-consistent `.module-plan.receipt` assembly-slot drift stops before generated model, stack adapter, or stack manifest fetches; load the slots report for that proof path.
+Latest route: Browser Assembly Evidence File Drift Memory records the fetched evidence-file integrity gate; load `.uai/short-term-memory.uai`, `.uai/long-term-memory.uai`, the Browser Assembly Eval Case Drift report, the Browser Eval Case Evidence Checksum report, the Browser Assembly Trace report, the Model Breeding reference page, and the UAIX dogfood note for the current memory map.

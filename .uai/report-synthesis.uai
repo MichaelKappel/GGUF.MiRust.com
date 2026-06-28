@@ -1,5 +1,5 @@
-profile: gguf-mirust.report-synthesis.v3
-updated_utc: 2026-06-27T22:07:39Z
+profile: gguf-mirust.report-synthesis.v7
+updated_utc: 2026-06-28T05:30:00Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/gguf-mirust/report-intake-2026-06-25/
@@ -16,6 +16,8 @@ source_authority:
     - wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
     - wiki/gguf-mirust/reports/runtime-adapter-apply-memory-2026-06-27.md
     - wiki/gguf-mirust/reports/sparse-adapter-package-memory-2026-06-27.md
+    - wiki/gguf-mirust/reports/low-rank-adapter-package-memory-2026-06-28.md
+    - wiki/gguf-mirust/reports/browser-low-rank-adapter-route-memory-2026-06-28.md
     - wiki/gguf-mirust/reports/browser-adapter-sidecar-memory-2026-06-27.md
     - wiki/gguf-mirust/reports/registry-adapter-sidecar-memory-2026-06-27.md
     - wiki/gguf-mirust/reports/registry-adapter-family-memory-2026-06-27.md
@@ -43,17 +45,38 @@ source_authority:
     - wiki/gguf-mirust/reports/browser-module-plan-budget-display-memory-2026-06-27.md
     - wiki/gguf-mirust/reports/browser-module-plan-role-display-memory-2026-06-27.md
     - wiki/gguf-mirust/reports/browser-module-plan-slots-memory-2026-06-27.md
+    - wiki/gguf-mirust/reports/browser-module-plan-dependencies-memory-2026-06-27.md
+    - wiki/gguf-mirust/reports/browser-module-plan-phases-memory-2026-06-27.md
+    - wiki/gguf-mirust/reports/browser-module-plan-byte-counts-memory-2026-06-27.md
+    - wiki/gguf-mirust/reports/browser-module-plan-checksums-memory-2026-06-27.md
+    - wiki/gguf-mirust/reports/browser-combined-selector-assembly-memory-2026-06-28.md
+    - wiki/gguf-mirust/reports/browser-assembly-trace-memory-2026-06-28.md
+    - wiki/gguf-mirust/reports/browser-eval-case-evidence-checksum-memory-2026-06-28.md
+    - wiki/gguf-mirust/reports/browser-assembly-eval-case-drift-memory-2026-06-28.md
+    - wiki/gguf-mirust/reports/browser-assembly-evidence-file-drift-memory-2026-06-28.md
   durable_research:
     - wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md
   uaix_strategy_source: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
   uaix_strategy_dogfood: docs/dogfood/uaix-file-handoff-memory-strategy-2026-06-26.md
+strategy_refresh_2026_06_27:
+  report_storage: Report bodies stay in raw evidence and wiki/report pages; .uai/long-term-memory.uai keeps checksum-bearing pointers, and .uai/short-term-memory.uai keeps current open-next routes.
+  report_pointer_audit: Every current wiki/gguf-mirust/reports/*.md page is represented in .uai/long-term-memory.uai; repeat this audit after adding report pages.
+  research_storage: Model Breeding reference bodies stay in wiki/gguf-mirust/research/ and route through this synthesis file plus short-term memory before any source work.
+  model_breeding_diverse_lanes: Compatible merge, sparse-lineage, adapter-ecology including ADP1/ASP1/ALR1, population-search, federated/local-update, browser-constrained-assembly, and UAIX-memory-strategy ideas are research/planner lanes until converted into typed receipts, eval sidecars, manifests, tests, or promotion records.
+  site_voice_route: .uai/taboo.uai governs Model Breeding, mutualist, tiny-ecology, UAIX strategy, and public-copy wording for GGUF.MiRust.com.
+strategy_refresh_2026_06_28:
+  setup_file_handoff_source: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
+  applied_memory_shape: Active buckets are intake, raw/wiki Markdown holds durable bodies, .uai files hold short routing and synthesis, short-term memory names current report/research routes, and long-term memory keeps checksum pointers.
+  report_memory_shape: All current report pages stay in wiki/gguf-mirust/reports/ and route from short-term memory plus long-term checksum records; new report pages must be added to both route layers.
+  model_breeding_concept_lanes: The research page now includes heritable-artifact, mate-selection, phenotype-evidence, and speciation-and-fit lanes beside merge, sparse, adapter, population, local-update, browser-assembly, and UAIX strategy lanes.
+  site_voice_route: .uai/taboo.uai carries the direct site voice rule; public copy should center proof, craft, lineage, fit, local agency, routes, and implementation evidence.
 failure_dogfood:
   issue: First report-processing pass over-prioritized durable wiki files and pointer-ledger cleanliness, leaving hot .uai files too thin for cold-start agents.
   correction: Keep long-term-memory.uai pointer-only, but populate typed .uai files with enough report-derived routing, constraints, tensions, and next questions to guide work before wiki deep-loading.
   uaix_guidance_needed: UAIX and LLM Wiki setup guidance should say link-only is not memory-thin; every project needs hot .uai synthesis plus crawlable durable nodes.
   crawlability_rule: A future agent should be able to identify what to load next from .uai files within two minutes, without opening every report or wiki page.
   uaix_file_handoff_strategy_2026_06_26: The active setup is File Handoff plus raw evidence, durable LLM Wiki synthesis, pointer-only long-term memory, and short-term routing into durable report nodes.
-  uaix_file_handoff_strategy_2026_06_27: Scan active buckets, classify each source file, record disposition and proof, preserve originals with checksums, synthesize durable wiki/report nodes, refresh hot routing, then remove or explicitly keep active copies.
+  uaix_file_handoff_strategy_2026_06_27: Scan active buckets, classify each source file, record disposition and proof, preserve originals with checksums, synthesize durable wiki/report nodes, refresh hot routing, audit long-term pointers, then remove or explicitly keep active copies.
 report_clusters:
   enterprise_rust_governance:
     sources: enterprise Rust adoption, Enterprise Rust Best Practices, Rust Design Patterns, Rust ownership/SOLID.
@@ -121,13 +144,16 @@ report_clusters:
       - Use multi-parent-candidate-manifest after validate-sign-merge-candidate to bind receipt checksum, recipe checksum, relatedness summary, parent summaries, candidate .slm fields, and pending promotion route.
       - Use multi-parent-promotion-template after validate-multi-parent-candidate to bind candidate manifest checksum, receipt checksum, recipe checksum, parent count, candidate .slm fields, and pending runtime-smoke/eval status.
       - Use multi-parent-admission-record after validate-multi-parent-promotion, validate-manifest, validate-runtime-smoke, and passed eval evidence to bind sign-merge promotion evidence before selector-registry consumes the record.
-      - Use sparse-adapter-delta when the useful bead is a compact ASP1 task-delta package instead of a normal .slm candidate; validate-sparse-adapter-delta before runtime ADP1/ASP1 apply work or generated browser ASP1 route staging.
-      - Use runtime f32/q8_0/q4_0 ADP1 or ASP1 adapter apply only after loading a compatible base and validating package identity, checksums, tokenizer, tensor layout, tensor directory, finite deltas, sparse indices, and fused values; q8_0/q4_0 apply must re-quantize compact tensors.
+      - Use sparse-adapter-delta when the useful bead is a compact ASP1 task-delta package instead of a normal .slm candidate; validate-sparse-adapter-delta before runtime ADP1/ASP1/ALR1 apply work or generated browser ASP1 route staging.
+      - Use low-rank-adapter-delta when the useful bead is an ALR1 matrix factor task-delta package; validate-low-rank-adapter-delta before runtime ALR1 apply work or generated ALR1 browser route staging.
+      - Use runtime f32/q8_0/q4_0 ADP1, ASP1, or ALR1 adapter apply only after loading a compatible base and validating package identity, checksums, tokenizer, tensor layout, tensor directory, finite deltas or factors, sparse indices or low-rank shapes, and fused values; q8_0/q4_0 apply must re-quantize compact tensors.
       - Use browser-smoke adapter-sidecar after Adapter Sidecar UI, local adapter route, app.js WASM transfer, or runtime apply state changes.
       - Use browser-smoke adapter-sidecar-checksum-mismatch after browser-side ADP1 checksum changes to prove a corrupted sidecar is stopped before apply_adapter_delta and generation diagnostics stay intact.
-      - Use registry-carried f32/q8_0/q4_0 adapter-family fields only when the route apply status matches the admitted entry quantization, with local .adp1 or .asp1 routes, matching manifests, checksums, a local .adapter-family.receipt handle plus served adapter manifest files that the browser fetches and checksum-verifies, and adapter-sidecar-registry-file or quantized registry smoke evidence.
+      - Use registry-carried f32/q8_0/q4_0 adapter-family fields only when the route apply status matches the admitted entry quantization, with local .adp1, .asp1, or .alr1 routes, matching manifests, checksums, a local .adapter-family.receipt handle plus served adapter manifest files that the browser fetches and checksum-verifies, and adapter-sidecar-registry-file or quantized registry smoke evidence.
       - Use receipt-bound preferred adapter fields when generated adapter families need a browser-default module choice; app.js must verify the preferred index, route, and manifest path against the served receipt and manifests before defaulting the selector.
       - Use browser-multi-parent-bundle `all` when the useful selector bead is one served root containing f32, q8_0, and q4_0 generated modules; verify f32/q8_0/q4_0 entry switching and sparse ASP1 apply through adapter-sidecar-registry-file.
+      - Use browser-smoke `combined-selector-assembly` when a single generated `all` root must prove q4_0 default selection, q4_0/q8_0/f32 selector switching, plan-before-model order, and stack auto-assembly before generation in one browser session.
+      - Use the Browser Assembly Trace report when the Module Plan Trace row, browser load checkpoints, generated all-root trace assertion, or ready-state sequencing changes; the generated trace should progress from plan verified through ready only after the corresponding verified stage completes.
       - Use browser-frugal-quantized selector defaults when a combined served root should start on the most constrained supported quantization; verify initialSelectedModel is q4_0 before scripted switching.
       - Use browser selector byte-budget intake when registry routes can point at large local artifacts; require `entry.N.model_bytes` at or below the browser budget before fetch, then verify fetched byte count before WASM transfer.
       - Use `selector_model_byte_budget=33554432` as the registry-level browser envelope for selector routes; Rust must write and validate it, and the browser must reject registries whose budget exceeds the local constant.
@@ -135,7 +161,7 @@ report_clusters:
       - Use browser text-sidecar byte envelopes when selector.registry, manifests, receipts, or evidence files are parsed in JavaScript; oversized sidecar text should stop generated adapter setup before artifact fetch or apply.
       - Use registry-declared browser text-sidecar budget fields when generated selector registries advertise selector, manifest, receipt, and evidence envelopes; Rust and browser intake must require exact local matches before generated registry routes are accepted.
       - Use browser runtime WASM manifests when checked or generated browser roots instantiate Rust; the browser must verify runtime manifest fields, byte count, and checksum before model, adapter, receipt, or evidence routes assemble.
-      - Use browser adapter stacks when generated adapter families need more than one compatible module at startup; receipts declare ordered stack members, selector registries carry stack fields, and browser smokes prove family ADP1 plus sparse ASP1 pre-generation apply.
+      - Use browser adapter stacks when generated adapter families need more than one compatible module at startup; receipts declare ordered stack members, selector registries carry stack fields, and browser smokes prove family ADP1 plus sparse ASP1 plus low-rank ALR1 pre-generation apply.
       - Use browser module plans when generated selector entries need a single local graph receipt before generated model bytes; selector fields carry the plan route/checksum/count, served plans bind model, manifest, receipts, and adapter stack members, and browser smoke must prove the plan route is requested before `.slm` fetch.
       - Use browser module-plan resource envelopes when generated selector entries must prove constrained self-assembly before model fetch; selector fields and served plans carry `browser-constrained-local-assembly`, admitted model byte budget, and adapter-family byte budget.
       - Use browser-smoke `module-plan-resource-drift` after module-plan resource-envelope changes to prove checksum-consistent receipt budget drift stops before generated `.slm` fetch.
@@ -147,10 +173,19 @@ report_clusters:
       - Use the Module Plan budget display report when visible model/adapter byte-budget rows change; source ui-audit should prove fallback `unavailable`, and generated-root adapter-sidecar-registry-file should prove receipt-derived budget text.
       - Use the Module Plan role display report when `.module-plan.receipt` role fields, rendered role summaries, or role assertions change; source ui-audit should prove fallback `unavailable`, and generated-root adapter-sidecar-registry-file should prove the ordered runtime/model-manifest/assembly/adapter-family/stack role summary.
       - Use the Module Plan slots report when `.module-plan.receipt` assembly-slot fields, rendered slot summaries, or slot assertions change; source ui-audit should prove fallback `unavailable`, and generated-root adapter-sidecar-registry-file should prove the ordered runtime/model-manifest/assembly/adapter-family/stack slot summary.
+      - Use the Module Plan dependencies report when `.module-plan.receipt` dependency fields, rendered dependency summaries, or dependency assertions change; source ui-audit should prove fallback `unavailable`, and generated-root adapter-sidecar-registry-file should prove the ordered runtime-WASM-to-stack dependency chain.
+      - Use the Module Plan phases report when `.module-plan.receipt` phase fields, rendered phase summaries, or phase assertions change; source ui-audit should prove fallback `unavailable`, generated-root adapter-sidecar-registry-file should prove ordered phases, and `module-plan-phase-drift` should stop before generated model or stack artifact fetches.
+      - Use the Module Plan byte-counts report when `.module-plan.receipt` byte_count fields, rendered byte summaries, fetched model/text byte matching, adapter-stack artifact byte matching, or byte-drift assertions change; source ui-audit should prove fallback `unavailable`, generated-root adapter-sidecar-registry-file should prove ordered byte counts, and `module-plan-byte-drift` should stop before generated model or stack artifact fetches.
+      - Use the Module Plan checksums report when `.module-plan.receipt` checksum fields, rendered checksum summaries, stack artifact checksum matching, or checksum-drift assertions change; source ui-audit should prove fallback `unavailable`, generated-root adapter-sidecar-registry-file should prove ordered checksums, and `module-plan-checksum-drift` should stop before generated model or stack artifact fetches.
+      - Use the Browser Assembly Trace report when Module Plan trace checkpoints or generated-root trace smoke assertions change; source ui-audit should prove fallback `unavailable`, and combined-selector-assembly should prove q4_0/q8_0/f32 exact trace text.
+      - Use the Browser Eval Case Evidence Checksum report when selector admission eval evidence fields, promotion-ledger admission copies, selector registry eval proof fields, generated assembly receipt eval digests, Model Provenance eval rows, or browser-smoke registry-backed provenance assertions change.
+      - Use the Browser Assembly Eval Case Drift report when generated assembly receipt eval digest matching, assembly rejection state, or `assembly-eval-case-drift` assertions change; the smoke should stop before evidence and adapter-family routes.
+      - Use the Browser Assembly Evidence File Drift report when fetched assembly evidence-file checksum matching, evidence route ordering, Assembly Evidence rejection state, or `assembly-evidence-file-drift` assertions change; the smoke should stop before later evidence and adapter-family routes.
       - Use registry-carried assembly receipt fields for generated f32/q8_0/q4_0 multi-parent selector entries when the browser must verify a served receipt and then fetch/checksum the receipt-referenced ledger, review, recipe, operator, candidate, promotion, runtime, eval, admission, and adapter-family evidence.
       - Use the Assembly Evidence panel and adapter-sidecar-registry-file browser smoke after generated f32/q8_0/q4_0 bundle evidence staging, app.js assembly receipt parsing, or evidence-file fetch changes.
       - Use browser-smoke multi-parent-registry after selector-registry route changes and multi-parent-registry-file after browser-multi-parent-bundle staging to prove both fixture and generated served selector routes; browser-multi-parent-bundle should emit a runnable app root, not models-only staging.
-      - Use the reference ideas page for diverse lanes spanning soups, Re-Basin alignment, task vectors, sparse/sign-aware composition, adapters, federated population updates, pruning masks, retention metrics, evolution-style search, model kinship, sparse-mask breadcrumbs, adaptive merge search, and multi-objective fitness.
+      - Use the reference ideas page for diverse lanes spanning architecture-preserving merges, soups, Re-Basin alignment, task vectors, sparse/sign-aware composition, adapters, federated/local update ideas, pruning masks, retention metrics, evolution-style search, model kinship, sparse-mask breadcrumbs, adaptive merge search, browser-constrained assembly, UAIX memory strategy, and multi-objective fitness.
+      - Use the reference ideas page for Model Breeding concept lanes spanning heritable artifacts, mate selection, phenotype evidence, speciation-and-fit boundaries, candidate genomes as manifests/receipts/eval sidecars, and local browser assembly as a proof graph.
       - Use the 2026-06-27 diversity refresh as reference metadata: sparse masks now have first receipt-level evidence through sparse-delta density, nonzero-delta retention, and implicit mask checksums; population objective vectors now have first population-review fields and checksums; parent relatedness now has first recipe/receipt/manifest fields; replayable recipe chains, planner proposals, and resource budgets still need typed evidence before implementation claims.
       - Use distillation or retraining when compatibility breaks instead of direct tensor mixing.
       - Record parent hashes, operator recipe, build tool route, and eval evidence in candidate manifests.
@@ -159,10 +194,15 @@ report_clusters:
       - Follow .uai/taboo.uai for public website copy about model breeding, mutualism, and tiny model ecology.
     future_reference_lanes:
       - model soups and task vectors for compatible weight-space edits.
-      - TIES and DARE for sparse/sign-aware delta composition; sparse task-delta receipts now include density, nonzero-delta retention, and implicit top-k mask checksums, and parent-pool recipes, sign-merge candidate receipts, multi-parent candidate manifests, multi-parent promotion templates, multi-parent admission records, selector route binding, browser-served registry smoke, generated f32/q8_0/q4_0 browser bundle routing, one q4-defaulted combined f32/q8_0/q4_0 selector root, browser selector byte-budget intake with registry-level model and text-sidecar budget contracts, registry-controlled receipt-preferred auto assembly, browser runtime WASM manifests, browser-verified assembly receipts with fetched evidence-file checksum checks, browser module-plan resource envelopes before generated model fetch, checksum-consistent module-plan resource, graph, stack, role, and slot drift smokes, and Module Plan panel display including budget rows, slot summaries, and role summaries from verified receipt fields are implemented.
+      - TIES and DARE for sparse/sign-aware delta composition; sparse task-delta receipts now include density, nonzero-delta retention, and implicit top-k mask checksums, and parent-pool recipes, sign-merge candidate receipts, multi-parent candidate manifests, multi-parent promotion templates, multi-parent admission records, selector route binding, browser-served registry smoke, generated f32/q8_0/q4_0 browser bundle routing, one q4-defaulted combined f32/q8_0/q4_0 selector root, combined-selector assembly proof across all three generated entries, browser selector byte-budget intake with registry-level model and text-sidecar budget contracts, registry-controlled receipt-preferred auto assembly, browser runtime WASM manifests, browser-verified assembly receipts with fetched evidence-file checksum checks, browser module-plan resource envelopes before generated model fetch, checksum-consistent module-plan resource, graph, stack, role, slot, dependency, byte-count, and checksum drift smokes, and Module Plan panel display including budget rows, byte summaries, checksum summaries, slot summaries, role summaries, dependency summaries, and browser-owned trace checkpoints from verified receipt fields and load steps are implemented.
+      - Module Plan phase fields now give generated browser roots a lifecycle route from model bytes through manifest, assembly, adapter-family, and ordered stack apply, with phase display and checksum-consistent phase-drift smoke evidence.
+      - Module Plan byte-count fields now bind each generated browser root's model, manifest, assembly receipt, adapter-family receipt, and ordered stack artifacts to explicit fetched-byte evidence, with byte display and checksum-consistent byte-drift smoke evidence.
+      - Module Plan Trace now gives generated q4_0/q8_0/f32 browser roots an observed assembly sequence from plan verification through ready state, with combined-selector-assembly smoke asserting the exact checkpoint chain.
+      - Eval-case evidence checksums now bind passed eval sidecars into selector admissions, promotion-ledger copies, selector registry entries, generated assembly receipts, and Model Provenance display; combined-selector-assembly proves q4_0/q8_0/f32 generated entries share checksum `0xabdeb569ab3eea3e`, assembly-eval-case-drift proves mismatched generated assembly digests stop before evidence or adapter-family routes, and assembly-evidence-file-drift proves fetched evidence body drift stops before later evidence or adapter-family routes.
+      - Heritable-artifact, mate-selection, phenotype-evidence, and speciation-and-fit are now research routing concepts: they should become compatibility fields, receipt or manifest fields, eval/provenance fields, or browser-smoke assertions before implementation claims.
       - Model Breadcrumbs and model kinship for richer sparse-mask lineage, retention-aware eval sidecars, and parent-pool relatedness fields now first implemented before recipe consumers write candidates.
       - Evolutionary merge recipes, Mergenetic-style adaptive search, and multi-objective evolutionary merging for planner-layer proposals, resource budgets, population objective vectors, and replayable receipt chains.
-      - LoRA and adapters for compact skill deltas; adapter-delta, sparse-adapter-delta, adapter-fuse for raw ADP1, f32/q8_0/q4_0 ADP1/ASP1 runtime apply, checked browser f32/q8_0/q4_0 ADP1 sidecar routes, registry-carried generated f32/q8_0/q4_0 ADP1/ASP1 adapter routes, generated f32/q8_0/q4_0 browser bundle roots, q8_0 served sparse ASP1 browser smoke, browser-verified adapter-family receipts plus manifests, receipt-bound preferred sparse ASP1 selection, and receipt-verified generated auto assembly are implemented for the current typed lane while LoRA modules remain future work.
+      - LoRA and adapters for compact skill deltas; adapter-delta, sparse-adapter-delta, low-rank-adapter-delta, adapter-fuse for raw ADP1, f32/q8_0/q4_0 ADP1/ASP1/ALR1 runtime apply, checked browser f32/q8_0/q4_0 ADP1 sidecar routes, registry-carried generated f32/q8_0/q4_0 ADP1/ASP1/ALR1 adapter routes, generated f32/q8_0/q4_0 browser bundle roots, served ASP1 and ALR1 browser smokes, browser-verified adapter-family receipts plus manifests, receipt-bound preferred sparse ASP1 selection, and receipt-verified generated auto assembly are implemented for the current typed lane while trained LoRA-style modules remain future browser work.
       - population-based training for candidate registries, objective vectors, fitness scores, staged promotion, implemented population-review records, and implemented parent-pool recipes.
       - federated averaging, evolution strategies, adapter families, quantized adapter training, pruning, lottery tickets, and retention metrics for future recipe metadata, eval sidecars, and compact candidate artifacts.
     keep_separate:
@@ -185,3 +225,5 @@ crawlability_requirements_for_future_memory:
   - .uai/long-term-memory.uai must remain pointer-only with routing summaries and checksums.
   - .uai/taboo.uai must be read before public site copy, model-breeding positioning, or mutualist language work.
   - .uai/short-term-memory.uai must reference current report-intake indexes after every processed batch.
+  - .uai/short-term-memory.uai must keep current_report_routes for the active bucket scan, durable report indexes, model-breeding synthesis, research reference page, UAIX strategy source, and long-term pointer ledger.
+  - .uai/short-term-memory.uai must keep current Model Breeding concept routes, site voice route, and report/research pointer audit state after every strategy refresh.

@@ -5,11 +5,14 @@ use crate::model_format::TensorEntry;
 
 const RAW_MAGIC: &[u8; 4] = b"ADP1";
 const SPARSE_MAGIC: &[u8; 4] = b"ASP1";
+const LOW_RANK_MAGIC: &[u8; 4] = b"ALR1";
 const VERSION: u32 = 1;
 const HEADER_LEN: usize = 64;
 const ENTRY_LEN: usize = 64;
 const CHECKSUM_OFFSET: usize = 56;
 const SPARSE_PAIR_LEN: usize = 12;
+const LOW_RANK_HEADER_LEN: usize = 16;
+const LOW_RANK_MAX_COMPONENTS: usize = 8;
 
 /// Identity values the adapter package must match before it can be applied.
 pub(crate) struct AdapterExpected<'a> {
@@ -70,6 +73,15 @@ impl AdapterDelta {
                         validate_sparse_payload(bytes, byte_offset, byte_length, element_count)?;
                     AdapterDeltaPayloadKind::SparseF32 { pair_count }
                 }
+                AdapterPackageFormat::LowRankF32 => {
+                    let (factor_rank, rows, cols) =
+                        low_rank_payload_shape(bytes, byte_offset, byte_length, element_count)?;
+                    AdapterDeltaPayloadKind::LowRankF32 {
+                        factor_rank,
+                        rows,
+                        cols,
+                    }
+                }
             };
             entries.push(AdapterDeltaEntry {
                 byte_offset,
@@ -98,6 +110,15 @@ pub(crate) enum AdapterDeltaPayloadKind {
     SparseF32 {
         /// Number of sparse pairs in the payload.
         pair_count: usize,
+    },
+    /// Low-rank f32 matrix deltas, stored as component-major `A` and `B` factors.
+    LowRankF32 {
+        /// Number of outer-product components.
+        factor_rank: usize,
+        /// Matrix row count represented by the factors.
+        rows: usize,
+        /// Matrix column count represented by the factors.
+        cols: usize,
     },
 }
 
@@ -175,6 +196,73 @@ pub(crate) fn read_sparse_delta_pair(
     Ok((value_index, delta))
 }
 
+/// Reconstructs one value from a validated low-rank payload.
+pub(crate) fn read_low_rank_delta_value(
+    bytes: &[u8],
+    payload: AdapterDeltaPayload,
+    value_index: usize,
+) -> Result<f32, ErrorCode> {
+    let AdapterDeltaPayloadKind::LowRankF32 {
+        factor_rank,
+        rows,
+        cols,
+    } = payload.kind
+    else {
+        return Err(ErrorCode::ShapeMismatch);
+    };
+    if factor_rank == 0 {
+        return Ok(0.0);
+    }
+    if value_index >= payload.element_count || rows == 0 || cols == 0 {
+        return Err(ErrorCode::ShapeMismatch);
+    }
+    let row = value_index / cols;
+    let col = value_index % cols;
+    if row >= rows {
+        return Err(ErrorCode::ShapeMismatch);
+    }
+    let a_offset = payload
+        .byte_offset
+        .checked_add(LOW_RANK_HEADER_LEN)
+        .ok_or(ErrorCode::InvalidLength)?;
+    let b_offset = a_offset
+        .checked_add(
+            factor_rank
+                .checked_mul(rows)
+                .and_then(|value| value.checked_mul(4))
+                .ok_or(ErrorCode::InvalidLength)?,
+        )
+        .ok_or(ErrorCode::InvalidLength)?;
+    let mut delta = 0.0f32;
+    for component in 0..factor_rank {
+        let a_index = component
+            .checked_mul(rows)
+            .and_then(|value| value.checked_add(row))
+            .ok_or(ErrorCode::InvalidLength)?;
+        let b_index = component
+            .checked_mul(cols)
+            .and_then(|value| value.checked_add(col))
+            .ok_or(ErrorCode::InvalidLength)?;
+        let a = read_f32(
+            bytes,
+            a_offset
+                .checked_add(a_index.checked_mul(4).ok_or(ErrorCode::InvalidLength)?)
+                .ok_or(ErrorCode::InvalidLength)?,
+        )?;
+        let b = read_f32(
+            bytes,
+            b_offset
+                .checked_add(b_index.checked_mul(4).ok_or(ErrorCode::InvalidLength)?)
+                .ok_or(ErrorCode::InvalidLength)?,
+        )?;
+        delta += a * b;
+    }
+    if !delta.is_finite() {
+        return Err(ErrorCode::InvalidHeader);
+    }
+    Ok(delta)
+}
+
 fn validate_adapter_bytes(bytes: &[u8]) -> Result<AdapterPackageFormat, ErrorCode> {
     let format = adapter_format(bytes)?;
     if read_u32(bytes, 4)? != VERSION {
@@ -222,6 +310,9 @@ fn validate_adapter_bytes(bytes: &[u8]) -> Result<AdapterPackageFormat, ErrorCod
                     return Err(ErrorCode::ShapeMismatch);
                 }
             }
+            AdapterPackageFormat::LowRankF32 => {
+                low_rank_payload_shape(bytes, byte_offset, byte_length, element_count)?;
+            }
         }
         let end = byte_offset
             .checked_add(byte_length)
@@ -240,12 +331,14 @@ fn validate_adapter_bytes(bytes: &[u8]) -> Result<AdapterPackageFormat, ErrorCod
 enum AdapterPackageFormat {
     RawF32,
     SparseF32,
+    LowRankF32,
 }
 
 fn adapter_format(bytes: &[u8]) -> Result<AdapterPackageFormat, ErrorCode> {
     match bytes.get(0..4) {
         Some(magic) if magic == RAW_MAGIC => Ok(AdapterPackageFormat::RawF32),
         Some(magic) if magic == SPARSE_MAGIC => Ok(AdapterPackageFormat::SparseF32),
+        Some(magic) if magic == LOW_RANK_MAGIC => Ok(AdapterPackageFormat::LowRankF32),
         _ => Err(ErrorCode::InvalidHeader),
     }
 }
@@ -329,6 +422,59 @@ fn validate_sparse_payload(
         previous_index = Some(value_index);
     }
     Ok(pair_count)
+}
+
+fn low_rank_payload_shape(
+    bytes: &[u8],
+    byte_offset: usize,
+    byte_length: usize,
+    element_count: usize,
+) -> Result<(usize, usize, usize), ErrorCode> {
+    if byte_length == 0 {
+        return Ok((0, 0, 0));
+    }
+    if byte_length < LOW_RANK_HEADER_LEN {
+        return Err(ErrorCode::ShapeMismatch);
+    }
+    let rows = usize_from_u64(u64::from(read_u32(bytes, byte_offset)?))?;
+    let cols = usize_from_u64(u64::from(read_u32(bytes, byte_offset + 4)?))?;
+    let factor_rank = usize_from_u64(u64::from(read_u32(bytes, byte_offset + 8)?))?;
+    if read_u32(bytes, byte_offset + 12)? != 0
+        || rows == 0
+        || cols == 0
+        || factor_rank == 0
+        || factor_rank > LOW_RANK_MAX_COMPONENTS
+        || factor_rank > rows.min(cols)
+        || rows.checked_mul(cols).ok_or(ErrorCode::InvalidLength)? != element_count
+    {
+        return Err(ErrorCode::ShapeMismatch);
+    }
+    let factor_values = factor_rank
+        .checked_mul(rows.checked_add(cols).ok_or(ErrorCode::InvalidLength)?)
+        .ok_or(ErrorCode::InvalidLength)?;
+    let expected_len = LOW_RANK_HEADER_LEN
+        .checked_add(
+            factor_values
+                .checked_mul(4)
+                .ok_or(ErrorCode::InvalidLength)?,
+        )
+        .ok_or(ErrorCode::InvalidLength)?;
+    if byte_length != expected_len {
+        return Err(ErrorCode::ShapeMismatch);
+    }
+    for value_index in 0..factor_values {
+        let offset = byte_offset
+            .checked_add(
+                LOW_RANK_HEADER_LEN
+                    .checked_add(value_index.checked_mul(4).ok_or(ErrorCode::InvalidLength)?)
+                    .ok_or(ErrorCode::InvalidLength)?,
+            )
+            .ok_or(ErrorCode::InvalidLength)?;
+        if !read_f32(bytes, offset)?.is_finite() {
+            return Err(ErrorCode::InvalidHeader);
+        }
+    }
+    Ok((factor_rank, rows, cols))
 }
 
 fn adapter_checksum(bytes: &[u8]) -> Result<u64, ErrorCode> {

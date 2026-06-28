@@ -81,9 +81,13 @@
 
   const registryAdapterApplyStatus = "runtime-f32-compatible-or-fuse-to-slm";
   const registryQuantizedAdapterApplyStatus = "runtime-q8-q4-compatible-or-fuse-to-slm";
+  const registryLowRankAdapterApplyStatus = "runtime-f32-compatible-low-rank";
+  const registryQuantizedLowRankAdapterApplyStatus = "runtime-q8-q4-compatible-low-rank";
   const registryAdapterApplyStatuses = new Set([
     registryAdapterApplyStatus,
-    registryQuantizedAdapterApplyStatus
+    registryQuantizedAdapterApplyStatus,
+    registryLowRankAdapterApplyStatus,
+    registryQuantizedLowRankAdapterApplyStatus
   ]);
   const registryAdapterFamilyStatus = "receipt-validated";
   const registryAdapterFamilyStrategy = "single-adapter-selection";
@@ -118,13 +122,25 @@
       extension: ".adp1",
       artifactKind: "raw-f32-task-delta-v1",
       dtype: "f32-delta",
-      defaultLabel: "ADP1 adapter"
+      defaultLabel: "ADP1 adapter",
+      applyStatus: registryAdapterApplyStatus,
+      quantizedApplyStatus: registryQuantizedAdapterApplyStatus
     },
     {
       extension: ".asp1",
       artifactKind: "sparse-f32-task-delta-v1",
       dtype: "sparse-f32-delta",
-      defaultLabel: "ASP1 adapter"
+      defaultLabel: "ASP1 adapter",
+      applyStatus: registryAdapterApplyStatus,
+      quantizedApplyStatus: registryQuantizedAdapterApplyStatus
+    },
+    {
+      extension: ".alr1",
+      artifactKind: "low-rank-f32-task-delta-v1",
+      dtype: "low-rank-f32-delta",
+      defaultLabel: "ALR1 adapter",
+      applyStatus: registryLowRankAdapterApplyStatus,
+      quantizedApplyStatus: registryQuantizedLowRankAdapterApplyStatus
     }
   ];
   const adapterFamilyReceiptKinds = new Set([
@@ -169,6 +185,7 @@
     modelManifest: null,
     modulePlanReceipt: null,
     assemblyReceipt: null,
+    modulePlanTrace: [],
     selectorRegistry: null,
     selectorDefaultModelKey: "",
     hasContext: false,
@@ -210,6 +227,8 @@
     provenanceAdmission: document.getElementById("provenanceAdmission"),
     provenanceQualityClaim: document.getElementById("provenanceQualityClaim"),
     provenanceTrainedClaim: document.getElementById("provenanceTrainedClaim"),
+    provenanceEvalCases: document.getElementById("provenanceEvalCases"),
+    provenanceEvalChecksum: document.getElementById("provenanceEvalChecksum"),
     provenanceChecksum: document.getElementById("provenanceChecksum"),
     provenanceNextGate: document.getElementById("provenanceNextGate"),
     assemblyState: document.getElementById("assemblyState"),
@@ -224,9 +243,13 @@
     modulePlanModules: document.getElementById("modulePlanModules"),
     modulePlanModelBudget: document.getElementById("modulePlanModelBudget"),
     modulePlanAdapterBudget: document.getElementById("modulePlanAdapterBudget"),
+    modulePlanBytes: document.getElementById("modulePlanBytes"),
+    modulePlanChecksums: document.getElementById("modulePlanChecksums"),
     modulePlanSlots: document.getElementById("modulePlanSlots"),
     modulePlanRoles: document.getElementById("modulePlanRoles"),
+    modulePlanPhases: document.getElementById("modulePlanPhases"),
     modulePlanDepends: document.getElementById("modulePlanDepends"),
+    modulePlanTrace: document.getElementById("modulePlanTrace"),
     modulePlanModel: document.getElementById("modulePlanModel"),
     modulePlanStack: document.getElementById("modulePlanStack")
   };
@@ -573,12 +596,15 @@
     }
   }
 
-  function adapterApplyStatusForQuantization(quantization) {
+  function adapterApplyStatusForQuantization(adapterFormat, quantization) {
+    if (!adapterFormat) {
+      return null;
+    }
     if (quantization === "f32") {
-      return registryAdapterApplyStatus;
+      return adapterFormat.applyStatus;
     }
     if (quantization === "q8_0" || quantization === "q4_0") {
-      return registryQuantizedAdapterApplyStatus;
+      return adapterFormat.quantizedApplyStatus;
     }
     return null;
   }
@@ -603,7 +629,7 @@
       return null;
     }
     const applyStatus = fields[applyStatusKey];
-    const expectedApplyStatus = adapterApplyStatusForQuantization(baseQuantization);
+    const expectedApplyStatus = adapterApplyStatusForQuantization(adapterFormat, baseQuantization);
     if (!expectedApplyStatus || (applyStatus && applyStatus !== expectedApplyStatus)) {
       return null;
     }
@@ -774,6 +800,21 @@
     };
   }
 
+  function registryEvalEvidenceEntry(fields, prefix) {
+    const checksum = fields[`${prefix}.eval_case_evidence_checksum`];
+    const casesPassed = registryDecimalByteCount(fields[`${prefix}.cases_passed`]);
+    if (!isRegistryHex64(checksum) || casesPassed === null) {
+      return null;
+    }
+    return {
+      checksum,
+      casesPassed,
+      qualityScope: fields[`${prefix}.quality_scope`] || "",
+      qualityBoundary: fields[`${prefix}.quality_boundary`] || "",
+      evalDataset: fields[`${prefix}.eval_dataset`] || ""
+    };
+  }
+
   function registryModulePlanEntry(fields, prefix, adapterFamily, assembly, modelBytes) {
     const keys = [
       "module_plan_path",
@@ -891,6 +932,10 @@
       if (assembly === null) {
         return null;
       }
+      const evalEvidence = registryEvalEvidenceEntry(fields, prefix);
+      if (!evalEvidence) {
+        return null;
+      }
       const modulePlan = registryModulePlanEntry(fields, prefix, adapterFamily, assembly, modelBytes);
       if (modulePlan === null) {
         return null;
@@ -904,6 +949,7 @@
         adapters,
         adapterFamily: adapterFamily || null,
         autoApplyPreferredAdapter: Boolean(adapterFamily),
+        evalEvidence,
         assembly: assembly || null,
         modulePlan: modulePlan || null
       };
@@ -1057,10 +1103,14 @@
 
   function renderProvenance(status, fields, isError) {
     setText(el.provenanceState, status, isError);
+    const model = paths.models[state.activeModelKey] || null;
+    const evalEvidence = model && model.evalEvidence ? model.evalEvidence : null;
     el.provenanceSourceKind.textContent = manifestValue(fields, "source_kind");
     el.provenanceAdmission.textContent = manifestValue(fields, "admission_status");
     el.provenanceQualityClaim.textContent = manifestValue(fields, "quality_claim");
     el.provenanceTrainedClaim.textContent = manifestValue(fields, "trained_quality_claim");
+    el.provenanceEvalCases.textContent = evalEvidence ? `${evalEvidence.casesPassed} passed` : "unavailable";
+    el.provenanceEvalChecksum.textContent = evalEvidence ? evalEvidence.checksum : "unavailable";
     el.provenanceChecksum.textContent = manifestValue(fields, "slm_checksum");
     el.provenanceNextGate.textContent = manifestValue(fields, "required_next_gate");
   }
@@ -1105,6 +1155,46 @@
     return `${value} bytes`;
   }
 
+  function modulePlanModuleByteSummary(fields) {
+    if (!fields) {
+      return "unavailable";
+    }
+    const countValue = fields.module_count;
+    const count = Number.parseInt(countValue || "0", 10);
+    if (!Number.isInteger(count) || String(count) !== countValue || count < 1) {
+      return "unavailable";
+    }
+    const byteCounts = [];
+    for (let index = 0; index < count; index += 1) {
+      const byteCount = fields[`module.${index}.byte_count`];
+      if (!byteCount) {
+        return "unavailable";
+      }
+      byteCounts.push(`${index}: ${byteCount} bytes`);
+    }
+    return byteCounts.join(", ");
+  }
+
+  function modulePlanChecksumSummary(fields) {
+    if (!fields) {
+      return "unavailable";
+    }
+    const countValue = fields.module_count;
+    const count = Number.parseInt(countValue || "0", 10);
+    if (!Number.isInteger(count) || String(count) !== countValue || count < 1) {
+      return "unavailable";
+    }
+    const checksums = [];
+    for (let index = 0; index < count; index += 1) {
+      const checksum = fields[`module.${index}.checksum`];
+      if (!checksum) {
+        return "unavailable";
+      }
+      checksums.push(`${index}: ${checksum}`);
+    }
+    return checksums.join(", ");
+  }
+
   function modulePlanRoleSummary(fields) {
     if (!fields) {
       return "unavailable";
@@ -1145,6 +1235,26 @@
     return slots.join(", ");
   }
 
+  function modulePlanPhaseSummary(fields) {
+    if (!fields) {
+      return "unavailable";
+    }
+    const countValue = fields.module_count;
+    const count = Number.parseInt(countValue || "0", 10);
+    if (!Number.isInteger(count) || String(count) !== countValue || count < 1) {
+      return "unavailable";
+    }
+    const phases = [];
+    for (let index = 0; index < count; index += 1) {
+      const phase = fields[`module.${index}.phase`];
+      if (!phase) {
+        return "unavailable";
+      }
+      phases.push(`${index}: ${phase}`);
+    }
+    return phases.join(", ");
+  }
+
   function modulePlanDependencySummary(fields) {
     if (!fields) {
       return "unavailable";
@@ -1172,11 +1282,24 @@
     el.modulePlanModules.textContent = manifestValue(fields, "module_count");
     el.modulePlanModelBudget.textContent = modulePlanByteSummary(fields, "module_plan_model_byte_budget");
     el.modulePlanAdapterBudget.textContent = modulePlanByteSummary(fields, "module_plan_adapter_byte_budget");
+    el.modulePlanBytes.textContent = modulePlanModuleByteSummary(fields);
+    el.modulePlanChecksums.textContent = modulePlanChecksumSummary(fields);
     el.modulePlanSlots.textContent = modulePlanSlotSummary(fields);
     el.modulePlanRoles.textContent = modulePlanRoleSummary(fields);
+    el.modulePlanPhases.textContent = modulePlanPhaseSummary(fields);
     el.modulePlanDepends.textContent = modulePlanDependencySummary(fields);
     el.modulePlanModel.textContent = manifestValue(fields, "module.0.path");
     el.modulePlanStack.textContent = modulePlanStackSummary(fields);
+  }
+
+  function resetModulePlanTrace(status, isError) {
+    state.modulePlanTrace = [];
+    setText(el.modulePlanTrace, status || "waiting", isError);
+  }
+
+  function recordModulePlanTrace(label) {
+    state.modulePlanTrace.push(`${state.modulePlanTrace.length}: ${label}`);
+    setText(el.modulePlanTrace, state.modulePlanTrace.join(", "), false);
   }
 
   function modelAdapters(model) {
@@ -1401,6 +1524,7 @@
       receiptTextByteBudget,
       "adapter-family receipt"
     );
+    requireModulePlanTextByteCount(model, 3, text);
     const receiptFields = validateAdapterFamilyReceipt(model, text);
     const preferredIndex = adapterFamilyPreferredIndex(model, receiptFields);
     const autoApplyIndexes = adapterFamilyAutoApplyIndexes(model, receiptFields);
@@ -1412,7 +1536,16 @@
         manifestTextByteBudget,
         "Adapter manifest"
       );
-      manifestFields.push(validateAdapterManifest(adapter, manifestText, receiptFields, index));
+      const fields = validateAdapterManifest(adapter, manifestText, receiptFields, index);
+      const moduleIndex = modulePlanStackModuleIndexForAdapter(model.modulePlanReceipt, index);
+      if (moduleIndex !== null) {
+        requireModulePlanActualByteCount(
+          model.modulePlanReceipt,
+          moduleIndex,
+          adapterManifestArtifactBytes(fields, "Adapter manifest")
+        );
+      }
+      manifestFields.push(fields);
     }
     if (model.autoApplyPreferredAdapter) {
       let autoApplyBytes = 0;
@@ -1510,9 +1643,12 @@
       "model",
       "runtime-model",
       "runtime-model",
+      modulePlanPhase(0),
       modulePlanDependency(0),
       model.path,
-      modelChecksum
+      modelChecksum,
+      model.modelBytes,
+      modelByteBudget
     );
     requireModulePlanLine(
       fields,
@@ -1520,9 +1656,12 @@
       "model-manifest",
       "model-manifest",
       "model-provenance-manifest",
+      modulePlanPhase(1),
       modulePlanDependency(1),
       `${model.path}.manifest`,
-      manifestChecksum
+      manifestChecksum,
+      null,
+      manifestTextByteBudget
     );
     if (model.assembly) {
       requireModulePlanLine(
@@ -1531,9 +1670,12 @@
         "assembly-receipt",
         "assembly-receipt",
         "assembly-evidence",
+        modulePlanPhase(2),
         modulePlanDependency(2),
         model.assembly.path,
-        model.assembly.checksum
+        model.assembly.checksum,
+        null,
+        receiptTextByteBudget
       );
     }
     if (model.adapterFamily) {
@@ -1543,9 +1685,12 @@
         "adapter-family-receipt",
         "adapter-family-receipt",
         "adapter-family",
+        modulePlanPhase(3),
         modulePlanDependency(3),
         model.adapterFamily.path,
-        model.adapterFamily.checksum
+        model.adapterFamily.checksum,
+        null,
+        receiptTextByteBudget
       );
       const seen = new Set();
       for (let stackIndex = 0; stackIndex < model.adapterFamily.autoApplyStackCount; stackIndex += 1) {
@@ -1566,7 +1711,20 @@
         const adapter = model.adapters[adapterIndex];
         requireManifestEqual(fields, `${prefix}.assembly_slot`, modulePlanAdapterSlot(stackIndex), source);
         requireManifestEqual(fields, `${prefix}.role`, modulePlanAdapterRole(adapter.path), source);
+        requireManifestEqual(fields, `${prefix}.phase`, modulePlanPhase(moduleIndex), source);
         requireManifestEqual(fields, `${prefix}.depends_on`, modulePlanDependency(moduleIndex), source);
+        requireModulePlanByteCount(
+          fields,
+          prefix,
+          null,
+          model.adapterFamily.autoApplyByteBudget,
+          source
+        );
+        requireChecksumEqual(
+          requireManifestField(fields, `${prefix}.checksum`, source),
+          adapter.artifactChecksum,
+          "module plan adapter module"
+        );
         requireManifestEqual(fields, `${prefix}.adapter_path`, adapter.path, source);
         requireManifestEqual(fields, `${prefix}.manifest_path`, adapter.manifestPath, source);
         requireChecksumEqual(
@@ -1589,6 +1747,9 @@
     if (adapterPath.endsWith("-sparse.asp1")) {
       return "adapter-stack-sparse-delta";
     }
+    if (adapterPath.endsWith("-low-rank.alr1")) {
+      return "adapter-stack-low-rank-delta";
+    }
     if (adapterPath.endsWith("-family.adp1")) {
       return "adapter-stack-family-delta";
     }
@@ -1606,6 +1767,16 @@
     return index === 0 ? "runtime-wasm" : `module.${index - 1}`;
   }
 
+  function modulePlanPhase(index) {
+    const basePhases = [
+      "load-model-bytes",
+      "verify-model-manifest",
+      "verify-assembly-evidence",
+      "verify-adapter-family"
+    ];
+    return index < basePhases.length ? basePhases[index] : `apply-adapter-stack-${index - 4}`;
+  }
+
   function requireModulePlanByteBudget(fields, key, expected) {
     const source = "Module plan";
     const value = requireManifestField(fields, key, source);
@@ -1616,13 +1787,65 @@
     return bytes;
   }
 
-  function requireModulePlanLine(fields, index, kind, assemblySlot, role, dependsOn, path, checksum) {
+  function requireModulePlanByteCount(fields, prefix, expected, max, source) {
+    const value = requireManifestField(fields, `${prefix}.byte_count`, source);
+    const bytes = registryDecimalByteCount(value);
+    if (
+      bytes === null ||
+      (expected !== null && bytes !== expected) ||
+      (expected === null && Number.isSafeInteger(max) && bytes > max)
+    ) {
+      throw new Error(`${source || "Receipt"} field ${prefix}.byte_count was ${value}`);
+    }
+    return bytes;
+  }
+
+  function requireModulePlanActualByteCount(fields, index, actualBytes) {
+    requireModulePlanByteCount(fields, `module.${index}`, actualBytes, null, "Module plan");
+  }
+
+  function requireModulePlanTextByteCount(model, index, text) {
+    if (model.modulePlanReceipt) {
+      requireModulePlanActualByteCount(model.modulePlanReceipt, index, state.encoder.encode(text).length);
+    }
+  }
+
+  function modulePlanStackModuleIndexForAdapter(fields, adapterIndex) {
+    const countValue = fields && fields.module_count;
+    const count = Number.parseInt(countValue || "0", 10);
+    if (!Number.isInteger(count) || String(count) !== countValue || count < 5) {
+      return null;
+    }
+    for (let moduleIndex = 4; moduleIndex < count; moduleIndex += 1) {
+      const value = fields[`module.${moduleIndex}.adapter_index`];
+      if (value === String(adapterIndex)) {
+        return moduleIndex;
+      }
+    }
+    return null;
+  }
+
+  function requireModulePlanLine(
+    fields,
+    index,
+    kind,
+    assemblySlot,
+    role,
+    phase,
+    dependsOn,
+    path,
+    checksum,
+    byteCount,
+    maxByteCount
+  ) {
     const source = "Module plan";
     const prefix = `module.${index}`;
     requireManifestEqual(fields, `${prefix}.kind`, kind, source);
     requireManifestEqual(fields, `${prefix}.assembly_slot`, assemblySlot, source);
     requireManifestEqual(fields, `${prefix}.role`, role, source);
+    requireManifestEqual(fields, `${prefix}.phase`, phase, source);
     requireManifestEqual(fields, `${prefix}.depends_on`, dependsOn, source);
+    requireModulePlanByteCount(fields, prefix, byteCount, maxByteCount, source);
     requireManifestEqual(fields, `${prefix}.path`, path, source);
     requireChecksumEqual(
       requireManifestField(fields, `${prefix}.checksum`, source),
@@ -1635,6 +1858,7 @@
     if (!model.modulePlan) {
       state.modulePlanReceipt = null;
       renderModulePlan("none", null, false);
+      resetModulePlanTrace("unavailable", false);
       return "";
     }
     model.modulePlanVerified = false;
@@ -1650,6 +1874,8 @@
     model.modulePlanVerified = true;
     state.modulePlanReceipt = fields;
     renderModulePlan("loaded", fields, false);
+    resetModulePlanTrace("", false);
+    recordModulePlanTrace("plan verified");
     return "module plan verified";
   }
 
@@ -1691,6 +1917,7 @@
       "promotion_manifest_checksum",
       "runtime_smoke_manifest_checksum",
       "eval_manifest_checksum",
+      "eval_case_evidence_checksum",
       "admission_checksum",
       "adapter_family_receipt_checksum"
     ]) {
@@ -1711,6 +1938,13 @@
         requireManifestField(fields, "adapter_family_receipt_checksum", "assembly receipt"),
         model.adapterFamily.checksum,
         "assembly adapter family"
+      );
+    }
+    if (model.evalEvidence) {
+      requireChecksumEqual(
+        requireManifestField(fields, "eval_case_evidence_checksum", "assembly receipt"),
+        model.evalEvidence.checksum,
+        "assembly eval case evidence"
       );
     }
     requireManifestEqual(fields, "required_next_gate", "browser-selector-registry-route-binding", source);
@@ -1748,6 +1982,7 @@
       receiptTextByteBudget,
       "assembly receipt"
     );
+    requireModulePlanTextByteCount(model, 2, text);
     const fields = validateAssemblyReceipt(model, text);
     const evidence = await verifyAssemblyEvidenceFiles(fields);
     model.assemblyReceipt = fields;
@@ -1772,6 +2007,7 @@
         manifestTextByteBudget,
         ".slm manifest"
       );
+      requireModulePlanTextByteCount(model, 1, text);
       const fields = parseManifest(text);
       state.modelManifest = fields;
       renderProvenance("loaded", fields, false);
@@ -1831,6 +2067,7 @@
     state.assemblyReceipt = null;
     renderProvenance("waiting for accepted model", null, false);
     renderModulePlan("waiting for local plan", null, false);
+    resetModulePlanTrace("waiting for local plan", false);
     renderAssembly("waiting for accepted model", null, false);
     setText(el.runtimeStatus, "Loading local model");
     setText(el.modelState, "loading");
@@ -1861,8 +2098,10 @@
       renderProvenance("model not loaded", null, true);
       if (model.modulePlan && !model.modulePlanVerified) {
         renderModulePlan(errorMessage(error), null, true);
+        resetModulePlanTrace(errorMessage(error), true);
       } else if (!model.modulePlan) {
         renderModulePlan("none", null, false);
+        resetModulePlanTrace("unavailable", false);
       }
       renderAssembly("model not loaded", null, true);
       setText(el.adapterState, "model not loaded", true);
@@ -1888,20 +2127,68 @@
     setText(el.runtimeStatus, loadCode === 0 ? "Ready" : "Model rejected", loadCode !== 0);
     setText(el.errorState, loadCode === 0 ? "none" : readLastResult(), loadCode !== 0);
     if (loadCode === 0) {
+      if (model.modulePlan) {
+        recordModulePlanTrace("model accepted");
+      }
       renderProvenance("loading local manifest", null, false);
       await loadModelManifest(model);
+      if (loadId !== state.modelLoadSequence) {
+        return false;
+      }
+      if (model.modulePlan && state.modelManifest) {
+        recordModulePlanTrace("manifest verified");
+      }
+      let assemblyStatus = "";
+      let assemblyStatusIsError = false;
       try {
         await loadAssemblyReceipt(model);
+        if (loadId !== state.modelLoadSequence) {
+          return false;
+        }
+        if (model.modulePlan && model.assemblyVerified) {
+          recordModulePlanTrace("assembly evidence verified");
+        }
       } catch (error) {
-        const assemblyStatus = errorMessage(error);
+        if (loadId !== state.modelLoadSequence) {
+          return false;
+        }
+        assemblyStatus = errorMessage(error);
+        assemblyStatusIsError = true;
         renderAssembly(assemblyStatus, null, true);
         appendConsole(assemblyStatus);
+      }
+      if (assemblyStatusIsError) {
+        if (typeof state.exports.free_model === "function") {
+          state.exports.free_model();
+        }
+        state.modelLoaded = false;
+        state.hasContext = false;
+        state.lastMeasuredTokens = 0;
+        setText(el.modelState, "assembly evidence rejected", true);
+        setText(el.runtimeStatus, "Model load failed", true);
+        setText(el.errorState, assemblyStatus, true);
+        if (model.modulePlan) {
+          recordModulePlanTrace("assembly evidence rejected");
+        }
+        renderAdapterOptions(model, "assembly evidence rejected", true);
+        setControls(false, true);
+        renderDiagnostics();
+        return false;
       }
       let adapterStatus = "";
       let adapterStatusIsError = false;
       try {
         adapterStatus = await loadAdapterFamilyReceipt(model);
+        if (loadId !== state.modelLoadSequence) {
+          return false;
+        }
+        if (model.modulePlan && model.adapterFamilyVerified) {
+          recordModulePlanTrace("adapter family verified");
+        }
       } catch (error) {
+        if (loadId !== state.modelLoadSequence) {
+          return false;
+        }
         adapterStatus = errorMessage(error);
         adapterStatusIsError = true;
         appendConsole(adapterStatus);
@@ -1914,10 +2201,28 @@
         loadId === state.modelLoadSequence
       ) {
         model.autoAssemblyApplied = await applyAutoAssemblyStack(model, loadId);
+        if (loadId !== state.modelLoadSequence) {
+          return false;
+        }
+        if (model.autoAssemblyApplied && model.modulePlan) {
+          recordModulePlanTrace("adapter stack applied");
+        }
+      }
+      if (
+        model.modulePlan &&
+        loadId === state.modelLoadSequence &&
+        (!model.assembly || model.assemblyVerified) &&
+        (!model.adapterFamily || model.adapterFamilyVerified) &&
+        (!model.autoApplyPreferredAdapter || model.autoAssemblyApplied)
+      ) {
+        recordModulePlanTrace("ready");
       }
     } else {
       renderProvenance("model rejected", null, true);
       renderAssembly("model rejected", null, true);
+      if (model.modulePlan) {
+        resetModulePlanTrace("model rejected", true);
+      }
       renderAdapterOptions(model, "model not loaded");
     }
     setControls(loadCode === 0, true);

@@ -201,6 +201,11 @@ pub(crate) fn build_record_text(
         "eval_manifest_checksum",
         &hex64(provenance::text_checksum(eval_text.as_bytes())),
     );
+    push_line(
+        &mut text,
+        "eval_case_evidence_checksum",
+        &provenance::eval_case_evidence_checksum(&evidence.eval)?,
+    );
     for key in CANDIDATE_KEYS {
         push_line(&mut text, key, require_key(&evidence.promotion, key)?);
     }
@@ -308,6 +313,11 @@ fn validate_record_text(
         "eval_manifest_checksum",
         &hex64(provenance::text_checksum(eval_text.as_bytes())),
     )?;
+    require_equal(
+        &admission,
+        "eval_case_evidence_checksum",
+        &provenance::eval_case_evidence_checksum(&evidence.eval)?,
+    )?;
     for key in CANDIDATE_KEYS {
         require_equal(&admission, key, require_key(&evidence.promotion, key)?)?;
     }
@@ -377,6 +387,7 @@ pub(crate) fn validate_record_summary_text(
         "provenance_manifest_checksum",
         "runtime_smoke_manifest_checksum",
         "eval_manifest_checksum",
+        "eval_case_evidence_checksum",
     ] {
         require_hex64(&admission, key)?;
     }
@@ -601,6 +612,7 @@ mod tests {
         )
         .unwrap();
         assert!(admission.contains("admission_status=admitted-for-browser-selector"));
+        assert!(admission.contains("eval_case_evidence_checksum=0x"));
         assert!(admission.contains("browser_selector_status=admitted"));
         assert!(admission.contains("public_claim_status=bound-to-eval-scope"));
     }

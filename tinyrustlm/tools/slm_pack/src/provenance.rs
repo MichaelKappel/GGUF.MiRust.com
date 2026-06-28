@@ -433,6 +433,22 @@ pub(crate) fn parse_manifest(text: &str) -> io::Result<HashMap<String, String>> 
     Ok(fields)
 }
 
+pub(crate) fn eval_case_evidence_checksum(fields: &HashMap<String, String>) -> io::Result<String> {
+    let case_count = require_positive_usize(fields, "case_count")?;
+    let mut text = String::new();
+    for key in ["case_count", "cases_passed", "cases_failed"] {
+        push_line(&mut text, key, require_key(fields, key)?);
+    }
+    for index in 0..case_count {
+        let prefix = format!("case.{index}");
+        for suffix in ["status", "expected", "actual", "error"] {
+            let key = format!("{prefix}.{suffix}");
+            push_line(&mut text, &key, require_key(fields, &key)?);
+        }
+    }
+    Ok(format!("0x{:016x}", text_checksum(text.as_bytes())))
+}
+
 fn validate_eval_case_evidence(fields: &HashMap<String, String>) -> io::Result<()> {
     let case_count = require_positive_usize(fields, "case_count")?;
     let cases_passed = require_usize(fields, "cases_passed")?;
@@ -713,6 +729,21 @@ mod tests {
         let eval = passing_eval_text(&report, &manifest, "converted-trained");
 
         validate_quality_gate(&report, &manifest, GATE_ASSISTANT_QUALITY, Some(&eval)).unwrap();
+    }
+
+    #[test]
+    fn eval_case_checksum_tracks_case_body() {
+        let report = fixture_report();
+        let manifest = build_manifest_text(&report, "converted-trained").unwrap();
+        let eval = passing_eval_text(&report, &manifest, "converted-trained");
+        let fields = parse_manifest(&eval).unwrap();
+        let checksum = eval_case_evidence_checksum(&fields).unwrap();
+        let changed_eval = eval.replace("case.0.error=ok", "case.0.error=reviewed");
+        let changed_fields = parse_manifest(&changed_eval).unwrap();
+        let changed_checksum = eval_case_evidence_checksum(&changed_fields).unwrap();
+
+        assert!(checksum.starts_with("0x"));
+        assert_ne!(checksum, changed_checksum);
     }
 
     #[test]

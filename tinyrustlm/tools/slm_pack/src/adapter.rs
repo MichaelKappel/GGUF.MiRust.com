@@ -20,15 +20,21 @@ const ADAPTER_ARTIFACT_VERSION: &str = "1";
 const ADAPTER_BINARY_VERSION: u32 = 1;
 const ADAPTER_ARTIFACT_KIND: &str = "raw-f32-task-delta-v1";
 const SPARSE_ADAPTER_ARTIFACT_KIND: &str = "sparse-f32-task-delta-v1";
+const LOW_RANK_ADAPTER_ARTIFACT_KIND: &str = "low-rank-f32-task-delta-v1";
 const ADAPTER_STATUS: &str = "artifact-written";
 const ADAPTER_DTYPE: &str = "f32-delta";
 const SPARSE_ADAPTER_DTYPE: &str = "sparse-f32-delta";
+const LOW_RANK_ADAPTER_DTYPE: &str = "low-rank-f32-delta";
 const ADAPTER_BASE_CONTRACT: &str = "matches-parent-direct-parameter-contract";
 const ADAPTER_APPLY_STATUS_F32: &str = "runtime-f32-compatible-or-fuse-to-slm";
 const ADAPTER_APPLY_STATUS_QUANTIZED: &str = "runtime-q8-q4-compatible-or-fuse-to-slm";
+const LOW_RANK_APPLY_STATUS_F32: &str = "runtime-f32-compatible-low-rank";
+const LOW_RANK_APPLY_STATUS_QUANTIZED: &str = "runtime-q8-q4-compatible-low-rank";
 const REQUIRED_NEXT_GATE: &str = "fuse-to-slm-plus-candidate-manifest-plus-runtime-smoke-plus-eval";
 const SPARSE_REQUIRED_NEXT_GATE: &str =
     "runtime-smoke-plus-eval-plus-selector-adapter-family-or-expand-to-adp1";
+const LOW_RANK_REQUIRED_NEXT_GATE: &str =
+    "runtime-smoke-plus-eval-plus-selector-adapter-family-route";
 const ADAPTER_FUSE_VERSION: &str = "1";
 const FUSE_OPERATOR_KIND: &str = "adapter-delta-fuse-to-slm";
 const FUSE_OPERATOR_STATUS: &str = "candidate-written";
@@ -41,7 +47,11 @@ const ENTRY_LEN: usize = 64;
 const CHECKSUM_OFFSET: usize = 56;
 const MAGIC: &[u8; 4] = b"ADP1";
 const SPARSE_MAGIC: &[u8; 4] = b"ASP1";
+const LOW_RANK_MAGIC: &[u8; 4] = b"ALR1";
 const SPARSE_PAIR_LEN: usize = 12;
+const LOW_RANK_HEADER_LEN: usize = 16;
+const DEFAULT_LOW_RANK_COMPONENTS: &str = "1";
+const MAX_LOW_RANK_COMPONENTS: usize = 8;
 const DEFAULT_SPARSE_KEEP_PPM: &str = "1000000";
 const DEFAULT_DELTA_WEIGHT_PPM: &str = "1000000";
 const MIN_DELTA_WEIGHT_PPM: i64 = -1_000_000;
@@ -193,6 +203,81 @@ pub(crate) fn validate_sparse_artifact_path(
         &manifest_text,
     )?;
     println!("SLM sparse adapter-delta validation: PASS");
+    println!("adapter: {}", adapter.display());
+    println!("manifest: {}", manifest.display());
+    Ok(())
+}
+
+/// Writes a low-rank f32 task-delta adapter artifact plus a recomputable manifest.
+pub(crate) fn write_low_rank_artifact_path(
+    compatibility: &Path,
+    lineage_manifest: &Path,
+    base_parent: &Path,
+    target_parent: &Path,
+    output_adapter: &Path,
+    output_manifest: &Path,
+    rank_limit: Option<&str>,
+) -> io::Result<()> {
+    let compatibility_text = fs::read_to_string(compatibility)?;
+    let lineage_text = fs::read_to_string(lineage_manifest)?;
+    let base_bytes = fs::read(base_parent)?;
+    let target_bytes = fs::read(target_parent)?;
+    let (adapter, manifest) = build_low_rank_artifact_bytes_and_manifest(
+        &compatibility_text,
+        &lineage_text,
+        &base_bytes,
+        &base_parent.display().to_string(),
+        &target_bytes,
+        &target_parent.display().to_string(),
+        &output_adapter.display().to_string(),
+        rank_limit,
+    )?;
+    if let Some(parent) = output_adapter.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(output_adapter, adapter)?;
+    if let Some(parent) = output_manifest.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(output_manifest, manifest)?;
+    println!(
+        "SLM low-rank adapter-delta artifact written: {}",
+        output_adapter.display()
+    );
+    println!(
+        "SLM low-rank adapter-delta manifest written: {}",
+        output_manifest.display()
+    );
+    Ok(())
+}
+
+/// Validates a low-rank adapter artifact and manifest by recomputing both from parents.
+pub(crate) fn validate_low_rank_artifact_path(
+    compatibility: &Path,
+    lineage_manifest: &Path,
+    base_parent: &Path,
+    target_parent: &Path,
+    adapter: &Path,
+    manifest: &Path,
+) -> io::Result<()> {
+    let compatibility_text = fs::read_to_string(compatibility)?;
+    let lineage_text = fs::read_to_string(lineage_manifest)?;
+    let base_bytes = fs::read(base_parent)?;
+    let target_bytes = fs::read(target_parent)?;
+    let adapter_bytes = fs::read(adapter)?;
+    let manifest_text = fs::read_to_string(manifest)?;
+    validate_low_rank_artifact_text(
+        &compatibility_text,
+        &lineage_text,
+        &base_bytes,
+        &base_parent.display().to_string(),
+        &target_bytes,
+        &target_parent.display().to_string(),
+        &adapter_bytes,
+        &adapter.display().to_string(),
+        &manifest_text,
+    )?;
+    println!("SLM low-rank adapter-delta validation: PASS");
     println!("adapter: {}", adapter.display());
     println!("manifest: {}", manifest.display());
     Ok(())
@@ -368,6 +453,52 @@ fn validate_sparse_artifact_text(
     if manifest_text != expected_manifest {
         return Err(invalid(
             "sparse adapter-delta manifest fields do not match recomputed output",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_low_rank_artifact_text(
+    compatibility_text: &str,
+    lineage_text: &str,
+    base_bytes: &[u8],
+    base_path: &str,
+    target_bytes: &[u8],
+    target_path: &str,
+    adapter_bytes: &[u8],
+    adapter_path: &str,
+    manifest_text: &str,
+) -> io::Result<()> {
+    let manifest = parse_manifest(manifest_text, "low-rank adapter-delta manifest")?;
+    require_equal(
+        &manifest,
+        "tinyrustlm_adapter_artifact_version",
+        ADAPTER_ARTIFACT_VERSION,
+    )?;
+    require_equal(
+        &manifest,
+        "adapter_artifact_kind",
+        LOW_RANK_ADAPTER_ARTIFACT_KIND,
+    )?;
+    let rank_limit = require_key(&manifest, "adapter_low_rank_component_limit")?;
+    let (expected_adapter, expected_manifest) = build_low_rank_artifact_bytes_and_manifest(
+        compatibility_text,
+        lineage_text,
+        base_bytes,
+        base_path,
+        target_bytes,
+        target_path,
+        adapter_path,
+        Some(rank_limit),
+    )?;
+    if adapter_bytes != expected_adapter {
+        return Err(invalid(
+            "low-rank adapter-delta artifact bytes do not match recomputed parent deltas",
+        ));
+    }
+    if manifest_text != expected_manifest {
+        return Err(invalid(
+            "low-rank adapter-delta manifest fields do not match recomputed output",
         ));
     }
     Ok(())
@@ -592,6 +723,45 @@ fn build_sparse_artifact_bytes_and_manifest(
     Ok((adapter, manifest))
 }
 
+fn build_low_rank_artifact_bytes_and_manifest(
+    compatibility_text: &str,
+    lineage_text: &str,
+    base_bytes: &[u8],
+    base_path: &str,
+    target_bytes: &[u8],
+    target_path: &str,
+    adapter_path: &str,
+    rank_limit: Option<&str>,
+) -> io::Result<(Vec<u8>, String)> {
+    lineage::validate_text(compatibility_text, lineage_text)?;
+    let compatibility = parse_passing_compatibility(compatibility_text)?;
+    let lineage_fields = parse_manifest(lineage_text, "lineage")?;
+    let base_report = slm_validate::validate_bytes(base_bytes, base_path)?;
+    let target_report = slm_validate::validate_bytes(target_bytes, target_path)?;
+    require_parent_report(&compatibility, 0, &base_report)?;
+    require_parent_report(&compatibility, 1, &target_report)?;
+
+    let rank_limit = parse_low_rank_components(rank_limit.unwrap_or(DEFAULT_LOW_RANK_COMPONENTS))?;
+    let base = parse_model_values(base_bytes)?;
+    let target = parse_model_values(target_bytes)?;
+    let (adapter, stats) = build_low_rank_adapter_bytes(&base, &target, &base_report, rank_limit)?;
+    validate_low_rank_adapter_bytes(&adapter)?;
+    let manifest = build_low_rank_manifest_text(
+        &compatibility,
+        &lineage_fields,
+        lineage_text,
+        base_path,
+        target_path,
+        &base_report,
+        &target_report,
+        adapter_path,
+        &adapter,
+        rank_limit,
+        stats,
+    )?;
+    Ok((adapter, manifest))
+}
+
 fn build_adapter_bytes(
     base: &ParsedModel,
     target: &ParsedModel,
@@ -797,6 +967,148 @@ fn build_sparse_adapter_bytes(
         mask_checksum: sparse_mask_checksum(&selected, total_parameter_count),
     };
     Ok((bytes, stats))
+}
+
+fn build_low_rank_adapter_bytes(
+    base: &ParsedModel,
+    target: &ParsedModel,
+    base_report: &ValidationReport,
+    rank_limit: usize,
+) -> io::Result<(Vec<u8>, LowRankStats)> {
+    validate_parent_models(base, target)?;
+    let tensor_count = base.tensors.len();
+    let directory_offset = HEADER_LEN;
+    let data_offset = align_to_64(directory_offset + tensor_count * ENTRY_LEN);
+    let mut tensor_offsets = Vec::with_capacity(tensor_count);
+    let mut tensor_lengths = Vec::with_capacity(tensor_count);
+    let mut tensor_checksums = Vec::with_capacity(tensor_count);
+    let mut payloads = Vec::with_capacity(tensor_count);
+    let mut cursor = data_offset;
+    let mut stats = LowRankStats::default();
+
+    for (base_tensor, target_tensor) in base.tensors.iter().zip(target.tensors.iter()) {
+        require_same_tensor_spec(&base_tensor.spec, &target_tensor.spec)?;
+        cursor = align_to_64(cursor);
+        tensor_offsets.push(cursor);
+        let (payload, tensor_stats) =
+            build_low_rank_tensor_payload(base_tensor, target_tensor, rank_limit)?;
+        tensor_lengths.push(payload.len());
+        cursor = cursor
+            .checked_add(payload.len())
+            .ok_or_else(|| invalid("low-rank adapter payload length overflow"))?;
+        tensor_checksums.push(payload_checksum(&payload));
+        stats.add(tensor_stats)?;
+        payloads.push(payload);
+    }
+
+    let mut bytes = vec![0u8; cursor];
+    bytes[0..4].copy_from_slice(LOW_RANK_MAGIC);
+    write_u32(&mut bytes, 4, ADAPTER_BINARY_VERSION)?;
+    write_u32(&mut bytes, 8, HEADER_LEN as u32)?;
+    write_u32(&mut bytes, 12, tensor_count as u32)?;
+    write_u32(&mut bytes, 16, base.flags)?;
+    write_u32(&mut bytes, 20, ENTRY_LEN as u32)?;
+    write_u64(&mut bytes, 24, base_report.parameter_count() as u64)?;
+    write_u64(&mut bytes, 32, base_report.tensor_layout_checksum())?;
+    write_u64(&mut bytes, 40, base_report.tokenizer_checksum())?;
+    write_u64(&mut bytes, 48, data_offset as u64)?;
+    write_u64(&mut bytes, CHECKSUM_OFFSET, 0)?;
+
+    for (index, tensor) in base.tensors.iter().enumerate() {
+        let entry = directory_offset + index * ENTRY_LEN;
+        write_u64(&mut bytes, entry, tensor.spec.name_hash)?;
+        write_u32(&mut bytes, entry + 8, tensor.spec.rank)?;
+        write_u32(&mut bytes, entry + 12, tensor.spec.dims[0])?;
+        write_u32(&mut bytes, entry + 16, tensor.spec.dims[1])?;
+        write_u32(&mut bytes, entry + 20, tensor.spec.dims[2])?;
+        write_u32(&mut bytes, entry + 24, tensor.spec.dims[3])?;
+        write_u32(&mut bytes, entry + 28, 0)?;
+        write_u64(&mut bytes, entry + 32, tensor_offsets[index] as u64)?;
+        write_u64(&mut bytes, entry + 40, tensor_lengths[index] as u64)?;
+        write_u64(&mut bytes, entry + 48, tensor.spec.element_count() as u64)?;
+        write_u64(&mut bytes, entry + 56, tensor_checksums[index])?;
+
+        let start = tensor_offsets[index];
+        bytes[start..start + tensor_lengths[index]].copy_from_slice(&payloads[index]);
+    }
+
+    let checksum = adapter_checksum(&bytes)?;
+    write_u64(&mut bytes, CHECKSUM_OFFSET, checksum)?;
+    Ok((bytes, stats))
+}
+
+fn build_low_rank_tensor_payload(
+    base_tensor: &crate::blend::ParsedTensor,
+    target_tensor: &crate::blend::ParsedTensor,
+    rank_limit: usize,
+) -> io::Result<(Vec<u8>, LowRankTensorStats)> {
+    let element_count = base_tensor.spec.element_count();
+    let mut stats = LowRankTensorStats {
+        parameter_count: element_count as u64,
+        ..LowRankTensorStats::default()
+    };
+    if base_tensor.spec.rank < 2 {
+        return Ok((Vec::new(), stats));
+    }
+    let (rows, cols) = low_rank_matrix_shape(&base_tensor.spec)?;
+    let mut residual = Vec::with_capacity(element_count);
+    let mut initial_l1 = 0.0f64;
+    for (base_value, target_value) in base_tensor.values.iter().zip(target_tensor.values.iter()) {
+        let delta = target_value - base_value;
+        initial_l1 += f64::from(delta.abs());
+        residual.push(delta);
+    }
+    stats.matrix_tensor_count = 1;
+    stats.matrix_parameter_count = element_count as u64;
+    stats.initial_l1_microunits = l1_microunits(initial_l1)?;
+
+    let components =
+        low_rank_components(&mut residual, rows, cols, rank_limit.min(rows.min(cols)))?;
+    if components.is_empty() {
+        stats.residual_l1_microunits = stats.initial_l1_microunits;
+        return Ok((Vec::new(), stats));
+    }
+
+    let factor_values = components
+        .len()
+        .checked_mul(
+            rows.checked_add(cols)
+                .ok_or_else(|| invalid("low-rank shape overflow"))?,
+        )
+        .ok_or_else(|| invalid("low-rank factor count overflow"))?;
+    let byte_length = LOW_RANK_HEADER_LEN
+        .checked_add(
+            factor_values
+                .checked_mul(4)
+                .ok_or_else(|| invalid("low-rank payload byte length overflow"))?,
+        )
+        .ok_or_else(|| invalid("low-rank payload byte length overflow"))?;
+    let mut payload = vec![0u8; byte_length];
+    write_u32(&mut payload, 0, rows as u32)?;
+    write_u32(&mut payload, 4, cols as u32)?;
+    write_u32(&mut payload, 8, components.len() as u32)?;
+    write_u32(&mut payload, 12, 0)?;
+    let mut offset = LOW_RANK_HEADER_LEN;
+    for component in &components {
+        for value in &component.a {
+            write_f32(&mut payload, offset, *value)?;
+            offset += 4;
+        }
+    }
+    for component in &components {
+        for value in &component.b {
+            write_f32(&mut payload, offset, *value)?;
+            offset += 4;
+        }
+    }
+    let residual_l1 = residual
+        .iter()
+        .fold(0.0f64, |acc, value| acc + f64::from(value.abs()));
+    stats.active_tensor_count = 1;
+    stats.component_count = components.len() as u64;
+    stats.factor_parameter_count = factor_values as u64;
+    stats.residual_l1_microunits = l1_microunits(residual_l1)?;
+    Ok((payload, stats))
 }
 
 fn build_manifest_text(
@@ -1107,11 +1419,211 @@ fn build_sparse_manifest_text(
     Ok(text)
 }
 
+fn build_low_rank_manifest_text(
+    compatibility: &HashMap<String, String>,
+    lineage_fields: &HashMap<String, String>,
+    lineage_text: &str,
+    base_path: &str,
+    target_path: &str,
+    base_report: &ValidationReport,
+    target_report: &ValidationReport,
+    adapter_path: &str,
+    adapter_bytes: &[u8],
+    rank_limit: usize,
+    stats: LowRankStats,
+) -> io::Result<String> {
+    let mut text = String::new();
+    push_line(
+        &mut text,
+        "tinyrustlm_adapter_artifact_version",
+        ADAPTER_ARTIFACT_VERSION,
+    );
+    push_line(
+        &mut text,
+        "adapter_artifact_kind",
+        LOW_RANK_ADAPTER_ARTIFACT_KIND,
+    );
+    push_line(&mut text, "adapter_status", ADAPTER_STATUS);
+    push_line(
+        &mut text,
+        "candidate_id",
+        require_key(lineage_fields, "candidate_id")?,
+    );
+    push_line(
+        &mut text,
+        "operator_id",
+        require_key(lineage_fields, "operator_id")?,
+    );
+    push_line(
+        &mut text,
+        "operator_lane",
+        require_key(lineage_fields, "operator_lane")?,
+    );
+    push_line(
+        &mut text,
+        "resource_budget",
+        require_key(lineage_fields, "resource_budget")?,
+    );
+    push_line(
+        &mut text,
+        "compatibility_report_checksum",
+        require_key(lineage_fields, "compatibility_report_checksum")?,
+    );
+    push_line(
+        &mut text,
+        "lineage_manifest_checksum",
+        &hex64(lineage::text_checksum(lineage_text.as_bytes())),
+    );
+    push_line(
+        &mut text,
+        "compatibility_scope",
+        require_key(compatibility, "compatibility_scope")?,
+    );
+    push_line(&mut text, "parent_count", "2");
+    push_parent_lines(&mut text, compatibility, 0, base_path, base_report)?;
+    push_parent_lines(&mut text, compatibility, 1, target_path, target_report)?;
+    push_line(&mut text, "adapter_artifact_path", adapter_path);
+    push_line(
+        &mut text,
+        "adapter_artifact_bytes",
+        &adapter_bytes.len().to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_artifact_checksum",
+        &hex64(read_u64(adapter_bytes, CHECKSUM_OFFSET)?),
+    );
+    push_line(
+        &mut text,
+        "adapter_tensor_count",
+        &base_report.tensor_count().to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_parameter_count",
+        &base_report.parameter_count().to_string(),
+    );
+    push_line(&mut text, "adapter_dtype", LOW_RANK_ADAPTER_DTYPE);
+    push_line(
+        &mut text,
+        "adapter_model_shape",
+        &base_report.shape_summary(),
+    );
+    push_line(
+        &mut text,
+        "adapter_base_quantization",
+        base_report.quantization_label(),
+    );
+    push_line(
+        &mut text,
+        "adapter_output_contract",
+        base_report.output_contract_label(),
+    );
+    push_line(
+        &mut text,
+        "adapter_tokenizer_checksum",
+        &hex64(base_report.tokenizer_checksum()),
+    );
+    push_line(
+        &mut text,
+        "adapter_tensor_layout_checksum",
+        &hex64(base_report.tensor_layout_checksum()),
+    );
+    push_line(&mut text, "adapter_base_contract", ADAPTER_BASE_CONTRACT);
+    push_line(&mut text, "adapter_low_rank_format", "ALR1");
+    push_line(
+        &mut text,
+        "adapter_low_rank_component_limit",
+        &rank_limit.to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_low_rank_component_cap",
+        &MAX_LOW_RANK_COMPONENTS.to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_low_rank_payload_header_bytes",
+        &LOW_RANK_HEADER_LEN.to_string(),
+    );
+    push_line(&mut text, "adapter_low_rank_factor_dtype", "f32");
+    push_line(
+        &mut text,
+        "adapter_low_rank_selection",
+        "deterministic-cross-residual",
+    );
+    push_line(
+        &mut text,
+        "adapter_low_rank_scope",
+        "compatible-parent-matrix-tensors",
+    );
+    push_line(
+        &mut text,
+        "adapter_low_rank_matrix_tensor_count",
+        &stats.matrix_tensor_count.to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_low_rank_active_tensor_count",
+        &stats.active_tensor_count.to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_low_rank_component_count",
+        &stats.component_count.to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_low_rank_total_parameter_count",
+        &stats.parameter_count.to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_low_rank_matrix_parameter_count",
+        &stats.matrix_parameter_count.to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_low_rank_factor_parameter_count",
+        &stats.factor_parameter_count.to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_low_rank_factor_density_ppm",
+        &ratio_ppm(stats.factor_parameter_count, stats.matrix_parameter_count)?.to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_low_rank_initial_l1_microunits",
+        &stats.initial_l1_microunits.to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_low_rank_residual_l1_microunits",
+        &stats.residual_l1_microunits.to_string(),
+    );
+    push_line(
+        &mut text,
+        "adapter_apply_status",
+        low_rank_adapter_apply_status(base_report),
+    );
+    push_line(&mut text, "required_next_gate", LOW_RANK_REQUIRED_NEXT_GATE);
+    Ok(text)
+}
+
 fn adapter_apply_status(base_report: &ValidationReport) -> &'static str {
     if base_report.quantization_label() == "f32" {
         ADAPTER_APPLY_STATUS_F32
     } else {
         ADAPTER_APPLY_STATUS_QUANTIZED
+    }
+}
+
+fn low_rank_adapter_apply_status(base_report: &ValidationReport) -> &'static str {
+    if base_report.quantization_label() == "f32" {
+        LOW_RANK_APPLY_STATUS_F32
+    } else {
+        LOW_RANK_APPLY_STATUS_QUANTIZED
     }
 }
 
@@ -1549,6 +2061,115 @@ fn validate_sparse_adapter_bytes(bytes: &[u8]) -> io::Result<()> {
     Ok(())
 }
 
+fn validate_low_rank_adapter_bytes(bytes: &[u8]) -> io::Result<()> {
+    if bytes.get(0..4) != Some(LOW_RANK_MAGIC) {
+        return Err(invalid("low-rank adapter artifact has invalid magic"));
+    }
+    let version = read_u32(bytes, 4)?;
+    if version != ADAPTER_BINARY_VERSION {
+        return Err(invalid("low-rank adapter artifact has unsupported version"));
+    }
+    let header_len = read_u32(bytes, 8)? as usize;
+    if header_len != HEADER_LEN {
+        return Err(invalid(
+            "low-rank adapter artifact has invalid header length",
+        ));
+    }
+    let tensor_count = read_u32(bytes, 12)? as usize;
+    let entry_len = read_u32(bytes, 20)? as usize;
+    if entry_len != ENTRY_LEN {
+        return Err(invalid(
+            "low-rank adapter artifact has invalid entry length",
+        ));
+    }
+    let data_offset = read_u64(bytes, 48)? as usize;
+    let directory_end = HEADER_LEN
+        .checked_add(
+            tensor_count
+                .checked_mul(ENTRY_LEN)
+                .ok_or_else(|| invalid("low-rank adapter directory length overflow"))?,
+        )
+        .ok_or_else(|| invalid("low-rank adapter directory end overflow"))?;
+    if data_offset < directory_end || data_offset % 64 != 0 {
+        return Err(invalid("low-rank adapter artifact has invalid data offset"));
+    }
+    if read_u64(bytes, CHECKSUM_OFFSET)? != adapter_checksum(bytes)? {
+        return Err(invalid("low-rank adapter artifact checksum mismatch"));
+    }
+    for index in 0..tensor_count {
+        let entry = HEADER_LEN + index * ENTRY_LEN;
+        let byte_offset = read_u64(bytes, entry + 32)? as usize;
+        let byte_length = read_u64(bytes, entry + 40)? as usize;
+        let element_count = read_u64(bytes, entry + 48)? as usize;
+        let end = byte_offset
+            .checked_add(byte_length)
+            .ok_or_else(|| invalid("low-rank adapter tensor payload end overflow"))?;
+        let payload = bytes
+            .get(byte_offset..end)
+            .ok_or_else(|| invalid("low-rank adapter tensor payload escapes artifact"))?;
+        if read_u64(bytes, entry + 56)? != payload_checksum(payload) {
+            return Err(invalid("low-rank adapter tensor payload checksum mismatch"));
+        }
+        validate_low_rank_payload(bytes, byte_offset, byte_length, element_count)?;
+    }
+    Ok(())
+}
+
+fn validate_low_rank_payload(
+    bytes: &[u8],
+    byte_offset: usize,
+    byte_length: usize,
+    element_count: usize,
+) -> io::Result<()> {
+    if byte_length == 0 {
+        return Ok(());
+    }
+    if byte_length < LOW_RANK_HEADER_LEN {
+        return Err(invalid("low-rank adapter payload is too short"));
+    }
+    let rows = read_u32(bytes, byte_offset)? as usize;
+    let cols = read_u32(bytes, byte_offset + 4)? as usize;
+    let factor_rank = read_u32(bytes, byte_offset + 8)? as usize;
+    if read_u32(bytes, byte_offset + 12)? != 0
+        || rows == 0
+        || cols == 0
+        || factor_rank == 0
+        || factor_rank > MAX_LOW_RANK_COMPONENTS
+        || factor_rank > rows.min(cols)
+        || rows
+            .checked_mul(cols)
+            .ok_or_else(|| invalid("low-rank adapter shape overflow"))?
+            != element_count
+    {
+        return Err(invalid("low-rank adapter payload shape is invalid"));
+    }
+    let factor_values = factor_rank
+        .checked_mul(
+            rows.checked_add(cols)
+                .ok_or_else(|| invalid("low-rank adapter factor count overflow"))?,
+        )
+        .ok_or_else(|| invalid("low-rank adapter factor count overflow"))?;
+    let expected_byte_length = LOW_RANK_HEADER_LEN
+        .checked_add(
+            factor_values
+                .checked_mul(4)
+                .ok_or_else(|| invalid("low-rank adapter payload length overflow"))?,
+        )
+        .ok_or_else(|| invalid("low-rank adapter payload length overflow"))?;
+    if byte_length != expected_byte_length {
+        return Err(invalid(
+            "low-rank adapter tensor byte length does not match factors",
+        ));
+    }
+    for value_index in 0..factor_values {
+        let value = read_f32(bytes, byte_offset + LOW_RANK_HEADER_LEN + value_index * 4)?;
+        if !value.is_finite() {
+            return Err(invalid("low-rank adapter factor is not finite"));
+        }
+    }
+    Ok(())
+}
+
 fn adapter_checksum(bytes: &[u8]) -> io::Result<u64> {
     if bytes.len() < HEADER_LEN {
         return Err(invalid("adapter artifact is too short"));
@@ -1618,6 +2239,98 @@ fn mix_sparse_value(acc: &mut u64, value: u64) {
     *acc = acc.rotate_left(11).wrapping_mul(0x1000_0000_01b3);
 }
 
+fn low_rank_matrix_shape(spec: &crate::tensor_writer::TensorSpec) -> io::Result<(usize, usize)> {
+    if spec.rank < 2 {
+        return Err(invalid("low-rank adapter requires a matrix tensor"));
+    }
+    let rows = spec.dims[0] as usize;
+    if rows == 0 {
+        return Err(invalid("low-rank adapter matrix row count is zero"));
+    }
+    let mut cols = 1usize;
+    for dim in spec.dims.iter().take(spec.rank as usize).skip(1) {
+        if *dim == 0 {
+            return Err(invalid("low-rank adapter matrix column dimension is zero"));
+        }
+        cols = cols
+            .checked_mul(*dim as usize)
+            .ok_or_else(|| invalid("low-rank adapter matrix column count overflow"))?;
+    }
+    Ok((rows, cols))
+}
+
+fn low_rank_components(
+    residual: &mut [f32],
+    rows: usize,
+    cols: usize,
+    rank_limit: usize,
+) -> io::Result<Vec<LowRankComponent>> {
+    let mut components = Vec::new();
+    for _ in 0..rank_limit {
+        let mut pivot_index = None;
+        let mut pivot_magnitude = 0.0f32;
+        for (index, value) in residual.iter().enumerate() {
+            if !value.is_finite() {
+                return Err(invalid("low-rank adapter residual is not finite"));
+            }
+            let magnitude = value.abs();
+            if magnitude > pivot_magnitude {
+                pivot_magnitude = magnitude;
+                pivot_index = Some(index);
+            }
+        }
+        let Some(pivot_index) = pivot_index else {
+            break;
+        };
+        if pivot_magnitude == 0.0 {
+            break;
+        }
+        let pivot = residual[pivot_index];
+        let pivot_row = pivot_index / cols;
+        let pivot_col = pivot_index % cols;
+        let mut a = vec![0.0f32; rows];
+        let mut b = vec![0.0f32; cols];
+        for row in 0..rows {
+            a[row] = residual[row * cols + pivot_col];
+        }
+        for col in 0..cols {
+            b[col] = residual[pivot_row * cols + col] / pivot;
+            if !b[col].is_finite() {
+                return Err(invalid("low-rank adapter factor is not finite"));
+            }
+        }
+        for row in 0..rows {
+            for col in 0..cols {
+                let index = row * cols + col;
+                residual[index] -= a[row] * b[col];
+                if !residual[index].is_finite() {
+                    return Err(invalid("low-rank adapter residual update is not finite"));
+                }
+            }
+        }
+        components.push(LowRankComponent { a, b });
+    }
+    Ok(components)
+}
+
+fn l1_microunits(value: f64) -> io::Result<u64> {
+    let scaled = (value * 1_000_000.0).round();
+    if !scaled.is_finite() || scaled < 0.0 || scaled > u64::MAX as f64 {
+        return Err(invalid("low-rank adapter L1 value overflow"));
+    }
+    Ok(scaled as u64)
+}
+
+fn parse_low_rank_components(value: &str) -> io::Result<usize> {
+    let rank = value
+        .parse::<usize>()
+        .map_err(|_| invalid("low-rank adapter component limit must be an integer"))?;
+    if rank == 0 || rank > MAX_LOW_RANK_COMPONENTS {
+        return Err(invalid("low-rank adapter component limit is out of range"));
+    }
+    Ok(rank)
+}
+
 fn parse_delta_weight_ppm(value: &str) -> io::Result<i64> {
     let weight = value
         .parse::<i64>()
@@ -1658,6 +2371,60 @@ struct SparseStats {
     density_ppm: u64,
     nonzero_delta_retention_ppm: u64,
     mask_checksum: u64,
+}
+
+struct LowRankComponent {
+    a: Vec<f32>,
+    b: Vec<f32>,
+}
+
+#[derive(Clone, Copy, Default)]
+struct LowRankStats {
+    parameter_count: u64,
+    matrix_tensor_count: u64,
+    active_tensor_count: u64,
+    component_count: u64,
+    matrix_parameter_count: u64,
+    factor_parameter_count: u64,
+    initial_l1_microunits: u64,
+    residual_l1_microunits: u64,
+}
+
+impl LowRankStats {
+    fn add(&mut self, tensor: LowRankTensorStats) -> io::Result<()> {
+        self.parameter_count = checked_add_low_rank(self.parameter_count, tensor.parameter_count)?;
+        self.matrix_tensor_count =
+            checked_add_low_rank(self.matrix_tensor_count, tensor.matrix_tensor_count)?;
+        self.active_tensor_count =
+            checked_add_low_rank(self.active_tensor_count, tensor.active_tensor_count)?;
+        self.component_count = checked_add_low_rank(self.component_count, tensor.component_count)?;
+        self.matrix_parameter_count =
+            checked_add_low_rank(self.matrix_parameter_count, tensor.matrix_parameter_count)?;
+        self.factor_parameter_count =
+            checked_add_low_rank(self.factor_parameter_count, tensor.factor_parameter_count)?;
+        self.initial_l1_microunits =
+            checked_add_low_rank(self.initial_l1_microunits, tensor.initial_l1_microunits)?;
+        self.residual_l1_microunits =
+            checked_add_low_rank(self.residual_l1_microunits, tensor.residual_l1_microunits)?;
+        Ok(())
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+struct LowRankTensorStats {
+    parameter_count: u64,
+    matrix_tensor_count: u64,
+    active_tensor_count: u64,
+    component_count: u64,
+    matrix_parameter_count: u64,
+    factor_parameter_count: u64,
+    initial_l1_microunits: u64,
+    residual_l1_microunits: u64,
+}
+
+fn checked_add_low_rank(left: u64, right: u64) -> io::Result<u64> {
+    left.checked_add(right)
+        .ok_or_else(|| invalid("low-rank adapter statistic overflow"))
 }
 
 fn read_u32(bytes: &[u8], offset: usize) -> io::Result<u32> {
@@ -1880,6 +2647,97 @@ mod tests {
         assert!(manifest.contains("adapter_base_quantization=q8_0"));
         assert!(manifest.contains("adapter_sparse_kept_parameter_count=0"));
         assert!(manifest.contains("adapter_apply_status=runtime-q8-q4-compatible-or-fuse-to-slm"));
+    }
+
+    #[test]
+    fn writes_and_validates_low_rank_f32_adapter_delta_artifact() {
+        let base = tiny_f32_scaled_bytes(1.0);
+        let target = tiny_f32_scaled_bytes(3.0);
+        let compatibility =
+            compatibility::compatibility_text_for_bytes(&base, "base.slm", &target, "target.slm")
+                .unwrap();
+        let lineage = lineage::build_template_text(
+            &compatibility,
+            "low-rank-adapter-f32",
+            "low-rank-adapter-delta-v1",
+            "tiny",
+        )
+        .unwrap();
+
+        let (adapter, manifest) = build_low_rank_artifact_bytes_and_manifest(
+            &compatibility,
+            &lineage,
+            &base,
+            "base.slm",
+            &target,
+            "target.slm",
+            "adapter.alr1",
+            Some("1"),
+        )
+        .unwrap();
+
+        validate_low_rank_artifact_text(
+            &compatibility,
+            &lineage,
+            &base,
+            "base.slm",
+            &target,
+            "target.slm",
+            &adapter,
+            "adapter.alr1",
+            &manifest,
+        )
+        .unwrap();
+        assert_eq!(adapter.get(0..4), Some(&LOW_RANK_MAGIC[..]));
+        assert!(manifest.contains("adapter_artifact_kind=low-rank-f32-task-delta-v1"));
+        assert!(manifest.contains("adapter_low_rank_format=ALR1"));
+        assert!(manifest.contains("adapter_low_rank_component_limit=1"));
+        assert!(manifest.contains("adapter_apply_status=runtime-f32-compatible-low-rank"));
+    }
+
+    #[test]
+    fn writes_and_validates_low_rank_q8_adapter_delta_artifact() {
+        let base = tiny_q8_bytes();
+        let target = tiny_q8_bytes();
+        let compatibility =
+            compatibility::compatibility_text_for_bytes(&base, "base.slm", &target, "target.slm")
+                .unwrap();
+        let lineage = lineage::build_template_text(
+            &compatibility,
+            "low-rank-adapter-q8",
+            "low-rank-adapter-delta-v1",
+            "tiny",
+        )
+        .unwrap();
+
+        let (adapter, manifest) = build_low_rank_artifact_bytes_and_manifest(
+            &compatibility,
+            &lineage,
+            &base,
+            "base.slm",
+            &target,
+            "target.slm",
+            "adapter.alr1",
+            None,
+        )
+        .unwrap();
+
+        validate_low_rank_adapter_bytes(&adapter).unwrap();
+        validate_low_rank_artifact_text(
+            &compatibility,
+            &lineage,
+            &base,
+            "base.slm",
+            &target,
+            "target.slm",
+            &adapter,
+            "adapter.alr1",
+            &manifest,
+        )
+        .unwrap();
+        assert!(manifest.contains("adapter_base_quantization=q8_0"));
+        assert!(manifest.contains("adapter_low_rank_component_count=0"));
+        assert!(manifest.contains("adapter_apply_status=runtime-q8-q4-compatible-low-rank"));
     }
 
     #[test]

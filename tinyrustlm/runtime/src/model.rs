@@ -1,8 +1,9 @@
 //! Loaded model metadata and tensor storage.
 
 use crate::adapter::{
-    parameter_count, read_f32, read_sparse_delta_pair, section_checksum, tensor_layout_checksum,
-    AdapterDelta, AdapterDeltaPayload, AdapterDeltaPayloadKind, AdapterExpected,
+    parameter_count, read_f32, read_low_rank_delta_value, read_sparse_delta_pair, section_checksum,
+    tensor_layout_checksum, AdapterDelta, AdapterDeltaPayload, AdapterDeltaPayloadKind,
+    AdapterExpected,
 };
 use crate::errors::ErrorCode;
 use crate::model_format::{
@@ -195,6 +196,15 @@ impl LoadedTensor {
                 for pair_index in 0..pair_count {
                     let (value_index, delta) = read_sparse_delta_pair(bytes, payload, pair_index)?;
                     let value = self.f32_value_at(value_index)? + delta;
+                    if !value.is_finite() {
+                        return Err(ErrorCode::InvalidHeader);
+                    }
+                }
+            }
+            AdapterDeltaPayloadKind::LowRankF32 { .. } => {
+                for value_index in 0..payload.element_count {
+                    let value = self.f32_value_at(value_index)?
+                        + read_low_rank_delta_value(bytes, payload, value_index)?;
                     if !value.is_finite() {
                         return Err(ErrorCode::InvalidHeader);
                     }
@@ -769,6 +779,11 @@ fn apply_f32_adapter_payload(
                 *value += delta;
             }
         }
+        AdapterDeltaPayloadKind::LowRankF32 { .. } => {
+            for (value_index, value) in data.iter_mut().enumerate() {
+                *value += read_low_rank_delta_value(bytes, payload, value_index)?;
+            }
+        }
     }
     Ok(())
 }
@@ -830,6 +845,19 @@ fn apply_q8_adapter_payload(
             }
             if pair_index != pair_count {
                 return Err(ErrorCode::ShapeMismatch);
+            }
+        }
+        AdapterDeltaPayloadKind::LowRankF32 { .. } => {
+            for row in 0..rows {
+                let row_start = row.checked_mul(cols).ok_or(ErrorCode::InvalidLength)?;
+                let base_scale = scales[row];
+                for col in 0..cols {
+                    let index = row_start + col;
+                    row_values[col] = f32::from(weights[index]) * base_scale
+                        + read_low_rank_delta_value(bytes, payload, index)?;
+                }
+                scales[row] = quantize_q8_row(&row_values, &mut row_weights)?;
+                weights[row_start..row_start + cols].copy_from_slice(&row_weights);
             }
         }
     }
@@ -933,6 +961,30 @@ fn apply_q4_adapter_payload(
             }
             if pair_index != pair_count {
                 return Err(ErrorCode::ShapeMismatch);
+            }
+        }
+        AdapterDeltaPayloadKind::LowRankF32 { .. } => {
+            let mut block_values = vec![0.0f32; block_size];
+            for row in 0..rows {
+                for block in 0..blocks_per_row {
+                    let scale_index = row * blocks_per_row + block;
+                    let base_scale = scales[scale_index];
+                    for block_col in 0..block_size {
+                        let col = block * block_size + block_col;
+                        let index = row * cols + col;
+                        let byte_index = row * bytes_per_row + col / 2;
+                        let byte = packed[byte_index];
+                        let nibble = if col % 2 == 0 { byte & 0x0f } else { byte >> 4 };
+                        block_values[block_col] = f32::from(sign_extend_4(nibble)) * base_scale
+                            + read_low_rank_delta_value(bytes, payload, index)?;
+                    }
+                    scales[scale_index] = quantize_q4_block(&block_values, &mut block_weights)?;
+                    let byte_start = row * bytes_per_row + block * (block_size / 2);
+                    for pair in 0..block_size / 2 {
+                        packed[byte_start + pair] =
+                            pack_q4_pair(block_weights[pair * 2], block_weights[pair * 2 + 1]);
+                    }
+                }
             }
         }
     }
@@ -1051,6 +1103,7 @@ mod tests {
     const ADAPTER_HEADER_LEN: usize = 64;
     const ADAPTER_ENTRY_LEN: usize = 64;
     const ADAPTER_CHECKSUM_OFFSET: usize = 56;
+    const LOW_RANK_PAYLOAD_HEADER_LEN: usize = 16;
 
     fn valid_header_without_tensors() -> Vec<u8> {
         let tokenizer = {
@@ -1228,6 +1281,88 @@ mod tests {
         bytes
     }
 
+    fn build_low_rank_adapter_bytes<F>(model: &Model, mut factors: F) -> Vec<u8>
+    where
+        F: FnMut(usize, &TensorEntry) -> Option<(usize, usize, Vec<f32>, Vec<f32>)>,
+    {
+        let tensors = &model.parsed().tensors;
+        let data_offset = align_to_64(ADAPTER_HEADER_LEN + tensors.len() * ADAPTER_ENTRY_LEN);
+        let mut cursor = data_offset;
+        let mut offsets = Vec::with_capacity(tensors.len());
+        let mut lengths = Vec::with_capacity(tensors.len());
+        let mut payloads = Vec::with_capacity(tensors.len());
+        for (tensor_index, tensor) in tensors.iter().enumerate() {
+            cursor = align_to_64(cursor);
+            offsets.push(cursor);
+            let payload = if let Some((rows, cols, a_values, b_values)) =
+                factors(tensor_index, tensor)
+            {
+                let factor_rank = a_values.len() / rows;
+                assert!(factor_rank > 0);
+                assert_eq!(a_values.len(), factor_rank * rows);
+                assert_eq!(b_values.len(), factor_rank * cols);
+                assert_eq!(tensor_element_count(tensor).unwrap(), rows * cols);
+                let mut payload =
+                    vec![0u8; LOW_RANK_PAYLOAD_HEADER_LEN + (a_values.len() + b_values.len()) * 4];
+                write_u32(&mut payload, 0, rows as u32);
+                write_u32(&mut payload, 4, cols as u32);
+                write_u32(&mut payload, 8, factor_rank as u32);
+                write_u32(&mut payload, 12, 0);
+                let mut offset = LOW_RANK_PAYLOAD_HEADER_LEN;
+                for value in a_values.iter().chain(b_values.iter()) {
+                    payload[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+                    offset += 4;
+                }
+                payload
+            } else {
+                Vec::new()
+            };
+            lengths.push(payload.len());
+            cursor += payload.len();
+            payloads.push(payload);
+        }
+
+        let mut bytes = vec![0u8; cursor];
+        bytes[0..4].copy_from_slice(b"ALR1");
+        write_u32(&mut bytes, 4, 1);
+        write_u32(&mut bytes, 8, ADAPTER_HEADER_LEN as u32);
+        write_u32(&mut bytes, 12, tensors.len() as u32);
+        write_u32(&mut bytes, 16, model.header().flags);
+        write_u32(&mut bytes, 20, ADAPTER_ENTRY_LEN as u32);
+        write_u64(&mut bytes, 24, model.parameter_count);
+        write_u64(&mut bytes, 32, model.tensor_layout_checksum);
+        write_u64(&mut bytes, 40, model.tokenizer_checksum);
+        write_u64(&mut bytes, 48, data_offset as u64);
+        write_u64(&mut bytes, ADAPTER_CHECKSUM_OFFSET, 0);
+
+        for (index, tensor) in tensors.iter().enumerate() {
+            let entry = ADAPTER_HEADER_LEN + index * ADAPTER_ENTRY_LEN;
+            write_u64(&mut bytes, entry, tensor.name_hash);
+            write_u32(&mut bytes, entry + 8, tensor.rank);
+            write_u32(&mut bytes, entry + 12, tensor.dim0);
+            write_u32(&mut bytes, entry + 16, tensor.dim1);
+            write_u32(&mut bytes, entry + 20, tensor.dim2);
+            write_u32(&mut bytes, entry + 24, tensor.dim3);
+            write_u32(&mut bytes, entry + 28, 0);
+            write_u64(&mut bytes, entry + 32, offsets[index] as u64);
+            write_u64(&mut bytes, entry + 40, lengths[index] as u64);
+            write_u64(
+                &mut bytes,
+                entry + 48,
+                tensor_element_count(tensor).unwrap() as u64,
+            );
+            write_u64(
+                &mut bytes,
+                entry + 56,
+                adapter_payload_checksum(&payloads[index]),
+            );
+            let start = offsets[index];
+            bytes[start..start + lengths[index]].copy_from_slice(&payloads[index]);
+        }
+        refresh_adapter_checksum(&mut bytes);
+        bytes
+    }
+
     fn refresh_adapter_checksum(bytes: &mut [u8]) {
         write_u64(bytes, ADAPTER_CHECKSUM_OFFSET, 0);
         let checksum = adapter_checksum(bytes);
@@ -1352,6 +1487,31 @@ mod tests {
     }
 
     #[test]
+    fn applies_low_rank_adapter_delta_to_loaded_f32_tensor() {
+        let mut model = Model::load(include_bytes!("../../models/tiny-test-model.slm")).unwrap();
+        let mut before = vec![0.0f32; 260 * 8];
+        model.copy_tensor_f32("output.weight", &mut before).unwrap();
+        let adapter = build_low_rank_adapter_bytes(&model, |_tensor_index, tensor| {
+            if tensor.name_hash != name_hash("output.weight") {
+                return None;
+            }
+            let (rows, cols) = tensor_matrix_shape(tensor).unwrap();
+            let mut a = vec![0.0f32; rows];
+            let b = vec![1.0f32; cols];
+            a[0] = 0.25;
+            Some((rows, cols, a, b))
+        });
+
+        model.apply_adapter_delta(&adapter).unwrap();
+
+        let mut after = vec![0.0f32; 260 * 8];
+        model.copy_tensor_f32("output.weight", &mut after).unwrap();
+        assert_eq!(after[0], before[0] + 0.25);
+        assert_eq!(after[7], before[7] + 0.25);
+        assert_eq!(after[8], before[8]);
+    }
+
+    #[test]
     fn adapter_identity_drift_rejects_without_mutating_tensor() {
         let mut model = Model::load(include_bytes!("../../models/tiny-test-model.slm")).unwrap();
         let mut before = vec![0.0f32; 260 * 8];
@@ -1414,6 +1574,32 @@ mod tests {
             } else {
                 None
             }
+        });
+
+        model.apply_adapter_delta(&adapter).unwrap();
+
+        let mut after = vec![0.0f32; 260 * 8];
+        model.copy_tensor_f32("output.weight", &mut after).unwrap();
+        let before_sum = before[..8].iter().sum::<f32>();
+        let after_sum = after[..8].iter().sum::<f32>();
+        assert!(after_sum > before_sum + 4.0);
+        assert_eq!(model.quantization_mode(), "q8_0");
+    }
+
+    #[test]
+    fn applies_low_rank_adapter_delta_to_loaded_q8_tensor() {
+        let mut model = Model::load(include_bytes!("../../models/tiny-test-model-q8.slm")).unwrap();
+        let mut before = vec![0.0f32; 260 * 8];
+        model.copy_tensor_f32("output.weight", &mut before).unwrap();
+        let adapter = build_low_rank_adapter_bytes(&model, |_tensor_index, tensor| {
+            if tensor.name_hash != name_hash("output.weight") {
+                return None;
+            }
+            let (rows, cols) = tensor_matrix_shape(tensor).unwrap();
+            let mut a = vec![0.0f32; rows];
+            let b = vec![1.0f32; cols];
+            a[0] = 1.0;
+            Some((rows, cols, a, b))
         });
 
         model.apply_adapter_delta(&adapter).unwrap();

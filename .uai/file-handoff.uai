@@ -1,5 +1,5 @@
-profile: gguf-mirust.file-handoff.v5
-updated_utc: 2026-06-27T22:07:39Z
+profile: gguf-mirust.file-handoff.v8
+updated_utc: 2026-06-28T04:45:00Z
 handoff_root: agent-file-handoff/
 active_buckets:
   content: agent-file-handoff/Content/
@@ -28,16 +28,20 @@ durable_preservation:
   public_target: https://aiwikis.org/gguf-mirust/files/
   manifest: raw/gguf-mirust/MANIFEST.md
   checksum_required: true
-strategy_refresh_2026_06_27:
+strategy_refresh_2026_06_28:
   source: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
-  applied_shape: Active Content and Improvement buckets are transient intake; every reviewed file needs disposition, proof-of-use, durable raw/wiki preservation, hot routing, pointer-ledger refresh, and a remove-or-keep-active decision.
+  applied_shape: Active Content and Improvement buckets are transient intake; every reviewed file needs disposition, proof-of-use, durable raw/wiki preservation, hot routing, pointer-ledger refresh, report/research pointer audit, and a remove-or-keep-active decision.
+  startup_loop: Open project root, scan active buckets, preserve durable bodies, refresh `.uai` routing, refresh long-term checksums, expose current routes from short-term memory, then continue implementation work.
   report_memory_rule: Reports stay as durable raw evidence plus wiki/report synthesis bodies; .uai files keep current routing, synthesis, proof pointers, and checksums.
   research_memory_rule: Research/reference bodies stay under wiki/gguf-mirust/research/; hot .uai files carry routing, implementation boundaries, and next-step prompts; long-term memory carries checksum pointers.
-  voice_memory_rule: Public-copy voice routes through .uai/taboo.uai before model-breeding, mutualist, tiny-ecology, or UAIX strategy copy is published.
+  short_term_reference_rule: .uai/short-term-memory.uai records current report indexes, research reference routes, active bucket disposition, and the long-term ledger route after each intake or strategy refresh.
+  report_pointer_audit_rule: After report or research memory changes, audit wiki/gguf-mirust/reports/*.md and wiki/gguf-mirust/research/*.md against .uai/long-term-memory.uai before calling the handoff complete.
+  diverse_model_breeding_reference_rule: Model Breeding ideas route through durable research lanes for compatible merges, sparse lineage, adapter ecology, population search, federated/local updates, browser-constrained assembly, UAIX memory strategy, heritable artifacts, mate selection, phenotype evidence, and fit boundaries.
+  voice_memory_rule: Public-copy voice routes through .uai/taboo.uai before model-breeding, mutualist, tiny-ecology, or UAIX strategy copy is published; use proof, craft, lineage, fit, local agency, routes, and implementation evidence.
 current_scan:
-  scanned_utc: 2026-06-27T22:07:39Z
+  scanned_utc: 2026-06-28T04:45:00Z
   content_bucket_non_placeholder_files: 0
   improvement_bucket_non_placeholder_files: 0
   misplaced_root_files: 0
   status: all_reports_processed
-  action: Active buckets were empty for the browser Module Plan assembly-slot bead; 23 Improvement reports were preserved on 2026-06-25 and 26 model-breeding reports were preserved on 2026-06-26, synthesized into wiki/gguf-mirust/, recorded in .uai/intake-outcome-ledger.uai, and removed from the active source bucket.
+  action: Active buckets were empty for the Model Breeding and UAIX strategy memory refresh; preserved reports remain in raw evidence, wiki synthesis, intake ledger, short-term report routes, and long-term pointer routes.

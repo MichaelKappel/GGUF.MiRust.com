@@ -1,5 +1,5 @@
-profile: gguf-mirust.taboo.v4
-updated_utc: 2026-06-27T21:19:44Z
+profile: gguf-mirust.taboo.v6
+updated_utc: 2026-06-28T04:45:00Z
 scope: public_site_voice_and_project_copy
 purpose: Keep GGUF.MiRust.com focused on constructive local-model craft, verifiable Rust/WASM execution, model lineage, research momentum, and user agency.
 authority:
@@ -11,6 +11,12 @@ authority:
   human_update_2026_06_27_no_meta_topic_rule: Do not make the absence of caution-centered messaging a public site topic; simply write in the proof, craft, lineage, fit, local-agency, and evidence voice.
   human_update_2026_06_27_external_topic_rule: Do not make GGUF.MiRust.com carry caution or worry-focused AI messaging; other websites can host that lane while this site stays on proof, craft, lineage, fit, local agency, and implementation evidence.
   human_update_2026_06_27_memory_strategy_rule: UAIX memory strategy and model-breeding reference copy for this site should stay in proof, craft, lineage, fit, local agency, and implementation evidence voice.
+  human_update_2026_06_27_direct_request_rule: For this website, Model Breeding and UAIX File Handoff strategy should be framed as craft, route, lineage, evidence, fit, and local agency; broader concern-led AI copy belongs elsewhere.
+  human_update_2026_06_28_site_scope_rule: Keep GGUF.MiRust.com public copy out of warnings/cautions/worry framing; those topics belong on other websites while this site carries proof, craft, lineage, fit, local agency, and implementation evidence.
+  human_update_2026_06_28_direct_site_scope_rule: For this website, UAIX strategy and Model Breeding copy should stay centered on routes, lineage, proof, and local implementation evidence; concern-led messaging belongs on separate sites.
+  human_update_2026_06_28_setup_file_handoff_rule: UAIX setup-file-handoff and Model Breeding memory copy should appear as route, lineage, proof, fit, local agency, and implementation evidence for this site.
+  human_update_2026_06_28_latest_direct_rule: GGUF.MiRust.com should not talk about or organize around cautions; other websites can carry that topic while this site carries proof, craft, lineage, fit, local agency, routes, and implementation evidence.
+  human_update_2026_06_28_model_breeding_memory_rule: Model Breeding concepts, research references, UAIX File Handoff strategy, short-term routes, and long-term pointer memory should keep the site voice centered on route maps, candidate lineage, evidence, and local fit.
 public_site_voice:
   preferred_emphasis:
     - browser-local Rust/WASM execution
@@ -24,6 +30,7 @@ public_site_voice:
     - public copy centered on fear, panic, or worry
     - public copy organized around cautions instead of craft, lineage, proof, and local agency
     - broad governance sermons when the page is about TinyRustLM capability
+    - memory-strategy copy that makes concern management the subject instead of routes, evidence, and project fit
   taboo_terms_for_public_copy:
     - warning
     - warnings
