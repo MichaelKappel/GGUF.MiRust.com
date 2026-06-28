@@ -83,6 +83,35 @@ function expectLastError(exports, label, expectedCode, expectedMessage) {
   }
 }
 
+function isHex64(value) {
+  return /^0x[0-9a-fA-F]{16}$/.test(String(value || ""));
+}
+
+function expectAssemblyDiagnostics(label, diagnostics, expectedApplyCount, expectLoadedState) {
+  if (diagnostics.adapter_apply_count !== expectedApplyCount) {
+    fail(`${label} adapter_apply_count was ${diagnostics.adapter_apply_count}`);
+  }
+  if (!isHex64(diagnostics.last_adapter_checksum)) {
+    fail(`${label} last_adapter_checksum was ${JSON.stringify(diagnostics.last_adapter_checksum)}`);
+  }
+  if (!isHex64(diagnostics.assembly_state_checksum)) {
+    fail(`${label} assembly_state_checksum was ${JSON.stringify(diagnostics.assembly_state_checksum)}`);
+  }
+  const zeroChecksum = "0x0000000000000000";
+  if (expectedApplyCount === 0 && diagnostics.last_adapter_checksum !== zeroChecksum) {
+    fail(`${label} last_adapter_checksum was ${diagnostics.last_adapter_checksum}`);
+  }
+  if (expectedApplyCount > 0 && diagnostics.last_adapter_checksum === zeroChecksum) {
+    fail(`${label} last_adapter_checksum stayed zero`);
+  }
+  if (expectLoadedState && diagnostics.assembly_state_checksum === zeroChecksum) {
+    fail(`${label} assembly_state_checksum stayed zero`);
+  }
+  if (!expectLoadedState && diagnostics.assembly_state_checksum !== zeroChecksum) {
+    fail(`${label} assembly_state_checksum was ${diagnostics.assembly_state_checksum}`);
+  }
+}
+
 function alignTo64(value) {
   return (value + 63) & ~63;
 }
@@ -350,6 +379,7 @@ async function main() {
   if (recoveryDiagnostics.active_quantization_mode !== "q8_0") {
     fail(`recovery quantization was ${JSON.stringify(recoveryDiagnostics.active_quantization_mode)}`);
   }
+  expectAssemblyDiagnostics("recovery", recoveryDiagnostics, 0, true);
   if (recoveryDiagnostics.sampling_temperature !== 0 || recoveryDiagnostics.sampling_top_k !== 1 || recoveryDiagnostics.sampling_top_p !== 1 || recoveryDiagnostics.sampling_seed !== 1) {
     fail(`recovery sampling config was ${JSON.stringify({
       temperature: recoveryDiagnostics.sampling_temperature,
@@ -388,6 +418,30 @@ async function main() {
     release(exports, adapterModelPtr, adapterModelBytes.length);
   }
   const adapterBytes = buildZeroAdapter(adapterModelBytes);
+  if (typeof exports.validate_adapter_delta !== "function") {
+    fail("validate_adapter_delta export was missing");
+  }
+  const validateAdapterPtr = allocCopy(exports, adapterBytes);
+  try {
+    expectCode("validate_adapter_delta", exports.validate_adapter_delta(validateAdapterPtr, adapterBytes.length), ErrorCode.Ok);
+  } finally {
+    release(exports, validateAdapterPtr, adapterBytes.length);
+  }
+  const validateAdapterText = readLastResult(exports);
+  if (validateAdapterText !== "adapter validated") {
+    fail(`validate_adapter_delta result was ${JSON.stringify(validateAdapterText)}, expected "adapter validated"`);
+  }
+  const validateAdapterDiagnostics = readDiagnostics(exports);
+  if (validateAdapterDiagnostics.last_error !== "ok") {
+    fail(`validate_adapter_delta diagnostics last_error was ${JSON.stringify(validateAdapterDiagnostics.last_error)}`);
+  }
+  if (validateAdapterDiagnostics.model_loaded !== true || validateAdapterDiagnostics.active_quantization_mode !== "f32") {
+    fail(`validate_adapter_delta model state was ${JSON.stringify({
+      modelLoaded: validateAdapterDiagnostics.model_loaded,
+      activeQuantizationMode: validateAdapterDiagnostics.active_quantization_mode
+    })}`);
+  }
+  expectAssemblyDiagnostics("validate_adapter_delta", validateAdapterDiagnostics, 0, true);
   const adapterPtr = allocCopy(exports, adapterBytes);
   try {
     expectCode("apply_adapter_delta", exports.apply_adapter_delta(adapterPtr, adapterBytes.length), ErrorCode.Ok);
@@ -415,6 +469,7 @@ async function main() {
       selectedNextToken: adapterDiagnostics.selected_next_token
     })}`);
   }
+  expectAssemblyDiagnostics("apply_adapter_delta", adapterDiagnostics, 1, true);
 
   expectCode("free_model", exports.free_model(), ErrorCode.Ok);
   const freeText = readLastResult(exports);
@@ -431,6 +486,7 @@ async function main() {
   if (freeDiagnostics.active_quantization_mode !== "none") {
     fail(`free_model quantization was ${JSON.stringify(freeDiagnostics.active_quantization_mode)}`);
   }
+  expectAssemblyDiagnostics("free_model", freeDiagnostics, 0, false);
 
   expectCode("post-free generate_next_token", exports.generate_next_token(), ErrorCode.ModelNotLoaded);
   const postFreeText = readLastResult(exports);
@@ -454,6 +510,7 @@ async function main() {
     invalidSamplingConfig: "passed",
     recovery: recoveryText,
     generateNextToken: stepText,
+    adapterValidate: validateAdapterText,
     adapterApply: adapterText,
     freeModel: freeText,
     postFreeGenerateNextToken: postFreeText,
@@ -462,7 +519,10 @@ async function main() {
       recovery_selected_next_token: recoveryDiagnostics.selected_next_token,
       step_generated_token_count: stepDiagnostics.generated_token_count,
       step_kv_cache_length: stepDiagnostics.kv_cache_length,
+      adapter_validate_active_quantization_mode: validateAdapterDiagnostics.active_quantization_mode,
       adapter_active_quantization_mode: adapterDiagnostics.active_quantization_mode,
+      adapter_apply_count: adapterDiagnostics.adapter_apply_count,
+      assembly_state_checksum: adapterDiagnostics.assembly_state_checksum,
       active_quantization_mode: postFreeDiagnostics.active_quantization_mode,
       post_free_last_error: postFreeDiagnostics.last_error
     }

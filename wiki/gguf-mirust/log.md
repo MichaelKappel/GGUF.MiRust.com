@@ -3,7 +3,7 @@ title: GGUF.MiRust.com LLM Wiki Log
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/log/
 status: planned_pending_publication
-reviewed_utc: 2026-06-28T05:30:00Z
+reviewed_utc: 2026-06-28T11:25:34Z
 ---
 
 # LLM Wiki Log
@@ -66,6 +66,19 @@ reviewed_utc: 2026-06-28T05:30:00Z
 
 ## 2026-06-28
 
+- Added browser source-backed ALR1 routing so generated bundles convert reviewed adapter source templates into served `.alr1` stack members, browser `.alr1` manifest checks accept the source-backed kind/dtype, and `combined-selector-assembly` proves q4_0/q8_0/f32 apply ADP1 plus ASP1 plus source-backed ALR1 before generation.
+- Added trained adapter source ALR1 conversion so `convert-adapter-source` packs reviewed low-rank f32 factor bundles into runtime `ALR1` packages and `validate-converted-adapter-source` recomputes the artifact and manifest from source plus base `.slm`.
+- Added trained low-rank adapter source intake so `adapter-source-template` writes `adapter-source.manifest` plus raw f32 factor files and `validate-adapter-source` recomputes target tensor, factor rank, checksum, finite-factor, parameter-count, and delta-L1 fields before future ALR1 packaging.
+- Added runtime assembly diagnostics so Rust reports `adapter_apply_count`, `last_adapter_checksum`, and `assembly_state_checksum`; WASM ABI smoke, checked manual sidecar smoke, and generated q4_0/q8_0/f32 combined selector smokes now assert those fields.
+- Added browser module-plan origin policy so generated selector entries and `.module-plan.receipt` files carry `module_plan_origin_policy=same-origin-loopback-local-v1`, the Module Plan panel renders `Origin`, and `module-plan-origin-policy-drift` proves origin-policy mismatch stops before `.slm`, adapter-family, adapter-manifest, or stack artifact routes.
+- Added browser module-plan fetch policy so generated selector entries and `.module-plan.receipt` files carry `module_plan_fetch_policy=local-no-store-v1`, the Module Plan panel renders `Fetch`, and `module-plan-fetch-policy-drift` proves fetch-policy mismatch stops before `.slm`, adapter-family, adapter-manifest, or stack artifact routes.
+- Added browser module-plan execution profile so generated selector entries and `.module-plan.receipt` files carry `module_plan_execution_profile=single-threaded-wasm-local-v1`, the Module Plan panel renders `Execution`, and `module-plan-execution-profile-drift` proves execution-profile mismatch stops before `.slm`, adapter-family, adapter-manifest, or stack artifact routes.
+- Added browser module-plan runtime scratch budget so generated selector entries and `.module-plan.receipt` files carry `module_plan_runtime_scratch_byte_budget=65536`, the Module Plan panel renders `Scratch Budget`, and `module-plan-runtime-scratch-drift` proves scratch-budget mismatch stops before `.slm`, adapter-family, adapter-manifest, or stack artifact routes.
+- Added browser module-plan profile contract so generated selector entries and `.module-plan.receipt` files carry `browser-constrained-v1`, Rust and browser validation require it before generated model fetch, and `module-plan-profile-drift` proves profile mismatch stops before `.slm`, adapter-family, adapter-manifest, or stack artifact routes.
+- Added browser-smoke `combined-selector-route-soak` so one generated `browser-multi-parent-bundle all` root runs three q4_0/q8_0/f32 cycles and proves every module-plan, model, manifest, assembly, evidence, adapter-family, adapter-manifest, and ADP1/ASP1/ALR1 stack route is requested once per pass.
+- Added browser-smoke `combined-selector-cycle` so one generated `browser-multi-parent-bundle all` root cycles q4_0, q8_0, and f32 twice in one page while post-initial passes release the prior WASM model before fresh Rust stack validation, stack apply, stack completion, reset diagnostics, and one-token generation.
+- Added browser adapter stack Rust validation so generated auto assembly fetches/checks the ADP1/ASP1/ALR1 stack, calls `validate_adapter_delta` for every fetched member, then applies the stack only after semantic preflight passes.
+- Added browser-smoke `adapter-stack-rust-validate-drift` so checksum-consistent family ADP1 identity drift passes browser byte gates, reaches Rust `validate_adapter_delta`, returns `shape mismatch`, and stops before any `apply_adapter_delta`.
 - Added low-rank `ALR1` adapter packages with write/validate commands, deterministic factor manifests, and runtime f32/q8_0/q4_0 low-rank apply.
 - Added browser Module Plan Trace so generated roots render a browser-owned checkpoint chain from plan verification through model acceptance, manifest, assembly evidence, adapter-family verification, adapter-stack apply, and ready state.
 - Added browser-smoke `combined-selector-assembly` so one generated `browser-multi-parent-bundle all` root starts on q4_0, switches through q4_0, q8_0, and f32 entries, verifies each module plan before model bytes, auto-applies each ADP1 plus ASP1 stack before generation, and keeps requests local.
@@ -73,3 +86,7 @@ reviewed_utc: 2026-06-28T05:30:00Z
 - Added browser eval-case evidence checksums so passed eval sidecars now flow through admissions, promotion ledgers, selector registries, generated assembly receipts, and Model Provenance; `combined-selector-assembly` proves q4_0/q8_0/f32 entries display the same eval digest.
 - Added browser-smoke `assembly-eval-case-drift` so a checksum-consistent generated assembly receipt with a mismatched eval digest stops before evidence files, adapter-family receipts, adapter manifests, or adapter stack routes.
 - Added browser-smoke `assembly-evidence-file-drift` so a generated root with valid selector, module-plan, model, manifest, and assembly receipt bytes rejects one drifted fetched evidence file before later evidence, adapter-family, adapter manifest, or stack routes.
+- Added browser-smoke `adapter-family-receipt-drift` so a generated root with valid assembly evidence rejects drifted adapter-family receipt bytes before adapter manifests or ADP1/ASP1/ALR1 stack artifacts.
+- Added browser-smoke `adapter-manifest-drift` so a generated root with valid assembly evidence and adapter-family receipt rejects a drifted family ADP1 manifest before sparse/low-rank manifests or ADP1/ASP1/ALR1 stack artifacts.
+- Added browser-smoke `adapter-artifact-drift` so a generated root with valid adapter manifests rejects drifted family ADP1 artifact bytes before sparse/low-rank artifacts or any `apply_adapter_delta` call.
+- Added browser-smoke `adapter-stack-prefetch-drift` so generated auto assembly verifies the fetched family ADP1 and sparse ASP1 stack bytes before any Rust adapter apply, then stops before low-rank ALR1 on sparse artifact drift.

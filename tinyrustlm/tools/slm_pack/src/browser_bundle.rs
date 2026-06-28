@@ -28,6 +28,7 @@ use crate::tensor_writer::{
     tiny_fixture_tensors_with_dtype, ModelShape, DTYPE_F32, DTYPE_Q4_0, DTYPE_Q8_0,
 };
 use crate::tokenizer_writer::ByteTokenizerSection;
+use crate::trained_adapter_source;
 
 const ASSEMBLY_RECEIPT_KIND: &str = "browser-local-assembly-evidence";
 const ASSEMBLY_RECEIPT_STATUS: &str = "validated";
@@ -37,6 +38,11 @@ const MODULE_PLAN_STATUS: &str = "validated";
 const MODULE_PLAN_REGISTRY_STATUS: &str = "receipt-validated";
 const MODULE_PLAN_STRATEGY: &str = "selector-entry-self-assembly";
 const MODULE_PLAN_RESOURCE_CLASS: &str = "browser-constrained-local-assembly";
+const MODULE_PLAN_PROFILE: &str = "browser-constrained-v1";
+const MODULE_PLAN_EXECUTION_PROFILE: &str = "single-threaded-wasm-local-v1";
+const MODULE_PLAN_FETCH_POLICY: &str = "local-no-store-v1";
+const MODULE_PLAN_ORIGIN_POLICY: &str = "same-origin-loopback-local-v1";
+const MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET: u64 = 64 * 1024;
 const SOURCE_KIND: &str = "converted-trained";
 const APP_FILES: [&str; 3] = ["index.html", "app.css", "app.js"];
 const RUNTIME_WASM_FILE: &str = "tinyrustlm.wasm";
@@ -60,7 +66,7 @@ struct BundleAdapterRoute {
 enum BundleAdapterKind {
     RawAdp1,
     SparseAsp1,
-    LowRankAlr1,
+    SourceLowRankAlr1,
 }
 
 struct BundleSpec {
@@ -113,7 +119,9 @@ impl BundleSpec {
             sparse_adapter_file: format!("{id}-sparse.asp1"),
             sparse_adapter_label: format!("Multi-parent sign-merge {quantization} sparse ASP1"),
             low_rank_adapter_file: format!("{id}-low-rank.alr1"),
-            low_rank_adapter_label: format!("Multi-parent sign-merge {quantization} low-rank ALR1"),
+            low_rank_adapter_label: format!(
+                "Multi-parent sign-merge {quantization} source-backed ALR1"
+            ),
             adapter_family_receipt_file: format!("{id}.adapter-family.receipt"),
             adapter_family_label: format!("Multi-parent sign-merge {quantization} adapter family"),
             assembly_receipt_file: format!("{id}.assembly.receipt"),
@@ -433,6 +441,22 @@ fn write_bundle_module_plan_receipt(
         "module_plan_resource_class",
         MODULE_PLAN_RESOURCE_CLASS,
     );
+    push_line(&mut text, "module_plan_profile", MODULE_PLAN_PROFILE);
+    push_line(
+        &mut text,
+        "module_plan_execution_profile",
+        MODULE_PLAN_EXECUTION_PROFILE,
+    );
+    push_line(
+        &mut text,
+        "module_plan_fetch_policy",
+        MODULE_PLAN_FETCH_POLICY,
+    );
+    push_line(
+        &mut text,
+        "module_plan_origin_policy",
+        MODULE_PLAN_ORIGIN_POLICY,
+    );
     push_line(
         &mut text,
         "module_plan_model_byte_budget",
@@ -442,6 +466,11 @@ fn write_bundle_module_plan_receipt(
         &mut text,
         "module_plan_adapter_byte_budget",
         &adapter_byte_budget.to_string(),
+    );
+    push_line(
+        &mut text,
+        "module_plan_runtime_scratch_byte_budget",
+        &MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET.to_string(),
     );
     push_line(&mut text, "model_path", &model_path);
     push_line(&mut text, "manifest_path", &manifest_path);
@@ -595,8 +624,13 @@ fn write_bundle_module_plan_receipt(
         kind: MODULE_PLAN_KIND.to_string(),
         strategy: MODULE_PLAN_STRATEGY.to_string(),
         resource_class: MODULE_PLAN_RESOURCE_CLASS.to_string(),
+        profile: MODULE_PLAN_PROFILE.to_string(),
+        execution_profile: MODULE_PLAN_EXECUTION_PROFILE.to_string(),
+        fetch_policy: MODULE_PLAN_FETCH_POLICY.to_string(),
+        origin_policy: MODULE_PLAN_ORIGIN_POLICY.to_string(),
         model_byte_budget,
         adapter_byte_budget,
+        runtime_scratch_byte_budget: MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET,
         receipt_checksum: hex64(provenance::text_checksum(text.as_bytes())),
         module_count,
     })
@@ -827,26 +861,17 @@ fn write_bundle_adapter_route(
     adapter_label: &str,
     adapter_kind: BundleAdapterKind,
 ) -> io::Result<BundleAdapterRoute> {
-    let compatibility_path = evidence.join(format!("{route_id}.compat"));
-    let lineage_path = evidence.join(format!("{route_id}.lineage"));
     let adapter_path = models.join(adapter_file);
     let adapter_manifest_path = models.join(format!("{adapter_file}.manifest"));
-    let lineage_operator = match adapter_kind {
-        BundleAdapterKind::RawAdp1 => "adapter-delta-v1",
-        BundleAdapterKind::SparseAsp1 => "sparse-adapter-delta-v1",
-        BundleAdapterKind::LowRankAlr1 => "low-rank-adapter-delta-v1",
-    };
-
-    compatibility::report_path(candidate_path, candidate_path, Some(&compatibility_path))?;
-    lineage::write_template_path(
-        &compatibility_path,
-        &lineage_path,
-        &format!("{}-{route_id}", spec.id),
-        lineage_operator,
-        "browser-registry-sidecar",
-    )?;
     match adapter_kind {
         BundleAdapterKind::RawAdp1 => {
+            let (compatibility_path, lineage_path) = write_bundle_adapter_lineage(
+                spec,
+                candidate_path,
+                evidence,
+                route_id,
+                "adapter-delta-v1",
+            )?;
             adapter::write_artifact_path(
                 &compatibility_path,
                 &lineage_path,
@@ -865,6 +890,13 @@ fn write_bundle_adapter_route(
             )?;
         }
         BundleAdapterKind::SparseAsp1 => {
+            let (compatibility_path, lineage_path) = write_bundle_adapter_lineage(
+                spec,
+                candidate_path,
+                evidence,
+                route_id,
+                "sparse-adapter-delta-v1",
+            )?;
             adapter::write_sparse_artifact_path(
                 &compatibility_path,
                 &lineage_path,
@@ -884,20 +916,20 @@ fn write_bundle_adapter_route(
                 &adapter_manifest_path,
             )?;
         }
-        BundleAdapterKind::LowRankAlr1 => {
-            adapter::write_low_rank_artifact_path(
-                &compatibility_path,
-                &lineage_path,
-                candidate_path,
+        BundleAdapterKind::SourceLowRankAlr1 => {
+            let source_dir = evidence.join(format!("{route_id}.source"));
+            trained_adapter_source::write_adapter_source_template_path(
+                &source_dir,
+                "tiny-fixture",
+            )?;
+            trained_adapter_source::convert_adapter_source_path(
+                &source_dir,
                 candidate_path,
                 &adapter_path,
                 &adapter_manifest_path,
-                Some("1"),
             )?;
-            adapter::validate_low_rank_artifact_path(
-                &compatibility_path,
-                &lineage_path,
-                candidate_path,
+            trained_adapter_source::validate_converted_adapter_source_path(
+                &source_dir,
                 candidate_path,
                 &adapter_path,
                 &adapter_manifest_path,
@@ -922,6 +954,26 @@ fn write_bundle_adapter_route(
         artifact_path: adapter_path,
         manifest_path: adapter_manifest_path,
     })
+}
+
+fn write_bundle_adapter_lineage(
+    spec: &BundleSpec,
+    candidate_path: &Path,
+    evidence: &Path,
+    route_id: &str,
+    lineage_operator: &str,
+) -> io::Result<(PathBuf, PathBuf)> {
+    let compatibility_path = evidence.join(format!("{route_id}.compat"));
+    let lineage_path = evidence.join(format!("{route_id}.lineage"));
+    compatibility::report_path(candidate_path, candidate_path, Some(&compatibility_path))?;
+    lineage::write_template_path(
+        &compatibility_path,
+        &lineage_path,
+        &format!("{}-{route_id}", spec.id),
+        lineage_operator,
+        "browser-registry-sidecar",
+    )?;
+    Ok((compatibility_path, lineage_path))
 }
 
 fn write_bundle_adapter_routes(
@@ -953,7 +1005,7 @@ fn write_bundle_adapter_routes(
             "low-rank-adapter",
             spec.low_rank_adapter_file.as_str(),
             spec.low_rank_adapter_label.as_str(),
-            BundleAdapterKind::LowRankAlr1,
+            BundleAdapterKind::SourceLowRankAlr1,
         ),
     ];
     let mut routes = Vec::with_capacity(route_specs.len());
@@ -1211,8 +1263,13 @@ mod tests {
         assert!(registry.contains("module_plan_kind=browser-local-module-plan"));
         assert!(registry.contains("module_plan_strategy=selector-entry-self-assembly"));
         assert!(registry.contains("module_plan_resource_class=browser-constrained-local-assembly"));
+        assert!(registry.contains("module_plan_profile=browser-constrained-v1"));
+        assert!(registry.contains("module_plan_execution_profile=single-threaded-wasm-local-v1"));
+        assert!(registry.contains("module_plan_fetch_policy=local-no-store-v1"));
+        assert!(registry.contains("module_plan_origin_policy=same-origin-loopback-local-v1"));
         assert!(registry.contains(&format!("module_plan_model_byte_budget={model_bytes}")));
         assert!(registry.contains("module_plan_adapter_byte_budget=1048576"));
+        assert!(registry.contains("module_plan_runtime_scratch_byte_budget=65536"));
         assert!(registry.contains("module_plan_module_count=7"));
         assert!(module_plan.contains("tinyrustlm_module_plan_version=1"));
         assert!(module_plan.contains("module_plan_kind=browser-local-module-plan"));
@@ -1223,8 +1280,13 @@ mod tests {
         assert!(
             module_plan.contains("module_plan_resource_class=browser-constrained-local-assembly")
         );
+        assert!(module_plan.contains("module_plan_profile=browser-constrained-v1"));
+        assert!(module_plan.contains("module_plan_execution_profile=single-threaded-wasm-local-v1"));
+        assert!(module_plan.contains("module_plan_fetch_policy=local-no-store-v1"));
+        assert!(module_plan.contains("module_plan_origin_policy=same-origin-loopback-local-v1"));
         assert!(module_plan.contains(&format!("module_plan_model_byte_budget={model_bytes}")));
         assert!(module_plan.contains("module_plan_adapter_byte_budget=1048576"));
+        assert!(module_plan.contains("module_plan_runtime_scratch_byte_budget=65536"));
         assert!(module_plan.contains(&format!("model_path=../models/{id}.slm")));
         assert!(module_plan.contains(&format!("manifest_path=../models/{id}.slm.manifest")));
         assert!(module_plan.contains(&format!("quantization={quantization}")));
@@ -1318,9 +1380,8 @@ mod tests {
         assert!(registry.contains(
             "entry.0.adapter.3.path=../models/multi-parent-sign-merge-f32-low-rank.alr1"
         ));
-        assert!(
-            registry.contains("entry.0.adapter.3.label=Multi-parent sign-merge f32 low-rank ALR1")
-        );
+        assert!(registry
+            .contains("entry.0.adapter.3.label=Multi-parent sign-merge f32 source-backed ALR1"));
         assert!(registry.contains(
             "entry.0.adapter_family_receipt_path=../models/multi-parent-sign-merge-f32.adapter-family.receipt"
         ));
@@ -1426,8 +1487,12 @@ mod tests {
                 .join("multi-parent-sign-merge-f32-low-rank.alr1.manifest"),
         )
         .unwrap();
-        assert!(low_rank_manifest.contains("adapter_artifact_kind=low-rank-f32-task-delta-v1"));
-        assert!(low_rank_manifest.contains("adapter_dtype=low-rank-f32-delta"));
+        assert!(low_rank_manifest.contains("adapter_artifact_kind=trained-source-low-rank-f32-v1"));
+        assert!(low_rank_manifest.contains("adapter_dtype=low-rank-f32-source-delta"));
+        assert!(low_rank_manifest.contains("adapter_source_manifest_checksum=0x"));
+        assert!(low_rank_manifest.contains(
+            "adapter_source_base_contract=matches-reviewed-adapter-source-base-contract"
+        ));
         assert!(root
             .join("models")
             .join("multi-parent-sign-merge-f32.adapter-family.receipt")

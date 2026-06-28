@@ -3,7 +3,7 @@ title: GGUF.MiRust.com Source Memory Guide
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/source-memory-guide/
 status: planned_pending_publication
-reviewed_utc: 2026-06-28T05:30:00Z
+reviewed_utc: 2026-06-28T11:25:34Z
 ---
 
 # GGUF.MiRust.com Source Memory Guide
@@ -28,7 +28,13 @@ For compact adapter package work, load `reports/sparse-adapter-package-memory-20
 
 For low-rank adapter package work, load `reports/low-rank-adapter-package-memory-2026-06-28.md` when `ALR1`, `low-rank-adapter-delta`, `validate-low-rank-adapter-delta`, deterministic factor payloads, or runtime low-rank adapter apply is in scope.
 
+For trained adapter source work, load `reports/trained-adapter-source-memory-2026-06-28.md` when `adapter-source-template`, `validate-adapter-source`, trained low-rank factor manifests, or factor-file validation is in scope.
+
+For trained adapter source ALR1 conversion, load `reports/trained-adapter-source-alr1-memory-2026-06-28.md` when `convert-adapter-source`, `validate-converted-adapter-source`, source-factor ALR1 packaging, source-backed ALR1 manifests, or reviewed factor-to-runtime adapter routing is in scope.
+
 For browser low-rank adapter routing, load `reports/browser-low-rank-adapter-route-memory-2026-06-28.md` when generated `.alr1` routes, low-rank adapter-family members, `ALR1` manifests, module-plan low-rank stack roles, or `adapter-sidecar-registry-file` ALR1 smoke evidence is in scope.
+
+For browser source-backed ALR1 routing, load `reports/browser-source-backed-alr1-route-memory-2026-06-28.md` when generated bundles should convert reviewed adapter source templates into served source-backed `.alr1` stack members, or when app `.alr1` manifest kind/dtype acceptance changes.
 
 For browser sparse adapter routing, load `reports/browser-sparse-adapter-route-memory-2026-06-27.md` when selector adapter routes, generated adapter families, served `.asp1` artifacts, browser manifest checks, or `adapter-sidecar-registry-file` smoke are in scope.
 
@@ -38,6 +44,20 @@ For combined generated selector roots, load `reports/browser-multi-quant-selecto
 
 For combined selector assembly proof, load `reports/browser-combined-selector-assembly-memory-2026-06-28.md` when `combined-selector-assembly`, all-root q4_0 default, all-three-entry module-plan ordering, or same-page q4_0/q8_0/f32 auto assembly is in scope.
 
+For combined selector cycle proof, load `reports/browser-combined-selector-cycle-memory-2026-06-28.md` when `combined-selector-cycle`, repeated all-root q4_0/q8_0/f32 switching, release-before-reassembly behavior, per-pass Rust stack validation/apply deltas, or fresh generated-root path-flexible Module Plan summaries are in scope.
+
+For combined selector route-soak proof, load `reports/browser-combined-selector-route-soak-memory-2026-06-28.md` when `combined-selector-route-soak`, repeated generated self-assembly route counts, no-store local fetch behavior, or longer q4_0/q8_0/f32 selector pressure is in scope.
+
+For browser module-plan profile proof, load `reports/browser-module-plan-profile-memory-2026-06-28.md` when `browser-constrained-v1`, selector-to-receipt self-assembly profile matching, generated module-plan profile fields, or `module-plan-profile-drift` is in scope.
+
+For browser module-plan execution profile proof, load `reports/browser-module-plan-execution-profile-memory-2026-06-28.md` when `single-threaded-wasm-local-v1`, Module Plan `Execution`, generated module-plan execution fields, or `module-plan-execution-profile-drift` is in scope.
+
+For browser module-plan fetch-policy proof, load `reports/browser-module-plan-fetch-policy-memory-2026-06-28.md` when `local-no-store-v1`, Module Plan `Fetch`, generated module-plan fetch fields, no-store local fetch behavior, or `module-plan-fetch-policy-drift` is in scope.
+
+For browser module-plan origin-policy proof, load `reports/browser-module-plan-origin-policy-memory-2026-06-28.md` when `same-origin-loopback-local-v1`, Module Plan `Origin`, generated module-plan origin fields, same-origin local assembly behavior, or `module-plan-origin-policy-drift` is in scope.
+
+For browser module-plan runtime scratch proof, load `reports/browser-module-plan-runtime-scratch-memory-2026-06-28.md` when `module_plan_runtime_scratch_byte_budget`, Module Plan `Scratch Budget`, browser runtime scratch envelopes, or `module-plan-runtime-scratch-drift` is in scope.
+
 For browser assembly trace proof, load `reports/browser-assembly-trace-memory-2026-06-28.md` when the Module Plan Trace row, browser load checkpoints, generated all-root trace assertion, or ready-state sequencing is in scope.
 
 For browser eval-case evidence checksum proof, load `reports/browser-eval-case-evidence-checksum-memory-2026-06-28.md` when selector admission eval evidence fields, promotion-ledger admission copies, generated assembly receipt eval digests, Model Provenance eval fields, or browser-smoke registry-backed provenance assertions are in scope.
@@ -45,6 +65,20 @@ For browser eval-case evidence checksum proof, load `reports/browser-eval-case-e
 For browser assembly eval-case drift proof, load `reports/browser-assembly-eval-case-drift-memory-2026-06-28.md` when generated assembly receipt eval digests, selector-to-assembly digest matching, Assembly Evidence failure states, or `assembly-eval-case-drift` smoke assertions are in scope.
 
 For browser assembly evidence-file drift proof, load `reports/browser-assembly-evidence-file-drift-memory-2026-06-28.md` when `verifyAssemblyEvidenceFiles`, fetched evidence-file checksums, generated evidence routes, Assembly Evidence failure states, or `assembly-evidence-file-drift` smoke assertions are in scope.
+
+For browser adapter-family receipt drift proof, load `reports/browser-adapter-family-receipt-drift-memory-2026-06-28.md` when `loadAdapterFamilyReceipt`, served adapter-family receipt bytes, post-evidence adapter-family failure state, or `adapter-family-receipt-drift` smoke assertions are in scope.
+
+For browser adapter manifest drift proof, load `reports/browser-adapter-manifest-drift-memory-2026-06-28.md` when `validateAdapterManifest`, served adapter manifest bytes, post-receipt adapter failure state, or `adapter-manifest-drift` smoke assertions are in scope.
+
+For browser adapter artifact drift proof, load `reports/browser-adapter-artifact-drift-memory-2026-06-28.md` when generated adapter artifact checksum matching, exact stack artifact route interception, post-manifest adapter failure state, or `adapter-artifact-drift` smoke assertions are in scope.
+
+For browser adapter stack preflight proof, load `reports/browser-adapter-stack-prefetch-drift-memory-2026-06-28.md` when generated auto-apply stack bytes, full-stack artifact prefetch, pre-WASM stack verification, or `adapter-stack-prefetch-drift` smoke assertions are in scope.
+
+For browser adapter stack Rust validation proof, load `reports/browser-adapter-stack-rust-validate-memory-2026-06-28.md` when `validate_adapter_delta`, generated auto-stack semantic preflight, validation-before-apply ordering, or WASM adapter ABI coverage is in scope.
+
+For browser adapter stack Rust validation drift proof, load `reports/browser-adapter-stack-rust-validate-drift-memory-2026-06-28.md` when checksum-consistent ADP1 identity drift, `adapter-stack-rust-validate-drift`, validation failure state, or no-apply assertions are in scope.
+
+For browser runtime assembly diagnostics proof, load `reports/browser-runtime-assembly-diagnostics-memory-2026-06-28.md` when Rust diagnostics assembly fields, `adapter_apply_count`, `last_adapter_checksum`, `assembly_state_checksum`, manual adapter sidecar assertions, or generated auto-stack runtime state assertions are in scope.
 
 For browser frugal selector defaults, load `reports/browser-frugal-selector-default-memory-2026-06-27.md` when selector default metadata, q4_0 initial selection, combined-root first load behavior, or default-selection smoke assertions are in scope.
 
@@ -92,7 +126,7 @@ For browser module-plan byte-count proof, load `reports/browser-module-plan-byte
 
 For browser module-plan checksum proof, load `reports/browser-module-plan-checksums-memory-2026-06-27.md` when `.module-plan.receipt` `module.N.checksum` fields, rendered checksum summaries, stack artifact checksum matching, or `module-plan-checksum-drift` assertions are in scope.
 
-Model-breeding references live under `wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md`; open it for compatible merge, sparse-lineage, adapter-ecology, low-rank ALR1/LoRA reference routing, population-search, federated/local-update, browser-constrained-assembly, UAIX-memory-strategy, sparse-mask breadcrumb, objective-vector, parent-relatedness, evolutionary-recipe, adaptive-search, and multi-objective-fitness routing.
+Model-breeding references live under `wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md`; open it for compatible merge, sparse-lineage, adapter-ecology, low-rank ALR1/LoRA reference routing, source-backed browser ALR1 routing, population-search, federated/local-update, browser-constrained-assembly, UAIX-memory-strategy, sparse-mask breadcrumb, objective-vector, parent-relatedness, evolutionary-recipe, adaptive-search, and multi-objective-fitness routing.
 
 ## Active File Intake
 

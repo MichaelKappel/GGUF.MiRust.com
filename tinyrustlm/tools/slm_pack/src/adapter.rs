@@ -58,6 +58,26 @@ const MIN_DELTA_WEIGHT_PPM: i64 = -1_000_000;
 const MAX_DELTA_WEIGHT_PPM: i64 = 2_000_000;
 const PPM_DENOMINATOR: u32 = 1_000_000;
 
+/// One reviewed trained-source low-rank tensor to pack into an ALR1 package.
+pub(crate) struct LowRankSourceTensor<'a> {
+    /// Stable tensor name hash.
+    pub(crate) name_hash: u64,
+    /// Logical tensor rank.
+    pub(crate) rank: u32,
+    /// Padded logical tensor dimensions.
+    pub(crate) dims: [u32; 4],
+    /// Matrix row count represented by A factors.
+    pub(crate) rows: usize,
+    /// Matrix column count represented by B factors.
+    pub(crate) cols: usize,
+    /// Number of low-rank components.
+    pub(crate) factor_rank: usize,
+    /// Row-major A factors with shape rows x factor_rank.
+    pub(crate) a_values: &'a [f32],
+    /// Row-major B factors with shape factor_rank x cols.
+    pub(crate) b_values: &'a [f32],
+}
+
 /// Writes a raw f32 task-delta adapter artifact plus a recomputable manifest.
 pub(crate) fn write_artifact_path(
     compatibility: &Path,
@@ -1037,6 +1057,162 @@ fn build_low_rank_adapter_bytes(
     Ok((bytes, stats))
 }
 
+/// Builds an ALR1 package from reviewed trained-source low-rank factors.
+pub(crate) fn build_low_rank_source_adapter_bytes(
+    base: &ParsedModel,
+    base_report: &ValidationReport,
+    source_tensors: &[LowRankSourceTensor<'_>],
+) -> io::Result<Vec<u8>> {
+    let mut source_by_hash = HashMap::new();
+    for (index, source) in source_tensors.iter().enumerate() {
+        if source_by_hash.insert(source.name_hash, index).is_some() {
+            return Err(invalid("low-rank source tensor hashes must be unique"));
+        }
+    }
+    let tensor_count = base.tensors.len();
+    let directory_offset = HEADER_LEN;
+    let data_offset = align_to_64(directory_offset + tensor_count * ENTRY_LEN);
+    let mut tensor_offsets = Vec::with_capacity(tensor_count);
+    let mut tensor_lengths = Vec::with_capacity(tensor_count);
+    let mut tensor_checksums = Vec::with_capacity(tensor_count);
+    let mut payloads = Vec::with_capacity(tensor_count);
+    let mut cursor = data_offset;
+
+    for tensor in &base.tensors {
+        cursor = align_to_64(cursor);
+        tensor_offsets.push(cursor);
+        let payload = if let Some(source_index) = source_by_hash.get(&tensor.spec.name_hash) {
+            build_low_rank_source_tensor_payload(tensor, &source_tensors[*source_index])?
+        } else {
+            Vec::new()
+        };
+        tensor_lengths.push(payload.len());
+        cursor = cursor
+            .checked_add(payload.len())
+            .ok_or_else(|| invalid("low-rank source adapter payload length overflow"))?;
+        tensor_checksums.push(payload_checksum(&payload));
+        payloads.push(payload);
+    }
+
+    let mut bytes = vec![0u8; cursor];
+    bytes[0..4].copy_from_slice(LOW_RANK_MAGIC);
+    write_u32(&mut bytes, 4, ADAPTER_BINARY_VERSION)?;
+    write_u32(&mut bytes, 8, HEADER_LEN as u32)?;
+    write_u32(&mut bytes, 12, tensor_count as u32)?;
+    write_u32(&mut bytes, 16, base.flags)?;
+    write_u32(&mut bytes, 20, ENTRY_LEN as u32)?;
+    write_u64(&mut bytes, 24, base_report.parameter_count())?;
+    write_u64(&mut bytes, 32, base_report.tensor_layout_checksum())?;
+    write_u64(&mut bytes, 40, base_report.tokenizer_checksum())?;
+    write_u64(&mut bytes, 48, data_offset as u64)?;
+    write_u64(&mut bytes, CHECKSUM_OFFSET, 0)?;
+
+    for (index, tensor) in base.tensors.iter().enumerate() {
+        let entry = directory_offset + index * ENTRY_LEN;
+        write_u64(&mut bytes, entry, tensor.spec.name_hash)?;
+        write_u32(&mut bytes, entry + 8, tensor.spec.rank)?;
+        write_u32(&mut bytes, entry + 12, tensor.spec.dims[0])?;
+        write_u32(&mut bytes, entry + 16, tensor.spec.dims[1])?;
+        write_u32(&mut bytes, entry + 20, tensor.spec.dims[2])?;
+        write_u32(&mut bytes, entry + 24, tensor.spec.dims[3])?;
+        write_u32(&mut bytes, entry + 28, 0)?;
+        write_u64(&mut bytes, entry + 32, tensor_offsets[index] as u64)?;
+        write_u64(&mut bytes, entry + 40, tensor_lengths[index] as u64)?;
+        write_u64(&mut bytes, entry + 48, tensor.spec.element_count() as u64)?;
+        write_u64(&mut bytes, entry + 56, tensor_checksums[index])?;
+
+        let start = tensor_offsets[index];
+        bytes[start..start + tensor_lengths[index]].copy_from_slice(&payloads[index]);
+    }
+
+    let checksum = adapter_checksum(&bytes)?;
+    write_u64(&mut bytes, CHECKSUM_OFFSET, checksum)?;
+    Ok(bytes)
+}
+
+fn build_low_rank_source_tensor_payload(
+    tensor: &crate::blend::ParsedTensor,
+    source: &LowRankSourceTensor<'_>,
+) -> io::Result<Vec<u8>> {
+    if tensor.spec.name_hash != source.name_hash
+        || tensor.spec.rank != source.rank
+        || tensor.spec.dims != source.dims
+    {
+        return Err(invalid(
+            "low-rank source tensor identity does not match base model",
+        ));
+    }
+    let (rows, cols) = low_rank_matrix_shape(&tensor.spec)?;
+    if rows != source.rows || cols != source.cols {
+        return Err(invalid(
+            "low-rank source tensor matrix shape does not match base model",
+        ));
+    }
+    if source.factor_rank == 0
+        || source.factor_rank > MAX_LOW_RANK_COMPONENTS
+        || source.factor_rank > rows.min(cols)
+    {
+        return Err(invalid("low-rank source factor rank is out of range"));
+    }
+    let expected_a = rows
+        .checked_mul(source.factor_rank)
+        .ok_or_else(|| invalid("low-rank source A factor length overflow"))?;
+    let expected_b = source
+        .factor_rank
+        .checked_mul(cols)
+        .ok_or_else(|| invalid("low-rank source B factor length overflow"))?;
+    if source.a_values.len() != expected_a || source.b_values.len() != expected_b {
+        return Err(invalid("low-rank source factor lengths do not match shape"));
+    }
+    for value in source.a_values.iter().chain(source.b_values.iter()) {
+        if !value.is_finite() {
+            return Err(invalid("low-rank source factor is not finite"));
+        }
+    }
+
+    let factor_values = source
+        .factor_rank
+        .checked_mul(
+            rows.checked_add(cols)
+                .ok_or_else(|| invalid("low-rank source shape overflow"))?,
+        )
+        .ok_or_else(|| invalid("low-rank source factor count overflow"))?;
+    let byte_length = LOW_RANK_HEADER_LEN
+        .checked_add(
+            factor_values
+                .checked_mul(4)
+                .ok_or_else(|| invalid("low-rank source payload byte length overflow"))?,
+        )
+        .ok_or_else(|| invalid("low-rank source payload byte length overflow"))?;
+    let mut payload = vec![0u8; byte_length];
+    write_u32(&mut payload, 0, rows as u32)?;
+    write_u32(&mut payload, 4, cols as u32)?;
+    write_u32(&mut payload, 8, source.factor_rank as u32)?;
+    write_u32(&mut payload, 12, 0)?;
+    let mut offset = LOW_RANK_HEADER_LEN;
+    for component in 0..source.factor_rank {
+        for row in 0..rows {
+            write_f32(
+                &mut payload,
+                offset,
+                source.a_values[row * source.factor_rank + component],
+            )?;
+            offset += 4;
+        }
+    }
+    for component in 0..source.factor_rank {
+        for col in 0..cols {
+            write_f32(
+                &mut payload,
+                offset,
+                source.b_values[component * cols + col],
+            )?;
+            offset += 4;
+        }
+    }
+    Ok(payload)
+}
+
 fn build_low_rank_tensor_payload(
     base_tensor: &crate::blend::ParsedTensor,
     target_tensor: &crate::blend::ParsedTensor,
@@ -1619,12 +1795,18 @@ fn adapter_apply_status(base_report: &ValidationReport) -> &'static str {
     }
 }
 
-fn low_rank_adapter_apply_status(base_report: &ValidationReport) -> &'static str {
+/// Returns the runtime apply-status label for an ALR1 package over a base model.
+pub(crate) fn low_rank_adapter_apply_status(base_report: &ValidationReport) -> &'static str {
     if base_report.quantization_label() == "f32" {
         LOW_RANK_APPLY_STATUS_F32
     } else {
         LOW_RANK_APPLY_STATUS_QUANTIZED
     }
+}
+
+/// Reads the stored ALR1 package checksum from the fixed header field.
+pub(crate) fn low_rank_adapter_checksum(adapter_bytes: &[u8]) -> io::Result<u64> {
+    read_u64(adapter_bytes, CHECKSUM_OFFSET)
 }
 
 fn build_fuse_receipt_text(
@@ -2061,7 +2243,8 @@ fn validate_sparse_adapter_bytes(bytes: &[u8]) -> io::Result<()> {
     Ok(())
 }
 
-fn validate_low_rank_adapter_bytes(bytes: &[u8]) -> io::Result<()> {
+/// Validates the standalone ALR1 binary structure and checksums.
+pub(crate) fn validate_low_rank_adapter_bytes(bytes: &[u8]) -> io::Result<()> {
     if bytes.get(0..4) != Some(LOW_RANK_MAGIC) {
         return Err(invalid("low-rank adapter artifact has invalid magic"));
     }

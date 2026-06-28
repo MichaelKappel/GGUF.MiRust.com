@@ -2,6 +2,9 @@
 
 use crate::errors::ErrorCode;
 
+const ASSEMBLY_STATE_SEED: u64 = 0x6173_7365_6d62_6c79;
+const ASSEMBLY_MIX_PRIME: u64 = 0x100000001b3;
+
 /// Runtime diagnostics rendered for the browser UI.
 pub struct Diagnostics {
     /// Last model load time in milliseconds.
@@ -18,6 +21,12 @@ pub struct Diagnostics {
     pub kv_cache_length: usize,
     /// Active quantization mode.
     pub active_quantization_mode: &'static str,
+    /// Count of adapter packages applied to the currently loaded model.
+    pub adapter_apply_count: u32,
+    /// Last Rust-accepted adapter package checksum.
+    pub last_adapter_checksum: u64,
+    /// Compact Rust-owned digest of the loaded model plus applied adapter stack.
+    pub assembly_state_checksum: u64,
     /// Last error code.
     pub last_error: ErrorCode,
     /// Whether a model is loaded.
@@ -50,6 +59,9 @@ impl Default for Diagnostics {
             peak_scratch_arena_usage: 0,
             kv_cache_length: 0,
             active_quantization_mode: "none",
+            adapter_apply_count: 0,
+            last_adapter_checksum: 0,
+            assembly_state_checksum: 0,
             last_error: ErrorCode::Ok,
             model_loaded: false,
             tokenizer_output: String::new(),
@@ -78,6 +90,30 @@ impl Diagnostics {
         self.top_k_candidates.clear();
     }
 
+    /// Records a freshly loaded model as the start of a runtime assembly state.
+    pub fn record_model_loaded(&mut self, model_checksum: u64, quantization: &str) {
+        self.adapter_apply_count = 0;
+        self.last_adapter_checksum = 0;
+        let mut digest = mix64(ASSEMBLY_STATE_SEED, model_checksum);
+        digest = hash_bytes(digest, quantization.as_bytes());
+        self.assembly_state_checksum = mix64(digest, u64::from(self.adapter_apply_count));
+    }
+
+    /// Records a Rust-validated adapter package that was applied to the loaded model.
+    pub fn record_adapter_apply(&mut self, adapter_checksum: u64) {
+        self.adapter_apply_count = self.adapter_apply_count.saturating_add(1);
+        self.last_adapter_checksum = adapter_checksum;
+        let with_adapter = mix64(self.assembly_state_checksum, adapter_checksum);
+        self.assembly_state_checksum = mix64(with_adapter, u64::from(self.adapter_apply_count));
+    }
+
+    /// Clears runtime assembly fields when no model is loaded.
+    pub fn reset_runtime_assembly(&mut self) {
+        self.adapter_apply_count = 0;
+        self.last_adapter_checksum = 0;
+        self.assembly_state_checksum = 0;
+    }
+
     /// Records an error for the next diagnostics render.
     pub fn record_error(&mut self, error: ErrorCode) {
         self.last_error = error;
@@ -87,7 +123,7 @@ impl Diagnostics {
     pub fn render_json(&self, out: &mut Vec<u8>) {
         out.clear();
         let text = format!(
-            "{{\n  \"model_load_time_ms\": {},\n  \"prompt_token_count\": {},\n  \"generated_token_count\": {},\n  \"tokens_per_second\": {:.3},\n  \"peak_scratch_arena_usage\": {},\n  \"kv_cache_length\": {},\n  \"active_quantization_mode\": \"{}\",\n  \"model_loaded\": {},\n  \"last_error\": \"{}\",\n  \"tokenizer_output\": \"{}\",\n  \"logits_summary\": \"{}\",\n  \"selected_next_token\": {},\n  \"top_k_candidates\": \"{}\",\n  \"sampling_temperature\": {:.3},\n  \"sampling_top_k\": {},\n  \"sampling_top_p\": {:.3},\n  \"sampling_seed\": {}\n}}",
+            "{{\n  \"model_load_time_ms\": {},\n  \"prompt_token_count\": {},\n  \"generated_token_count\": {},\n  \"tokens_per_second\": {:.3},\n  \"peak_scratch_arena_usage\": {},\n  \"kv_cache_length\": {},\n  \"active_quantization_mode\": \"{}\",\n  \"adapter_apply_count\": {},\n  \"last_adapter_checksum\": \"0x{:016x}\",\n  \"assembly_state_checksum\": \"0x{:016x}\",\n  \"model_loaded\": {},\n  \"last_error\": \"{}\",\n  \"tokenizer_output\": \"{}\",\n  \"logits_summary\": \"{}\",\n  \"selected_next_token\": {},\n  \"top_k_candidates\": \"{}\",\n  \"sampling_temperature\": {:.3},\n  \"sampling_top_k\": {},\n  \"sampling_top_p\": {:.3},\n  \"sampling_seed\": {}\n}}",
             self.model_load_time_ms,
             self.prompt_token_count,
             self.generated_token_count,
@@ -95,6 +131,9 @@ impl Diagnostics {
             self.peak_scratch_arena_usage,
             self.kv_cache_length,
             self.active_quantization_mode,
+            self.adapter_apply_count,
+            self.last_adapter_checksum,
+            self.assembly_state_checksum,
             if self.model_loaded { "true" } else { "false" },
             self.last_error.message(),
             json_escape(&self.tokenizer_output),
@@ -108,6 +147,18 @@ impl Diagnostics {
         );
         out.extend_from_slice(text.as_bytes());
     }
+}
+
+fn hash_bytes(mut acc: u64, bytes: &[u8]) -> u64 {
+    for byte in bytes {
+        acc = mix64(acc, u64::from(*byte));
+    }
+    acc
+}
+
+fn mix64(acc: u64, value: u64) -> u64 {
+    let mixed = acc ^ value.wrapping_add(0x9e3779b97f4a7c15);
+    mixed.rotate_left(17).wrapping_mul(ASSEMBLY_MIX_PRIME) ^ (mixed >> 31)
 }
 
 fn json_escape(input: &str) -> String {
@@ -159,5 +210,28 @@ mod tests {
         assert!(text.contains("quote \\\" slash \\\\ bell \\u0007 next\\nline"));
         assert!(text.contains("separator \\u2028 paragraph \\u2029"));
         assert!(text.contains("tab\\tform\\fback\\b"));
+        assert!(text.contains("\"adapter_apply_count\": 0"));
+        assert!(text.contains("\"last_adapter_checksum\": \"0x0000000000000000\""));
+        assert!(text.contains("\"assembly_state_checksum\": \"0x0000000000000000\""));
+    }
+
+    #[test]
+    fn diagnostics_records_runtime_assembly_state() {
+        let mut diagnostics = Diagnostics::default();
+        diagnostics.record_model_loaded(0x1234_5678_9abc_def0, "q4_0");
+        let loaded_checksum = diagnostics.assembly_state_checksum;
+        assert_ne!(loaded_checksum, 0);
+        assert_eq!(diagnostics.adapter_apply_count, 0);
+        assert_eq!(diagnostics.last_adapter_checksum, 0);
+
+        diagnostics.record_adapter_apply(0x0fed_cba9_8765_4321);
+        assert_eq!(diagnostics.adapter_apply_count, 1);
+        assert_eq!(diagnostics.last_adapter_checksum, 0x0fed_cba9_8765_4321);
+        assert_ne!(diagnostics.assembly_state_checksum, loaded_checksum);
+
+        diagnostics.reset_runtime_assembly();
+        assert_eq!(diagnostics.adapter_apply_count, 0);
+        assert_eq!(diagnostics.last_adapter_checksum, 0);
+        assert_eq!(diagnostics.assembly_state_checksum, 0);
     }
 }

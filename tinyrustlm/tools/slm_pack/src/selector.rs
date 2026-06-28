@@ -38,6 +38,11 @@ const MODULE_PLAN_STATUS: &str = "receipt-validated";
 const MODULE_PLAN_KIND: &str = "browser-local-module-plan";
 const MODULE_PLAN_STRATEGY: &str = "selector-entry-self-assembly";
 const MODULE_PLAN_RESOURCE_CLASS: &str = "browser-constrained-local-assembly";
+const MODULE_PLAN_PROFILE: &str = "browser-constrained-v1";
+const MODULE_PLAN_EXECUTION_PROFILE: &str = "single-threaded-wasm-local-v1";
+const MODULE_PLAN_FETCH_POLICY: &str = "local-no-store-v1";
+const MODULE_PLAN_ORIGIN_POLICY: &str = "same-origin-loopback-local-v1";
+const MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET: u64 = 64 * 1024;
 const ADAPTER_KEY_SUFFIXES: &[&str] = &[
     "adapter_path",
     "adapter_manifest_path",
@@ -76,8 +81,13 @@ const MODULE_PLAN_KEY_SUFFIXES: &[&str] = &[
     "module_plan_kind",
     "module_plan_strategy",
     "module_plan_resource_class",
+    "module_plan_profile",
+    "module_plan_execution_profile",
+    "module_plan_fetch_policy",
+    "module_plan_origin_policy",
     "module_plan_model_byte_budget",
     "module_plan_adapter_byte_budget",
+    "module_plan_runtime_scratch_byte_budget",
     "module_plan_module_count",
 ];
 
@@ -159,8 +169,13 @@ pub(crate) struct RegistryModulePlanRoute {
     pub(crate) kind: String,
     pub(crate) strategy: String,
     pub(crate) resource_class: String,
+    pub(crate) profile: String,
+    pub(crate) execution_profile: String,
+    pub(crate) fetch_policy: String,
+    pub(crate) origin_policy: String,
     pub(crate) model_byte_budget: u64,
     pub(crate) adapter_byte_budget: u64,
+    pub(crate) runtime_scratch_byte_budget: u64,
     pub(crate) receipt_checksum: String,
     pub(crate) module_count: usize,
 }
@@ -641,6 +656,26 @@ pub(crate) fn build_registry_text_with_module_plan_routes(
             );
             push_line(
                 &mut text,
+                &format!("{prefix}.module_plan_profile"),
+                &module_plan.profile,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_execution_profile"),
+                &module_plan.execution_profile,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_fetch_policy"),
+                &module_plan.fetch_policy,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_origin_policy"),
+                &module_plan.origin_policy,
+            );
+            push_line(
+                &mut text,
                 &format!("{prefix}.module_plan_model_byte_budget"),
                 &module_plan.model_byte_budget.to_string(),
             );
@@ -648,6 +683,11 @@ pub(crate) fn build_registry_text_with_module_plan_routes(
                 &mut text,
                 &format!("{prefix}.module_plan_adapter_byte_budget"),
                 &module_plan.adapter_byte_budget.to_string(),
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_runtime_scratch_byte_budget"),
+                &module_plan.runtime_scratch_byte_budget.to_string(),
             );
             push_line(
                 &mut text,
@@ -1163,6 +1203,16 @@ fn module_plan_routes_from_registry(
             strategy: require_key(fields, &format!("{prefix}.module_plan_strategy"))?.to_string(),
             resource_class: require_key(fields, &format!("{prefix}.module_plan_resource_class"))?
                 .to_string(),
+            profile: require_key(fields, &format!("{prefix}.module_plan_profile"))?.to_string(),
+            execution_profile: require_key(
+                fields,
+                &format!("{prefix}.module_plan_execution_profile"),
+            )?
+            .to_string(),
+            fetch_policy: require_key(fields, &format!("{prefix}.module_plan_fetch_policy"))?
+                .to_string(),
+            origin_policy: require_key(fields, &format!("{prefix}.module_plan_origin_policy"))?
+                .to_string(),
             model_byte_budget: parse_module_plan_byte_budget(
                 fields,
                 &format!("{prefix}.module_plan_model_byte_budget"),
@@ -1172,6 +1222,11 @@ fn module_plan_routes_from_registry(
                 fields,
                 &format!("{prefix}.module_plan_adapter_byte_budget"),
                 "adapter",
+            )?,
+            runtime_scratch_byte_budget: parse_module_plan_byte_budget(
+                fields,
+                &format!("{prefix}.module_plan_runtime_scratch_byte_budget"),
+                "runtime scratch",
             )?,
             module_count: require_key(fields, &format!("{prefix}.module_plan_module_count"))?
                 .parse::<usize>()
@@ -1408,6 +1463,24 @@ pub(crate) fn validate_registry_module_plan_route(
             "selector registry module plan resource class is invalid",
         ));
     }
+    if route.profile != MODULE_PLAN_PROFILE {
+        return Err(invalid("selector registry module plan profile is invalid"));
+    }
+    if route.execution_profile != MODULE_PLAN_EXECUTION_PROFILE {
+        return Err(invalid(
+            "selector registry module plan execution profile is invalid",
+        ));
+    }
+    if route.fetch_policy != MODULE_PLAN_FETCH_POLICY {
+        return Err(invalid(
+            "selector registry module plan fetch policy is invalid",
+        ));
+    }
+    if route.origin_policy != MODULE_PLAN_ORIGIN_POLICY {
+        return Err(invalid(
+            "selector registry module plan origin policy is invalid",
+        ));
+    }
     if route.model_byte_budget == 0 || route.model_byte_budget > SELECTOR_MODEL_BYTE_BUDGET {
         return Err(invalid(
             "selector registry module plan model byte budget is invalid",
@@ -1417,6 +1490,11 @@ pub(crate) fn validate_registry_module_plan_route(
     {
         return Err(invalid(
             "selector registry module plan adapter byte budget is invalid",
+        ));
+    }
+    if route.runtime_scratch_byte_budget != MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET {
+        return Err(invalid(
+            "selector registry module plan runtime scratch byte budget is invalid",
         ));
     }
     if !(5..=32).contains(&route.module_count) {
@@ -2076,11 +2154,19 @@ mod tests {
         assert!(registry.contains("entry.0.module_plan_strategy=selector-entry-self-assembly"));
         assert!(registry
             .contains("entry.0.module_plan_resource_class=browser-constrained-local-assembly"));
+        assert!(registry.contains("entry.0.module_plan_profile=browser-constrained-v1"));
+        assert!(registry
+            .contains("entry.0.module_plan_execution_profile=single-threaded-wasm-local-v1"));
+        assert!(registry.contains("entry.0.module_plan_fetch_policy=local-no-store-v1"));
+        assert!(
+            registry.contains("entry.0.module_plan_origin_policy=same-origin-loopback-local-v1")
+        );
         assert!(registry.contains(&format!(
             "entry.0.module_plan_model_byte_budget={}",
             tiny_fixture_f32_bytes().len()
         )));
         assert!(registry.contains("entry.0.module_plan_adapter_byte_budget=1048576"));
+        assert!(registry.contains("entry.0.module_plan_runtime_scratch_byte_budget=65536"));
         assert!(registry.contains("entry.0.module_plan_module_count=6"));
     }
 
@@ -2152,6 +2238,253 @@ mod tests {
 
         assert_eq!(error.kind(), io::ErrorKind::InvalidData);
         assert!(error.to_string().contains("adapter byte budget"));
+    }
+
+    #[test]
+    fn rejects_module_plan_profile_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_profile=browser-constrained-v1",
+            "entry.0.module_plan_profile=desktop-expanded-v1",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("profile"));
+    }
+
+    #[test]
+    fn rejects_module_plan_execution_profile_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_execution_profile=single-threaded-wasm-local-v1",
+            "entry.0.module_plan_execution_profile=worker-pooled-wasm-v1",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("execution profile"));
+    }
+
+    #[test]
+    fn rejects_module_plan_fetch_policy_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_fetch_policy=local-no-store-v1",
+            "entry.0.module_plan_fetch_policy=cache-default-v1",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("fetch policy"));
+    }
+
+    #[test]
+    fn rejects_module_plan_origin_policy_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_origin_policy=same-origin-loopback-local-v1",
+            "entry.0.module_plan_origin_policy=cross-origin-network-v1",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("origin policy"));
+    }
+
+    #[test]
+    fn rejects_module_plan_runtime_scratch_budget_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_runtime_scratch_byte_budget=65536",
+            "entry.0.module_plan_runtime_scratch_byte_budget=65535",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("runtime scratch byte budget"));
+    }
+
+    #[test]
+    fn rejects_module_plan_missing_runtime_scratch_budget() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_runtime_scratch_byte_budget=65536\n",
+            "",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error
+            .to_string()
+            .contains("module_plan_runtime_scratch_byte_budget"));
+    }
+
+    #[test]
+    fn rejects_module_plan_malformed_runtime_scratch_budget() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_runtime_scratch_byte_budget=65536",
+            "entry.0.module_plan_runtime_scratch_byte_budget=065536",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("runtime scratch byte budget"));
     }
 
     #[test]
@@ -2449,8 +2782,13 @@ mod tests {
             kind: MODULE_PLAN_KIND.to_string(),
             strategy: MODULE_PLAN_STRATEGY.to_string(),
             resource_class: MODULE_PLAN_RESOURCE_CLASS.to_string(),
+            profile: MODULE_PLAN_PROFILE.to_string(),
+            execution_profile: MODULE_PLAN_EXECUTION_PROFILE.to_string(),
+            fetch_policy: MODULE_PLAN_FETCH_POLICY.to_string(),
+            origin_policy: MODULE_PLAN_ORIGIN_POLICY.to_string(),
             model_byte_budget: tiny_fixture_f32_bytes().len() as u64,
             adapter_byte_budget: ADAPTER_AUTO_APPLY_BYTE_BUDGET,
+            runtime_scratch_byte_budget: MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET,
             receipt_checksum: "0x00000000000000f0".to_string(),
             module_count,
         }

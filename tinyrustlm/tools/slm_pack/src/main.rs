@@ -24,6 +24,7 @@ mod slm_validate;
 mod sparse_delta;
 mod tensor_writer;
 mod tokenizer_writer;
+mod trained_adapter_source;
 mod trained_source;
 mod writer;
 
@@ -2128,6 +2129,20 @@ fn run() -> io::Result<()> {
         let shape_name = args.next().unwrap_or_else(|| "tiny-fixture".to_string());
         return trained_source::write_source_template_path(Path::new(&output_dir), &shape_name);
     }
+    if output == "adapter-source-template" {
+        let Some(output_dir) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "adapter-source-template requires an output adapter source directory",
+            ));
+        };
+        let shape_name = args.next().unwrap_or_else(|| "tiny-fixture".to_string());
+        return trained_adapter_source::write_adapter_source_template_path(
+            Path::new(&output_dir),
+            &shape_name,
+        );
+    }
     if output == "validate-source" {
         let Some(input_dir) = args.next() else {
             print_usage();
@@ -2137,6 +2152,88 @@ fn run() -> io::Result<()> {
             ));
         };
         return trained_source::validate_source_path(Path::new(&input_dir));
+    }
+    if output == "validate-adapter-source" {
+        let Some(input_dir) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-adapter-source requires an input adapter source directory",
+            ));
+        };
+        return trained_adapter_source::validate_adapter_source_path(Path::new(&input_dir));
+    }
+    if output == "convert-adapter-source" {
+        let Some(input_dir) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "convert-adapter-source requires an input adapter source directory",
+            ));
+        };
+        let Some(base_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "convert-adapter-source requires a base parent .slm path",
+            ));
+        };
+        let Some(output_adapter) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "convert-adapter-source requires an output ALR1 adapter path",
+            ));
+        };
+        let Some(output_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "convert-adapter-source requires an output ALR1 manifest path",
+            ));
+        };
+        return trained_adapter_source::convert_adapter_source_path(
+            Path::new(&input_dir),
+            Path::new(&base_parent),
+            Path::new(&output_adapter),
+            Path::new(&output_manifest),
+        );
+    }
+    if output == "validate-converted-adapter-source" {
+        let Some(input_dir) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-converted-adapter-source requires an input adapter source directory",
+            ));
+        };
+        let Some(base_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-converted-adapter-source requires a base parent .slm path",
+            ));
+        };
+        let Some(input_adapter) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-converted-adapter-source requires an input ALR1 adapter path",
+            ));
+        };
+        let Some(input_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-converted-adapter-source requires an input ALR1 manifest path",
+            ));
+        };
+        return trained_adapter_source::validate_converted_adapter_source_path(
+            Path::new(&input_dir),
+            Path::new(&base_parent),
+            Path::new(&input_adapter),
+            Path::new(&input_manifest),
+        );
     }
     if output == "convert-trained" {
         let Some(input_dir) = args.next() else {
@@ -2290,6 +2387,9 @@ fn split_parent_admission_args(
 fn print_usage() {
     eprintln!(
         "usage: tinyrustlm-slm-pack <output.slm> [tiny-fixture|tiny-fixture-tied|tiny-fixture-q8|tiny-fixture-q4|tiny-fixture-bpe|tinylm16-f32|tinylm16-q8|tinylm16-q4]\n       tinyrustlm-slm-pack validate <input.slm>\n       tinyrustlm-slm-pack browser-multi-parent-bundle <output-tinyrustlm-root> [f32|q8_0|q4_0|all]\n       tinyrustlm-slm-pack runtime-wasm-manifest <input.wasm> <output.wasm.manifest>\n       tinyrustlm-slm-pack compatibility <left-parent.slm> <right-parent.slm> [output.compat]\n       tinyrustlm-slm-pack lineage-template <input.compat> <output.lineage> <candidate-id> <operator-id> [resource-budget]\n       tinyrustlm-slm-pack validate-lineage <input.compat> <input.lineage>\n       tinyrustlm-slm-pack blend-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <output.slm> <output.operator> [parent0-weight-ppm]\n       tinyrustlm-slm-pack validate-blend-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm]\n       tinyrustlm-slm-pack validate-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack sparse-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm] [keep-ppm]\n       tinyrustlm-slm-pack validate-sparse-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.adapter> <output.adapter.manifest>\n       tinyrustlm-slm-pack validate-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest>\n       tinyrustlm-slm-pack sparse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.adapter> <output.adapter.manifest> [delta-weight-ppm] [keep-ppm]\n       tinyrustlm-slm-pack validate-sparse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest>\n       tinyrustlm-slm-pack fuse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest> <output.slm> <output.operator>\n       tinyrustlm-slm-pack validate-fuse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack candidate-manifest <input.compat> <input.lineage> <candidate.slm> <output.candidate>\n       tinyrustlm-slm-pack validate-candidate <input.compat> <input.lineage> <candidate.slm> <input.candidate>\n       tinyrustlm-slm-pack promotion-template <input.compat> <input.lineage> <candidate.slm> <input.candidate> <output.promotion> [promoter-id] [promotion-scope]\n       tinyrustlm-slm-pack validate-promotion <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion>\n       tinyrustlm-slm-pack admission-record <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion> <input.manifest> <input.runtime> <input.eval> <output.admission> [selector-id]\n       tinyrustlm-slm-pack validate-admission <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion> <input.manifest> <input.runtime> <input.eval> <input.admission>\n       tinyrustlm-slm-pack promotion-ledger <output.ledger> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-promotion-ledger <input.ledger> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack selector-registry <output.registry> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-selector-registry <input.registry> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack manifest <input.slm> <output.manifest> [deterministic-smoke|converted-trained]\n       tinyrustlm-slm-pack validate-manifest <input.slm> <input.manifest>\n       tinyrustlm-slm-pack runtime-smoke <input.slm> <input.manifest> <output.runtime>\n       tinyrustlm-slm-pack validate-runtime-smoke <input.slm> <input.manifest> <input.runtime>\n       tinyrustlm-slm-pack eval-template <input.slm> <input.manifest> <output.eval> [assistant-quality]\n       tinyrustlm-slm-pack quality-gate <input.slm> <input.manifest> <runtime-smoke|assistant-quality> [input.eval]\n       tinyrustlm-slm-pack source-template <output-source-dir> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied]\n       tinyrustlm-slm-pack validate-source <input-source-dir>\n       tinyrustlm-slm-pack convert-trained <input-source-dir> <output.slm> [f32|q8_0|q4_0]"
+    );
+    eprintln!(
+        "       tinyrustlm-slm-pack adapter-source-template <output-adapter-source-dir> [tiny-fixture|tiny-fixture-tied|tinylm16|tinylm16-tied]\n       tinyrustlm-slm-pack validate-adapter-source <input-adapter-source-dir>\n       tinyrustlm-slm-pack convert-adapter-source <input-adapter-source-dir> <base-parent.slm> <output.alr1> <output.alr1.manifest>\n       tinyrustlm-slm-pack validate-converted-adapter-source <input-adapter-source-dir> <base-parent.slm> <input.alr1> <input.alr1.manifest>"
     );
     eprintln!(
         "       tinyrustlm-slm-pack low-rank-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.adapter> <output.adapter.manifest> [rank-limit]\n       tinyrustlm-slm-pack validate-low-rank-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest>"

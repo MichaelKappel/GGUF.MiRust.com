@@ -412,8 +412,23 @@ impl Model {
         }
     }
 
-    /// Applies an `ADP1` f32 adapter-delta package to loaded f32, q8_0, or q4_0 tensors.
+    /// Validates an `ADP1`, `ASP1`, or `ALR1` adapter-delta package for this loaded model.
+    pub fn validate_adapter_delta(&self, bytes: &[u8]) -> Result<(), ErrorCode> {
+        let adapter = self.parse_adapter_delta(bytes)?;
+        self.validate_adapter_payloads(bytes, &adapter)
+    }
+
+    /// Applies an `ADP1`, `ASP1`, or `ALR1` adapter-delta package to loaded tensors.
     pub fn apply_adapter_delta(&mut self, bytes: &[u8]) -> Result<(), ErrorCode> {
+        let adapter = self.parse_adapter_delta(bytes)?;
+        self.validate_adapter_payloads(bytes, &adapter)?;
+        for (tensor, payload) in self.tensors.iter_mut().zip(adapter.entries()) {
+            tensor.apply_adapter_payload(bytes, payload)?;
+        }
+        Ok(())
+    }
+
+    fn parse_adapter_delta(&self, bytes: &[u8]) -> Result<AdapterDelta, ErrorCode> {
         let expected = AdapterExpected {
             flags: self.parsed.header.flags,
             tensors: &self.parsed.tensors,
@@ -421,12 +436,16 @@ impl Model {
             tensor_layout_checksum: self.tensor_layout_checksum,
             tokenizer_checksum: self.tokenizer_checksum,
         };
-        let adapter = AdapterDelta::parse(bytes, &expected)?;
+        AdapterDelta::parse(bytes, &expected)
+    }
+
+    fn validate_adapter_payloads(
+        &self,
+        bytes: &[u8],
+        adapter: &AdapterDelta,
+    ) -> Result<(), ErrorCode> {
         for (tensor, payload) in self.tensors.iter().zip(adapter.entries()) {
             tensor.validate_adapter_payload(bytes, payload)?;
-        }
-        for (tensor, payload) in self.tensors.iter_mut().zip(adapter.entries()) {
-            tensor.apply_adapter_payload(bytes, payload)?;
         }
         Ok(())
     }
@@ -1463,6 +1482,26 @@ mod tests {
         model.copy_tensor_f32("output.weight", &mut after).unwrap();
         assert_eq!(after[0], before[0] + 0.25);
         assert_eq!(after[1], before[1]);
+    }
+
+    #[test]
+    fn validates_f32_adapter_delta_without_mutating_tensor() {
+        let model = Model::load(include_bytes!("../../models/tiny-test-model.slm")).unwrap();
+        let mut before = vec![0.0f32; 260 * 8];
+        model.copy_tensor_f32("output.weight", &mut before).unwrap();
+        let adapter = build_adapter_bytes(&model, |_tensor_index, value_index, tensor| {
+            if tensor.name_hash == name_hash("output.weight") && value_index == 0 {
+                0.25
+            } else {
+                0.0
+            }
+        });
+
+        model.validate_adapter_delta(&adapter).unwrap();
+
+        let mut after = vec![0.0f32; 260 * 8];
+        model.copy_tensor_f32("output.weight", &mut after).unwrap();
+        assert_eq!(after, before);
     }
 
     #[test]

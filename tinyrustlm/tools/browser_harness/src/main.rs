@@ -60,9 +60,13 @@ const REQUIRED_IDS: &[&str] = &[
     "modulePlanState",
     "modulePlanKind",
     "modulePlanResource",
+    "modulePlanExecution",
+    "modulePlanFetch",
+    "modulePlanOrigin",
     "modulePlanModules",
     "modulePlanModelBudget",
     "modulePlanAdapterBudget",
+    "modulePlanScratchBudget",
     "modulePlanBytes",
     "modulePlanChecksums",
     "modulePlanSlots",
@@ -105,6 +109,7 @@ const REQUIRED_JS_EXPORTS: &[&str] = &[
     ".load_model(",
     ".generate(",
     ".generate_next_token(",
+    ".validate_adapter_delta(",
     ".apply_adapter_delta(",
     ".last_result_ptr(",
     ".last_result_len(",
@@ -122,6 +127,7 @@ const REQUIRED_WASM_EXPORTS: &[&str] = &[
     "generate",
     "set_sampling_config",
     "generate_next_token",
+    "validate_adapter_delta",
     "apply_adapter_delta",
     "last_result_ptr",
     "last_result_len",
@@ -346,6 +352,18 @@ fn audit_static_contract(root: &Path, checks: &mut Vec<String>) -> Result<(), Ha
         "app.js module plan resource class",
         &js,
         "browser-constrained-local-assembly",
+    )?;
+    require_contains("app.js module plan profile", &js, "browser-constrained-v1")?;
+    require_contains(
+        "app.js module plan execution profile",
+        &js,
+        "single-threaded-wasm-local-v1",
+    )?;
+    require_contains("app.js module plan fetch policy", &js, "local-no-store-v1")?;
+    require_contains(
+        "app.js module plan origin policy",
+        &js,
+        "same-origin-loopback-local-v1",
     )?;
     for export in REQUIRED_JS_EXPORTS {
         require_contains("app.js wasm export", &js, export)?;

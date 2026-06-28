@@ -22,10 +22,12 @@ const ADAPTER_ARTIFACT_VERSION: &str = "1";
 const ADAPTER_ARTIFACT_KIND: &str = "raw-f32-task-delta-v1";
 const SPARSE_ADAPTER_ARTIFACT_KIND: &str = "sparse-f32-task-delta-v1";
 const LOW_RANK_ADAPTER_ARTIFACT_KIND: &str = "low-rank-f32-task-delta-v1";
+const SOURCE_LOW_RANK_ADAPTER_ARTIFACT_KIND: &str = "trained-source-low-rank-f32-v1";
 const ADAPTER_STATUS: &str = "artifact-written";
 const ADAPTER_DTYPE: &str = "f32-delta";
 const SPARSE_ADAPTER_DTYPE: &str = "sparse-f32-delta";
 const LOW_RANK_ADAPTER_DTYPE: &str = "low-rank-f32-delta";
+const SOURCE_LOW_RANK_ADAPTER_DTYPE: &str = "low-rank-f32-source-delta";
 const ADAPTER_APPLY_STATUS_F32: &str = "runtime-f32-compatible-or-fuse-to-slm";
 const ADAPTER_APPLY_STATUS_QUANTIZED: &str = "runtime-q8-q4-compatible-or-fuse-to-slm";
 const LOW_RANK_APPLY_STATUS_F32: &str = "runtime-f32-compatible-low-rank";
@@ -270,9 +272,19 @@ fn validate_member_manifest(
         ADAPTER_ARTIFACT_VERSION,
     )?;
     let format = adapter_format_for_route(&route.adapter_path)?;
-    require_equal(fields, "adapter_artifact_kind", format.artifact_kind)?;
+    require_one_of(
+        fields,
+        "adapter_artifact_kind",
+        format.artifact_kinds,
+        "adapter family member artifact kind is invalid",
+    )?;
     require_equal(fields, "adapter_status", ADAPTER_STATUS)?;
-    require_equal(fields, "adapter_dtype", format.dtype)?;
+    require_one_of(
+        fields,
+        "adapter_dtype",
+        format.dtypes,
+        "adapter family member dtype is invalid",
+    )?;
     let base_quantization = require_key(fields, "adapter_base_quantization")?;
     validate_apply_status_for_quantization(&format, &route.apply_status, &base_quantization)?;
     require_equal(fields, "adapter_apply_status", &route.apply_status)?;
@@ -294,8 +306,8 @@ fn validate_member_manifest(
 }
 
 struct AdapterManifestFormat {
-    artifact_kind: &'static str,
-    dtype: &'static str,
+    artifact_kinds: &'static [&'static str],
+    dtypes: &'static [&'static str],
     apply_status_f32: &'static str,
     apply_status_quantized: &'static str,
 }
@@ -303,24 +315,27 @@ struct AdapterManifestFormat {
 fn adapter_format_for_route(adapter_path: &str) -> io::Result<AdapterManifestFormat> {
     if adapter_path.ends_with(".adp1") {
         return Ok(AdapterManifestFormat {
-            artifact_kind: ADAPTER_ARTIFACT_KIND,
-            dtype: ADAPTER_DTYPE,
+            artifact_kinds: &[ADAPTER_ARTIFACT_KIND],
+            dtypes: &[ADAPTER_DTYPE],
             apply_status_f32: ADAPTER_APPLY_STATUS_F32,
             apply_status_quantized: ADAPTER_APPLY_STATUS_QUANTIZED,
         });
     }
     if adapter_path.ends_with(".asp1") {
         return Ok(AdapterManifestFormat {
-            artifact_kind: SPARSE_ADAPTER_ARTIFACT_KIND,
-            dtype: SPARSE_ADAPTER_DTYPE,
+            artifact_kinds: &[SPARSE_ADAPTER_ARTIFACT_KIND],
+            dtypes: &[SPARSE_ADAPTER_DTYPE],
             apply_status_f32: ADAPTER_APPLY_STATUS_F32,
             apply_status_quantized: ADAPTER_APPLY_STATUS_QUANTIZED,
         });
     }
     if adapter_path.ends_with(".alr1") {
         return Ok(AdapterManifestFormat {
-            artifact_kind: LOW_RANK_ADAPTER_ARTIFACT_KIND,
-            dtype: LOW_RANK_ADAPTER_DTYPE,
+            artifact_kinds: &[
+                LOW_RANK_ADAPTER_ARTIFACT_KIND,
+                SOURCE_LOW_RANK_ADAPTER_ARTIFACT_KIND,
+            ],
+            dtypes: &[LOW_RANK_ADAPTER_DTYPE, SOURCE_LOW_RANK_ADAPTER_DTYPE],
             apply_status_f32: LOW_RANK_APPLY_STATUS_F32,
             apply_status_quantized: LOW_RANK_APPLY_STATUS_QUANTIZED,
         });
@@ -342,6 +357,19 @@ fn validate_apply_status_for_quantization(
         return Err(invalid(
             "adapter family apply status does not match base quantization",
         ));
+    }
+    Ok(())
+}
+
+fn require_one_of(
+    fields: &HashMap<String, String>,
+    key: &str,
+    accepted: &[&str],
+    error: &str,
+) -> io::Result<()> {
+    let actual = require_key(fields, key)?;
+    if !accepted.contains(&actual) {
+        return Err(invalid(error));
     }
     Ok(())
 }
@@ -417,6 +445,16 @@ fn push_member_lines(
         text,
         &format!("{prefix}.manifest_bytes"),
         &member.manifest_text.len().to_string(),
+    );
+    push_line(
+        text,
+        &format!("{prefix}.kind"),
+        require_key(&member.fields, "adapter_artifact_kind")?,
+    );
+    push_line(
+        text,
+        &format!("{prefix}.dtype"),
+        require_key(&member.fields, "adapter_dtype")?,
     );
     for key in SHARED_IDENTITY_KEYS {
         push_line(
@@ -668,6 +706,66 @@ mod tests {
         let receipt = fs::read_to_string(&receipt_path).unwrap();
         assert!(receipt.contains("adapter.1.path=../models/second.alr1"));
         assert!(receipt.contains("adapter.1.apply_status=runtime-f32-compatible-low-rank"));
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn writes_and_validates_source_backed_low_rank_adapter_family_member() {
+        let dir = unique_dir("source-low-rank-family");
+        fs::create_dir_all(&dir).unwrap();
+        let first_manifest = member_manifest("0x00000000000000aa", "0x00000000000000f1");
+        let second_manifest = member_manifest_with_format(
+            "0x00000000000000bc",
+            "0x00000000000000f1",
+            "f32",
+            LOW_RANK_APPLY_STATUS_F32,
+            SOURCE_LOW_RANK_ADAPTER_ARTIFACT_KIND,
+            SOURCE_LOW_RANK_ADAPTER_DTYPE,
+        );
+        let first_manifest_path = dir.join("first.adp1.manifest");
+        let second_manifest_path = dir.join("source.alr1.manifest");
+        fs::write(&first_manifest_path, &first_manifest).unwrap();
+        fs::write(&second_manifest_path, &second_manifest).unwrap();
+        let first = route(
+            "../models/first.adp1",
+            "First ADP1",
+            "0x00000000000000aa",
+            &first_manifest,
+        );
+        let second = route_with_apply_status(
+            "../models/source.alr1",
+            "Source ALR1",
+            "0x00000000000000bc",
+            &second_manifest,
+            LOW_RANK_APPLY_STATUS_F32,
+        );
+        let inputs = [
+            AdapterFamilyInput {
+                route: &first,
+                manifest_path: &first_manifest_path,
+            },
+            AdapterFamilyInput {
+                route: &second,
+                manifest_path: &second_manifest_path,
+            },
+        ];
+        let receipt_path = dir.join("candidate-source-low-rank.adapter-family.receipt");
+
+        write_receipt_path(
+            "candidate-a",
+            "Candidate source ALR1 family",
+            "../models/candidate-source-low-rank.adapter-family.receipt",
+            &receipt_path,
+            &inputs,
+        )
+        .unwrap();
+
+        validate_receipt_path(&receipt_path, &inputs).unwrap();
+        let receipt = fs::read_to_string(&receipt_path).unwrap();
+        assert!(receipt.contains("adapter.1.path=../models/source.alr1"));
+        assert!(receipt.contains("adapter.1.kind=trained-source-low-rank-f32-v1"));
+        assert!(receipt.contains("adapter.1.dtype=low-rank-f32-source-delta"));
 
         fs::remove_dir_all(dir).unwrap();
     }

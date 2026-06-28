@@ -102,6 +102,11 @@
   const registryModulePlanKind = "browser-local-module-plan";
   const registryModulePlanStrategy = "selector-entry-self-assembly";
   const registryModulePlanResourceClass = "browser-constrained-local-assembly";
+  const registryModulePlanProfile = "browser-constrained-v1";
+  const registryModulePlanExecutionProfile = "single-threaded-wasm-local-v1";
+  const registryModulePlanFetchPolicy = "local-no-store-v1";
+  const registryModulePlanOriginPolicy = "same-origin-loopback-local-v1";
+  const registryModulePlanRuntimeScratchByteBudget = 64 * 1024;
   const runtimeWasmKind = "tinyrustlm-rust-wasm";
   const runtimeWasmStatus = "validated-local-runtime";
   const runtimeWasmNextGate = "instantiate-wasm-runtime";
@@ -115,29 +120,30 @@
   const assemblyReceiptStatus = "validated";
   const assemblyReceiptStrategy = "multi-parent-sign-merge";
   const modulePlanReceiptStatus = "validated";
+  const localFetchOptions = Object.freeze({ cache: "no-store" });
   const adapterManifestArtifactVersion = "1";
   const adapterManifestStatus = "artifact-written";
   const adapterManifestFormats = [
     {
       extension: ".adp1",
-      artifactKind: "raw-f32-task-delta-v1",
-      dtype: "f32-delta",
+      artifactKinds: ["raw-f32-task-delta-v1"],
+      dtypes: ["f32-delta"],
       defaultLabel: "ADP1 adapter",
       applyStatus: registryAdapterApplyStatus,
       quantizedApplyStatus: registryQuantizedAdapterApplyStatus
     },
     {
       extension: ".asp1",
-      artifactKind: "sparse-f32-task-delta-v1",
-      dtype: "sparse-f32-delta",
+      artifactKinds: ["sparse-f32-task-delta-v1"],
+      dtypes: ["sparse-f32-delta"],
       defaultLabel: "ASP1 adapter",
       applyStatus: registryAdapterApplyStatus,
       quantizedApplyStatus: registryQuantizedAdapterApplyStatus
     },
     {
       extension: ".alr1",
-      artifactKind: "low-rank-f32-task-delta-v1",
-      dtype: "low-rank-f32-delta",
+      artifactKinds: ["low-rank-f32-task-delta-v1", "trained-source-low-rank-f32-v1"],
+      dtypes: ["low-rank-f32-delta", "low-rank-f32-source-delta"],
       defaultLabel: "ALR1 adapter",
       applyStatus: registryLowRankAdapterApplyStatus,
       quantizedApplyStatus: registryQuantizedLowRankAdapterApplyStatus
@@ -240,9 +246,13 @@
     modulePlanState: document.getElementById("modulePlanState"),
     modulePlanKind: document.getElementById("modulePlanKind"),
     modulePlanResource: document.getElementById("modulePlanResource"),
+    modulePlanExecution: document.getElementById("modulePlanExecution"),
+    modulePlanFetch: document.getElementById("modulePlanFetch"),
+    modulePlanOrigin: document.getElementById("modulePlanOrigin"),
     modulePlanModules: document.getElementById("modulePlanModules"),
     modulePlanModelBudget: document.getElementById("modulePlanModelBudget"),
     modulePlanAdapterBudget: document.getElementById("modulePlanAdapterBudget"),
+    modulePlanScratchBudget: document.getElementById("modulePlanScratchBudget"),
     modulePlanBytes: document.getElementById("modulePlanBytes"),
     modulePlanChecksums: document.getElementById("modulePlanChecksums"),
     modulePlanSlots: document.getElementById("modulePlanSlots"),
@@ -432,7 +442,7 @@
   }
 
   async function fetchTextWithinBudget(route, byteBudget, label, allowMissing) {
-    const response = await fetch(route);
+    const response = await fetch(route, localFetchOptions);
     if (!response.ok) {
       if (allowMissing) {
         return null;
@@ -586,6 +596,13 @@
   function requireManifestEqual(fields, key, expected, source) {
     const actual = requireManifestField(fields, key, source ? source.toLowerCase() : undefined);
     if (actual !== expected) {
+      throw new Error(`${source || "Receipt"} field ${key} was ${actual}`);
+    }
+  }
+
+  function requireManifestOneOf(fields, key, expectedValues, source) {
+    const actual = requireManifestField(fields, key, source ? source.toLowerCase() : undefined);
+    if (!expectedValues.includes(actual)) {
       throw new Error(`${source || "Receipt"} field ${key} was ${actual}`);
     }
   }
@@ -824,8 +841,13 @@
       "module_plan_kind",
       "module_plan_strategy",
       "module_plan_resource_class",
+      "module_plan_profile",
+      "module_plan_execution_profile",
+      "module_plan_fetch_policy",
+      "module_plan_origin_policy",
       "module_plan_model_byte_budget",
       "module_plan_adapter_byte_budget",
+      "module_plan_runtime_scratch_byte_budget",
       "module_plan_module_count"
     ];
     const hasModulePlan = keys.some((key) => fields[`${prefix}.${key}`]);
@@ -837,6 +859,9 @@
     const moduleCount = Number.parseInt(fields[`${prefix}.module_plan_module_count`] || "0", 10);
     const modelByteBudget = registryDecimalByteCount(fields[`${prefix}.module_plan_model_byte_budget`]);
     const adapterByteBudget = registryDecimalByteCount(fields[`${prefix}.module_plan_adapter_byte_budget`]);
+    const runtimeScratchByteBudget = registryDecimalByteCount(
+      fields[`${prefix}.module_plan_runtime_scratch_byte_budget`]
+    );
     if (!isSafeRegistryModulePlanPath(receiptPath) || !isRegistryHex64(receiptChecksum)) {
       return null;
     }
@@ -852,6 +877,18 @@
     if (fields[`${prefix}.module_plan_resource_class`] !== registryModulePlanResourceClass) {
       return null;
     }
+    if (fields[`${prefix}.module_plan_profile`] !== registryModulePlanProfile) {
+      return null;
+    }
+    if (fields[`${prefix}.module_plan_execution_profile`] !== registryModulePlanExecutionProfile) {
+      return null;
+    }
+    if (fields[`${prefix}.module_plan_fetch_policy`] !== registryModulePlanFetchPolicy) {
+      return null;
+    }
+    if (fields[`${prefix}.module_plan_origin_policy`] !== registryModulePlanOriginPolicy) {
+      return null;
+    }
     if (!adapterFamily || !assembly) {
       return null;
     }
@@ -859,6 +896,12 @@
       return null;
     }
     if (adapterByteBudget === null || adapterByteBudget !== adapterFamily.autoApplyByteBudget) {
+      return null;
+    }
+    if (
+      runtimeScratchByteBudget === null ||
+      runtimeScratchByteBudget !== registryModulePlanRuntimeScratchByteBudget
+    ) {
       return null;
     }
     const expectedModuleCount = 4 + adapterFamily.autoApplyStackCount;
@@ -873,8 +916,13 @@
       kind: fields[`${prefix}.module_plan_kind`],
       strategy: fields[`${prefix}.module_plan_strategy`],
       resourceClass: fields[`${prefix}.module_plan_resource_class`],
+      profile: fields[`${prefix}.module_plan_profile`],
+      executionProfile: fields[`${prefix}.module_plan_execution_profile`],
+      fetchPolicy: fields[`${prefix}.module_plan_fetch_policy`],
+      originPolicy: fields[`${prefix}.module_plan_origin_policy`],
       modelByteBudget,
       adapterByteBudget,
+      runtimeScratchByteBudget,
       moduleCount
     };
   }
@@ -1089,7 +1137,7 @@
       throw new Error("WASM manifest field runtime_wasm_bytes was invalid");
     }
     const expectedChecksum = requireManifestField(fields, "runtime_wasm_checksum", "WASM manifest");
-    const response = await fetch(paths.wasm);
+    const response = await fetch(paths.wasm, localFetchOptions);
     if (!response.ok) {
       throw new Error(`Unable to fetch WASM runtime (${response.status})`);
     }
@@ -1279,9 +1327,16 @@
     setText(el.modulePlanState, status, isError);
     el.modulePlanKind.textContent = manifestValue(fields, "module_plan_kind");
     el.modulePlanResource.textContent = manifestValue(fields, "module_plan_resource_class");
+    el.modulePlanExecution.textContent = manifestValue(fields, "module_plan_execution_profile");
+    el.modulePlanFetch.textContent = manifestValue(fields, "module_plan_fetch_policy");
+    el.modulePlanOrigin.textContent = manifestValue(fields, "module_plan_origin_policy");
     el.modulePlanModules.textContent = manifestValue(fields, "module_count");
     el.modulePlanModelBudget.textContent = modulePlanByteSummary(fields, "module_plan_model_byte_budget");
     el.modulePlanAdapterBudget.textContent = modulePlanByteSummary(fields, "module_plan_adapter_byte_budget");
+    el.modulePlanScratchBudget.textContent = modulePlanByteSummary(
+      fields,
+      "module_plan_runtime_scratch_byte_budget"
+    );
     el.modulePlanBytes.textContent = modulePlanModuleByteSummary(fields);
     el.modulePlanChecksums.textContent = modulePlanChecksumSummary(fields);
     el.modulePlanSlots.textContent = modulePlanSlotSummary(fields);
@@ -1469,9 +1524,9 @@
       throw new Error("Adapter route format mismatch");
     }
     requireManifestEqual(fields, "tinyrustlm_adapter_artifact_version", adapterManifestArtifactVersion, source);
-    requireManifestEqual(fields, "adapter_artifact_kind", adapterFormat.artifactKind, source);
+    requireManifestOneOf(fields, "adapter_artifact_kind", adapterFormat.artifactKinds, source);
     requireManifestEqual(fields, "adapter_status", adapterManifestStatus, source);
-    requireManifestEqual(fields, "adapter_dtype", adapterFormat.dtype, source);
+    requireManifestOneOf(fields, "adapter_dtype", adapterFormat.dtypes, source);
     requireManifestEqual(fields, "adapter_base_quantization", adapter.baseQuantization, source);
     requireManifestEqual(fields, "adapter_apply_status", adapter.applyStatus, source);
     requireChecksumEqual(
@@ -1579,6 +1634,10 @@
     requireManifestEqual(fields, "candidate_id", state.activeModelKey, source);
     requireManifestEqual(fields, "module_plan_path", plan.path, source);
     requireManifestEqual(fields, "module_plan_resource_class", plan.resourceClass, source);
+    requireManifestEqual(fields, "module_plan_profile", plan.profile, source);
+    requireManifestEqual(fields, "module_plan_execution_profile", plan.executionProfile, source);
+    requireManifestEqual(fields, "module_plan_fetch_policy", plan.fetchPolicy, source);
+    requireManifestEqual(fields, "module_plan_origin_policy", plan.originPolicy, source);
     const modelByteBudget = requireModulePlanByteBudget(
       fields,
       "module_plan_model_byte_budget",
@@ -1589,11 +1648,19 @@
       "module_plan_adapter_byte_budget",
       plan.adapterByteBudget
     );
+    const runtimeScratchByteBudget = requireModulePlanByteBudget(
+      fields,
+      "module_plan_runtime_scratch_byte_budget",
+      plan.runtimeScratchByteBudget
+    );
     if (modelByteBudget !== model.modelBytes) {
       throw new Error("Module plan model byte budget mismatch");
     }
     if (model.adapterFamily && adapterByteBudget !== model.adapterFamily.autoApplyByteBudget) {
       throw new Error("Module plan adapter byte budget mismatch");
+    }
+    if (runtimeScratchByteBudget !== registryModulePlanRuntimeScratchByteBudget) {
+      throw new Error("Module plan runtime scratch byte budget mismatch");
     }
     requireManifestEqual(fields, "model_path", model.path, source);
     requireManifestEqual(fields, "manifest_path", `${model.path}.manifest`, source);
@@ -2029,11 +2096,27 @@
     setAdapterControls(canGenerate && state.modelLoaded);
   }
 
+  function freeLoadedModelForSwitch(previousModelKey, selectedModel, wasModelLoaded) {
+    if (!state.exports || typeof state.exports.free_model !== "function" || !wasModelLoaded) {
+      return true;
+    }
+    const code = state.exports.free_model();
+    const text = readLastResult() || `free_model returned ${code}`;
+    appendConsole(`free_model(${previousModelKey || "unknown"} -> ${selectedModel}) -> ${code}\n${text}`);
+    renderDiagnostics();
+    if (code !== 0) {
+      throw new Error(text);
+    }
+    return true;
+  }
+
   async function loadSelectedModel() {
     const loadId = state.modelLoadSequence + 1;
     state.modelLoadSequence = loadId;
     const selectedModel = paths.models[el.modelSelect.value] ? el.modelSelect.value : "tinylm16q8";
     const model = paths.models[selectedModel];
+    const previousModelKey = state.activeModelKey;
+    const releaseLoadedModel = state.modelLoaded === true;
     el.modelSelect.value = selectedModel;
     const modelPath = model.path;
     el.maxTokens.value = String(model.maxTokens);
@@ -2062,6 +2145,9 @@
     setInteractive(false);
     el.response.textContent = "";
     el.console.textContent = "";
+    if (releaseLoadedModel) {
+      freeLoadedModelForSwitch(previousModelKey, selectedModel, releaseLoadedModel);
+    }
     state.modelManifest = null;
     state.modulePlanReceipt = null;
     state.assemblyReceipt = null;
@@ -2075,7 +2161,7 @@
     let modelBytes = null;
     try {
       await loadModulePlanReceipt(model);
-      const response = await fetch(modelPath);
+      const response = await fetch(modelPath, localFetchOptions);
       if (!response.ok) {
         throw new Error(`Unable to fetch local .slm model (${response.status})`);
       }
@@ -2249,12 +2335,54 @@
       ? model.adapterFamilyAutoApplyIndexes
       : [model.adapterFamilyPreferredIndex];
     let autoAssemblyBytes = 0;
+    const verifiedStack = [];
+    const adapters = modelAdapters(model);
+    setControls(false, true);
+    setText(el.runtimeStatus, "Assembling modules");
+    setText(el.adapterState, "loading");
+    try {
+      for (const index of indexes) {
+        if (
+          loadId !== state.modelLoadSequence ||
+          !Number.isInteger(index) ||
+          index < 0 ||
+          index >= adapters.length
+        ) {
+          return false;
+        }
+        const adapterBytes = await fetchVerifiedAdapterBytes(model, index, true, autoAssemblyBytes);
+        verifiedStack.push({ index, adapterBytes });
+        autoAssemblyBytes += adapterBytes.length;
+      }
+      for (const verified of verifiedStack) {
+        if (loadId !== state.modelLoadSequence) {
+          return false;
+        }
+        validateAdapterWithRuntime(adapters[verified.index], verified.adapterBytes);
+      }
+    } catch (error) {
+      const text = errorMessage(error);
+      setText(el.runtimeStatus, "Adapter load failed", true);
+      setText(el.adapterState, text, true);
+      setText(el.errorState, text, true);
+      appendConsole(text);
+      renderDiagnostics();
+      setControls(state.modelLoaded, true);
+      return false;
+    }
+    autoAssemblyBytes = 0;
     let applied = 0;
-    for (const index of indexes) {
-      if (loadId !== state.modelLoadSequence || !Number.isInteger(index)) {
+    for (const verified of verifiedStack) {
+      if (loadId !== state.modelLoadSequence) {
         return false;
       }
-      const result = await applyAdapterByIndex(model, index, "auto", autoAssemblyBytes);
+      const result = await applyAdapterByIndex(
+        model,
+        verified.index,
+        "auto",
+        autoAssemblyBytes,
+        verified.adapterBytes
+      );
       autoAssemblyBytes = result.autoAssemblyBytes;
       if (!result.ok) {
         return false;
@@ -2268,7 +2396,64 @@
     return applied > 0;
   }
 
-  async function applyAdapterByIndex(model, selectedIndex, mode, autoAssemblyBytes) {
+  async function fetchAdapterBytes(adapter) {
+    const response = await fetch(adapter.path, localFetchOptions);
+    if (!response.ok) {
+      throw new Error(`Unable to fetch local adapter (${response.status})`);
+    }
+    return new Uint8Array(await response.arrayBuffer());
+  }
+
+  function verifyAdapterBytes(model, selectedIndex, adapter, adapterBytes, isAutoAssembly, autoAssemblyBytes) {
+    const manifestFields = Array.isArray(model.adapterFamilyManifests)
+      ? model.adapterFamilyManifests[selectedIndex]
+      : null;
+    if (manifestFields) {
+      const expectedBytes = adapterManifestArtifactBytes(manifestFields, "Adapter manifest");
+      if (adapterBytes.length !== expectedBytes) {
+        throw new Error("Adapter artifact byte count mismatch");
+      }
+      if (
+        isAutoAssembly &&
+        model.adapterFamily &&
+        autoAssemblyBytes + adapterBytes.length > model.adapterFamily.autoApplyByteBudget
+      ) {
+        throw new Error("Adapter auto assembly byte budget exceeded");
+      }
+    }
+    if (adapter.artifactChecksum) {
+      requireChecksumEqual(
+        adapterArtifactChecksumHex(adapterBytes),
+        adapter.artifactChecksum,
+        "adapter artifact"
+      );
+    }
+  }
+
+  async function fetchVerifiedAdapterBytes(model, selectedIndex, isAutoAssembly, autoAssemblyBytes) {
+    const adapter = modelAdapters(model)[selectedIndex];
+    const adapterBytes = await fetchAdapterBytes(adapter);
+    verifyAdapterBytes(model, selectedIndex, adapter, adapterBytes, isAutoAssembly, autoAssemblyBytes);
+    return adapterBytes;
+  }
+
+  function validateAdapterWithRuntime(adapter, adapterBytes) {
+    if (typeof state.exports.validate_adapter_delta !== "function") {
+      throw new Error("WASM runtime does not expose adapter validation");
+    }
+    const ptr = allocCopy(adapterBytes);
+    const code = state.exports.validate_adapter_delta(ptr, adapterBytes.length);
+    release(ptr, adapterBytes.length);
+    const text = readLastResult() || `adapter validation returned ${code}`;
+    appendConsole(`validate_adapter_delta(${adapter.label || adapter.path}) -> ${code}\n${text}`);
+    renderDiagnostics();
+    if (code !== 0) {
+      throw new Error(text);
+    }
+    return true;
+  }
+
+  async function applyAdapterByIndex(model, selectedIndex, mode, autoAssemblyBytes, verifiedAdapterBytes) {
     if (!state.exports || !state.modelLoaded) {
       return { ok: false, autoAssemblyBytes };
     }
@@ -2286,34 +2471,8 @@
     setText(el.adapterState, "loading");
     let adapterBytes = null;
     try {
-      const response = await fetch(adapter.path);
-      if (!response.ok) {
-        throw new Error(`Unable to fetch local adapter (${response.status})`);
-      }
-      adapterBytes = new Uint8Array(await response.arrayBuffer());
-      const manifestFields = Array.isArray(model.adapterFamilyManifests)
-        ? model.adapterFamilyManifests[selectedIndex]
-        : null;
-      if (manifestFields) {
-        const expectedBytes = adapterManifestArtifactBytes(manifestFields, "Adapter manifest");
-        if (adapterBytes.length !== expectedBytes) {
-          throw new Error("Adapter artifact byte count mismatch");
-        }
-        if (
-          isAutoAssembly &&
-          model.adapterFamily &&
-          autoAssemblyBytes + adapterBytes.length > model.adapterFamily.autoApplyByteBudget
-        ) {
-          throw new Error("Adapter auto assembly byte budget exceeded");
-        }
-      }
-      if (adapter.artifactChecksum) {
-        requireChecksumEqual(
-          adapterArtifactChecksumHex(adapterBytes),
-          adapter.artifactChecksum,
-          "adapter artifact"
-        );
-      }
+      adapterBytes = verifiedAdapterBytes || await fetchAdapterBytes(adapter);
+      verifyAdapterBytes(model, selectedIndex, adapter, adapterBytes, isAutoAssembly, autoAssemblyBytes);
     } catch (error) {
       const text = errorMessage(error);
       setText(el.runtimeStatus, "Adapter load failed", true);

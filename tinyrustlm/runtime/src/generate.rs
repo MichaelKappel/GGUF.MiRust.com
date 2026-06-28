@@ -12,6 +12,7 @@ use crate::tokenizer::{Tokenizer, EOS};
 use core::fmt::Write as _;
 
 const MAX_RESULT_BYTES: usize = 64 * 1024;
+const RUNTIME_ARTIFACT_CHECKSUM_SEED: u64 = 0xa55e_6d62_1ed0_0001;
 
 /// Runtime state shared by browser exports.
 pub struct Runtime {
@@ -62,11 +63,13 @@ impl Runtime {
                 let head_dim = header.head_dim as usize;
                 let vocab_size = header.vocab_size as usize;
                 let quantization_mode = model.quantization_mode();
+                let model_checksum = header.checksum;
                 let scratch = match ForwardScratch::new(&model) {
                     Ok(scratch) => scratch,
                     Err(error) => {
                         self.clear_model_state();
                         self.diagnostics.model_loaded = false;
+                        self.diagnostics.reset_runtime_assembly();
                         self.set_result(error.message());
                         return self.finish(error);
                     }
@@ -76,6 +79,7 @@ impl Runtime {
                     Err(error) => {
                         self.clear_model_state();
                         self.diagnostics.model_loaded = false;
+                        self.diagnostics.reset_runtime_assembly();
                         self.set_result(error.message());
                         return self.finish(error);
                     }
@@ -90,12 +94,15 @@ impl Runtime {
                 self.diagnostics.reset_generation();
                 self.diagnostics.model_loaded = true;
                 self.diagnostics.active_quantization_mode = quantization_mode;
+                self.diagnostics
+                    .record_model_loaded(model_checksum, quantization_mode);
                 self.set_result("model loaded");
                 self.finish(ErrorCode::Ok)
             }
             Err(error) => {
                 self.clear_model_state();
                 self.diagnostics.model_loaded = false;
+                self.diagnostics.reset_runtime_assembly();
                 self.set_result(error.message());
                 self.finish(error)
             }
@@ -127,8 +134,27 @@ impl Runtime {
         self.finish(ErrorCode::Ok)
     }
 
-    /// Applies a validated f32 adapter-delta package to the loaded model.
+    /// Validates an adapter-delta package against the loaded model without mutating tensors.
+    pub fn validate_adapter_delta(&mut self, bytes: &[u8]) -> ErrorCode {
+        let result = match self.model.as_ref() {
+            Some(model) => model.validate_adapter_delta(bytes),
+            None => Err(ErrorCode::ModelNotLoaded),
+        };
+        match result {
+            Ok(()) => {
+                self.set_result("adapter validated");
+                self.finish(ErrorCode::Ok)
+            }
+            Err(error) => {
+                self.set_result(error.message());
+                self.finish(error)
+            }
+        }
+    }
+
+    /// Applies a validated adapter-delta package to the loaded model.
     pub fn apply_adapter_delta(&mut self, bytes: &[u8]) -> ErrorCode {
+        let adapter_checksum = runtime_artifact_checksum(bytes);
         let result = match self.model.as_mut() {
             Some(model) => model.apply_adapter_delta(bytes),
             None => Err(ErrorCode::ModelNotLoaded),
@@ -136,6 +162,7 @@ impl Runtime {
         match result {
             Ok(()) => {
                 self.clear_generation_state();
+                self.diagnostics.record_adapter_apply(adapter_checksum);
                 self.set_result("adapter applied");
                 self.finish(ErrorCode::Ok)
             }
@@ -267,6 +294,7 @@ impl Runtime {
         self.diagnostics.reset_generation();
         self.diagnostics.model_loaded = false;
         self.diagnostics.active_quantization_mode = "none";
+        self.diagnostics.reset_runtime_assembly();
         self.set_result("model freed");
         self.finish(ErrorCode::Ok)
     }
@@ -459,6 +487,15 @@ fn run_generation(
     diagnostics.peak_scratch_arena_usage = scratch.peak_bytes();
     diagnostics.tokens_per_second = 0.0;
     Ok(())
+}
+
+fn runtime_artifact_checksum(bytes: &[u8]) -> u64 {
+    let mut acc = RUNTIME_ARTIFACT_CHECKSUM_SEED;
+    for (index, byte) in bytes.iter().enumerate() {
+        acc ^= u64::from(*byte).wrapping_add((index as u64).rotate_left(5));
+        acc = acc.rotate_left(11).wrapping_mul(0x100000001b3);
+    }
+    acc
 }
 
 fn forward_token(
@@ -1014,6 +1051,8 @@ mod tests {
         assert!(diagnostics.contains("\"kv_cache_length\": 5"));
         assert!(diagnostics.contains("\"selected_next_token\": 101"));
         assert!(diagnostics.contains("\"active_quantization_mode\": \"q8_0\""));
+        assert!(diagnostics.contains("\"adapter_apply_count\": 0"));
+        assert!(!diagnostics.contains("\"assembly_state_checksum\": \"0x0000000000000000\""));
     }
 
     #[test]
@@ -1046,6 +1085,41 @@ mod tests {
         assert!(diagnostics.contains("\"generated_token_count\": 0"));
         assert!(diagnostics.contains("\"kv_cache_length\": 0"));
         assert!(diagnostics.contains("\"selected_next_token\": 0"));
+        assert!(diagnostics.contains("\"adapter_apply_count\": 1"));
+        assert!(!diagnostics.contains("\"last_adapter_checksum\": \"0x0000000000000000\""));
+        assert!(!diagnostics.contains("\"assembly_state_checksum\": \"0x0000000000000000\""));
+    }
+
+    #[test]
+    fn runtime_adapter_validate_preserves_generation_diagnostics() {
+        let model_bytes = include_bytes!("../../models/tiny-test-model.slm");
+        let mut runtime = Runtime::new();
+        assert_eq!(runtime.load_model(model_bytes), ErrorCode::Ok);
+        assert_eq!(runtime.generate("hi", 1), ErrorCode::Ok);
+        let adapter = {
+            let model = runtime.model.as_ref().unwrap();
+            build_zero_adapter_bytes(model, model_bytes)
+        };
+        let tokens = runtime.tokens.clone();
+        let kv_len = runtime.kv_cache.as_ref().map(KvCache::len);
+
+        assert_eq!(runtime.validate_adapter_delta(&adapter), ErrorCode::Ok);
+
+        assert_eq!(
+            core::str::from_utf8(runtime.last_result()).unwrap(),
+            "adapter validated"
+        );
+        assert_eq!(runtime.tokens, tokens);
+        assert_eq!(runtime.kv_cache.as_ref().map(KvCache::len), kv_len);
+        let diagnostics = core::str::from_utf8(runtime.diagnostics()).unwrap();
+        assert!(diagnostics.contains("\"last_error\": \"ok\""));
+        assert!(diagnostics.contains("\"model_loaded\": true"));
+        assert!(diagnostics.contains("\"active_quantization_mode\": \"f32\""));
+        assert!(diagnostics.contains("\"prompt_token_count\": 3"));
+        assert!(diagnostics.contains("\"generated_token_count\": 1"));
+        assert!(diagnostics.contains("\"kv_cache_length\": 4"));
+        assert!(diagnostics.contains("\"adapter_apply_count\": 0"));
+        assert!(diagnostics.contains("\"last_adapter_checksum\": \"0x0000000000000000\""));
     }
 
     #[test]
@@ -1078,6 +1152,8 @@ mod tests {
         assert!(diagnostics.contains("\"generated_token_count\": 0"));
         assert!(diagnostics.contains("\"kv_cache_length\": 0"));
         assert!(diagnostics.contains("\"selected_next_token\": 0"));
+        assert!(diagnostics.contains("\"adapter_apply_count\": 1"));
+        assert!(!diagnostics.contains("\"last_adapter_checksum\": \"0x0000000000000000\""));
     }
 
     #[test]
@@ -1142,6 +1218,9 @@ mod tests {
         assert!(diagnostics.contains("\"last_error\": \"ok\""));
         assert!(diagnostics.contains("\"model_loaded\": false"));
         assert!(diagnostics.contains("\"active_quantization_mode\": \"none\""));
+        assert!(diagnostics.contains("\"adapter_apply_count\": 0"));
+        assert!(diagnostics.contains("\"last_adapter_checksum\": \"0x0000000000000000\""));
+        assert!(diagnostics.contains("\"assembly_state_checksum\": \"0x0000000000000000\""));
         assert!(runtime.scratch.is_none());
         assert!(runtime.logits.is_empty());
 
@@ -1188,6 +1267,9 @@ mod tests {
         assert!(diagnostics.contains("\"kv_cache_length\": 0"));
         assert!(diagnostics.contains("\"tokenizer_output\": \"\""));
         assert!(diagnostics.contains("\"selected_next_token\": 0"));
+        assert!(diagnostics.contains("\"adapter_apply_count\": 0"));
+        assert!(diagnostics.contains("\"last_adapter_checksum\": \"0x0000000000000000\""));
+        assert!(!diagnostics.contains("\"assembly_state_checksum\": \"0x0000000000000000\""));
     }
 
     #[test]

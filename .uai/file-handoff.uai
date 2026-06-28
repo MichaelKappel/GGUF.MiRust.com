@@ -1,5 +1,5 @@
-profile: gguf-mirust.file-handoff.v8
-updated_utc: 2026-06-28T04:45:00Z
+profile: gguf-mirust.file-handoff.v10
+updated_utc: 2026-06-28T13:05:00Z
 handoff_root: agent-file-handoff/
 active_buckets:
   content: agent-file-handoff/Content/
@@ -39,9 +39,9 @@ strategy_refresh_2026_06_28:
   diverse_model_breeding_reference_rule: Model Breeding ideas route through durable research lanes for compatible merges, sparse lineage, adapter ecology, population search, federated/local updates, browser-constrained assembly, UAIX memory strategy, heritable artifacts, mate selection, phenotype evidence, and fit boundaries.
   voice_memory_rule: Public-copy voice routes through .uai/taboo.uai before model-breeding, mutualist, tiny-ecology, or UAIX strategy copy is published; use proof, craft, lineage, fit, local agency, routes, and implementation evidence.
 current_scan:
-  scanned_utc: 2026-06-28T04:45:00Z
+  scanned_utc: 2026-06-28T13:05:00Z
   content_bucket_non_placeholder_files: 0
   improvement_bucket_non_placeholder_files: 0
   misplaced_root_files: 0
   status: all_reports_processed
-  action: Active buckets were empty for the Model Breeding and UAIX strategy memory refresh; preserved reports remain in raw evidence, wiki synthesis, intake ledger, short-term report routes, and long-term pointer routes.
+  action: Active buckets were empty during the module-plan origin-policy memory refresh; preserved reports remain in raw evidence, wiki synthesis, intake ledger, short-term report routes, and long-term pointer routes.

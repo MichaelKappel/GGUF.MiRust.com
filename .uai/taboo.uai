@@ -1,5 +1,5 @@
-profile: gguf-mirust.taboo.v6
-updated_utc: 2026-06-28T04:45:00Z
+profile: gguf-mirust.taboo.v9
+updated_utc: 2026-06-28T11:25:34Z
 scope: public_site_voice_and_project_copy
 purpose: Keep GGUF.MiRust.com focused on constructive local-model craft, verifiable Rust/WASM execution, model lineage, research momentum, and user agency.
 authority:
@@ -17,6 +17,9 @@ authority:
   human_update_2026_06_28_setup_file_handoff_rule: UAIX setup-file-handoff and Model Breeding memory copy should appear as route, lineage, proof, fit, local agency, and implementation evidence for this site.
   human_update_2026_06_28_latest_direct_rule: GGUF.MiRust.com should not talk about or organize around cautions; other websites can carry that topic while this site carries proof, craft, lineage, fit, local agency, routes, and implementation evidence.
   human_update_2026_06_28_model_breeding_memory_rule: Model Breeding concepts, research references, UAIX File Handoff strategy, short-term routes, and long-term pointer memory should keep the site voice centered on route maps, candidate lineage, evidence, and local fit.
+  human_update_2026_06_28_setup_handoff_site_rule: UAIX setup-file-handoff strategy should be used here as constructive routing memory for reports, research, short-term routes, and long-term checksum pointers; caution-centered commentary belongs on separate sites.
+  human_update_2026_06_28_latest_direct_rule_2: Keep warnings, cautions, worry, and concern-led messaging out of GGUF.MiRust.com public copy; this file is the intentional local place to name those taboo terms while the site speaks in routes, lineage, proof, fit, local agency, and implementation evidence.
+  human_update_2026_06_28_source_backed_route_rule: Model Breeding, UAIX File Handoff, and source-backed ALR1 route copy for this site should stay in route, lineage, proof, fit, local agency, and implementation evidence language; warning, caution, and worry language belongs only in this taboo routing file when it must be named.
 public_site_voice:
   preferred_emphasis:
     - browser-local Rust/WASM execution
