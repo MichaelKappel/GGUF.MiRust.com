@@ -159,6 +159,11 @@
   const registryMateSelectionParentPoolStatus = "parent-pool-bound";
   const registryMateSelectionAdmissionStatus = "admission-only";
   const registryOperatorReceiptStatus = "receipt-bound";
+  const registryEvolutionRecipeVersion = "1";
+  const registryEvolutionRecipeStrategy = "population-based-parent-pool-replay-v1";
+  const registryEvolutionRecipeStatus = "planned";
+  const registryEvolutionSelectionSource = "population-review-frontier-v1";
+  const registryEvolutionScheduleChecksumAlgorithm = "tinyrustlm-text-checksum-v1";
   const registryPhenotypeEvidenceStrategy = "selector-phenotype-evidence-v1";
   const registryPhenotypeEvidenceStatus = "runtime-eval-bound";
   const registryHeritableArtifactStrategy = "selector-heritable-artifact-v1";
@@ -181,7 +186,10 @@
     registryModulePlanOutputByteLimit;
   const adapterFamilyReceiptStatus = "validated";
   const assemblyReceiptStatus = "validated";
-  const assemblyReceiptStrategy = "multi-parent-sign-merge";
+  const assemblyReceiptStrategies = new Set([
+    "multi-parent-sign-merge",
+    "multi-parent-weighted-soup"
+  ]);
   const modulePlanReceiptStatus = "validated";
   const localFetchOptions = Object.freeze({ cache: "no-store" });
   const adapterManifestArtifactVersion = "1";
@@ -236,16 +244,18 @@
     "adapter_tensor_layout_checksum",
     "adapter_base_contract"
   ];
-  const assemblyEvidenceRoutes = [
+  const assemblyEvidenceBaseRoutes = [
     ["promotion_ledger_path", "promotion_ledger_checksum", "population.ledger"],
     ["population_review_path", "population_review_checksum", "population.review"],
-    ["parent_pool_recipe_path", "parent_pool_recipe_checksum", "parent-pool.recipe"],
-    ["operator_receipt_path", "operator_receipt_checksum", "sign-merge.operator"],
-    ["candidate_manifest_path", "candidate_manifest_checksum", "sign-merge.candidate"],
-    ["promotion_manifest_path", "promotion_manifest_checksum", "sign-merge.promotion"],
-    ["runtime_smoke_path", "runtime_smoke_manifest_checksum", "sign-merge.runtime"],
-    ["eval_path", "eval_manifest_checksum", "sign-merge.eval"],
-    ["admission_path", "admission_checksum", "sign-merge.multi.admission"]
+    ["parent_pool_recipe_path", "parent_pool_recipe_checksum", "parent-pool.recipe"]
+  ];
+  const assemblyOperatorEvidenceRoutes = [
+    ["operator_receipt_path", "operator_receipt_checksum", "operator"],
+    ["candidate_manifest_path", "candidate_manifest_checksum", "candidate"],
+    ["promotion_manifest_path", "promotion_manifest_checksum", "promotion"],
+    ["runtime_smoke_path", "runtime_smoke_manifest_checksum", "runtime"],
+    ["eval_path", "eval_manifest_checksum", "eval"],
+    ["admission_path", "admission_checksum", "multi.admission"]
   ];
 
   const state = {
@@ -317,6 +327,7 @@
     provenancePopulation: document.getElementById("provenancePopulation"),
     provenanceMateSelection: document.getElementById("provenanceMateSelection"),
     provenanceOperator: document.getElementById("provenanceOperator"),
+    provenanceSchedule: document.getElementById("provenanceSchedule"),
     provenancePhenotype: document.getElementById("provenancePhenotype"),
     provenanceArtifact: document.getElementById("provenanceArtifact"),
     provenanceFitness: document.getElementById("provenanceFitness"),
@@ -797,6 +808,10 @@
     return /^0x[0-9a-fA-F]{16}$/.test(value || "");
   }
 
+  function isRegistrySlug(value) {
+    return /^[A-Za-z0-9._-]{1,96}$/.test(value || "");
+  }
+
   function rotateLeft64(value, bits) {
     return ((value << bits) | (value >> (64n - bits))) & checksumMask;
   }
@@ -1082,6 +1097,21 @@
     };
   }
 
+  // Maps generated parent-pool entries to the operator kind their assembly route implies.
+  function expectedGeneratedOperatorReceiptKind(candidateId, assembly) {
+    if (!assembly) {
+      return "";
+    }
+    const id = String(candidateId || "");
+    if (id.startsWith("multi-parent-soup-")) {
+      return "seed-weighted-parent-pool-soup";
+    }
+    if (id.startsWith("multi-parent-sign-merge-")) {
+      return "sign-aware-parent-pool-merge";
+    }
+    return "";
+  }
+
   // Reads selector genome routing fields before a registry entry can become selectable.
   function registryGenomeEntry(fields, prefix) {
     const genomeId = fields[`${prefix}.genome_id`];
@@ -1204,8 +1234,8 @@
     };
   }
 
-  // Reads copied two-parent operator receipt metadata when selector admission supplies it.
-  function registryOperatorReceiptEntry(fields, prefix, modelBytes, slmChecksum) {
+  // Reads copied operator receipt metadata and checks generated route kind agreement.
+  function registryOperatorReceiptEntry(fields, prefix, candidateId, assembly, modelBytes, slmChecksum) {
     const suffixes = [
       "operator_receipt_status",
       "operator_receipt_path",
@@ -1228,12 +1258,14 @@
     const candidateArtifactBytes = registryDecimalByteCount(
       fields[`${prefix}.operator_receipt_candidate_artifact_bytes`]
     );
+    const expectedOperatorKind = expectedGeneratedOperatorReceiptKind(candidateId, assembly);
     if (
       status !== registryOperatorReceiptStatus ||
       !path ||
       !isRegistryHex64(checksum) ||
       !operatorId ||
       !operatorKind ||
+      (expectedOperatorKind && operatorKind !== expectedOperatorKind) ||
       candidateSlmChecksum !== slmChecksum ||
       candidateArtifactBytes !== modelBytes
     ) {
@@ -1247,6 +1279,74 @@
       operatorKind,
       candidateSlmChecksum,
       candidateArtifactBytes
+    };
+  }
+
+  // Reads copied parent-pool schedule metadata and binds it to the accepted operator receipt.
+  function registryEvolutionScheduleEntry(fields, prefix, operatorReceipt) {
+    const suffixes = [
+      "evolution_recipe_version",
+      "evolution_recipe_strategy",
+      "evolution_recipe_status",
+      "evolution_selection_source",
+      "evolution_relatedness_contract_checksum",
+      "evolution_schedule_checksum_algorithm",
+      "evolution_schedule_checksum",
+      "scheduled_operator_family_index",
+      "scheduled_operator_family_kind",
+      "scheduled_operator_family_command",
+      "scheduled_operator_family_selection_rule",
+      "scheduled_operator_family_output_gate"
+    ];
+    const hasScheduleField = suffixes.some((suffix) => fields[`${prefix}.${suffix}`] !== undefined);
+    if (!hasScheduleField) {
+      return undefined;
+    }
+    if (!operatorReceipt) {
+      return null;
+    }
+    const recipeVersion = fields[`${prefix}.evolution_recipe_version`];
+    const recipeStrategy = fields[`${prefix}.evolution_recipe_strategy`];
+    const recipeStatus = fields[`${prefix}.evolution_recipe_status`];
+    const selectionSource = fields[`${prefix}.evolution_selection_source`];
+    const relatednessContractChecksum = fields[`${prefix}.evolution_relatedness_contract_checksum`];
+    const scheduleChecksumAlgorithm = fields[`${prefix}.evolution_schedule_checksum_algorithm`];
+    const scheduleChecksum = fields[`${prefix}.evolution_schedule_checksum`];
+    const familyIndex = registryDecimalCount(fields[`${prefix}.scheduled_operator_family_index`]);
+    const familyKind = fields[`${prefix}.scheduled_operator_family_kind`];
+    const familyCommand = fields[`${prefix}.scheduled_operator_family_command`];
+    const familySelectionRule = fields[`${prefix}.scheduled_operator_family_selection_rule`];
+    const familyOutputGate = fields[`${prefix}.scheduled_operator_family_output_gate`];
+    if (
+      recipeVersion !== registryEvolutionRecipeVersion ||
+      recipeStrategy !== registryEvolutionRecipeStrategy ||
+      recipeStatus !== registryEvolutionRecipeStatus ||
+      selectionSource !== registryEvolutionSelectionSource ||
+      !isRegistryHex64(relatednessContractChecksum) ||
+      scheduleChecksumAlgorithm !== registryEvolutionScheduleChecksumAlgorithm ||
+      !isRegistryHex64(scheduleChecksum) ||
+      familyIndex === null ||
+      !isRegistrySlug(familyKind) ||
+      !isRegistrySlug(familyCommand) ||
+      !isRegistrySlug(familySelectionRule) ||
+      !isRegistrySlug(familyOutputGate) ||
+      familyKind !== operatorReceipt.operatorKind
+    ) {
+      return null;
+    }
+    return {
+      recipeVersion,
+      recipeStrategy,
+      recipeStatus,
+      selectionSource,
+      relatednessContractChecksum,
+      scheduleChecksumAlgorithm,
+      scheduleChecksum,
+      familyIndex,
+      familyKind,
+      familyCommand,
+      familySelectionRule,
+      familyOutputGate
     };
   }
 
@@ -1614,6 +1714,13 @@
     if (routeSetChecksumAlgorithm !== registryModulePlanRouteSetChecksumAlgorithm) {
       return null;
     }
+    const operatorEvidencePrefix = assemblyEvidencePrefixFromOperatorPath(
+      candidateId,
+      operatorReceiptPath
+    );
+    if (!operatorEvidencePrefix || !isRegistryHex64(operatorReceiptChecksum)) {
+      return null;
+    }
     const routeSetRoutes = modulePlanRouteSetRoutes(
       candidateId,
       receiptPath,
@@ -1622,7 +1729,8 @@
       assembly.path,
       adapterFamily.path,
       adapters,
-      adapterFamily.autoApplyStackCount
+      adapterFamily.autoApplyStackCount,
+      operatorEvidencePrefix
     );
     const expectedRouteSetChecksum = routeSetRoutes
       ? modulePlanRouteSetChecksum(routeSetRoutes)
@@ -1635,8 +1743,7 @@
     }
     if (
       !isSafeAssemblyEvidencePath(operatorReceiptPath) ||
-      operatorReceiptPath !== modulePlanEvidenceRoute(candidateId, "sign-merge.operator") ||
-      !isRegistryHex64(operatorReceiptChecksum)
+      operatorReceiptPath !== modulePlanEvidenceRoute(candidateId, `${operatorEvidencePrefix}.operator`)
     ) {
       return null;
     }
@@ -1689,7 +1796,7 @@
   function registryModulePlanDeclaredFetchCount(adapterFamily, assembly, moduleCount) {
     let fetchCount = 1 + moduleCount;
     if (assembly) {
-      fetchCount += assemblyEvidenceRoutes.length;
+      fetchCount += assemblyEvidenceRoutesForOperatorPrefix("operator").length;
     }
     if (adapterFamily) {
       fetchCount += adapterFamily.count;
@@ -1706,7 +1813,8 @@
     assemblyPath,
     adapterFamilyPath,
     adapters,
-    stackCount
+    stackCount,
+    operatorEvidencePrefix
   ) {
     if (
       !candidateId ||
@@ -1715,6 +1823,7 @@
       !manifestPath ||
       !assemblyPath ||
       !adapterFamilyPath ||
+      !operatorEvidencePrefix ||
       !Array.isArray(adapters)
     ) {
       return null;
@@ -1728,7 +1837,7 @@
     modulePlanPushRoute(routes, "model", modelPath);
     modulePlanPushRoute(routes, "model-manifest", manifestPath);
     modulePlanPushRoute(routes, "assembly-receipt", assemblyPath);
-    for (const route of assemblyEvidenceRoutes) {
+    for (const route of assemblyEvidenceRoutesForOperatorPrefix(operatorEvidencePrefix)) {
       modulePlanPushRoute(routes, "assembly-evidence", modulePlanEvidenceRoute(candidateId, route[2]));
     }
     modulePlanPushRoute(routes, "adapter-family-receipt", adapterFamilyPath);
@@ -1777,6 +1886,37 @@
 
   function modulePlanEvidenceRoute(candidateId, fileName) {
     return `../evidence/${candidateId}/${fileName}`;
+  }
+
+  function assemblyEvidenceRoutesForOperatorPrefix(operatorEvidencePrefix) {
+    // Builds the assembly evidence route family for the operator that produced the candidate.
+    return assemblyEvidenceBaseRoutes.concat(
+      assemblyOperatorEvidenceRoutes.map(([pathKey, checksumKey, suffix]) => [
+        pathKey,
+        checksumKey,
+        `${operatorEvidencePrefix}.${suffix}`
+      ])
+    );
+  }
+
+  function assemblyEvidencePrefixFromOperatorPath(candidateId, operatorReceiptPath) {
+    // Derives the operator evidence prefix from the bound operator receipt route.
+    const prefix = `../evidence/${candidateId}/`;
+    const suffix = ".operator";
+    if (
+      !isSafeAssemblyEvidencePath(operatorReceiptPath) ||
+      !operatorReceiptPath.startsWith(prefix) ||
+      !operatorReceiptPath.endsWith(suffix)
+    ) {
+      return "";
+    }
+    const operatorEvidencePrefix = operatorReceiptPath.slice(
+      prefix.length,
+      operatorReceiptPath.length - suffix.length
+    );
+    return /^[a-z0-9][a-z0-9-]{0,63}$/.test(operatorEvidencePrefix)
+      ? operatorEvidencePrefix
+      : "";
   }
 
   function modulePlanRouteSetChecksum(routes) {
@@ -1888,8 +2028,19 @@
       if (!mateSelection) {
         return null;
       }
-      const operatorReceipt = registryOperatorReceiptEntry(fields, prefix, modelBytes, slmChecksum);
+      const operatorReceipt = registryOperatorReceiptEntry(
+        fields,
+        prefix,
+        candidateId,
+        assembly,
+        modelBytes,
+        slmChecksum
+      );
       if (operatorReceipt === null) {
+        return null;
+      }
+      const evolutionSchedule = registryEvolutionScheduleEntry(fields, prefix, operatorReceipt);
+      if (evolutionSchedule === null) {
         return null;
       }
       const phenotypeEvidence = registryPhenotypeEvidenceEntry(fields, prefix);
@@ -1938,6 +2089,7 @@
         population,
         mateSelection,
         operatorReceipt: operatorReceipt || null,
+        evolutionSchedule: evolutionSchedule || null,
         phenotypeEvidence,
         heritableArtifact,
         evalEvidence,
@@ -2125,6 +2277,7 @@
     const population = model && model.population ? model.population : null;
     const mateSelection = model && model.mateSelection ? model.mateSelection : null;
     const operatorReceipt = model && model.operatorReceipt ? model.operatorReceipt : null;
+    const evolutionSchedule = model && model.evolutionSchedule ? model.evolutionSchedule : null;
     const phenotypeEvidence = model && model.phenotypeEvidence ? model.phenotypeEvidence : null;
     const heritableArtifact = model && model.heritableArtifact ? model.heritableArtifact : null;
     const evalEvidence = model && model.evalEvidence ? model.evalEvidence : null;
@@ -2147,6 +2300,9 @@
       : "unavailable";
     el.provenanceOperator.textContent = operatorReceipt
       ? `${operatorReceipt.status} / ${operatorReceipt.operatorKind} / ${operatorReceipt.checksum}`
+      : "unavailable";
+    el.provenanceSchedule.textContent = evolutionSchedule
+      ? `${evolutionSchedule.recipeStatus} / family ${evolutionSchedule.familyIndex} / ${evolutionSchedule.familyCommand} / ${evolutionSchedule.scheduleChecksum}`
       : "unavailable";
     el.provenancePhenotype.textContent = phenotypeEvidence
       ? `${phenotypeEvidence.status} / ${phenotypeEvidence.id} / ${phenotypeEvidence.checksum}`
@@ -2982,15 +3138,24 @@
       "module_plan_route_set_checksum",
       source
     );
+    const routeSetCandidateId = model.candidateId || state.activeModelKey;
+    const operatorEvidencePrefix = assemblyEvidencePrefixFromOperatorPath(
+      routeSetCandidateId,
+      plan.operatorReceiptPath
+    );
+    if (!operatorEvidencePrefix) {
+      throw new Error("Module plan operator receipt path mismatch");
+    }
     const routeSetRoutes = modulePlanRouteSetRoutes(
-      model.candidateId || state.activeModelKey,
+      routeSetCandidateId,
       plan.path,
       model.path,
       `${model.path}.manifest`,
       model.assembly.path,
       model.adapterFamily.path,
       model.adapters,
-      model.adapterFamily.autoApplyStackCount
+      model.adapterFamily.autoApplyStackCount,
+      operatorEvidencePrefix
     );
     const expectedRouteSetChecksum = routeSetRoutes
       ? modulePlanRouteSetChecksum(routeSetRoutes)
@@ -3459,7 +3624,7 @@
   function modulePlanDeclaredFetchCount(model, moduleCount) {
     let fetchCount = 1 + moduleCount;
     if (model.assembly) {
-      fetchCount += assemblyEvidenceRoutes.length;
+      fetchCount += assemblyEvidenceRoutesForOperatorPrefix("operator").length;
     }
     if (Array.isArray(model.adapters)) {
       fetchCount += model.adapters.length;
@@ -3710,7 +3875,10 @@
     requireManifestEqual(fields, "tinyrustlm_assembly_receipt_version", "1", source);
     requireManifestEqual(fields, "assembly_kind", registryAssemblyKind, source);
     requireManifestEqual(fields, "assembly_status", assemblyReceiptStatus, source);
-    requireManifestEqual(fields, "assembly_strategy", assemblyReceiptStrategy, source);
+    const assemblyStrategy = requireManifestField(fields, "assembly_strategy", source);
+    if (!assemblyReceiptStrategies.has(assemblyStrategy)) {
+      throw new Error("Assembly receipt strategy mismatch");
+    }
     requireManifestEqual(fields, "candidate_id", state.activeModelKey, source);
     requireManifestEqual(fields, "assembly_receipt_path", assembly.path, source);
     requireManifestEqual(fields, "model_path", model.path, source);
@@ -3743,9 +3911,24 @@
         throw new Error(`Assembly receipt field ${key} is invalid`);
       }
     }
-    for (const [pathKey] of assemblyEvidenceRoutes) {
+    const operatorReceiptPath = requireManifestField(
+      fields,
+      "operator_receipt_path",
+      "assembly receipt"
+    );
+    const operatorEvidencePrefix = assemblyEvidencePrefixFromOperatorPath(
+      state.activeModelKey,
+      operatorReceiptPath
+    );
+    if (!operatorEvidencePrefix) {
+      throw new Error("Assembly receipt operator evidence path mismatch");
+    }
+    for (const [pathKey, _checksumKey, fileName] of assemblyEvidenceRoutesForOperatorPrefix(operatorEvidencePrefix)) {
       const route = requireManifestField(fields, pathKey, "assembly receipt");
-      if (!isSafeAssemblyEvidencePath(route)) {
+      if (
+        !isSafeAssemblyEvidencePath(route) ||
+        route !== modulePlanEvidenceRoute(state.activeModelKey, fileName)
+      ) {
         throw new Error(`Assembly receipt field ${pathKey} is invalid`);
       }
     }
@@ -3783,7 +3966,14 @@
 
   async function verifyAssemblyEvidenceFiles(model, fields) {
     const evidence = [];
-    for (const [pathKey, checksumKey] of assemblyEvidenceRoutes) {
+    const operatorEvidencePrefix = assemblyEvidencePrefixFromOperatorPath(
+      state.activeModelKey,
+      requireManifestField(fields, "operator_receipt_path", "assembly receipt")
+    );
+    if (!operatorEvidencePrefix) {
+      throw new Error("Assembly receipt operator evidence path mismatch");
+    }
+    for (const [pathKey, checksumKey] of assemblyEvidenceRoutesForOperatorPrefix(operatorEvidencePrefix)) {
       const route = requireManifestField(fields, pathKey, "assembly receipt");
       const expectedChecksum = requireManifestField(fields, checksumKey, "assembly receipt");
       const text = await fetchModulePlanTextWithinBudget(

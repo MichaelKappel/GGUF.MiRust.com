@@ -22,11 +22,38 @@ const RELATEDNESS_METRIC: &str = "shared-direct-parameter-contract-v1";
 const RELATEDNESS_SCOPE: &str = "selected-parent-pool";
 const RELATEDNESS_ALL_PAIRS_STATUS: &str = "shared-direct-parameter-contract";
 const RELATEDNESS_GROUP: &str = "direct-parameter-family.0";
+const EVOLUTION_RECIPE_VERSION: &str = "1";
+const EVOLUTION_RECIPE_STRATEGY: &str = "population-based-parent-pool-replay-v1";
+const EVOLUTION_RECIPE_STATUS: &str = "operator-family-planned";
+const EVOLUTION_SELECTION_SOURCE: &str = "population-fitness-normalized-seed-weights";
+const EVOLUTION_SCHEDULE_CHECKSUM_ALGORITHM: &str = "tinyrustlm-text-checksum-v1";
 const FRONTIER_ROLE: &str = "frontier";
 const POOL_ROLE: &str = "parent-pool";
 const SELECTED_STATUS: &str = "selected-for-parent-pool-recipe";
 const REQUIRED_NEXT_GATE: &str = "lineage-template-or-sign-aware-merge-candidate";
 const PPM_DENOMINATOR: u64 = 1_000_000;
+
+struct EvolutionOperatorFamily {
+    operator_kind: &'static str,
+    command: &'static str,
+    selection_rule: &'static str,
+    output_gate: &'static str,
+}
+
+const EVOLUTION_OPERATOR_FAMILIES: [EvolutionOperatorFamily; 2] = [
+    EvolutionOperatorFamily {
+        operator_kind: "sign-aware-parent-pool-merge",
+        command: "sign-merge-candidate",
+        selection_rule: "seed-weighted-delta-sign-consensus",
+        output_gate: "multi-parent-candidate-manifest-plus-runtime-smoke-plus-eval",
+    },
+    EvolutionOperatorFamily {
+        operator_kind: "seed-weighted-parent-pool-soup",
+        command: "soup-candidate",
+        selection_rule: "seed-weighted-direct-parameter-average",
+        output_gate: "multi-parent-candidate-manifest-plus-runtime-smoke-plus-eval",
+    },
+];
 
 struct ParentEntry {
     rank: usize,
@@ -109,6 +136,7 @@ fn read_admissions(admission_paths: &[String], command: &str) -> io::Result<Vec<
         .collect()
 }
 
+/// Builds the replayable parent-pool recipe that downstream multi-parent operators consume.
 pub(crate) fn build_recipe_text(
     ledger_text: &str,
     review_text: &str,
@@ -204,6 +232,21 @@ pub(crate) fn build_recipe_text(
     for (index, parent) in parents.iter().enumerate() {
         push_parent_lines(&mut text, index, parent, &relatedness_contract_checksum);
     }
+    let evolution_schedule_text =
+        build_evolution_schedule_text(&parents, &relatedness_contract_checksum);
+    text.push_str(&evolution_schedule_text);
+    push_line(
+        &mut text,
+        "evolution_schedule_checksum_algorithm",
+        EVOLUTION_SCHEDULE_CHECKSUM_ALGORITHM,
+    );
+    push_line(
+        &mut text,
+        "evolution_schedule_checksum",
+        &hex64(provenance::text_checksum(
+            evolution_schedule_text.as_bytes(),
+        )),
+    );
     push_line(&mut text, "required_next_gate", REQUIRED_NEXT_GATE);
     Ok(text)
 }
@@ -561,6 +604,87 @@ fn push_parent_lines(
     push_line(text, &format!("{prefix}.next_route"), &parent.next_route);
 }
 
+// Captures the planned multi-parent operator families and the seed weights they will replay.
+fn build_evolution_schedule_text(
+    parents: &[ParentEntry],
+    relatedness_contract_checksum: &str,
+) -> String {
+    let mut text = String::new();
+    push_line(
+        &mut text,
+        "evolution_recipe_version",
+        EVOLUTION_RECIPE_VERSION,
+    );
+    push_line(
+        &mut text,
+        "evolution_recipe_strategy",
+        EVOLUTION_RECIPE_STRATEGY,
+    );
+    push_line(
+        &mut text,
+        "evolution_recipe_status",
+        EVOLUTION_RECIPE_STATUS,
+    );
+    push_line(
+        &mut text,
+        "evolution_selection_source",
+        EVOLUTION_SELECTION_SOURCE,
+    );
+    push_line(
+        &mut text,
+        "evolution_parent_count",
+        &parents.len().to_string(),
+    );
+    push_line(
+        &mut text,
+        "evolution_relatedness_contract_checksum",
+        relatedness_contract_checksum,
+    );
+    push_line(
+        &mut text,
+        "evolution_operator_family_count",
+        &EVOLUTION_OPERATOR_FAMILIES.len().to_string(),
+    );
+    for (index, family) in EVOLUTION_OPERATOR_FAMILIES.iter().enumerate() {
+        let prefix = format!("evolution_operator_family.{index}");
+        push_line(
+            &mut text,
+            &format!("{prefix}.operator_kind"),
+            family.operator_kind,
+        );
+        push_line(&mut text, &format!("{prefix}.command"), family.command);
+        push_line(
+            &mut text,
+            &format!("{prefix}.selection_rule"),
+            family.selection_rule,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.output_gate"),
+            family.output_gate,
+        );
+    }
+    for (index, parent) in parents.iter().enumerate() {
+        let prefix = format!("evolution_parent.{index}");
+        push_line(
+            &mut text,
+            &format!("{prefix}.candidate_id"),
+            &parent.candidate_id,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.seed_weight_ppm"),
+            &parent.seed_weight_ppm.to_string(),
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.population_fitness_ppm"),
+            &parent.population_fitness_ppm.to_string(),
+        );
+    }
+    text
+}
+
 fn require_matching_ledger_value(
     fields: &HashMap<String, String>,
     ledger_index: usize,
@@ -675,6 +799,20 @@ mod tests {
         assert!(recipe.contains("parent.1.relatedness_contract_checksum=0x"));
         assert!(recipe.contains("parent.0.seed_weight_ppm=500000"));
         assert!(recipe.contains("parent.1.seed_weight_ppm=500000"));
+        assert!(recipe.contains("evolution_recipe_strategy=population-based-parent-pool-replay-v1"));
+        assert!(recipe.contains("evolution_operator_family_count=2"));
+        assert!(recipe
+            .contains("evolution_operator_family.0.operator_kind=sign-aware-parent-pool-merge"));
+        assert!(recipe.contains("evolution_operator_family.0.command=sign-merge-candidate"));
+        assert!(recipe
+            .contains("evolution_operator_family.1.operator_kind=seed-weighted-parent-pool-soup"));
+        assert!(recipe.contains("evolution_operator_family.1.command=soup-candidate"));
+        assert!(recipe.contains("evolution_parent.0.seed_weight_ppm=500000"));
+        assert!(recipe.contains("evolution_parent.1.seed_weight_ppm=500000"));
+        assert!(
+            recipe.contains("evolution_schedule_checksum_algorithm=tinyrustlm-text-checksum-v1")
+        );
+        assert!(recipe.contains("evolution_schedule_checksum=0x"));
     }
 
     #[test]
@@ -753,6 +891,36 @@ mod tests {
 
         assert_eq!(error.kind(), io::ErrorKind::InvalidData);
         assert!(error.to_string().contains("relatedness_contract_checksum"));
+    }
+
+    #[test]
+    fn rejects_evolution_schedule_checksum_drift() {
+        let alpha = fixture_admission(
+            "tiny-alpha-candidate",
+            "target/parent-pool/evolution-alpha.slm",
+            tiny_fixture_f32_bytes_with_offset(0.0),
+        );
+        let beta = fixture_admission(
+            "tiny-beta-candidate",
+            "target/parent-pool/evolution-beta.slm",
+            tiny_fixture_f32_bytes_with_offset(0.0048),
+        );
+        let ledger = ledger::build_ledger_text(&[alpha.clone(), beta.clone()]).unwrap();
+        let review =
+            population::build_review_text(&ledger, &[alpha.clone(), beta.clone()]).unwrap();
+        let recipe = build_recipe_text(&ledger, &review, &[alpha.clone(), beta.clone()]).unwrap();
+        let fields = parse_manifest(&recipe, "parent-pool recipe").unwrap();
+        let checksum = require_key(&fields, "evolution_schedule_checksum").unwrap();
+        let tampered_recipe = recipe.replace(
+            &format!("evolution_schedule_checksum={checksum}"),
+            "evolution_schedule_checksum=0x0000000000000000",
+        );
+
+        let error =
+            validate_recipe_text(&ledger, &review, &tampered_recipe, &[alpha, beta]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("evolution_schedule_checksum"));
     }
 
     #[test]

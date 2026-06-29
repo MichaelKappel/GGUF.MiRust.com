@@ -51,6 +51,7 @@ const REQUIRED_IDS: &[&str] = &[
     "provenancePopulation",
     "provenanceMateSelection",
     "provenanceOperator",
+    "provenanceSchedule",
     "provenancePhenotype",
     "provenanceArtifact",
     "provenanceFitness",

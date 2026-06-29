@@ -11,7 +11,12 @@ const path = require("path");
 const appUrl = process.argv[2] || "http://127.0.0.1:8080/app/";
 const port = Number(process.argv[3] || 9223);
 const smokeMode = process.argv[5] || "single";
-const combinedSelectorRouteSoakMode = smokeMode === "combined-selector-route-soak" || smokeMode === "combined-selector-route-extended-soak" || smokeMode === "combined-selector-route-stress-soak";
+const combinedSelectorOperatorFamilyRouteSoakMode = smokeMode === "combined-selector-operator-family-route-soak";
+const combinedSelectorOperatorFamilyReloadSoakMode = smokeMode === "combined-selector-operator-family-reload-soak";
+const combinedSelectorRouteSoakMode = combinedSelectorOperatorFamilyRouteSoakMode || smokeMode === "combined-selector-route-soak" || smokeMode === "combined-selector-route-extended-soak" || smokeMode === "combined-selector-route-stress-soak";
+const convertedTrainedRegistrySmokeMode = smokeMode === "converted-trained-registry";
+const convertedTrainedRegistryFileSmokeMode = smokeMode === "converted-trained-registry-file";
+const convertedTrainedRegistryAnySmokeMode = convertedTrainedRegistrySmokeMode || convertedTrainedRegistryFileSmokeMode;
 const q4DefaultSmokeModes = new Set([
   "adapter-manifest-budget",
   "adapter-family-receipt-drift",
@@ -63,10 +68,35 @@ const q4DefaultSmokeModes = new Set([
   "assembly-eval-case-drift",
   "assembly-evidence-file-drift",
   "combined-selector-assembly",
+  "combined-selector-operator-family",
+  "combined-selector-operator-family-cycle",
+  "combined-selector-operator-family-route-soak",
+  "combined-selector-operator-family-reload-soak",
   "combined-selector-cycle",
   "combined-selector-reload-soak"
 ]);
-const expectedModel = process.argv[4] || (smokeMode === "multi-parent-registry" ? "multi-parent-sign-merge-q8" : smokeMode === "adapter-sidecar-registry-q8" ? "tinyq8" : q4DefaultSmokeModes.has(smokeMode) || combinedSelectorRouteSoakMode ? "multi-parent-sign-merge-q4" : smokeMode === "multi-parent-registry-file" || smokeMode === "adapter-sidecar-registry-file" ? "multi-parent-sign-merge-f32" : smokeMode === "adapter-sidecar" || smokeMode === "adapter-sidecar-checksum-mismatch" ? "tinyf32" : "tinylm16q8");
+const compactOperatorRegistryModels = {
+  "multi-parent-registry": "multi-parent-sign-merge-q8",
+  "blend-operator-registry": "tinylm16-blend-q8",
+  "delta-operator-registry": "tinylm16-delta-q8",
+  "sparse-delta-operator-registry": "tinylm16-sparse-delta-q8",
+  "dare-operator-registry": "tinylm16-dare-q8",
+  "prune-operator-registry": "tinylm16-prune-q8",
+  "crossover-operator-registry": "tinylm16-crossover-q8",
+  "mutation-operator-registry": "tinylm16-mutation-q8"
+};
+const compactOperatorRegistrySmokeModes = new Set(Object.keys(compactOperatorRegistryModels));
+const compactOperatorReceiptDriftSmokeModes = new Set([
+  "selector-operator-receipt-drift",
+  "blend-operator-receipt-drift",
+  "delta-operator-receipt-drift",
+  "sparse-delta-operator-receipt-drift",
+  "dare-operator-receipt-drift",
+  "prune-operator-receipt-drift",
+  "crossover-operator-receipt-drift",
+  "mutation-operator-receipt-drift"
+]);
+const expectedModel = process.argv[4] || compactOperatorRegistryModels[smokeMode] || (convertedTrainedRegistryAnySmokeMode ? "converted-trained-q8" : smokeMode === "adapter-sidecar-registry-q8" ? "tinyq8" : q4DefaultSmokeModes.has(smokeMode) || combinedSelectorRouteSoakMode ? "multi-parent-sign-merge-q4" : smokeMode === "multi-parent-registry-file" || smokeMode === "adapter-sidecar-registry-file" ? "multi-parent-sign-merge-f32" : smokeMode === "adapter-sidecar" || smokeMode === "adapter-sidecar-checksum-mismatch" ? "tinyf32" : "tinylm16q8");
 const enduranceCycles = Math.max(2, Math.min(20, Number.parseInt(process.argv[6] || "4", 10) || 4));
 const performanceTokens = Math.max(2, Math.min(8, Number.parseInt(process.argv[6] || "4", 10) || 4));
 const performanceSoakCycles = Math.max(2, Math.min(10, Number.parseInt(process.argv[6] || "3", 10) || 3));
@@ -78,11 +108,56 @@ const combinedSelectorReloads = Math.max(2, Math.min(6, Number.parseInt(process.
 const checksumMask64 = (1n << 64n) - 1n;
 const checksumPrime64 = 0x100000001b3n;
 
-const combinedSelectorModels = [
-  "multi-parent-sign-merge-q4",
-  "multi-parent-sign-merge-q8",
-  "multi-parent-sign-merge-f32"
-];
+function combinedSelectorModelsFor(modelKey, mode = smokeMode) {
+  // Selects the generated operator family while preserving q4-first frugal switching order.
+  if (
+    mode === "combined-selector-operator-family" ||
+    mode === "combined-selector-operator-family-cycle" ||
+    mode === "combined-selector-operator-family-route-soak" ||
+    mode === "combined-selector-operator-family-reload-soak"
+  ) {
+    return [
+      "multi-parent-sign-merge-q4",
+      "multi-parent-soup-q4",
+      "multi-parent-sign-merge-q8",
+      "multi-parent-soup-q8",
+      "multi-parent-sign-merge-f32",
+      "multi-parent-soup-f32"
+    ];
+  }
+  const prefix = String(modelKey || "").startsWith("multi-parent-soup-")
+    ? "multi-parent-soup"
+    : "multi-parent-sign-merge";
+  return [`${prefix}-q4`, `${prefix}-q8`, `${prefix}-f32`];
+}
+
+const combinedSelectorModels = combinedSelectorModelsFor(expectedModel);
+
+function isGeneratedMultiParentModel(modelKey) {
+  // Groups generated parent-pool bundles whose evidence is validated before browser use.
+  return modelKey.startsWith("multi-parent-sign-merge-") || modelKey.startsWith("multi-parent-soup-");
+}
+
+function expectedOperatorKindForModel(modelKey) {
+  if (modelKey.startsWith("multi-parent-soup-")) {
+    return "seed-weighted-parent-pool-soup";
+  }
+  if (modelKey.startsWith("multi-parent-sign-merge-")) {
+    return "sign-aware-parent-pool-merge";
+  }
+  return "";
+}
+
+function expectedEvolutionScheduleForModel(modelKey) {
+  // Mirrors the parent-pool recipe family order written into generated selector entries.
+  if (modelKey.startsWith("multi-parent-soup-")) {
+    return { familyIndex: 1, familyCommand: "soup-candidate" };
+  }
+  if (modelKey.startsWith("multi-parent-sign-merge-")) {
+    return { familyIndex: 0, familyCommand: "sign-merge-candidate" };
+  }
+  return null;
+}
 
 const expectedQuantization = {
   tinylm16q8: "q8_0",
@@ -93,23 +168,62 @@ const expectedQuantization = {
   tinyq8: "q8_0",
   tinyq4: "q4_0",
   tinybpe: "f32",
+  "tinylm16-blend-q8": "q8_0",
+  "tinylm16-delta-q8": "q8_0",
+  "tinylm16-sparse-delta-q8": "q8_0",
+  "tinylm16-dare-q8": "q8_0",
+  "tinylm16-prune-q8": "q8_0",
+  "tinylm16-crossover-q8": "q8_0",
+  "tinylm16-mutation-q8": "q8_0",
+  "converted-trained-f32": "f32",
+  "converted-trained-q8": "q8_0",
+  "converted-trained-q4": "q4_0",
   "multi-parent-sign-merge-q8": "q8_0",
   "multi-parent-sign-merge-q4": "q4_0",
-  "multi-parent-sign-merge-f32": "f32"
+  "multi-parent-sign-merge-f32": "f32",
+  "multi-parent-soup-q8": "q8_0",
+  "multi-parent-soup-q4": "q4_0",
+  "multi-parent-soup-f32": "f32"
 };
 
 const expectedModelLabels = {
+  "tinylm16-blend-q8": "TinyLM-16M q8 blend candidate",
+  "tinylm16-delta-q8": "TinyLM-16M q8 delta candidate",
+  "tinylm16-sparse-delta-q8": "TinyLM-16M q8 sparse-delta candidate",
+  "tinylm16-dare-q8": "TinyLM-16M q8 DARE candidate",
+  "tinylm16-prune-q8": "TinyLM-16M q8 prune candidate",
+  "tinylm16-crossover-q8": "TinyLM-16M q8 crossover candidate",
+  "tinylm16-mutation-q8": "TinyLM-16M q8 mutation candidate",
+  "converted-trained-f32": "Converted trained-source f32",
+  "converted-trained-q8": "Converted trained-source q8_0",
+  "converted-trained-q4": "Converted trained-source q4_0",
   "multi-parent-sign-merge-q8": "multi-parent-sign-merge-q8 q8_0",
   "multi-parent-sign-merge-q4": "multi-parent-sign-merge-q4 q4_0",
-  "multi-parent-sign-merge-f32": "multi-parent-sign-merge-f32 f32"
+  "multi-parent-sign-merge-f32": "multi-parent-sign-merge-f32 f32",
+  "multi-parent-soup-q8": "multi-parent-soup-q8 q8_0",
+  "multi-parent-soup-q4": "multi-parent-soup-q4 q4_0",
+  "multi-parent-soup-f32": "multi-parent-soup-f32 f32"
 };
 
 const expectedModelRoutes = {
   tinyq8: "/models/tiny-test-model-q8.slm",
   tinyq4: "/models/tiny-test-model-q4.slm",
+  "tinylm16-blend-q8": "/models/tinylm16-q8.slm",
+  "tinylm16-delta-q8": "/models/tinylm16-q8.slm",
+  "tinylm16-sparse-delta-q8": "/models/tinylm16-q8.slm",
+  "tinylm16-dare-q8": "/models/tinylm16-q8.slm",
+  "tinylm16-prune-q8": "/models/tinylm16-q8.slm",
+  "tinylm16-crossover-q8": "/models/tinylm16-q8.slm",
+  "tinylm16-mutation-q8": "/models/tinylm16-q8.slm",
+  "converted-trained-f32": "/models/converted-trained-f32.slm",
+  "converted-trained-q8": "/models/converted-trained-q8.slm",
+  "converted-trained-q4": "/models/converted-trained-q4.slm",
   "multi-parent-sign-merge-q8": "/models/multi-parent-sign-merge-q8.slm",
   "multi-parent-sign-merge-q4": "/models/multi-parent-sign-merge-q4.slm",
-  "multi-parent-sign-merge-f32": "/models/multi-parent-sign-merge-f32.slm"
+  "multi-parent-sign-merge-f32": "/models/multi-parent-sign-merge-f32.slm",
+  "multi-parent-soup-q8": "/models/multi-parent-soup-q8.slm",
+  "multi-parent-soup-q4": "/models/multi-parent-soup-q4.slm",
+  "multi-parent-soup-f32": "/models/multi-parent-soup-f32.slm"
 };
 
 const expectedAdapterLabels = {
@@ -133,6 +247,24 @@ const expectedAdapterLabels = {
     "Multi-parent sign-merge q4_0 family ADP1",
     "Multi-parent sign-merge q4_0 sparse ASP1",
     "Multi-parent sign-merge q4_0 source-backed ALR1"
+  ],
+  "multi-parent-soup-q8": [
+    "Multi-parent weighted soup q8_0 self ADP1",
+    "Multi-parent weighted soup q8_0 family ADP1",
+    "Multi-parent weighted soup q8_0 sparse ASP1",
+    "Multi-parent weighted soup q8_0 source-backed ALR1"
+  ],
+  "multi-parent-soup-q4": [
+    "Multi-parent weighted soup q4_0 self ADP1",
+    "Multi-parent weighted soup q4_0 family ADP1",
+    "Multi-parent weighted soup q4_0 sparse ASP1",
+    "Multi-parent weighted soup q4_0 source-backed ALR1"
+  ],
+  "multi-parent-soup-f32": [
+    "Multi-parent weighted soup f32 self ADP1",
+    "Multi-parent weighted soup f32 family ADP1",
+    "Multi-parent weighted soup f32 sparse ASP1",
+    "Multi-parent weighted soup f32 source-backed ALR1"
   ]
 };
 
@@ -142,7 +274,10 @@ const expectedAdapterRoutes = {
   tinyq4: "/models/tiny-test-model-q4-self.adp1",
   "multi-parent-sign-merge-q8": "/models/multi-parent-sign-merge-q8-sparse.asp1",
   "multi-parent-sign-merge-q4": "/models/multi-parent-sign-merge-q4-sparse.asp1",
-  "multi-parent-sign-merge-f32": "/models/multi-parent-sign-merge-f32-sparse.asp1"
+  "multi-parent-sign-merge-f32": "/models/multi-parent-sign-merge-f32-sparse.asp1",
+  "multi-parent-soup-q8": "/models/multi-parent-soup-q8-sparse.asp1",
+  "multi-parent-soup-q4": "/models/multi-parent-soup-q4-sparse.asp1",
+  "multi-parent-soup-f32": "/models/multi-parent-soup-f32-sparse.asp1"
 };
 
 const expectedAdapterStackRoutes = {
@@ -160,25 +295,49 @@ const expectedAdapterStackRoutes = {
     "/models/multi-parent-sign-merge-f32-family.adp1",
     "/models/multi-parent-sign-merge-f32-sparse.asp1",
     "/models/multi-parent-sign-merge-f32-low-rank.alr1"
+  ],
+  "multi-parent-soup-q8": [
+    "/models/multi-parent-soup-q8-family.adp1",
+    "/models/multi-parent-soup-q8-sparse.asp1",
+    "/models/multi-parent-soup-q8-low-rank.alr1"
+  ],
+  "multi-parent-soup-q4": [
+    "/models/multi-parent-soup-q4-family.adp1",
+    "/models/multi-parent-soup-q4-sparse.asp1",
+    "/models/multi-parent-soup-q4-low-rank.alr1"
+  ],
+  "multi-parent-soup-f32": [
+    "/models/multi-parent-soup-f32-family.adp1",
+    "/models/multi-parent-soup-f32-sparse.asp1",
+    "/models/multi-parent-soup-f32-low-rank.alr1"
   ]
 };
 
 const expectedAdapterFamilyReceiptRoutes = {
   "multi-parent-sign-merge-q8": "/models/multi-parent-sign-merge-q8.adapter-family.receipt",
   "multi-parent-sign-merge-q4": "/models/multi-parent-sign-merge-q4.adapter-family.receipt",
-  "multi-parent-sign-merge-f32": "/models/multi-parent-sign-merge-f32.adapter-family.receipt"
+  "multi-parent-sign-merge-f32": "/models/multi-parent-sign-merge-f32.adapter-family.receipt",
+  "multi-parent-soup-q8": "/models/multi-parent-soup-q8.adapter-family.receipt",
+  "multi-parent-soup-q4": "/models/multi-parent-soup-q4.adapter-family.receipt",
+  "multi-parent-soup-f32": "/models/multi-parent-soup-f32.adapter-family.receipt"
 };
 
 const expectedAssemblyReceiptRoutes = {
   "multi-parent-sign-merge-q8": "/models/multi-parent-sign-merge-q8.assembly.receipt",
   "multi-parent-sign-merge-q4": "/models/multi-parent-sign-merge-q4.assembly.receipt",
-  "multi-parent-sign-merge-f32": "/models/multi-parent-sign-merge-f32.assembly.receipt"
+  "multi-parent-sign-merge-f32": "/models/multi-parent-sign-merge-f32.assembly.receipt",
+  "multi-parent-soup-q8": "/models/multi-parent-soup-q8.assembly.receipt",
+  "multi-parent-soup-q4": "/models/multi-parent-soup-q4.assembly.receipt",
+  "multi-parent-soup-f32": "/models/multi-parent-soup-f32.assembly.receipt"
 };
 
 const expectedModulePlanRoutes = {
   "multi-parent-sign-merge-q8": "/models/multi-parent-sign-merge-q8.module-plan.receipt",
   "multi-parent-sign-merge-q4": "/models/multi-parent-sign-merge-q4.module-plan.receipt",
-  "multi-parent-sign-merge-f32": "/models/multi-parent-sign-merge-f32.module-plan.receipt"
+  "multi-parent-sign-merge-f32": "/models/multi-parent-sign-merge-f32.module-plan.receipt",
+  "multi-parent-soup-q8": "/models/multi-parent-soup-q8.module-plan.receipt",
+  "multi-parent-soup-q4": "/models/multi-parent-soup-q4.module-plan.receipt",
+  "multi-parent-soup-f32": "/models/multi-parent-soup-f32.module-plan.receipt"
 };
 
 const expectedModulePlanExecutionProfile = "single-threaded-wasm-local-v1";
@@ -212,7 +371,10 @@ const expectedModulePlanKvCachePages = "1";
 const expectedModulePlanModelBudgets = {
   "multi-parent-sign-merge-q8": "8832 bytes",
   "multi-parent-sign-merge-q4": "6592 bytes",
-  "multi-parent-sign-merge-f32": "20352 bytes"
+  "multi-parent-sign-merge-f32": "20352 bytes",
+  "multi-parent-soup-q8": "8832 bytes",
+  "multi-parent-soup-q4": "6592 bytes",
+  "multi-parent-soup-f32": "20352 bytes"
 };
 
 const expectedModulePlanTotalBudgets = {
@@ -224,7 +386,10 @@ const expectedModulePlanTotalBudgets = {
 const expectedModulePlanTotalLimits = {
   "multi-parent-sign-merge-q8": "43454464 bytes",
   "multi-parent-sign-merge-q4": "43454464 bytes",
-  "multi-parent-sign-merge-f32": "43454464 bytes"
+  "multi-parent-sign-merge-f32": "43454464 bytes",
+  "multi-parent-soup-q8": "43454464 bytes",
+  "multi-parent-soup-q4": "43454464 bytes",
+  "multi-parent-soup-f32": "43454464 bytes"
 };
 
 const expectedModulePlanBytes = {
@@ -266,10 +431,32 @@ function modulePlanByteSummaryTotal(summary) {
   return count > 0 ? `${total} bytes` : null;
 }
 
+function byteCountFromLabel(label) {
+  // Parses rendered byte labels so path-flexible generated roots can still prove budget math.
+  const match = String(label || "").match(/^(\d+) bytes$/);
+  return match ? Number.parseInt(match[1], 10) : null;
+}
+
+function modulePlanExpectedTotalBudget(result) {
+  // Recomputes the browser-local total budget from rendered module bytes and fixed envelopes.
+  const moduleBytes = byteCountFromLabel(modulePlanByteSummaryTotal(result.modulePlanBytes));
+  const scratchBytes = byteCountFromLabel(result.modulePlanScratchBudget);
+  const promptBytes = byteCountFromLabel(result.modulePlanPromptLimit);
+  const outputBytes = byteCountFromLabel(result.modulePlanOutputLimit);
+  const kvBytes = byteCountFromLabel(result.modulePlanKvCacheBudget);
+  if ([moduleBytes, scratchBytes, promptBytes, outputBytes, kvBytes].some((value) => value === null)) {
+    return null;
+  }
+  return `${moduleBytes + scratchBytes + promptBytes + outputBytes + kvBytes} bytes`;
+}
+
 const expectedAssemblyEvidenceRoutes = {
   "multi-parent-sign-merge-q8": multiParentEvidenceRoutes("multi-parent-sign-merge-q8"),
   "multi-parent-sign-merge-q4": multiParentEvidenceRoutes("multi-parent-sign-merge-q4"),
-  "multi-parent-sign-merge-f32": multiParentEvidenceRoutes("multi-parent-sign-merge-f32")
+  "multi-parent-sign-merge-f32": multiParentEvidenceRoutes("multi-parent-sign-merge-f32"),
+  "multi-parent-soup-q8": multiParentEvidenceRoutes("multi-parent-soup-q8"),
+  "multi-parent-soup-q4": multiParentEvidenceRoutes("multi-parent-soup-q4"),
+  "multi-parent-soup-f32": multiParentEvidenceRoutes("multi-parent-soup-f32")
 };
 
 const expectedAdapterManifestRoutes = {
@@ -290,6 +477,24 @@ const expectedAdapterManifestRoutes = {
     "/models/multi-parent-sign-merge-f32-family.adp1.manifest",
     "/models/multi-parent-sign-merge-f32-sparse.asp1.manifest",
     "/models/multi-parent-sign-merge-f32-low-rank.alr1.manifest"
+  ],
+  "multi-parent-soup-q8": [
+    "/models/multi-parent-soup-q8-self.adp1.manifest",
+    "/models/multi-parent-soup-q8-family.adp1.manifest",
+    "/models/multi-parent-soup-q8-sparse.asp1.manifest",
+    "/models/multi-parent-soup-q8-low-rank.alr1.manifest"
+  ],
+  "multi-parent-soup-q4": [
+    "/models/multi-parent-soup-q4-self.adp1.manifest",
+    "/models/multi-parent-soup-q4-family.adp1.manifest",
+    "/models/multi-parent-soup-q4-sparse.asp1.manifest",
+    "/models/multi-parent-soup-q4-low-rank.alr1.manifest"
+  ],
+  "multi-parent-soup-f32": [
+    "/models/multi-parent-soup-f32-self.adp1.manifest",
+    "/models/multi-parent-soup-f32-family.adp1.manifest",
+    "/models/multi-parent-soup-f32-sparse.asp1.manifest",
+    "/models/multi-parent-soup-f32-low-rank.alr1.manifest"
   ]
 };
 
@@ -297,20 +502,25 @@ const expectedAdapterApplyIndexes = {
   tinyf32: 0,
   "multi-parent-sign-merge-q8": 2,
   "multi-parent-sign-merge-q4": 2,
-  "multi-parent-sign-merge-f32": 2
+  "multi-parent-sign-merge-f32": 2,
+  "multi-parent-soup-q8": 2,
+  "multi-parent-soup-q4": 2,
+  "multi-parent-soup-f32": 2
 };
 
 function multiParentEvidenceRoutes(modelKey) {
+  // Chooses the generated evidence filename family from the model id stem.
+  const evidencePrefix = modelKey.startsWith("multi-parent-soup-") ? "soup" : "sign-merge";
   return [
     `/evidence/${modelKey}/population.ledger`,
     `/evidence/${modelKey}/population.review`,
     `/evidence/${modelKey}/parent-pool.recipe`,
-    `/evidence/${modelKey}/sign-merge.operator`,
-    `/evidence/${modelKey}/sign-merge.candidate`,
-    `/evidence/${modelKey}/sign-merge.promotion`,
-    `/evidence/${modelKey}/sign-merge.runtime`,
-    `/evidence/${modelKey}/sign-merge.eval`,
-    `/evidence/${modelKey}/sign-merge.multi.admission`
+    `/evidence/${modelKey}/${evidencePrefix}.operator`,
+    `/evidence/${modelKey}/${evidencePrefix}.candidate`,
+    `/evidence/${modelKey}/${evidencePrefix}.promotion`,
+    `/evidence/${modelKey}/${evidencePrefix}.runtime`,
+    `/evidence/${modelKey}/${evidencePrefix}.eval`,
+    `/evidence/${modelKey}/${evidencePrefix}.multi.admission`
   ];
 }
 
@@ -491,6 +701,23 @@ function isHeritableArtifactSummary(value) {
   // Matches the compact browser text rendered from selector heritable artifact metadata.
   const parts = String(value || "").split(" / ");
   return parts.length === 3 && parts[0] === "served-artifact-bound" && isHex64(parts[1]) && isHex64(parts[2]);
+}
+
+function isOperatorReceiptSummary(value, operatorKind) {
+  // Matches the compact browser text rendered from selector operator receipt metadata.
+  const parts = String(value || "").split(" / ");
+  return parts.length === 3 && parts[0] === "receipt-bound" && parts[1] === operatorKind && isHex64(parts[2]);
+}
+
+function isEvolutionScheduleSummary(value, expectedSchedule) {
+  // Matches the compact browser text rendered from parent-pool evolution schedule metadata.
+  const parts = String(value || "").split(" / ");
+  return Boolean(expectedSchedule) &&
+    parts.length === 4 &&
+    parts[0] === "planned" &&
+    parts[1] === `family ${expectedSchedule.familyIndex}` &&
+    parts[2] === expectedSchedule.familyCommand &&
+    isHex64(parts[3]);
 }
 
 function isNonZeroHex64(value) {
@@ -1033,6 +1260,46 @@ function updateRegistryAdapterManifestChecksum(registryText, candidateId, adapte
   return replaceLineValue(registryText, `${prefix}.manifest_checksum`, manifestChecksum);
 }
 
+// Mutates generated selector operator receipt byte echoes before browser registry intake.
+function driftGeneratedSelectorOperatorReceiptBytes(registryText) {
+  let changed = false;
+  const updated = registryText.replace(
+    /^entry\.(\d+)\.operator_receipt_candidate_artifact_bytes=(\d+)$/gm,
+    (_line, entryIndex, byteText) => {
+      const byteCount = Number(byteText);
+      if (!Number.isSafeInteger(byteCount) || byteCount < 1) {
+        throw new Error(`operator receipt byte count was invalid for entry ${entryIndex}`);
+      }
+      changed = true;
+      return `entry.${entryIndex}.operator_receipt_candidate_artifact_bytes=${byteCount + 1}`;
+    }
+  );
+  if (!changed) {
+    throw new Error("selector registry operator receipt byte fields were not found");
+  }
+  return updated;
+}
+
+// Mutates generated selector operator kinds while preserving receipt byte echoes.
+function driftGeneratedSelectorOperatorReceiptKind(registryText) {
+  let changed = false;
+  const updated = registryText.replace(
+    /^entry\.(\d+)\.operator_receipt_operator_kind=(seed-weighted-parent-pool-soup|sign-aware-parent-pool-merge)$/gm,
+    (_line, entryIndex, operatorKind) => {
+      changed = true;
+      const replacement =
+        operatorKind === "seed-weighted-parent-pool-soup"
+          ? "sign-aware-parent-pool-merge"
+          : "seed-weighted-parent-pool-soup";
+      return `entry.${entryIndex}.operator_receipt_operator_kind=${replacement}`;
+    }
+  );
+  if (!changed) {
+    throw new Error("selector registry operator receipt kind fields were not found");
+  }
+  return updated;
+}
+
 function updateModulePlanAssemblyReceiptChecksum(receiptText, checksum) {
   let updated = receiptText;
   for (const key of ["assembly_receipt_checksum", "module.2.checksum"]) {
@@ -1266,6 +1533,13 @@ async function runPageSmoke(client, modelKey) {
         benchTokensPerSecond: byId("benchTokensPerSecond").textContent,
         benchScratch: byId("benchScratch").textContent,
         selectedModel: byId("modelSelect").value,
+        provenanceSourceKind: byId("provenanceSourceKind").textContent,
+        provenanceAdmission: byId("provenanceAdmission").textContent,
+        provenanceQualityClaim: byId("provenanceQualityClaim").textContent,
+        provenanceTrainedClaim: byId("provenanceTrainedClaim").textContent,
+        provenanceNextGate: byId("provenanceNextGate").textContent,
+        provenanceOperator: byId("provenanceOperator").textContent,
+        provenanceSchedule: byId("provenanceSchedule").textContent,
         modelOptions: Array.from(byId("modelSelect").options).map((option) => ({
           value: option.value,
           label: option.textContent.trim()
@@ -1453,6 +1727,8 @@ async function runPageAdapterSidecarSmoke(client, modelKey, expectAutoAssembly) 
         provenanceNovelty: byId("provenanceNovelty").textContent,
         provenancePopulation: byId("provenancePopulation").textContent,
         provenanceMateSelection: byId("provenanceMateSelection").textContent,
+        provenanceOperator: byId("provenanceOperator").textContent,
+        provenanceSchedule: byId("provenanceSchedule").textContent,
         provenancePhenotype: byId("provenancePhenotype").textContent,
         provenanceArtifact: byId("provenanceArtifact").textContent,
         provenanceFitness: byId("provenanceFitness").textContent,
@@ -1669,6 +1945,8 @@ async function runPageCombinedSelectorAssemblySmoke(client, cycles) {
           provenanceNovelty: byId("provenanceNovelty").textContent,
           provenancePopulation: byId("provenancePopulation").textContent,
           provenanceMateSelection: byId("provenanceMateSelection").textContent,
+          provenanceOperator: byId("provenanceOperator").textContent,
+          provenanceSchedule: byId("provenanceSchedule").textContent,
           provenancePhenotype: byId("provenancePhenotype").textContent,
           provenanceArtifact: byId("provenanceArtifact").textContent,
           provenanceFitness: byId("provenanceFitness").textContent,
@@ -2584,6 +2862,8 @@ async function runPageUiAudit(client) {
           provenanceNovelty: byId("provenanceNovelty").textContent,
           provenancePopulation: byId("provenancePopulation").textContent,
           provenanceMateSelection: byId("provenanceMateSelection").textContent,
+          provenanceOperator: byId("provenanceOperator").textContent,
+          provenanceSchedule: byId("provenanceSchedule").textContent,
           provenancePhenotype: byId("provenancePhenotype").textContent,
           provenanceArtifact: byId("provenanceArtifact").textContent,
           provenanceFitness: byId("provenanceFitness").textContent,
@@ -2827,6 +3107,171 @@ function assertMultiParentRegistrySmoke(result, modelKey, networkRequests) {
   const expectedRoute = expectedRouteForModel(modelKey) || "/models/tinylm16-q8.slm";
   if (!networkRequests.some((requestUrl) => requestUrl.includes(expectedRoute))) {
     failures.push("registry model route was not requested");
+  }
+  const expectedOperatorKind = expectedRegistryOperatorKindForModel(modelKey);
+  if (
+    expectedOperatorKind &&
+    !isOperatorReceiptSummary(result.provenanceOperator, expectedOperatorKind)
+  ) {
+    failures.push(`provenance operator was ${result.provenanceOperator}`);
+  }
+  const allowedOrigin = new URL(appUrl).origin;
+  for (const requestUrl of networkRequests) {
+    if (!requestUrl.startsWith("http://") && !requestUrl.startsWith("https://")) {
+      continue;
+    }
+    const origin = new URL(requestUrl).origin;
+    if (origin !== allowedOrigin) {
+      failures.push(`remote request observed: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+// Confirms a registry-served converted-trained artifact keeps its browser-visible claim boundary.
+function assertConvertedTrainedRegistrySmoke(result, modelKey, networkRequests) {
+  assertSmoke(result, modelKey, networkRequests);
+  const failures = [];
+  const modelOptionValues = Array.isArray(result.modelOptions)
+    ? result.modelOptions.map((option) => option.value)
+    : [];
+  if (!modelOptionValues.includes(modelKey)) {
+    failures.push(`registry options were ${JSON.stringify(result.modelOptions)}`);
+  }
+  const matchingOption = Array.isArray(result.modelOptions)
+    ? result.modelOptions.find((option) => option.value === modelKey)
+    : undefined;
+  if (matchingOption && matchingOption.label !== expectedLabelForModel(modelKey)) {
+    failures.push(`registry option label was ${matchingOption.label}`);
+  }
+  if (!networkRequests.some((requestUrl) => requestUrl.includes("/models/selector.registry"))) {
+    failures.push("selector registry route was not requested");
+  }
+  const expectedRoute = expectedRouteForModel(modelKey) || "/models/converted-trained-q8.slm";
+  if (!networkIncludesPath(networkRequests, expectedRoute)) {
+    failures.push("converted-trained model route was not requested");
+  }
+  if (result.provenanceSourceKind !== "converted-trained") {
+    failures.push(`provenance source kind was ${result.provenanceSourceKind}`);
+  }
+  if (result.provenanceAdmission !== "structure-accepted-quality-pending") {
+    failures.push(`provenance admission was ${result.provenanceAdmission}`);
+  }
+  if (result.provenanceQualityClaim !== "runtime-compatible-not-quality-verified") {
+    failures.push(`provenance quality claim was ${result.provenanceQualityClaim}`);
+  }
+  if (result.provenanceTrainedClaim !== "pending-evaluation") {
+    failures.push(`provenance trained claim was ${result.provenanceTrainedClaim}`);
+  }
+  if (result.provenanceNextGate !== "task-eval-and-safety-review-before-assistant-quality-claim") {
+    failures.push(`provenance next gate was ${result.provenanceNextGate}`);
+  }
+  if (!networkIncludesPath(networkRequests, `${expectedRoute}.manifest`)) {
+    failures.push("converted-trained manifest route was not requested");
+  }
+  const allowedOrigin = new URL(appUrl).origin;
+  for (const requestUrl of networkRequests) {
+    if (!requestUrl.startsWith("http://") && !requestUrl.startsWith("https://")) {
+      continue;
+    }
+    const origin = new URL(requestUrl).origin;
+    if (origin !== allowedOrigin) {
+      failures.push(`remote request observed: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+// Confirms selector receipt drift removes generated entries before browser model selection.
+function assertSelectorOperatorReceiptDriftSmoke(
+  result,
+  networkRequests,
+  rejectedModelKey = "multi-parent-sign-merge-q8"
+) {
+  assertSmoke(result, "tinylm16q8", networkRequests);
+  const failures = [];
+  const modelOptionValues = Array.isArray(result.modelOptions)
+    ? result.modelOptions.map((option) => option.value)
+    : [];
+  if (modelOptionValues.includes(rejectedModelKey)) {
+    failures.push("operator receipt drift registry entry was accepted");
+  }
+  if (!modelOptionValues.includes("tinylm16q8") || !modelOptionValues.includes("tinylm16q4")) {
+    failures.push(`fallback model options were ${JSON.stringify(result.modelOptions)}`);
+  }
+  if (result.provenanceOperator !== "unavailable") {
+    failures.push(`fallback provenance operator was ${result.provenanceOperator}`);
+  }
+  if (!networkRequests.some((requestUrl) => requestUrl.includes("/models/selector.registry"))) {
+    failures.push("selector registry route was not requested");
+  }
+  if (!networkRequests.some((requestUrl) => requestUrl.includes("/models/tinylm16-q8.slm"))) {
+    failures.push("fallback q8 model route was not requested");
+  }
+  const allowedOrigin = new URL(appUrl).origin;
+  for (const requestUrl of networkRequests) {
+    if (!requestUrl.startsWith("http://") && !requestUrl.startsWith("https://")) {
+      continue;
+    }
+    const origin = new URL(requestUrl).origin;
+    if (origin !== allowedOrigin) {
+      failures.push(`remote request observed: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+// Confirms generated selector operator receipt drift prevents generated route intake.
+function assertGeneratedSelectorOperatorReceiptDriftSmoke(result, modelKey, networkRequests) {
+  assertSmoke(result, "tinylm16q8", networkRequests);
+  const failures = [];
+  const modelOptionValues = Array.isArray(result.modelOptions)
+    ? result.modelOptions.map((option) => option.value)
+    : [];
+  const generatedModels = isGeneratedMultiParentModel(modelKey)
+    ? combinedSelectorModelsFor(modelKey)
+    : [
+        "multi-parent-sign-merge-q4",
+        "multi-parent-sign-merge-q8",
+        "multi-parent-sign-merge-f32",
+        "multi-parent-soup-q4",
+        "multi-parent-soup-q8",
+        "multi-parent-soup-f32"
+      ];
+  for (const generatedModel of generatedModels) {
+    if (modelOptionValues.includes(generatedModel)) {
+      failures.push(`generated operator receipt drift entry was accepted: ${generatedModel}`);
+    }
+    const generatedRoutes = [
+      expectedModelRoutes[generatedModel],
+      expectedModulePlanRoutes[generatedModel],
+      expectedAssemblyReceiptRoutes[generatedModel],
+      expectedAdapterFamilyReceiptRoutes[generatedModel],
+      ...(expectedAdapterStackRoutes[generatedModel] || [])
+    ].filter(Boolean);
+    for (const generatedRoute of generatedRoutes) {
+      if (networkIncludesPath(networkRequests, generatedRoute)) {
+        failures.push(`generated route was requested after operator receipt drift: ${generatedRoute}`);
+      }
+    }
+  }
+  if (!modelOptionValues.includes("tinylm16q8") || !modelOptionValues.includes("tinylm16q4")) {
+    failures.push(`fallback model options were ${JSON.stringify(result.modelOptions)}`);
+  }
+  if (result.provenanceOperator !== "unavailable") {
+    failures.push(`fallback provenance operator was ${result.provenanceOperator}`);
+  }
+  if (!networkIncludesPath(networkRequests, "/models/selector.registry")) {
+    failures.push("selector registry route was not requested");
+  }
+  if (!networkIncludesPath(networkRequests, "/models/tinylm16-q8.slm")) {
+    failures.push("fallback q8 model route was not requested");
   }
   const allowedOrigin = new URL(appUrl).origin;
   for (const requestUrl of networkRequests) {
@@ -4568,12 +5013,9 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
   const modelOptionValues = Array.isArray(result.modelOptions)
     ? result.modelOptions.map((option) => option.value)
     : [];
-  const hasCombinedGeneratedOptions = [
-    "multi-parent-sign-merge-f32",
-    "multi-parent-sign-merge-q8",
-    "multi-parent-sign-merge-q4"
-  ].every((option) => modelOptionValues.includes(option));
-  if (hasCombinedGeneratedOptions && result.initialSelectedModel !== "multi-parent-sign-merge-q4") {
+  const combinedModelFamily = combinedSelectorModelsFor(modelKey);
+  const hasCombinedGeneratedOptions = combinedModelFamily.every((option) => modelOptionValues.includes(option));
+  if (hasCombinedGeneratedOptions && result.initialSelectedModel !== combinedModelFamily[0]) {
     failures.push(`combined selector default was ${result.initialSelectedModel}`);
   }
   if (result.adapterSelectDisabledBefore || result.applyDisabledBefore) {
@@ -4686,12 +5128,13 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
     }
   }
   const expectsEvalProof =
-    modelKey.startsWith("multi-parent-sign-merge-") ||
+    isGeneratedMultiParentModel(modelKey) ||
     result.provenanceGenome !== "unavailable" ||
     result.provenanceSpecies !== "unavailable" ||
     result.provenanceNovelty !== "unavailable" ||
     result.provenancePopulation !== "unavailable" ||
     result.provenanceMateSelection !== "unavailable" ||
+    result.provenanceSchedule !== "unavailable" ||
     result.provenancePhenotype !== "unavailable" ||
     result.provenanceArtifact !== "unavailable" ||
     result.provenanceFitness !== "unavailable" ||
@@ -4714,10 +5157,24 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
       failures.push(`provenance mate selection was ${result.provenanceMateSelection}`);
     }
     if (
-      modelKey.startsWith("multi-parent-sign-merge-") &&
+      isGeneratedMultiParentModel(modelKey) &&
       !String(result.provenanceMateSelection || "").startsWith("parent-pool-bound / 3 parents / ")
     ) {
       failures.push(`provenance mate selection route was ${result.provenanceMateSelection}`);
+    }
+    const expectedOperatorKind = expectedOperatorKindForModel(modelKey);
+    if (
+      isGeneratedMultiParentModel(modelKey) &&
+      !isOperatorReceiptSummary(result.provenanceOperator, expectedOperatorKind)
+    ) {
+      failures.push(`provenance operator was ${result.provenanceOperator}`);
+    }
+    const expectedSchedule = expectedEvolutionScheduleForModel(modelKey);
+    if (
+      isGeneratedMultiParentModel(modelKey) &&
+      !isEvolutionScheduleSummary(result.provenanceSchedule, expectedSchedule)
+    ) {
+      failures.push(`provenance schedule was ${result.provenanceSchedule}`);
     }
     if (!isPhenotypeEvidenceSummary(result.provenancePhenotype)) {
       failures.push(`provenance phenotype was ${result.provenancePhenotype}`);
@@ -4740,6 +5197,7 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
     result.provenanceNovelty !== "unavailable" ||
     result.provenancePopulation !== "unavailable" ||
     result.provenanceMateSelection !== "unavailable" ||
+    result.provenanceSchedule !== "unavailable" ||
     result.provenancePhenotype !== "unavailable" ||
     result.provenanceArtifact !== "unavailable" ||
     result.provenanceFitness !== "unavailable" ||
@@ -4747,7 +5205,7 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
     result.provenanceEvalChecksum !== "unavailable"
   ) {
     failures.push(
-      `manual model eval proof was ${result.provenanceGenome}/${result.provenanceSpecies}/${result.provenanceNovelty}/${result.provenancePopulation}/${result.provenanceMateSelection}/${result.provenancePhenotype}/${result.provenanceArtifact}/${result.provenanceFitness}/${result.provenanceEvalCases}/${result.provenanceEvalChecksum}`
+      `manual model eval proof was ${result.provenanceGenome}/${result.provenanceSpecies}/${result.provenanceNovelty}/${result.provenancePopulation}/${result.provenanceMateSelection}/${result.provenanceSchedule}/${result.provenancePhenotype}/${result.provenanceArtifact}/${result.provenanceFitness}/${result.provenanceEvalCases}/${result.provenanceEvalChecksum}`
     );
   }
   const expectedAdapterRoute = expectedAdapterRoutes[modelKey] || "/models/tiny-test-model-self.adp1";
@@ -4939,6 +5397,12 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
     } else if (result.modulePlanActualModuleBytes !== expectedActualModuleBytes) {
       failures.push(`module plan actual module bytes were ${result.modulePlanActualModuleBytes}`);
     }
+    const expectedRenderedTotalBudget = modulePlanExpectedTotalBudget(result);
+    if (!expectedRenderedTotalBudget) {
+      failures.push(`module plan total budget could not be derived from ${result.modulePlanBytes}`);
+    } else if (result.modulePlanTotalBudget !== expectedRenderedTotalBudget) {
+      failures.push(`module plan total budget was ${result.modulePlanTotalBudget}`);
+    }
     if (result.modulePlanActualModuleChecksums !== result.modulePlanChecksums) {
       failures.push(`module plan actual module checksums were ${result.modulePlanActualModuleChecksums}`);
     }
@@ -4977,7 +5441,7 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
   if (expectedModelRoute && !networkRequests.some((requestUrl) => requestUrl.includes(expectedModelRoute))) {
     failures.push("adapter model route was not requested");
   }
-  if (modelKey.startsWith("multi-parent-sign-merge-") && !networkRequests.some((requestUrl) => requestUrl.includes("/models/selector.registry"))) {
+  if (isGeneratedMultiParentModel(modelKey) && !networkRequests.some((requestUrl) => requestUrl.includes("/models/selector.registry"))) {
     failures.push("selector registry route was not requested");
   }
   if (failures.length > 0) {
@@ -4997,7 +5461,7 @@ function combinedSelectorSequence(cycles) {
 
 function assertCombinedSelectorSequenceSmoke(result, networkRequests, expectedSequence, failures, options = {}) {
   const checkActualFetchBudget = options.checkActualFetchBudget !== false;
-  if (result.initialSelectedModel !== "multi-parent-sign-merge-q4") {
+  if (result.initialSelectedModel !== combinedSelectorModels[0]) {
     failures.push(`combined selector default was ${result.initialSelectedModel}`);
   }
   const optionValues = Array.isArray(result.modelOptions)
@@ -5075,6 +5539,43 @@ function assertCombinedSelectorAssemblySmoke(result, networkRequests) {
   assertCombinedSelectorSequenceSmoke(result, networkRequests, combinedSelectorSequence(1), failures, {
     checkExactModulePlanSummaries: false
   });
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertCombinedSelectorOperatorFamilySmoke(result, networkRequests) {
+  // Proves one selector registry can self-assemble both parent-pool operator families.
+  const failures = [];
+  assertCombinedSelectorSequenceSmoke(result, networkRequests, combinedSelectorSequence(1), failures, {
+    checkExactModulePlanSummaries: false
+  });
+  const stepKeys = Array.isArray(result.steps) ? result.steps.map((step) => step.modelKey) : [];
+  if (!stepKeys.some((modelKey) => modelKey.startsWith("multi-parent-sign-merge-"))) {
+    failures.push("mixed selector did not assemble a sign-merge entry");
+  }
+  if (!stepKeys.some((modelKey) => modelKey.startsWith("multi-parent-soup-"))) {
+    failures.push("mixed selector did not assemble a soup entry");
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertCombinedSelectorOperatorFamilyCycleSmoke(result, networkRequests, cycles) {
+  // Reuses the cycle proof across both parent-pool families in one selector lifetime.
+  assertCombinedSelectorCycleSmoke(result, networkRequests, cycles);
+  const failures = [];
+  const stepKeys = Array.isArray(result.steps) ? result.steps.map((step) => step.modelKey) : [];
+  const signMergeSteps = stepKeys.filter((modelKey) => modelKey.startsWith("multi-parent-sign-merge-")).length;
+  const soupSteps = stepKeys.filter((modelKey) => modelKey.startsWith("multi-parent-soup-")).length;
+  const expectedFamilySteps = 3 * cycles;
+  if (signMergeSteps !== expectedFamilySteps) {
+    failures.push(`sign-merge cycle steps were ${signMergeSteps}; expected ${expectedFamilySteps}`);
+  }
+  if (soupSteps !== expectedFamilySteps) {
+    failures.push(`soup cycle steps were ${soupSteps}; expected ${expectedFamilySteps}`);
+  }
   if (failures.length > 0) {
     throw new Error(failures.join("; "));
   }
@@ -5246,6 +5747,29 @@ function assertCombinedSelectorReloadSoakSmoke(result, networkRequests, reloads)
       if (count < reloads) {
         failures.push(`${modelKey} route ${route} was requested ${count} times for ${reloads} page lifetimes`);
       }
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertCombinedSelectorOperatorFamilyReloadSoakSmoke(result, networkRequests, reloads) {
+  // Extends reload proof across both parent-pool operator families in every page lifetime.
+  assertCombinedSelectorReloadSoakSmoke(result, networkRequests, reloads);
+  const failures = [];
+  const pageResults = Array.isArray(result.results) ? result.results : [];
+  for (let reloadIndex = 0; reloadIndex < pageResults.length; reloadIndex += 1) {
+    const stepKeys = Array.isArray(pageResults[reloadIndex].steps)
+      ? pageResults[reloadIndex].steps.map((step) => step.modelKey)
+      : [];
+    const signMergeSteps = stepKeys.filter((modelKey) => modelKey.startsWith("multi-parent-sign-merge-")).length;
+    const soupSteps = stepKeys.filter((modelKey) => modelKey.startsWith("multi-parent-soup-")).length;
+    if (signMergeSteps !== 3) {
+      failures.push(`reload ${reloadIndex} sign-merge steps were ${signMergeSteps}`);
+    }
+    if (soupSteps !== 3) {
+      failures.push(`reload ${reloadIndex} soup steps were ${soupSteps}`);
     }
   }
   if (failures.length > 0) {
@@ -6155,6 +6679,12 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
   if (snapshot.provenanceMateSelection !== "unavailable") {
     failures.push(`${prefix} provenance mate selection was ${snapshot.provenanceMateSelection}`);
   }
+  if (snapshot.provenanceOperator !== "unavailable") {
+    failures.push(`${prefix} provenance operator was ${snapshot.provenanceOperator}`);
+  }
+  if (snapshot.provenanceSchedule !== "unavailable") {
+    failures.push(`${prefix} provenance schedule was ${snapshot.provenanceSchedule}`);
+  }
   if (snapshot.provenancePhenotype !== "unavailable") {
     failures.push(`${prefix} provenance phenotype was ${snapshot.provenancePhenotype}`);
   }
@@ -6490,7 +7020,143 @@ function installAdapterManifestBudgetInterceptor(client) {
   });
 }
 
-function installMultiParentRegistryInterceptor(client) {
+function registryOperatorFixtureForMode(mode, candidateArtifactBytes = "17160000") {
+  // Supplies compact selector entries for operator receipt provenance smokes.
+  if (mode === "blend-operator-registry" || mode === "blend-operator-receipt-drift") {
+    return {
+      candidateId: "tinylm16-blend-q8",
+      displayName: "TinyLM-16M q8 blend candidate",
+      mateSelectionStatus: "admission-only",
+      mateSelectionParentCount: "1",
+      operatorPath: "tinyrustlm/models/tinylm16-q8-blend.operator",
+      operatorChecksum: "0x00000000000000b4",
+      operatorId: "blend-q8",
+      operatorKind: "direct-parameter-weighted-average",
+      candidateArtifactBytes
+    };
+  }
+  if (mode === "delta-operator-registry" || mode === "delta-operator-receipt-drift") {
+    return {
+      candidateId: "tinylm16-delta-q8",
+      displayName: "TinyLM-16M q8 delta candidate",
+      mateSelectionStatus: "admission-only",
+      mateSelectionParentCount: "1",
+      operatorPath: "tinyrustlm/models/tinylm16-q8-delta.operator",
+      operatorChecksum: "0x00000000000000b5",
+      operatorId: "delta-q8",
+      operatorKind: "direct-parameter-task-delta",
+      candidateArtifactBytes
+    };
+  }
+  if (mode === "sparse-delta-operator-registry" || mode === "sparse-delta-operator-receipt-drift") {
+    return {
+      candidateId: "tinylm16-sparse-delta-q8",
+      displayName: "TinyLM-16M q8 sparse-delta candidate",
+      mateSelectionStatus: "admission-only",
+      mateSelectionParentCount: "1",
+      operatorPath: "tinyrustlm/models/tinylm16-q8-sparse-delta.operator",
+      operatorChecksum: "0x00000000000000b6",
+      operatorId: "sparse-delta-q8",
+      operatorKind: "sparse-direct-parameter-task-delta",
+      candidateArtifactBytes
+    };
+  }
+  if (mode === "dare-operator-registry" || mode === "dare-operator-receipt-drift") {
+    return {
+      candidateId: "tinylm16-dare-q8",
+      displayName: "TinyLM-16M q8 DARE candidate",
+      mateSelectionStatus: "admission-only",
+      mateSelectionParentCount: "1",
+      operatorPath: "tinyrustlm/models/tinylm16-q8-dare.operator",
+      operatorChecksum: "0x00000000000000b7",
+      operatorId: "dare-q8",
+      operatorKind: "dropout-rescaled-task-delta",
+      candidateArtifactBytes
+    };
+  }
+  if (mode === "prune-operator-registry" || mode === "prune-operator-receipt-drift") {
+    return {
+      candidateId: "tinylm16-prune-q8",
+      displayName: "TinyLM-16M q8 prune candidate",
+      mateSelectionStatus: "admission-only",
+      mateSelectionParentCount: "1",
+      operatorPath: "tinyrustlm/models/tinylm16-q8-prune.operator",
+      operatorChecksum: "0x00000000000000b1",
+      operatorId: "prune-q8",
+      operatorKind: "deterministic-magnitude-parameter-pruning",
+      candidateArtifactBytes
+    };
+  }
+  if (mode === "crossover-operator-registry" || mode === "crossover-operator-receipt-drift") {
+    return {
+      candidateId: "tinylm16-crossover-q8",
+      displayName: "TinyLM-16M q8 crossover candidate",
+      mateSelectionStatus: "admission-only",
+      mateSelectionParentCount: "1",
+      operatorPath: "tinyrustlm/models/tinylm16-q8-crossover.operator",
+      operatorChecksum: "0x00000000000000b2",
+      operatorId: "crossover-q8",
+      operatorKind: "deterministic-direct-parameter-crossover",
+      candidateArtifactBytes
+    };
+  }
+  if (mode === "mutation-operator-registry" || mode === "mutation-operator-receipt-drift") {
+    return {
+      candidateId: "tinylm16-mutation-q8",
+      displayName: "TinyLM-16M q8 mutation candidate",
+      mateSelectionStatus: "admission-only",
+      mateSelectionParentCount: "1",
+      operatorPath: "tinyrustlm/models/tinylm16-q8-mutation.operator",
+      operatorChecksum: "0x00000000000000b3",
+      operatorId: "mutation-q8",
+      operatorKind: "deterministic-bounded-parameter-mutation",
+      candidateArtifactBytes
+    };
+  }
+  return {
+    candidateId: "multi-parent-sign-merge-q8",
+    displayName: "Multi-parent sign-merge q8_0",
+    mateSelectionStatus: "parent-pool-bound",
+    mateSelectionParentCount: "3",
+    operatorPath: "tinyrustlm/models/tinylm16-q8-federated.operator",
+    operatorChecksum: "0x00000000000000b0",
+    operatorId: "federated-local-update-q8",
+    operatorKind: "federated-local-update-average",
+    candidateArtifactBytes
+  };
+}
+
+function expectedRegistryOperatorKindForModel(modelKey) {
+  // Matches the operator kind expected from the compact selector fixture.
+  if (modelKey === "tinylm16-blend-q8") {
+    return "direct-parameter-weighted-average";
+  }
+  if (modelKey === "tinylm16-delta-q8") {
+    return "direct-parameter-task-delta";
+  }
+  if (modelKey === "tinylm16-sparse-delta-q8") {
+    return "sparse-direct-parameter-task-delta";
+  }
+  if (modelKey === "tinylm16-dare-q8") {
+    return "dropout-rescaled-task-delta";
+  }
+  if (modelKey === "tinylm16-prune-q8") {
+    return "deterministic-magnitude-parameter-pruning";
+  }
+  if (modelKey === "tinylm16-crossover-q8") {
+    return "deterministic-direct-parameter-crossover";
+  }
+  if (modelKey === "tinylm16-mutation-q8") {
+    return "deterministic-bounded-parameter-mutation";
+  }
+  if (modelKey === "multi-parent-sign-merge-q8" && smokeMode === "multi-parent-registry") {
+    return "federated-local-update-average";
+  }
+  return "";
+}
+
+// Serves a compact registry fixture that exercises selector provenance and operator receipt rendering.
+function installMultiParentRegistryInterceptor(client, fixture = registryOperatorFixtureForMode(smokeMode)) {
   client.on("Fetch.requestPaused", (params) => {
     const requestUrl = params.request && params.request.url ? params.request.url : "";
     if (requestUrl.includes("/models/selector.registry")) {
@@ -6506,8 +7172,8 @@ function installMultiParentRegistryInterceptor(client) {
         "evidence_text_byte_budget=131072",
         "entry_count=1",
         "admission_set_checksum=0x0000000000000049",
-        "entry.0.candidate_id=multi-parent-sign-merge-q8",
-        "entry.0.display_name=Multi-parent sign-merge q8_0",
+        `entry.0.candidate_id=${fixture.candidateId}`,
+        `entry.0.display_name=${fixture.displayName}`,
         "entry.0.model_path=../models/tinylm16-q8.slm",
         "entry.0.manifest_path=../models/tinylm16-q8.slm.manifest",
         "entry.0.artifact_path=tinyrustlm/models/tinylm16-q8.slm",
@@ -6535,9 +7201,16 @@ function installMultiParentRegistryInterceptor(client) {
         "entry.0.population_checksum=0x00000000000000a9",
         "entry.0.mate_selection_id=0x00000000000000aa",
         "entry.0.mate_selection_strategy=selector-mate-selection-route-v1",
-        "entry.0.mate_selection_status=parent-pool-bound",
-        "entry.0.mate_selection_parent_count=3",
+        `entry.0.mate_selection_status=${fixture.mateSelectionStatus}`,
+        `entry.0.mate_selection_parent_count=${fixture.mateSelectionParentCount}`,
         "entry.0.mate_selection_checksum=0x00000000000000ab",
+        "entry.0.operator_receipt_status=receipt-bound",
+        `entry.0.operator_receipt_path=${fixture.operatorPath}`,
+        `entry.0.operator_receipt_checksum=${fixture.operatorChecksum}`,
+        `entry.0.operator_receipt_operator_id=${fixture.operatorId}`,
+        `entry.0.operator_receipt_operator_kind=${fixture.operatorKind}`,
+        "entry.0.operator_receipt_candidate_slm_checksum=0xa1442f3f180c542b",
+        `entry.0.operator_receipt_candidate_artifact_bytes=${fixture.candidateArtifactBytes}`,
         "entry.0.phenotype_evidence_id=0x00000000000000ac",
         "entry.0.phenotype_evidence_strategy=selector-phenotype-evidence-v1",
         "entry.0.phenotype_evidence_status=runtime-eval-bound",
@@ -6580,6 +7253,271 @@ function installMultiParentRegistryInterceptor(client) {
       requestId: params.requestId
     }).catch((error) => {
       console.error(error);
+    });
+  });
+}
+
+// Builds the manifest body for the converted-trained browser provenance smoke.
+function convertedTrainedRegistryManifestText() {
+  return [
+    "tinyrustlm_slm_manifest_version=1",
+    "model_path=tinyrustlm\\models\\converted-trained-q8.slm",
+    "model_bytes=8832",
+    "slm_version=1",
+    "slm_checksum=0x481f1037d57ebcd3",
+    "model_shape=vocab=260,hidden=8,layers=1,heads=2,kv_heads=2,head_dim=4,ffn=16,context=16",
+    "tensor_count=12",
+    "parameter_count=4824",
+    "quantization=q8_0",
+    "source_kind=converted-trained",
+    "quality_claim=runtime-compatible-not-quality-verified",
+    "trained_quality_claim=pending-evaluation",
+    "admission_status=structure-accepted-quality-pending",
+    "required_next_gate=task-eval-and-safety-review-before-assistant-quality-claim",
+    ""
+  ].join("\n");
+}
+
+// Builds a compact selector registry that routes a local converted-trained q8 artifact.
+function convertedTrainedRegistryText() {
+  return [
+    "tinyrustlm_selector_registry_version=1",
+    "selector_id=browser-local-selector",
+    "registry_scope=browser-local-model-selector",
+    "registry_status=admitted-records-only",
+    "selector_model_byte_budget=33554432",
+    "selector_registry_text_byte_budget=262144",
+    "manifest_text_byte_budget=65536",
+    "receipt_text_byte_budget=131072",
+    "evidence_text_byte_budget=131072",
+    "entry_count=1",
+    "admission_set_checksum=0x0000000000000071",
+    "entry.0.candidate_id=converted-trained-q8",
+    "entry.0.display_name=Converted trained-source q8_0",
+    "entry.0.model_path=../models/converted-trained-q8.slm",
+    "entry.0.manifest_path=../models/converted-trained-q8.slm.manifest",
+    "entry.0.artifact_path=tinyrustlm/models/converted-trained-q8.slm",
+    "entry.0.max_tokens=8",
+    "entry.0.model_bytes=8832",
+    "entry.0.slm_checksum=0x481f1037d57ebcd3",
+    "entry.0.tokenizer_checksum=0x289d76790aca3acb",
+    "entry.0.model_shape=vocab=260,hidden=8,layers=1,heads=2,kv_heads=2,head_dim=4,ffn=16,context=16",
+    "entry.0.quantization=q8_0",
+    "entry.0.output_contract=separate-output-weight",
+    "entry.0.genome_id=0x0000000000000171",
+    "entry.0.genome_strategy=selector-admission-genome-v1",
+    "entry.0.genome_lineage_status=admission-bound",
+    "entry.0.genome_lineage_checksum=0x0000000000000172",
+    "entry.0.species_id=0x0000000000000173",
+    "entry.0.species_strategy=selector-speciation-fit-v1",
+    "entry.0.species_fit_status=browser-fit-bound",
+    "entry.0.species_fit_checksum=0x0000000000000174",
+    "entry.0.novelty_id=0x0000000000000176",
+    "entry.0.novelty_strategy=selector-novelty-sketch-v1",
+    "entry.0.novelty_status=behavior-sketch-bound",
+    "entry.0.novelty_checksum=0x0000000000000177",
+    "entry.0.population_id=0x0000000000000178",
+    "entry.0.population_strategy=selector-population-review-route-v1",
+    "entry.0.population_status=population-review-bound",
+    "entry.0.population_checksum=0x0000000000000179",
+    "entry.0.mate_selection_id=0x000000000000017a",
+    "entry.0.mate_selection_strategy=selector-mate-selection-route-v1",
+    "entry.0.mate_selection_status=admission-only",
+    "entry.0.mate_selection_parent_count=1",
+    "entry.0.mate_selection_checksum=0x000000000000017b",
+    "entry.0.phenotype_evidence_id=0x000000000000017c",
+    "entry.0.phenotype_evidence_strategy=selector-phenotype-evidence-v1",
+    "entry.0.phenotype_evidence_status=runtime-eval-bound",
+    "entry.0.phenotype_evidence_checksum=0x000000000000017d",
+    "entry.0.heritable_artifact_id=0x000000000000017e",
+    "entry.0.heritable_artifact_strategy=selector-heritable-artifact-v1",
+    "entry.0.heritable_artifact_status=served-artifact-bound",
+    "entry.0.heritable_artifact_checksum=0x000000000000017f",
+    "entry.0.admission_checksum=0x0000000000000072",
+    "entry.0.promotion_manifest_checksum=0x0000000000000073",
+    "entry.0.provenance_manifest_checksum=0x0000000000000077",
+    "entry.0.runtime_smoke_manifest_checksum=0x0000000000000074",
+    "entry.0.eval_manifest_checksum=0x0000000000000075",
+    "entry.0.eval_case_evidence_checksum=0x0000000000000076",
+    "entry.0.quality_scope=tiny-fixture-runtime-eval-only",
+    "entry.0.quality_boundary=fixture-runtime-and-eval-plumbing-not-product-assistant-quality",
+    "entry.0.eval_dataset=tinyrustlm/tests/fixtures/assistant-quality-eval-cases.txt",
+    "entry.0.cases_passed=1",
+    "entry.0.fitness_vector_status=eval-bound",
+    "entry.0.fitness_vector_checksum=0x0000000000000175",
+    "entry.0.selector_status=admitted",
+    "entry.0.public_claim_status=bound-to-eval-scope",
+    "required_next_gate=browser-loads-selector-registry-entry-models",
+    ""
+  ].join("\n");
+}
+
+// Serves a local converted-trained model route by reusing the checked tiny q8 bytes with a converted-trained manifest.
+function installConvertedTrainedRegistryInterceptor(client) {
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    (async () => {
+      if (requestUrlPathEquals(requestUrl, "/models/selector.registry")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRegistryText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/models/converted-trained-q8.slm.manifest")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRegistryManifestText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/models/converted-trained-q8.slm")) {
+        const sourceUrl = new URL("/models/tiny-test-model-q8.slm", requestUrl).toString();
+        await fulfillBinaryRequest(client, params.requestId, await getBuffer(sourceUrl));
+        return;
+      }
+      await continuePausedRequest(client, params.requestId);
+    })().catch((error) => {
+      console.error(error);
+      continuePausedRequest(client, params.requestId).catch((continueError) => {
+        console.error(continueError);
+      });
+    });
+  });
+}
+
+// Serves a selector registry whose operator receipt byte echo no longer matches the model entry.
+function installSelectorOperatorReceiptDriftInterceptor(
+  client,
+  fixture = registryOperatorFixtureForMode(smokeMode, "17159999")
+) {
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    if (requestUrl.includes("/models/selector.registry")) {
+      const body = Buffer.from([
+        "tinyrustlm_selector_registry_version=1",
+        "selector_id=browser-local-selector",
+        "registry_scope=browser-local-model-selector",
+        "registry_status=admitted-records-only",
+        "selector_model_byte_budget=33554432",
+        "selector_registry_text_byte_budget=262144",
+        "manifest_text_byte_budget=65536",
+        "receipt_text_byte_budget=131072",
+        "evidence_text_byte_budget=131072",
+        "entry_count=1",
+        "admission_set_checksum=0x0000000000000049",
+        `entry.0.candidate_id=${fixture.candidateId}`,
+        `entry.0.display_name=${fixture.displayName}`,
+        "entry.0.model_path=../models/tinylm16-q8.slm",
+        "entry.0.manifest_path=../models/tinylm16-q8.slm.manifest",
+        "entry.0.artifact_path=tinyrustlm/models/tinylm16-q8.slm",
+        "entry.0.max_tokens=8",
+        "entry.0.model_bytes=17160000",
+        "entry.0.slm_checksum=0xa1442f3f180c542b",
+        "entry.0.model_shape=vocab=260,hidden=512,layers=4,heads=8,kv_heads=8,head_dim=64,ffn=2048,context=512",
+        "entry.0.quantization=q8_0",
+        "entry.0.output_contract=separate-output-weight",
+        "entry.0.genome_id=0x00000000000000a1",
+        "entry.0.genome_strategy=selector-admission-genome-v1",
+        "entry.0.genome_lineage_status=admission-bound",
+        "entry.0.genome_lineage_checksum=0x00000000000000a2",
+        "entry.0.species_id=0x00000000000000a3",
+        "entry.0.species_strategy=selector-speciation-fit-v1",
+        "entry.0.species_fit_status=browser-fit-bound",
+        "entry.0.species_fit_checksum=0x00000000000000a4",
+        "entry.0.novelty_id=0x00000000000000a6",
+        "entry.0.novelty_strategy=selector-novelty-sketch-v1",
+        "entry.0.novelty_status=behavior-sketch-bound",
+        "entry.0.novelty_checksum=0x00000000000000a7",
+        "entry.0.population_id=0x00000000000000a8",
+        "entry.0.population_strategy=selector-population-review-route-v1",
+        "entry.0.population_status=population-review-bound",
+        "entry.0.population_checksum=0x00000000000000a9",
+        "entry.0.mate_selection_id=0x00000000000000aa",
+        "entry.0.mate_selection_strategy=selector-mate-selection-route-v1",
+        `entry.0.mate_selection_status=${fixture.mateSelectionStatus}`,
+        `entry.0.mate_selection_parent_count=${fixture.mateSelectionParentCount}`,
+        "entry.0.mate_selection_checksum=0x00000000000000ab",
+        "entry.0.operator_receipt_status=receipt-bound",
+        `entry.0.operator_receipt_path=${fixture.operatorPath}`,
+        `entry.0.operator_receipt_checksum=${fixture.operatorChecksum}`,
+        `entry.0.operator_receipt_operator_id=${fixture.operatorId}`,
+        `entry.0.operator_receipt_operator_kind=${fixture.operatorKind}`,
+        "entry.0.operator_receipt_candidate_slm_checksum=0xa1442f3f180c542b",
+        `entry.0.operator_receipt_candidate_artifact_bytes=${fixture.candidateArtifactBytes}`,
+        "entry.0.phenotype_evidence_id=0x00000000000000ac",
+        "entry.0.phenotype_evidence_strategy=selector-phenotype-evidence-v1",
+        "entry.0.phenotype_evidence_status=runtime-eval-bound",
+        "entry.0.phenotype_evidence_checksum=0x00000000000000ad",
+        "entry.0.heritable_artifact_id=0x00000000000000ae",
+        "entry.0.heritable_artifact_strategy=selector-heritable-artifact-v1",
+        "entry.0.heritable_artifact_status=served-artifact-bound",
+        "entry.0.heritable_artifact_checksum=0x00000000000000af",
+        "entry.0.admission_checksum=0x0000000000000050",
+        "entry.0.promotion_manifest_checksum=0x0000000000000051",
+        "entry.0.provenance_manifest_checksum=0x0000000000000055",
+        "entry.0.runtime_smoke_manifest_checksum=0x0000000000000052",
+        "entry.0.eval_manifest_checksum=0x0000000000000053",
+        "entry.0.eval_case_evidence_checksum=0x0000000000000054",
+        "entry.0.quality_scope=tiny-fixture-runtime-eval-only",
+        "entry.0.quality_boundary=fixture-runtime-and-eval-plumbing-not-product-assistant-quality",
+        "entry.0.eval_dataset=tinyrustlm/tests/fixtures/assistant-quality-eval-cases.txt",
+        "entry.0.cases_passed=1",
+        "entry.0.fitness_vector_status=eval-bound",
+        "entry.0.fitness_vector_checksum=0x00000000000000a5",
+        "entry.0.selector_status=admitted",
+        "entry.0.public_claim_status=bound-to-eval-scope",
+        "required_next_gate=browser-loads-selector-registry-entry-models",
+        ""
+      ].join("\n"), "utf8");
+      client.send("Fetch.fulfillRequest", {
+        requestId: params.requestId,
+        responseCode: 200,
+        responseHeaders: [
+          { name: "content-type", value: "text/plain; charset=utf-8" },
+          { name: "content-length", value: String(body.length) }
+        ],
+        body: body.toString("base64")
+      }).catch((error) => {
+        console.error(error);
+      });
+      return;
+    }
+    client.send("Fetch.continueRequest", {
+      requestId: params.requestId
+    }).catch((error) => {
+      console.error(error);
+    });
+  });
+}
+
+// Serves generated roots with a caller-selected selector receipt mutation and static q8 fallback.
+function installGeneratedSelectorOperatorReceiptDriftInterceptor(
+  client,
+  driftRegistryText = driftGeneratedSelectorOperatorReceiptBytes
+) {
+  const fallbackModelPath = path.join(__dirname, "..", "models", "tinylm16-q8.slm");
+  const fallbackManifestPath = path.join(__dirname, "..", "models", "tinylm16-q8.slm.manifest");
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    (async () => {
+      if (requestUrlPathEquals(requestUrl, "/models/selector.registry")) {
+        const registryText = await getText(requestUrl);
+        await fulfillTextRequest(
+          client,
+          params.requestId,
+          driftRegistryText(registryText)
+        );
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/models/tinylm16-q8.slm")) {
+        await fulfillBinaryRequest(client, params.requestId, Buffer.from(fs.readFileSync(fallbackModelPath)));
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/models/tinylm16-q8.slm.manifest")) {
+        await fulfillTextRequest(client, params.requestId, fs.readFileSync(fallbackManifestPath, "utf8"));
+        return;
+      }
+      await continuePausedRequest(client, params.requestId);
+    })().catch((error) => {
+      console.error(error);
+      continuePausedRequest(client, params.requestId).catch((continueError) => {
+        console.error(continueError);
+      });
     });
   });
 }
@@ -7650,7 +8588,7 @@ async function main() {
     await client.send("Page.enable", {});
     await client.send("Runtime.enable", {});
     await client.send("Network.enable", {});
-    if (smokeMode === "model-error" || smokeMode === "missing-model" || smokeMode === "multi-parent-registry" || smokeMode === "selector-budget" || smokeMode === "sidecar-budget-contract" || smokeMode === "runtime-manifest-drift" || smokeMode === "module-plan-profile-drift" || smokeMode === "module-plan-execution-profile-drift" || smokeMode === "module-plan-fetch-policy-drift" || smokeMode === "module-plan-origin-policy-drift" || smokeMode === "module-plan-wasm-memory-drift" || smokeMode === "module-plan-wasm-export-set-drift" || smokeMode === "module-plan-wasm-heap-drift" || smokeMode === "module-plan-context-token-drift" || smokeMode === "module-plan-sampler-cap-drift" || smokeMode === "module-plan-tokenizer-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-runtime-scratch-drift" || smokeMode === "module-plan-output-limit-drift" || smokeMode === "module-plan-prompt-limit-drift" || smokeMode === "module-plan-fetch-count-drift" || smokeMode === "module-plan-planned-fetch-count-drift" || smokeMode === "module-plan-route-set-algorithm-drift" || smokeMode === "module-plan-route-set-version-drift" || smokeMode === "module-plan-route-set-drift" || smokeMode === "module-plan-operator-receipt-drift" || smokeMode === "module-plan-kv-cache-drift" || smokeMode === "module-plan-adapter-stack-budget-drift" || smokeMode === "module-plan-total-budget-drift" || smokeMode === "module-plan-total-limit-drift" || smokeMode === "module-plan-count-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift" || smokeMode === "assembly-eval-case-drift" || smokeMode === "assembly-evidence-file-drift" || smokeMode === "adapter-family-receipt-drift" || smokeMode === "adapter-manifest-drift" || smokeMode === "source-backed-alr1-manifest-drift" || smokeMode === "adapter-artifact-drift" || smokeMode === "module-plan-payload-checksum-drift" || smokeMode === "adapter-stack-prefetch-drift" || smokeMode === "adapter-stack-rust-validate-drift" || smokeMode === "adapter-sidecar-registry-q8" || smokeMode === "adapter-sidecar-checksum-mismatch" || smokeMode === "adapter-manifest-budget") {
+    if (smokeMode === "model-error" || smokeMode === "missing-model" || convertedTrainedRegistrySmokeMode || compactOperatorRegistrySmokeModes.has(smokeMode) || compactOperatorReceiptDriftSmokeModes.has(smokeMode) || smokeMode === "generated-selector-operator-receipt-drift" || smokeMode === "generated-selector-operator-kind-drift" || smokeMode === "selector-budget" || smokeMode === "sidecar-budget-contract" || smokeMode === "runtime-manifest-drift" || smokeMode === "module-plan-profile-drift" || smokeMode === "module-plan-execution-profile-drift" || smokeMode === "module-plan-fetch-policy-drift" || smokeMode === "module-plan-origin-policy-drift" || smokeMode === "module-plan-wasm-memory-drift" || smokeMode === "module-plan-wasm-export-set-drift" || smokeMode === "module-plan-wasm-heap-drift" || smokeMode === "module-plan-context-token-drift" || smokeMode === "module-plan-sampler-cap-drift" || smokeMode === "module-plan-tokenizer-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-runtime-scratch-drift" || smokeMode === "module-plan-output-limit-drift" || smokeMode === "module-plan-prompt-limit-drift" || smokeMode === "module-plan-fetch-count-drift" || smokeMode === "module-plan-planned-fetch-count-drift" || smokeMode === "module-plan-route-set-algorithm-drift" || smokeMode === "module-plan-route-set-version-drift" || smokeMode === "module-plan-route-set-drift" || smokeMode === "module-plan-operator-receipt-drift" || smokeMode === "module-plan-kv-cache-drift" || smokeMode === "module-plan-adapter-stack-budget-drift" || smokeMode === "module-plan-total-budget-drift" || smokeMode === "module-plan-total-limit-drift" || smokeMode === "module-plan-count-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift" || smokeMode === "assembly-eval-case-drift" || smokeMode === "assembly-evidence-file-drift" || smokeMode === "adapter-family-receipt-drift" || smokeMode === "adapter-manifest-drift" || smokeMode === "source-backed-alr1-manifest-drift" || smokeMode === "adapter-artifact-drift" || smokeMode === "module-plan-payload-checksum-drift" || smokeMode === "adapter-stack-prefetch-drift" || smokeMode === "adapter-stack-rust-validate-drift" || smokeMode === "adapter-sidecar-registry-q8" || smokeMode === "adapter-sidecar-checksum-mismatch" || smokeMode === "adapter-manifest-budget") {
       if (smokeMode === "model-error") {
         installMalformedModelInterceptor(client);
       } else if (smokeMode === "missing-model") {
@@ -7747,10 +8685,21 @@ async function main() {
         installAdapterManifestBudgetInterceptor(client);
       } else if (smokeMode === "adapter-sidecar-registry-q8") {
         installQuantizedAdapterRegistryInterceptor(client);
+      } else if (convertedTrainedRegistrySmokeMode) {
+        installConvertedTrainedRegistryInterceptor(client);
       } else if (smokeMode === "selector-budget") {
         installSelectorBudgetRegistryInterceptor(client);
       } else if (smokeMode === "sidecar-budget-contract") {
         installSidecarBudgetContractRegistryInterceptor(client);
+      } else if (compactOperatorReceiptDriftSmokeModes.has(smokeMode)) {
+        installSelectorOperatorReceiptDriftInterceptor(client);
+      } else if (smokeMode === "generated-selector-operator-receipt-drift") {
+        installGeneratedSelectorOperatorReceiptDriftInterceptor(client);
+      } else if (smokeMode === "generated-selector-operator-kind-drift") {
+        installGeneratedSelectorOperatorReceiptDriftInterceptor(
+          client,
+          driftGeneratedSelectorOperatorReceiptKind
+        );
       } else {
         installMultiParentRegistryInterceptor(client);
       }
@@ -7946,7 +8895,7 @@ async function main() {
       }
       assertStepTokenSmoke(result, expectedModel, networkRequests);
       result.networkRequests = networkRequests;
-    } else if (smokeMode === "combined-selector-assembly") {
+    } else if (smokeMode === "combined-selector-assembly" || smokeMode === "combined-selector-operator-family") {
       await client.send("Page.reload", { ignoreCache: true });
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
@@ -7959,9 +8908,13 @@ async function main() {
           }
         }
       }
-      assertCombinedSelectorAssemblySmoke(result, networkRequests);
+      if (smokeMode === "combined-selector-operator-family") {
+        assertCombinedSelectorOperatorFamilySmoke(result, networkRequests);
+      } else {
+        assertCombinedSelectorAssemblySmoke(result, networkRequests);
+      }
       result.networkRequests = networkRequests;
-    } else if (smokeMode === "combined-selector-cycle" || combinedSelectorRouteSoakMode) {
+    } else if (smokeMode === "combined-selector-cycle" || smokeMode === "combined-selector-operator-family-cycle" || combinedSelectorRouteSoakMode) {
       await client.send("Page.reload", { ignoreCache: true });
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
@@ -7976,13 +8929,19 @@ async function main() {
       }
       if (combinedSelectorRouteSoakMode) {
         assertCombinedSelectorRouteSoakSmoke(result, networkRequests, combinedSelectorCycles);
+      } else if (smokeMode === "combined-selector-operator-family-cycle") {
+        assertCombinedSelectorOperatorFamilyCycleSmoke(result, networkRequests, combinedSelectorCycles);
       } else {
         assertCombinedSelectorCycleSmoke(result, networkRequests, combinedSelectorCycles);
       }
       result.networkRequests = networkRequests;
-    } else if (smokeMode === "combined-selector-reload-soak") {
+    } else if (smokeMode === "combined-selector-reload-soak" || combinedSelectorOperatorFamilyReloadSoakMode) {
       result = await runCombinedSelectorReloadSoak(client, combinedSelectorReloads);
-      assertCombinedSelectorReloadSoakSmoke(result, networkRequests, combinedSelectorReloads);
+      if (combinedSelectorOperatorFamilyReloadSoakMode) {
+        assertCombinedSelectorOperatorFamilyReloadSoakSmoke(result, networkRequests, combinedSelectorReloads);
+      } else {
+        assertCombinedSelectorReloadSoakSmoke(result, networkRequests, combinedSelectorReloads);
+      }
       result.networkRequests = networkRequests;
     } else if (smokeMode === "adapter-sidecar" || smokeMode === "adapter-sidecar-registry-file" || smokeMode === "adapter-sidecar-registry-q8" || smokeMode === "adapter-sidecar-checksum-mismatch") {
       await client.send("Page.reload", { ignoreCache: true });
@@ -8056,12 +9015,15 @@ async function main() {
         assertAdapterArtifactDriftSmoke(result, expectedModel, networkRequests);
       }
       result.networkRequests = networkRequests;
-    } else if (smokeMode === "selector-budget" || smokeMode === "sidecar-budget-contract") {
+    } else if (smokeMode === "selector-budget" || smokeMode === "sidecar-budget-contract" || compactOperatorReceiptDriftSmokeModes.has(smokeMode) || smokeMode === "generated-selector-operator-receipt-drift" || smokeMode === "generated-selector-operator-kind-drift") {
       await client.send("Page.reload", { ignoreCache: true });
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
           await sleep(500);
-          result = await runPageSmoke(client, expectedModel);
+          result = await runPageSmoke(
+            client,
+            smokeMode === "generated-selector-operator-receipt-drift" || smokeMode === "generated-selector-operator-kind-drift" ? "tinylm16q8" : expectedModel
+          );
           break;
         } catch (error) {
           if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
@@ -8071,11 +9033,19 @@ async function main() {
       }
       if (smokeMode === "selector-budget") {
         assertSelectorBudgetSmoke(result, networkRequests);
-      } else {
+      } else if (smokeMode === "sidecar-budget-contract") {
         assertSidecarBudgetContractSmoke(result, networkRequests);
+      } else if (smokeMode === "generated-selector-operator-receipt-drift" || smokeMode === "generated-selector-operator-kind-drift") {
+        assertGeneratedSelectorOperatorReceiptDriftSmoke(result, expectedModel, networkRequests);
+      } else {
+        assertSelectorOperatorReceiptDriftSmoke(
+          result,
+          networkRequests,
+          registryOperatorFixtureForMode(smokeMode).candidateId
+        );
       }
       result.networkRequests = networkRequests;
-    } else if (smokeMode === "multi-parent-registry" || smokeMode === "multi-parent-registry-file") {
+    } else if (convertedTrainedRegistryAnySmokeMode || compactOperatorRegistrySmokeModes.has(smokeMode) || smokeMode === "multi-parent-registry-file") {
       await client.send("Page.reload", { ignoreCache: true });
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
@@ -8088,7 +9058,11 @@ async function main() {
           }
         }
       }
-      assertMultiParentRegistrySmoke(result, expectedModel, networkRequests);
+      if (convertedTrainedRegistryAnySmokeMode) {
+        assertConvertedTrainedRegistrySmoke(result, expectedModel, networkRequests);
+      } else {
+        assertMultiParentRegistrySmoke(result, expectedModel, networkRequests);
+      }
       result.networkRequests = networkRequests;
     } else if (smokeMode === "runtime-manifest-drift") {
       await client.send("Page.reload", { ignoreCache: true });

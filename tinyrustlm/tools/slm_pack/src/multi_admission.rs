@@ -1,4 +1,4 @@
-//! Selector-admission records for evaluated multi-parent sign-merge candidates.
+//! Selector-admission records for evaluated multi-parent parent-pool candidates.
 
 use std::collections::HashMap;
 use std::fs;
@@ -22,6 +22,7 @@ const PROMOTION_DECISION: &str = "accepted-for-browser-selector";
 const BROWSER_SELECTOR_STATUS: &str = "admitted";
 const PUBLIC_CLAIM_STATUS: &str = "bound-to-eval-scope";
 const REQUIRED_NEXT_GATE: &str = "multi-parent-selector-registry-route-binding";
+const OPERATOR_RECEIPT_STATUS: &str = "receipt-bound";
 
 const PROMOTION_KEYS: [&str; 11] = [
     "promotion_kind",
@@ -49,6 +50,21 @@ const CANDIDATE_KEYS: [&str; 11] = [
     "candidate_output_contract",
     "candidate_tokenizer_checksum",
     "candidate_tensor_layout_checksum",
+];
+
+const SCHEDULE_KEYS: [&str; 12] = [
+    "evolution_recipe_version",
+    "evolution_recipe_strategy",
+    "evolution_recipe_status",
+    "evolution_selection_source",
+    "evolution_relatedness_contract_checksum",
+    "evolution_schedule_checksum_algorithm",
+    "evolution_schedule_checksum",
+    "scheduled_operator_family_index",
+    "scheduled_operator_family_kind",
+    "scheduled_operator_family_command",
+    "scheduled_operator_family_selection_rule",
+    "scheduled_operator_family_output_gate",
 ];
 
 struct Evidence {
@@ -84,6 +100,7 @@ pub(crate) fn write_record_path(
     let provenance_text = fs::read_to_string(provenance_manifest)?;
     let runtime_smoke_text = fs::read_to_string(runtime_smoke)?;
     let eval_text = fs::read_to_string(eval_manifest)?;
+    let receipt_path = receipt.display().to_string();
     let admission = build_record_text(
         &ledger_text,
         &review_text,
@@ -91,6 +108,7 @@ pub(crate) fn write_record_path(
         &parent_bytes,
         &candidate_bytes,
         &candidate_slm.display().to_string(),
+        &receipt_path,
         &receipt_text,
         &candidate_manifest_text,
         &promotion_text,
@@ -143,6 +161,7 @@ pub(crate) fn validate_record_path(
     let runtime_smoke_text = fs::read_to_string(runtime_smoke)?;
     let eval_text = fs::read_to_string(eval_manifest)?;
     let admission_text = fs::read_to_string(admission)?;
+    let receipt_path = receipt.display().to_string();
     validate_record_text(
         &ledger_text,
         &review_text,
@@ -150,6 +169,7 @@ pub(crate) fn validate_record_path(
         &parent_bytes,
         &candidate_bytes,
         &candidate_slm.display().to_string(),
+        &receipt_path,
         &receipt_text,
         &candidate_manifest_text,
         &promotion_text,
@@ -194,6 +214,7 @@ pub(crate) fn build_record_text(
     parent_bytes: &[(String, Vec<u8>)],
     candidate_bytes: &[u8],
     candidate_path: &str,
+    receipt_path: &str,
     receipt_text: &str,
     candidate_manifest_text: &str,
     promotion_text: &str,
@@ -226,6 +247,8 @@ pub(crate) fn build_record_text(
         runtime_smoke_text,
         eval_text,
         selector_id,
+        receipt_path,
+        receipt_text,
     )
 }
 
@@ -236,6 +259,7 @@ fn validate_record_text(
     parent_bytes: &[(String, Vec<u8>)],
     candidate_bytes: &[u8],
     candidate_path: &str,
+    receipt_path: &str,
     receipt_text: &str,
     candidate_manifest_text: &str,
     promotion_text: &str,
@@ -269,6 +293,8 @@ fn validate_record_text(
         runtime_smoke_text,
         eval_text,
         selector_id,
+        receipt_path,
+        receipt_text,
     )?;
     if admission_text != expected {
         return Err(invalid(
@@ -295,6 +321,20 @@ pub(crate) fn validate_record_summary_text(
     for key in PROMOTION_KEYS {
         require_key(&admission, key)?;
     }
+    for key in SCHEDULE_KEYS {
+        require_key(&admission, key)?;
+    }
+    require_hex64(&admission, "evolution_relatedness_contract_checksum")?;
+    require_hex64(&admission, "evolution_schedule_checksum")?;
+    require_usize(&admission, "scheduled_operator_family_index")?;
+    for key in [
+        "scheduled_operator_family_kind",
+        "scheduled_operator_family_command",
+        "scheduled_operator_family_selection_rule",
+        "scheduled_operator_family_output_gate",
+    ] {
+        validate_slug(require_key(&admission, key)?, key)?;
+    }
     require_key(&admission, "candidate_id")?;
     require_hex64(&admission, "candidate_manifest_checksum")?;
     require_hex64(&admission, "promotion_manifest_checksum")?;
@@ -317,6 +357,39 @@ pub(crate) fn validate_record_summary_text(
     require_positive_usize(&admission, "candidate_artifact_bytes")?;
     require_positive_usize(&admission, "candidate_slm_version")?;
     require_hex64(&admission, "candidate_slm_checksum")?;
+    if admission.contains_key("operator_receipt_status") {
+        require_equal(
+            &admission,
+            "operator_receipt_status",
+            OPERATOR_RECEIPT_STATUS,
+        )?;
+        require_key(&admission, "operator_receipt_path")?;
+        validate_slug(
+            require_key(&admission, "operator_receipt_operator_id")?,
+            "operator_receipt_operator_id",
+        )?;
+        validate_slug(
+            require_key(&admission, "operator_receipt_operator_kind")?,
+            "operator_receipt_operator_kind",
+        )?;
+        require_equal(
+            &admission,
+            "scheduled_operator_family_kind",
+            require_key(&admission, "operator_receipt_operator_kind")?,
+        )?;
+        require_hex64(&admission, "operator_receipt_candidate_slm_checksum")?;
+        require_equal(
+            &admission,
+            "operator_receipt_candidate_slm_checksum",
+            require_key(&admission, "candidate_slm_checksum")?,
+        )?;
+        require_positive_usize(&admission, "operator_receipt_candidate_artifact_bytes")?;
+        require_equal(
+            &admission,
+            "operator_receipt_candidate_artifact_bytes",
+            require_key(&admission, "candidate_artifact_bytes")?,
+        )?;
+    }
     require_positive_usize(&admission, "candidate_tensor_count")?;
     require_positive_usize(&admission, "candidate_parameter_count")?;
     require_hex64(&admission, "candidate_tokenizer_checksum")?;
@@ -393,8 +466,11 @@ fn render_record_text(
     runtime_smoke_text: &str,
     eval_text: &str,
     selector_id: &str,
+    receipt_path: &str,
+    receipt_text: &str,
 ) -> io::Result<String> {
     let mut text = String::new();
+    let receipt = parse_manifest(receipt_text, "multi-parent operator receipt")?;
     push_line(
         &mut text,
         "tinyrustlm_multi_parent_selector_admission_version",
@@ -407,6 +483,10 @@ fn render_record_text(
     for key in PROMOTION_KEYS {
         push_line(&mut text, key, require_key(&evidence.promotion, key)?);
     }
+    for key in SCHEDULE_KEYS {
+        push_line(&mut text, key, require_key(&evidence.promotion, key)?);
+    }
+    push_operator_receipt_lines(&mut text, receipt_path, &receipt, &evidence.promotion)?;
     push_line(
         &mut text,
         "candidate_id",
@@ -499,6 +579,39 @@ fn render_record_text(
     Ok(text)
 }
 
+// Carries parent-pool operator identity into selector registries for browser provenance display.
+fn push_operator_receipt_lines(
+    text: &mut String,
+    receipt_path: &str,
+    receipt: &HashMap<String, String>,
+    promotion: &HashMap<String, String>,
+) -> io::Result<()> {
+    let operator_id = receipt
+        .get("operator_id")
+        .or_else(|| receipt.get("frontier_candidate_id"))
+        .map(String::as_str)
+        .ok_or_else(|| invalid("multi-parent operator receipt missing operator identity"))?;
+    push_line(text, "operator_receipt_status", OPERATOR_RECEIPT_STATUS);
+    push_line(text, "operator_receipt_path", receipt_path);
+    push_line(text, "operator_receipt_operator_id", operator_id);
+    push_line(
+        text,
+        "operator_receipt_operator_kind",
+        require_key(receipt, "operator_kind")?,
+    );
+    push_line(
+        text,
+        "operator_receipt_candidate_slm_checksum",
+        require_key(promotion, "candidate_slm_checksum")?,
+    );
+    push_line(
+        text,
+        "operator_receipt_candidate_artifact_bytes",
+        require_key(promotion, "candidate_artifact_bytes")?,
+    );
+    Ok(())
+}
+
 fn validate_slug(value: &str, key: &str) -> io::Result<()> {
     if value.is_empty()
         || value.len() > 96
@@ -588,6 +701,7 @@ mod tests {
             &fixture.parents,
             &fixture.candidate,
             "candidate.slm",
+            "candidate.operator",
             &fixture.receipt,
             &fixture.manifest,
             &fixture.promotion,
@@ -602,6 +716,12 @@ mod tests {
         assert!(admission.contains("admission_kind=multi-parent-sign-merge"));
         assert!(admission.contains("candidate_id=tiny-alpha-candidate"));
         assert!(admission.contains("parent_count=3"));
+        assert!(admission.contains("operator_receipt_status=receipt-bound"));
+        assert!(admission.contains("operator_receipt_path=candidate.operator"));
+        assert!(admission.contains("operator_receipt_operator_kind=sign-aware-parent-pool-merge"));
+        assert!(admission.contains("evolution_schedule_checksum=0x"));
+        assert!(admission.contains("scheduled_operator_family_index=0"));
+        assert!(admission.contains("scheduled_operator_family_command=sign-merge-candidate"));
         assert!(admission.contains("eval_case_evidence_checksum=0x"));
         assert!(admission.contains("browser_selector_status=admitted"));
         assert!(
@@ -625,6 +745,7 @@ mod tests {
             &fixture.parents,
             &fixture.candidate,
             "candidate.slm",
+            "candidate.operator",
             &fixture.receipt,
             &fixture.manifest,
             &fixture.promotion,
@@ -655,6 +776,7 @@ mod tests {
             &fixture.parents,
             &fixture.candidate,
             "candidate.slm",
+            "candidate.operator",
             &fixture.receipt,
             &fixture.manifest,
             &fixture.promotion,
@@ -685,6 +807,7 @@ mod tests {
             &fixture.parents,
             &fixture.candidate,
             "candidate.slm",
+            "candidate.operator",
             &fixture.receipt,
             &fixture.manifest,
             &fixture.promotion,
@@ -698,6 +821,40 @@ mod tests {
 
         assert_eq!(error.kind(), io::ErrorKind::InvalidData);
         assert!(error.to_string().contains("required_next_gate"));
+    }
+
+    #[test]
+    fn summary_rejects_operator_receipt_candidate_byte_drift() {
+        let fixture = fixture();
+        let admission = fixture.admission();
+        let fields = parse_manifest(&admission, "multi-parent admission").unwrap();
+        let candidate_bytes = require_key(&fields, "candidate_artifact_bytes").unwrap();
+        let drifted_bytes = (candidate_bytes.parse::<usize>().unwrap() + 1).to_string();
+        let admission = admission.replace(
+            &format!("operator_receipt_candidate_artifact_bytes={candidate_bytes}"),
+            &format!("operator_receipt_candidate_artifact_bytes={drifted_bytes}"),
+        );
+
+        let error = validate_record_summary_text(&admission).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error
+            .to_string()
+            .contains("operator_receipt_candidate_artifact_bytes"));
+    }
+
+    #[test]
+    fn summary_rejects_scheduled_operator_kind_drift() {
+        let fixture = fixture();
+        let admission = fixture.admission().replace(
+            "scheduled_operator_family_kind=sign-aware-parent-pool-merge",
+            "scheduled_operator_family_kind=seed-weighted-parent-pool-soup",
+        );
+
+        let error = validate_record_summary_text(&admission).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("scheduled_operator_family_kind"));
     }
 
     #[test]
@@ -853,6 +1010,7 @@ mod tests {
 
         let admission = std::fs::read_to_string(admission_path).unwrap();
         assert!(admission.contains("selector_id=browser-local-selector"));
+        assert!(admission.contains("scheduled_operator_family_kind=sign-aware-parent-pool-merge"));
         assert!(admission.contains("admission_status=admitted-for-browser-selector"));
     }
 
@@ -865,6 +1023,7 @@ mod tests {
                 &self.parents,
                 &self.candidate,
                 "candidate.slm",
+                "candidate.operator",
                 &self.receipt,
                 &self.manifest,
                 &self.promotion,

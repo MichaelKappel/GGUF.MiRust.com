@@ -3,7 +3,7 @@ title: Mutation Operator Memory 2026-06-29
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/reports/mutation-operator-memory-2026-06-29/
 status: planned_pending_publication
-reviewed_utc: 2026-06-29T07:05:00Z
+reviewed_utc: 2026-06-29T17:25:00Z
 ---
 
 # Mutation Operator Memory
@@ -18,6 +18,8 @@ TinyRustLM now has an offline deterministic bounded mutation operator for model-
 - The receipt records selection counts, changed counts, selection density, `mutation_mask_checksum`, and `mutation_delta_checksum`.
 - Validation recomputes lineage, parent compatibility checks, candidate bytes, and the entire operator receipt before accepting the artifact.
 - `tinyrustlm/tools/slm_pack/src/main.rs` exposes the new CLI commands and usage line.
+- `tinyrustlm/tools/browser-smoke.js` now has a `mutation-operator-registry` fixture that proves browser Model Provenance renders a receipt-bound mutation operator row, plus `mutation-operator-receipt-drift` for browser byte-echo fallback.
+- `tinyrustlm/README.md` routes the mutation browser smoke commands beside the other compact operator provenance examples.
 
 ## Receipt Fields
 
@@ -48,8 +50,12 @@ TinyRustLM now has an offline deterministic bounded mutation operator for model-
 - CLI smoke wrote `target/mutation-cli/candidate.slm` and `target/mutation-cli/candidate.operator` with seed `77`, rate `1000000`, and magnitude `100000`.
 - CLI smoke validated the mutation candidate and receipt with `validate-mutation-candidate`.
 - `C:\Users\AI\.cargo\bin\cargo.exe test --manifest-path tinyrustlm/tools/slm_pack/Cargo.toml -- --nocapture` passed with 252 tests.
+- `node tinyrustlm\tools\browser-smoke.js http://127.0.0.1:8128/app/ 9422 tinylm16-mutation-q8 mutation-operator-registry` passed, rendering `receipt-bound / deterministic-bounded-parameter-mutation / 0x00000000000000b3`.
+- `node tinyrustlm\tools\browser-smoke.js http://127.0.0.1:8128/app/ 9423 tinylm16q8 mutation-operator-receipt-drift` passed, dropping the drifted mutation registry entry and returning to static q8 with operator provenance unavailable.
+- Regression smokes for the shared compact fixture passed on `http://127.0.0.1:8128/app/`: federated `multi-parent-registry`, prune `prune-operator-registry`, and prune `prune-operator-receipt-drift`.
+- `node --check tinyrustlm\tools\browser-smoke.js` passed after the mutation browser fixture update.
 
-No coverage tool is active in this no-third-party workspace; evidence for the 75% target is the focused parameter and drift test slice, the full `slm_pack` suite, formatting, and the CLI write/validate smoke.
+No coverage tool is active in this no-third-party workspace; evidence for the 75% target is the focused parameter and drift test slice, the full `slm_pack` suite, formatting, the CLI write/validate smoke, and the browser provenance/drift smokes.
 
 ## Test Coverage Notes
 
@@ -59,8 +65,9 @@ No coverage tool is active in this no-third-party workspace; evidence for the 75
 - The reference parent parameter is covered by a scale-different candidate test and compatibility-bound checksum validation.
 - Parent path inputs are covered by path-level write/validate and parent checksum drift rejection.
 - Candidate and receipt paths are covered by path-level write/validate, recompute validation, and candidate drift rejection.
+- Browser operator receipt routing is covered by mutation positive provenance rendering and mutation byte-echo fallback smokes, plus federated and prune fixture regression smokes through the same compact registry fixture.
 - Quantization route behavior is covered by q8 candidate validation.
 
 ## Routing
 
-Open this report before changing `mutation.rs`, `mutation-candidate`, `validate-mutation-candidate`, deterministic mutation masks, mutation receipt fields, or mutation parameter validation.
+Open this report before changing `mutation.rs`, `mutation-candidate`, `validate-mutation-candidate`, deterministic mutation masks, mutation receipt fields, mutation browser operator provenance, or mutation parameter validation.

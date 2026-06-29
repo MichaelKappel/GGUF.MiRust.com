@@ -3,7 +3,7 @@ title: GGUF.MiRust.com LLM Wiki Index
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/
 status: planned_pending_publication
-reviewed_utc: 2026-06-29T13:45:00Z
+reviewed_utc: 2026-06-29T20:08:59Z
 ---
 
 # GGUF.MiRust.com
@@ -27,9 +27,23 @@ This local LLM Wiki namespace routes durable memory for the GGUF.MiRust.com Rust
 - [Teleodynamic Resource Bounded Memory](reports/teleodynamic-resource-bounded-memory-2026-06-25.md)
 - [Brand Product Positioning Memory](reports/brand-product-positioning-memory-2026-06-25.md)
 - [Model Breeding Ecology Memory](reports/model-breeding-ecology-memory-2026-06-26.md)
+- [Two Parent Operator Browser Provenance Memory](reports/two-parent-operator-browser-provenance-memory-2026-06-29.md)
 - [Crossover Operator Memory](reports/crossover-operator-memory-2026-06-29.md)
 - [Mutation Operator Memory](reports/mutation-operator-memory-2026-06-29.md)
+- [Prune Operator Memory](reports/prune-operator-memory-2026-06-29.md)
+- [DARE Operator Memory](reports/dare-operator-memory-2026-06-29.md)
+- [DARE Browser Operator Provenance Memory](reports/dare-browser-operator-provenance-memory-2026-06-29.md)
+- [Browser Converted Trained Provenance Memory](reports/browser-converted-trained-provenance-memory-2026-06-29.md)
+- [Browser Converted Trained File Route Memory](reports/browser-converted-trained-file-route-memory-2026-06-29.md)
+- [Browser Converted Trained All Route Memory](reports/browser-converted-trained-all-route-memory-2026-06-29.md)
 - [Federated Operator Memory](reports/federated-operator-memory-2026-06-29.md)
+- [Weighted Soup Operator Memory](reports/weighted-soup-operator-memory-2026-06-29.md)
+- [Multi-Parent Soup Manifest Memory](reports/multi-parent-soup-manifest-memory-2026-06-29.md)
+- [Browser Parent-Pool Soup Bundle Memory](reports/browser-parent-pool-soup-bundle-memory-2026-06-29.md)
+- [Browser Multi-Parent Operator Provenance Memory](reports/browser-multi-parent-operator-provenance-memory-2026-06-29.md)
+- [Parent-Pool Evolution Schedule Memory](reports/parent-pool-evolution-schedule-memory-2026-06-29.md)
+- [Operator Schedule Carry-Forward Memory](reports/operator-schedule-carry-forward-memory-2026-06-29.md)
+- [Federated Selector Receipt Route Memory](reports/federated-selector-receipt-route-memory-2026-06-29.md)
 - [Candidate Operator Receipt Binding Memory](reports/candidate-operator-receipt-binding-memory-2026-06-29.md)
 - [Promotion Operator Receipt Binding Memory](reports/promotion-operator-receipt-binding-memory-2026-06-29.md)
 - [Admission Operator Receipt Binding Memory](reports/admission-operator-receipt-binding-memory-2026-06-29.md)
@@ -139,4 +153,4 @@ This local LLM Wiki namespace routes durable memory for the GGUF.MiRust.com Rust
 
 This namespace is a source memory plan for TinyRustLM. Current implementation claims must still be verified through `workspace.uai`, `.uai/test-plan.uai`, source files, and local test output before being repeated publicly.
 
-Latest route: Federated Operator Memory records the browser-constrained local-update lane for `federated-candidate` and `validate-federated-candidate`; load `.uai/short-term-memory.uai`, `.uai/long-term-memory.uai`, the Federated, Mutation, and Crossover Operator reports, the Selector, Admission, Promotion, and Candidate Operator Receipt Binding reports, the 2026-06-28 report intake index, the Model Breeding reference pages, the Browser Selector reports, the Browser Combined Selector reports, the Browser Module Plan reports including actual module checksums, actual module bytes, observed route set, actual fetch count, operator receipt, route-set algorithm, route-set version, route set, planned fetch count, adapter validation count, adapter apply count, adapter validation, runtime reset, model release, WASM transfer, WASM heap, WASM export set, KV cache, adapter stack budget, context token limit, tokenizer identity, sampler cap, prompt limit, and fetch count, and the UAIX dogfood note for the current memory map.
+Latest route: Browser Converted Trained Provenance Memory records the `converted-trained-registry` proof for selector-served converted-trained manifests, Browser Converted Trained File Route Memory records `browser-converted-trained-bundle` plus `converted-trained-registry-file` proof for real selector/model/manifest files, and Browser Converted Trained All Route Memory records the q4-defaulted f32/q8/q4 converted-trained selector root; Crossover, Mutation, Prune, and DARE Operator Memory record deterministic operator paths for `crossover-candidate`, `mutation-candidate`, `prune-candidate`, and `dare-candidate`, with q8 validation and receipt-bound recomputation; Parent-Pool Evolution Schedule Memory records checksum-bound sign-merge plus soup replay planning inside `parent-pool-recipe`; load `.uai/short-term-memory.uai`, `.uai/long-term-memory.uai`, all Browser Converted Trained reports, the Crossover/Mutation/Prune/DARE Operator reports, the Federated/Weighted Soup reports, the Parent-Pool Evolution Schedule report, the Browser Multi-Parent Operator Provenance report, the Selector/Admission/Promotion/Candidate Operator Receipt Binding reports, the Model Breeding reference pages, the Browser Selector reports, the Browser Combined Selector reports, the Browser Module Plan reports, and the UAIX dogfood note for the current memory map.

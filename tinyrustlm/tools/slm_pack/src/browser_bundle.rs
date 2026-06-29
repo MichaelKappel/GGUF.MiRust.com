@@ -24,11 +24,13 @@ use crate::provenance;
 use crate::selector;
 use crate::sign_merge;
 use crate::slm_validate::{self, ValidationReport};
+use crate::soup;
 use crate::tensor_writer::{
     tiny_fixture_tensors_with_dtype, ModelShape, DTYPE_F32, DTYPE_Q4_0, DTYPE_Q8_0,
 };
 use crate::tokenizer_writer::ByteTokenizerSection;
 use crate::trained_adapter_source;
+use crate::trained_source;
 
 const ASSEMBLY_RECEIPT_KIND: &str = "browser-local-assembly-evidence";
 const ASSEMBLY_RECEIPT_STATUS: &str = "validated";
@@ -46,17 +48,6 @@ const MODULE_PLAN_FETCH_COUNT_LIMIT: u64 = 32;
 const MODULE_PLAN_ROUTE_SET_VERSION: &str = "1";
 const MODULE_PLAN_ROUTE_SET_CHECKSUM_ALGORITHM: &str = "tinyrustlm-text-checksum-v1";
 const MODULE_PLAN_ASSEMBLY_EVIDENCE_FILE_COUNT: u64 = 9;
-const MODULE_PLAN_ASSEMBLY_EVIDENCE_FILES: &[&str] = &[
-    "population.ledger",
-    "population.review",
-    "parent-pool.recipe",
-    "sign-merge.operator",
-    "sign-merge.candidate",
-    "sign-merge.promotion",
-    "sign-merge.runtime",
-    "sign-merge.eval",
-    "sign-merge.multi.admission",
-];
 const MODULE_PLAN_WASM_MEMORY_INITIAL_PAGES: u64 = 17;
 const MODULE_PLAN_WASM_EXPORT_SET: &str = "tinyrustlm-generate-v1";
 const MODULE_PLAN_WASM_TRANSFER_STRATEGY: &str = "copy-then-release-v1";
@@ -104,8 +95,114 @@ enum BundleAdapterKind {
     SourceLowRankAlr1,
 }
 
+#[derive(Clone, Copy)]
+enum BundleOperator {
+    SignMerge,
+    Soup,
+}
+
+impl BundleOperator {
+    // Parses the optional bundle operator flag while keeping the old sign-merge default explicit.
+    fn from_name(name: &str) -> io::Result<Self> {
+        match name {
+            "sign-merge" => Ok(Self::SignMerge),
+            "soup" => Ok(Self::Soup),
+            _ => Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "browser-multi-parent-bundle operator must be sign-merge, soup, or mixed",
+            )),
+        }
+    }
+
+    // Supplies the generated model id stem used by selector registries and browser smoke keys.
+    fn id_prefix(self) -> &'static str {
+        match self {
+            Self::SignMerge => "multi-parent-sign-merge",
+            Self::Soup => "multi-parent-soup",
+        }
+    }
+
+    // Supplies the human-readable label stem for generated browser selector entries.
+    fn label_prefix(self) -> &'static str {
+        match self {
+            Self::SignMerge => "Multi-parent sign-merge",
+            Self::Soup => "Multi-parent weighted soup",
+        }
+    }
+
+    // Supplies the evidence filename prefix so receipts can route sign-merge and soup separately.
+    fn evidence_prefix(self) -> &'static str {
+        match self {
+            Self::SignMerge => "sign-merge",
+            Self::Soup => "soup",
+        }
+    }
+
+    // Records the assembly strategy string that the browser validates against receipt evidence.
+    fn assembly_strategy(self) -> &'static str {
+        match self {
+            Self::SignMerge => "multi-parent-sign-merge",
+            Self::Soup => "multi-parent-weighted-soup",
+        }
+    }
+
+    // Builds the operator-scoped evidence filename for receipts that share the same suffixes.
+    fn evidence_file(self, suffix: &str) -> String {
+        format!("{}.{}", self.evidence_prefix(), suffix)
+    }
+
+    // Lists the evidence files whose relative routes participate in module-plan route checksums.
+    fn evidence_files(self) -> Vec<String> {
+        vec![
+            "population.ledger".to_string(),
+            "population.review".to_string(),
+            "parent-pool.recipe".to_string(),
+            self.evidence_file("operator"),
+            self.evidence_file("candidate"),
+            self.evidence_file("promotion"),
+            self.evidence_file("runtime"),
+            self.evidence_file("eval"),
+            self.evidence_file("multi.admission"),
+        ]
+    }
+
+    // Dispatches bundle candidate generation to the selected parent-pool operator implementation.
+    fn write_candidate_path(
+        self,
+        ledger_path: &Path,
+        review_path: &Path,
+        recipe_path: &Path,
+        candidate_path: &Path,
+        receipt_path: &Path,
+        parent_paths: &[String],
+        admission_paths: &[String],
+    ) -> io::Result<()> {
+        match self {
+            Self::SignMerge => sign_merge::write_candidate_path(
+                ledger_path,
+                review_path,
+                recipe_path,
+                candidate_path,
+                receipt_path,
+                parent_paths,
+                admission_paths,
+            ),
+            Self::Soup => soup::write_candidate_path(
+                ledger_path,
+                review_path,
+                recipe_path,
+                candidate_path,
+                receipt_path,
+                parent_paths,
+                admission_paths,
+            ),
+        }
+    }
+}
+
 struct BundleSpec {
     id: String,
+    operator: BundleOperator,
     quantization: String,
     dtype: u32,
     model_file: String,
@@ -126,7 +223,8 @@ struct BundleSpec {
 }
 
 impl BundleSpec {
-    fn from_quantization(quantization: &str) -> io::Result<Self> {
+    // Derives all generated filenames and labels from the quantization lane and operator family.
+    fn from_quantization(quantization: &str, operator: BundleOperator) -> io::Result<Self> {
         let dtype = match quantization {
             "f32" => DTYPE_F32,
             "q8_0" => DTYPE_Q8_0,
@@ -144,26 +242,26 @@ impl BundleSpec {
             "q4_0" => "q4",
             _ => unreachable!(),
         };
-        let id = format!("multi-parent-sign-merge-{suffix}");
+        let id = format!("{}-{suffix}", operator.id_prefix());
+        let label_prefix = operator.label_prefix();
         Ok(Self {
             model_file: format!("{id}.slm"),
             self_adapter_file: format!("{id}-self.adp1"),
-            self_adapter_label: format!("Multi-parent sign-merge {quantization} self ADP1"),
+            self_adapter_label: format!("{label_prefix} {quantization} self ADP1"),
             family_adapter_file: format!("{id}-family.adp1"),
-            family_adapter_label: format!("Multi-parent sign-merge {quantization} family ADP1"),
+            family_adapter_label: format!("{label_prefix} {quantization} family ADP1"),
             sparse_adapter_file: format!("{id}-sparse.asp1"),
-            sparse_adapter_label: format!("Multi-parent sign-merge {quantization} sparse ASP1"),
+            sparse_adapter_label: format!("{label_prefix} {quantization} sparse ASP1"),
             low_rank_adapter_file: format!("{id}-low-rank.alr1"),
-            low_rank_adapter_label: format!(
-                "Multi-parent sign-merge {quantization} source-backed ALR1"
-            ),
+            low_rank_adapter_label: format!("{label_prefix} {quantization} source-backed ALR1"),
             adapter_family_receipt_file: format!("{id}.adapter-family.receipt"),
-            adapter_family_label: format!("Multi-parent sign-merge {quantization} adapter family"),
+            adapter_family_label: format!("{label_prefix} {quantization} adapter family"),
             assembly_receipt_file: format!("{id}.assembly.receipt"),
-            assembly_label: format!("Multi-parent sign-merge {quantization} assembly evidence"),
+            assembly_label: format!("{label_prefix} {quantization} assembly evidence"),
             module_plan_receipt_file: format!("{id}.module-plan.receipt"),
-            module_plan_label: format!("Multi-parent sign-merge {quantization} module plan"),
+            module_plan_label: format!("{label_prefix} {quantization} module plan"),
             id,
+            operator,
             quantization: quantization.to_string(),
             dtype,
         })
@@ -181,19 +279,32 @@ struct StagedBundleModule {
 }
 
 /// Writes a browser-loadable multi-parent selector registry bundle for one or all quantization modes.
+#[cfg(test)]
 pub(crate) fn write_bundle_path_with_quantization(
     root: &Path,
     quantization: &str,
 ) -> io::Result<()> {
+    write_bundle_path_with_quantization_and_operator(root, quantization, "sign-merge")
+}
+
+/// Writes a browser-loadable multi-parent selector bundle for the selected parent-pool operator.
+pub(crate) fn write_bundle_path_with_quantization_and_operator(
+    root: &Path,
+    quantization: &str,
+    operator: &str,
+) -> io::Result<()> {
+    let operators = bundle_operators(operator)?;
     let quantizations = bundle_quantizations(quantization)?;
     let models = root.join("models");
     fs::create_dir_all(&models)?;
     copy_browser_surface(root)?;
 
-    let mut modules = Vec::with_capacity(quantizations.len());
-    for quantization in quantizations {
-        let spec = BundleSpec::from_quantization(quantization)?;
-        modules.push(write_bundle_module(root, &models, &spec)?);
+    let mut modules = Vec::with_capacity(quantizations.len() * operators.len());
+    for operator in operators {
+        for quantization in &quantizations {
+            let spec = BundleSpec::from_quantization(quantization, operator)?;
+            modules.push(write_bundle_module(root, &models, &spec)?);
+        }
     }
 
     let registry_path = models.join("selector.registry");
@@ -248,6 +359,165 @@ pub(crate) fn write_bundle_path_with_quantization(
     Ok(())
 }
 
+/// Writes a browser-loadable converted-trained selector bundle from a reviewed source directory.
+pub(crate) fn write_converted_trained_bundle_path(
+    root: &Path,
+    source_dir: &Path,
+    quantization: &str,
+) -> io::Result<()> {
+    let quantizations = converted_trained_quantizations(quantization)?;
+    let models = root.join("models");
+    let evidence_root = root.join("evidence");
+    fs::create_dir_all(&models)?;
+    fs::create_dir_all(&evidence_root)?;
+    copy_browser_surface(root)?;
+
+    let mut admission_paths = Vec::with_capacity(quantizations.len());
+    let mut candidate_paths = Vec::with_capacity(quantizations.len());
+    for entry_quantization in quantizations {
+        let (admission_path, candidate_path) = write_converted_trained_bundle_entry(
+            &models,
+            &evidence_root,
+            source_dir,
+            entry_quantization,
+        )?;
+        admission_paths.push(admission_path);
+        candidate_paths.push(candidate_path);
+    }
+
+    let registry_path = models.join("selector.registry");
+    selector::write_registry_path(&registry_path, &admission_paths)?;
+    selector::validate_registry_path(&registry_path, &admission_paths)?;
+
+    println!(
+        "SLM browser converted-trained bundle root: {}",
+        root.display()
+    );
+    println!(
+        "SLM browser converted-trained registry: {}",
+        registry_path.display()
+    );
+    for candidate_path in candidate_paths {
+        println!(
+            "SLM browser converted-trained model: {}",
+            candidate_path.display()
+        );
+    }
+    Ok(())
+}
+
+fn write_converted_trained_bundle_entry(
+    models: &Path,
+    evidence_root: &Path,
+    source_dir: &Path,
+    quantization: &str,
+) -> io::Result<(String, PathBuf)> {
+    // Stages one converted source artifact and the evidence chain consumed by selector.registry.
+    let candidate_id = converted_trained_candidate_id(quantization)?;
+    let evidence = evidence_root.join(candidate_id);
+    fs::create_dir_all(&evidence)?;
+    let model_file = format!("{candidate_id}.slm");
+    let candidate_path = models.join(&model_file);
+    let provenance_path = models.join(format!("{model_file}.manifest"));
+    let compatibility_path = evidence.join("converted-trained.compat");
+    let lineage_path = evidence.join("converted-trained.lineage");
+    let candidate_manifest_path = evidence.join("converted-trained.candidate");
+    let promotion_path = evidence.join("converted-trained.promotion");
+    let runtime_path = evidence.join("converted-trained.runtime");
+    let eval_path = evidence.join("converted-trained.eval");
+    let admission_path = evidence.join("converted-trained.admission");
+
+    trained_source::convert_trained_path(source_dir, &candidate_path, quantization)?;
+    provenance::validate_manifest_path(&candidate_path, &provenance_path)?;
+    compatibility::report_path(&candidate_path, &candidate_path, Some(&compatibility_path))?;
+    lineage::write_template_path(
+        &compatibility_path,
+        &lineage_path,
+        candidate_id,
+        "trained-source-conversion",
+        "browser-file-backed-converted-trained",
+    )?;
+    candidate::write_manifest_path(
+        &compatibility_path,
+        &lineage_path,
+        &candidate_path,
+        &candidate_manifest_path,
+        None,
+    )?;
+    promotion::write_template_path(
+        &compatibility_path,
+        &lineage_path,
+        &candidate_path,
+        &candidate_manifest_path,
+        &promotion_path,
+        "local-smoke-runner",
+        promotion::DEFAULT_PROMOTION_SCOPE,
+        None,
+    )?;
+    provenance::write_runtime_smoke_for_path(&candidate_path, &provenance_path, &runtime_path)?;
+
+    let candidate_bytes = fs::read(&candidate_path)?;
+    let report = slm_validate::validate_bytes(&candidate_bytes, &display_path(&candidate_path))?;
+    let provenance_text = fs::read_to_string(&provenance_path)?;
+    fs::write(&eval_path, passing_eval_text(&report, &provenance_text))?;
+    provenance::quality_gate_path(
+        &candidate_path,
+        &provenance_path,
+        "assistant-quality",
+        Some(&eval_path),
+    )?;
+    admission::write_record_path(
+        &compatibility_path,
+        &lineage_path,
+        &candidate_path,
+        &candidate_manifest_path,
+        &promotion_path,
+        &provenance_path,
+        &runtime_path,
+        &eval_path,
+        &admission_path,
+        admission::DEFAULT_ADMISSION_SELECTOR_ID,
+        None,
+    )?;
+
+    Ok((display_path(&admission_path), candidate_path))
+}
+
+fn converted_trained_quantizations(quantization: &str) -> io::Result<Vec<&'static str>> {
+    // Expands the converted-trained CLI selector into one or all browser model entries.
+    match quantization {
+        "f32" => Ok(vec!["f32"]),
+        "q8_0" => Ok(vec!["q8_0"]),
+        "q4_0" => Ok(vec!["q4_0"]),
+        "all" => Ok(vec!["f32", "q8_0", "q4_0"]),
+        _ => Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "browser-converted-trained-bundle quantization must be f32, q8_0, q4_0, or all",
+        )),
+    }
+}
+
+fn converted_trained_candidate_id(quantization: &str) -> io::Result<&'static str> {
+    // Keeps generated browser model ids aligned with the quantization lane they stage.
+    match quantization {
+        "f32" => Ok("converted-trained-f32"),
+        "q8_0" => Ok("converted-trained-q8"),
+        "q4_0" => Ok("converted-trained-q4"),
+        _ => Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "converted-trained candidate quantization must be f32, q8_0, or q4_0",
+        )),
+    }
+}
+
+fn bundle_operators(operator: &str) -> io::Result<Vec<BundleOperator>> {
+    // Expands the CLI operator selector into one or more browser-visible families.
+    if operator == "mixed" {
+        return Ok(vec![BundleOperator::SignMerge, BundleOperator::Soup]);
+    }
+    Ok(vec![BundleOperator::from_name(operator)?])
+}
+
 fn bundle_quantizations(quantization: &str) -> io::Result<Vec<&'static str>> {
     match quantization {
         "f32" => Ok(vec!["f32"]),
@@ -299,18 +569,18 @@ fn write_bundle_module(
     let review_path = evidence.join("population.review");
     let recipe_path = evidence.join("parent-pool.recipe");
     let candidate_path = models.join(&spec.model_file);
-    let receipt_path = evidence.join("sign-merge.operator");
-    let multi_candidate_path = evidence.join("sign-merge.candidate");
-    let promotion_path = evidence.join("sign-merge.promotion");
+    let receipt_path = evidence.join(spec.operator.evidence_file("operator"));
+    let multi_candidate_path = evidence.join(spec.operator.evidence_file("candidate"));
+    let promotion_path = evidence.join(spec.operator.evidence_file("promotion"));
     let provenance_path = models.join(format!("{}.manifest", spec.model_file));
-    let runtime_path = evidence.join("sign-merge.runtime");
-    let eval_path = evidence.join("sign-merge.eval");
-    let multi_admission_path = evidence.join("sign-merge.multi.admission");
+    let runtime_path = evidence.join(spec.operator.evidence_file("runtime"));
+    let eval_path = evidence.join(spec.operator.evidence_file("eval"));
+    let multi_admission_path = evidence.join(spec.operator.evidence_file("multi.admission"));
 
     ledger::write_ledger_path(&ledger_path, &admission_paths)?;
     population::write_review_path(&ledger_path, &review_path, &admission_paths)?;
     parent_pool::write_recipe_path(&ledger_path, &review_path, &recipe_path, &admission_paths)?;
-    sign_merge::write_candidate_path(
+    spec.operator.write_candidate_path(
         &ledger_path,
         &review_path,
         &recipe_path,
@@ -462,7 +732,8 @@ fn write_bundle_module_plan_receipt(
     let assembly_receipt_byte_count = file_byte_count(assembly_receipt_path)?;
     let adapter_family_receipt_byte_count = file_byte_count(adapter_family_receipt_path)?;
     let manifest_checksum = text_file_checksum(provenance_manifest_path)?;
-    let operator_receipt_route = evidence_route(spec, "sign-merge.operator");
+    let operator_receipt_file = spec.operator.evidence_file("operator");
+    let operator_receipt_route = evidence_route(spec, &operator_receipt_file);
     let operator_receipt_checksum = text_file_checksum(operator_receipt_path)?;
     let stack_indexes = bundle_auto_apply_stack_indexes(bundle_adapter_routes.len());
     let adapter_validation_count = u64::try_from(stack_indexes.len())
@@ -926,7 +1197,8 @@ fn module_plan_route_set_checksum(
     stack_indexes: &[usize],
 ) -> io::Result<String> {
     // Mirrors the browser's generated self-assembly fetch classes in route order.
-    let evidence_count = u64::try_from(MODULE_PLAN_ASSEMBLY_EVIDENCE_FILES.len())
+    let evidence_files = spec.operator.evidence_files();
+    let evidence_count = u64::try_from(evidence_files.len())
         .map_err(|_| invalid("module plan route set evidence count overflow"))?;
     if evidence_count != MODULE_PLAN_ASSEMBLY_EVIDENCE_FILE_COUNT {
         return Err(invalid("module plan route set evidence count mismatch"));
@@ -936,11 +1208,11 @@ fn module_plan_route_set_checksum(
     module_plan_push_route(&mut routes, "model", model_path);
     module_plan_push_route(&mut routes, "model-manifest", manifest_path);
     module_plan_push_route(&mut routes, "assembly-receipt", assembly_path);
-    for file_name in MODULE_PLAN_ASSEMBLY_EVIDENCE_FILES {
+    for file_name in evidence_files {
         module_plan_push_route(
             &mut routes,
             "assembly-evidence",
-            &evidence_route(spec, file_name),
+            &evidence_route(spec, &file_name),
         );
     }
     module_plan_push_route(&mut routes, "adapter-family-receipt", adapter_family_path);
@@ -1094,7 +1366,11 @@ fn write_bundle_assembly_receipt(
     push_line(&mut text, "tinyrustlm_assembly_receipt_version", "1");
     push_line(&mut text, "assembly_kind", ASSEMBLY_RECEIPT_KIND);
     push_line(&mut text, "assembly_status", ASSEMBLY_RECEIPT_STATUS);
-    push_line(&mut text, "assembly_strategy", "multi-parent-sign-merge");
+    push_line(
+        &mut text,
+        "assembly_strategy",
+        spec.operator.assembly_strategy(),
+    );
     push_line(&mut text, "candidate_id", &spec.id);
     push_line(&mut text, "assembly_label", &spec.assembly_label);
     push_line(&mut text, "assembly_receipt_path", &route);
@@ -1148,7 +1424,7 @@ fn write_bundle_assembly_receipt(
     push_line(
         &mut text,
         "operator_receipt_path",
-        &evidence_route(spec, "sign-merge.operator"),
+        &evidence_route(spec, &spec.operator.evidence_file("operator")),
     );
     push_line(
         &mut text,
@@ -1158,7 +1434,7 @@ fn write_bundle_assembly_receipt(
     push_line(
         &mut text,
         "candidate_manifest_path",
-        &evidence_route(spec, "sign-merge.candidate"),
+        &evidence_route(spec, &spec.operator.evidence_file("candidate")),
     );
     push_line(
         &mut text,
@@ -1168,7 +1444,7 @@ fn write_bundle_assembly_receipt(
     push_line(
         &mut text,
         "promotion_manifest_path",
-        &evidence_route(spec, "sign-merge.promotion"),
+        &evidence_route(spec, &spec.operator.evidence_file("promotion")),
     );
     push_line(
         &mut text,
@@ -1178,7 +1454,7 @@ fn write_bundle_assembly_receipt(
     push_line(
         &mut text,
         "runtime_smoke_path",
-        &evidence_route(spec, "sign-merge.runtime"),
+        &evidence_route(spec, &spec.operator.evidence_file("runtime")),
     );
     push_line(
         &mut text,
@@ -1188,7 +1464,7 @@ fn write_bundle_assembly_receipt(
     push_line(
         &mut text,
         "eval_path",
-        &evidence_route(spec, "sign-merge.eval"),
+        &evidence_route(spec, &spec.operator.evidence_file("eval")),
     );
     push_line(
         &mut text,
@@ -1203,7 +1479,7 @@ fn write_bundle_assembly_receipt(
     push_line(
         &mut text,
         "admission_path",
-        &evidence_route(spec, "sign-merge.multi.admission"),
+        &evidence_route(spec, &spec.operator.evidence_file("multi.admission")),
     );
     push_line(
         &mut text,
@@ -1611,6 +1887,16 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn assert_module_plan(root: &std::path::Path, id: &str, quantization: &str, registry: &str) {
+        assert_module_plan_with_operator(root, id, quantization, registry, "sign-merge");
+    }
+
+    fn assert_module_plan_with_operator(
+        root: &std::path::Path,
+        id: &str,
+        quantization: &str,
+        registry: &str,
+        evidence_prefix: &str,
+    ) {
         let file_name = format!("{id}.module-plan.receipt");
         let module_plan = fs::read_to_string(root.join("models").join(&file_name)).unwrap();
         let checksum = hex64(provenance::text_checksum(module_plan.as_bytes()));
@@ -1635,9 +1921,13 @@ mod tests {
         )
         .unwrap()
         .len();
-        let operator_receipt_checksum =
-            text_file_checksum(&root.join("evidence").join(id).join("sign-merge.operator"))
-                .unwrap();
+        let operator_receipt_checksum = text_file_checksum(
+            &root
+                .join("evidence")
+                .join(id)
+                .join(format!("{evidence_prefix}.operator")),
+        )
+        .unwrap();
         let family_adapter_bytes =
             fs::metadata(root.join("models").join(format!("{id}-family.adp1")))
                 .unwrap()
@@ -1679,7 +1969,7 @@ mod tests {
             .contains("module_plan_route_set_checksum_algorithm=tinyrustlm-text-checksum-v1"));
         assert!(registry.contains("module_plan_route_set_checksum=0x"));
         assert!(registry.contains(&format!(
-            "module_plan_operator_receipt_path=../evidence/{id}/sign-merge.operator"
+            "module_plan_operator_receipt_path=../evidence/{id}/{evidence_prefix}.operator"
         )));
         assert!(registry.contains(&format!(
             "module_plan_operator_receipt_checksum={operator_receipt_checksum}"
@@ -1737,7 +2027,7 @@ mod tests {
             .contains("module_plan_route_set_checksum_algorithm=tinyrustlm-text-checksum-v1"));
         assert!(module_plan.contains("module_plan_route_set_checksum=0x"));
         assert!(module_plan.contains(&format!(
-            "operator_receipt_path=../evidence/{id}/sign-merge.operator"
+            "operator_receipt_path=../evidence/{id}/{evidence_prefix}.operator"
         )));
         assert!(module_plan.contains(&format!(
             "operator_receipt_checksum={operator_receipt_checksum}"
@@ -1905,6 +2195,125 @@ mod tests {
         assert!(registry.contains(&format!("{prefix}.heritable_artifact_checksum=0x")));
         assert!(registry.contains(&format!("{prefix}.fitness_vector_status=eval-bound")));
         assert!(registry.contains(&format!("{prefix}.fitness_vector_checksum=0x")));
+    }
+
+    #[test]
+    fn writes_browser_converted_trained_bundle_from_source() {
+        let temp = unique_dir("converted-trained");
+        let source = temp.join("source");
+        let root = temp.join("tinyrustlm");
+        trained_source::write_source_template_path(&source, "tiny-fixture").unwrap();
+
+        write_converted_trained_bundle_path(&root, &source, "q8_0").unwrap();
+
+        let registry = fs::read_to_string(root.join("models").join("selector.registry")).unwrap();
+        assert!(registry.contains("entry.0.candidate_id=converted-trained-q8"));
+        assert!(registry.contains("entry.0.display_name=Converted trained-source q8_0"));
+        assert!(registry.contains("entry.0.model_path=../models/converted-trained-q8.slm"));
+        assert!(
+            registry.contains("entry.0.manifest_path=../models/converted-trained-q8.slm.manifest")
+        );
+        assert!(registry.contains("entry.0.quantization=q8_0"));
+        assert!(registry.contains("entry.0.mate_selection_status=admission-only"));
+        assert!(registry.contains("entry.0.mate_selection_parent_count=1"));
+        assert!(registry.contains("entry.0.quality_scope=tiny-fixture-runtime-eval-only"));
+        assert!(registry.contains("entry.0.public_claim_status=bound-to-eval-scope"));
+        assert!(registry.contains("entry.0.genome_strategy=selector-admission-genome-v1"));
+        assert!(registry.contains("entry.0.species_strategy=selector-speciation-fit-v1"));
+        assert!(registry.contains("entry.0.novelty_strategy=selector-novelty-sketch-v1"));
+        assert!(
+            registry.contains("entry.0.population_strategy=selector-population-review-route-v1")
+        );
+        assert!(
+            registry.contains("entry.0.phenotype_evidence_strategy=selector-phenotype-evidence-v1")
+        );
+        assert!(
+            registry.contains("entry.0.heritable_artifact_strategy=selector-heritable-artifact-v1")
+        );
+        assert!(registry.contains("entry.0.fitness_vector_status=eval-bound"));
+        let manifest = fs::read_to_string(
+            root.join("models")
+                .join("converted-trained-q8.slm.manifest"),
+        )
+        .unwrap();
+        assert!(manifest.contains("source_kind=converted-trained"));
+        assert!(manifest.contains("quality_claim=runtime-compatible-not-quality-verified"));
+        assert!(manifest.contains("trained_quality_claim=pending-evaluation"));
+        assert!(root
+            .join("models")
+            .join("converted-trained-q8.slm")
+            .exists());
+        assert!(root
+            .join("evidence")
+            .join("converted-trained-q8")
+            .join("converted-trained.admission")
+            .exists());
+        assert!(root.join("app").join("app.js").exists());
+        assert_runtime_manifest(&root);
+
+        fs::remove_dir_all(temp).unwrap();
+    }
+
+    #[test]
+    fn rejects_browser_converted_trained_bundle_unknown_quantization() {
+        let temp = unique_dir("converted-trained-quantization");
+        let source = temp.join("source");
+        let root = temp.join("tinyrustlm");
+        trained_source::write_source_template_path(&source, "tiny-fixture").unwrap();
+
+        let error = write_converted_trained_bundle_path(&root, &source, "bf16").unwrap_err();
+
+        assert!(error.to_string().contains(
+            "browser-converted-trained-bundle quantization must be f32, q8_0, q4_0, or all"
+        ));
+        fs::remove_dir_all(temp).unwrap();
+    }
+
+    #[test]
+    fn writes_all_browser_converted_trained_bundle_from_source() {
+        let temp = unique_dir("converted-trained-all");
+        let source = temp.join("source");
+        let root = temp.join("tinyrustlm");
+        trained_source::write_source_template_path(&source, "tiny-fixture").unwrap();
+
+        write_converted_trained_bundle_path(&root, &source, "all").unwrap();
+
+        let registry = fs::read_to_string(root.join("models").join("selector.registry")).unwrap();
+        assert!(registry.contains("entry_count=3"));
+        assert!(registry.contains("selector_default_candidate_id=converted-trained-q4"));
+        assert!(registry.contains("selector_default_quantization=q4_0"));
+        for (candidate_id, quantization) in [
+            ("converted-trained-f32", "f32"),
+            ("converted-trained-q8", "q8_0"),
+            ("converted-trained-q4", "q4_0"),
+        ] {
+            assert!(registry.contains(&format!("candidate_id={candidate_id}")));
+            assert!(registry.contains(&format!("model_path=../models/{candidate_id}.slm")));
+            assert!(registry.contains(&format!(
+                "manifest_path=../models/{candidate_id}.slm.manifest"
+            )));
+            assert!(registry.contains(&format!("quantization={quantization}")));
+            let manifest = fs::read_to_string(
+                root.join("models")
+                    .join(format!("{candidate_id}.slm.manifest")),
+            )
+            .unwrap();
+            assert!(manifest.contains("source_kind=converted-trained"));
+            assert!(manifest.contains(&format!("quantization={quantization}")));
+            assert!(root
+                .join("models")
+                .join(format!("{candidate_id}.slm"))
+                .exists());
+            assert!(root
+                .join("evidence")
+                .join(candidate_id)
+                .join("converted-trained.admission")
+                .exists());
+        }
+        assert!(root.join("app").join("app.js").exists());
+        assert_runtime_manifest(&root);
+
+        fs::remove_dir_all(temp).unwrap();
     }
 
     #[test]
@@ -2161,6 +2570,69 @@ mod tests {
     }
 
     #[test]
+    fn writes_browser_multi_parent_soup_bundle() {
+        let root = unique_dir("soup-bundle").join("tinyrustlm");
+        write_bundle_path_with_quantization_and_operator(&root, "q8_0", "soup").unwrap();
+        let id = "multi-parent-soup-q8";
+
+        let registry = fs::read_to_string(root.join("models").join("selector.registry")).unwrap();
+        assert!(registry.contains(&format!("entry.0.candidate_id={id}")));
+        assert!(registry.contains(&format!("entry.0.model_path=../models/{id}.slm")));
+        assert!(registry.contains(&format!(
+            "entry.0.adapter_label=Multi-parent weighted soup q8_0 self ADP1"
+        )));
+        assert!(registry.contains(&format!(
+            "entry.0.module_plan_operator_receipt_path=../evidence/{id}/soup.operator"
+        )));
+        assert!(registry.contains("entry.0.operator_receipt_status=receipt-bound"));
+        assert!(registry.contains(&format!(
+            "entry.0.operator_receipt_path={}",
+            display_path(&root.join("evidence").join(id).join("soup.operator"))
+        )));
+        assert!(registry.contains(&format!("entry.0.operator_receipt_operator_id={id}")));
+        assert!(registry
+            .contains("entry.0.operator_receipt_operator_kind=seed-weighted-parent-pool-soup"));
+        assert!(registry.contains("entry.0.operator_receipt_candidate_slm_checksum=0x"));
+        assert!(registry.contains("entry.0.operator_receipt_candidate_artifact_bytes="));
+        assert_module_plan_with_operator(&root, id, "q8_0", &registry, "soup");
+
+        let operator_receipt =
+            fs::read_to_string(root.join("evidence").join(id).join("soup.operator")).unwrap();
+        assert!(operator_receipt.contains("operator_kind=seed-weighted-parent-pool-soup"));
+        assert!(operator_receipt.contains("soup_merge_rule=seed-weighted-direct-parameter-average"));
+        assert!(operator_receipt.contains("soup_parent_weight_checksum=0x"));
+
+        let candidate_manifest =
+            fs::read_to_string(root.join("evidence").join(id).join("soup.candidate")).unwrap();
+        assert!(candidate_manifest.contains("operator_kind=seed-weighted-parent-pool-soup"));
+        assert!(candidate_manifest.contains("soup_weighted_value_checksum=0x"));
+        assert!(!candidate_manifest.contains("sign_selection_rule="));
+
+        let assembly_receipt =
+            fs::read_to_string(root.join("models").join(format!("{id}.assembly.receipt"))).unwrap();
+        assert!(assembly_receipt.contains("assembly_strategy=multi-parent-weighted-soup"));
+        for file_name in [
+            "soup.operator",
+            "soup.candidate",
+            "soup.promotion",
+            "soup.runtime",
+            "soup.eval",
+            "soup.multi.admission",
+        ] {
+            assert!(assembly_receipt.contains(&format!("../evidence/{id}/{file_name}")));
+        }
+        assert!(root
+            .join("evidence")
+            .join(id)
+            .join("soup.multi.admission")
+            .exists());
+        assert!(root.join("app").join("app.js").exists());
+        assert_runtime_manifest(&root);
+
+        fs::remove_dir_all(root.parent().unwrap()).unwrap();
+    }
+
+    #[test]
     fn writes_combined_browser_multi_parent_bundle() {
         let root = unique_dir("combined").join("tinyrustlm");
         write_bundle_path_with_quantization(&root, "all").unwrap();
@@ -2236,6 +2708,173 @@ mod tests {
                 .join("evidence")
                 .join(&id)
                 .join("sign-merge.multi.admission")
+                .exists());
+        }
+        assert!(root.join("app").join("app.js").exists());
+        assert!(root.join("runtime").join("tinyrustlm.wasm").exists());
+        assert_runtime_manifest(&root);
+
+        fs::remove_dir_all(root.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn writes_combined_browser_multi_parent_soup_bundle() {
+        // Exercises the soup operator across the all-quantization bundle path.
+        let root = unique_dir("combined-soup").join("tinyrustlm");
+        write_bundle_path_with_quantization_and_operator(&root, "all", "soup").unwrap();
+
+        let registry = fs::read_to_string(root.join("models").join("selector.registry")).unwrap();
+        assert!(registry.contains("entry_count=3"));
+        assert!(registry.contains("selector_default_strategy=browser-frugal-quantized"));
+        assert!(registry.contains("selector_default_candidate_id=multi-parent-soup-q4"));
+        assert!(registry.contains("selector_default_quantization=q4_0"));
+        for (index, quantization, suffix) in
+            [(0, "f32", "f32"), (1, "q8_0", "q8"), (2, "q4_0", "q4")]
+        {
+            let id = format!("multi-parent-soup-{suffix}");
+            assert!(registry.contains(&format!("entry.{index}.candidate_id={id}")));
+            assert!(registry.contains(&format!("entry.{index}.quantization={quantization}")));
+            assert!(registry.contains(&format!("entry.{index}.model_path=../models/{id}.slm")));
+            assert!(registry.contains(&format!(
+                "entry.{index}.adapter_label=Multi-parent weighted soup {quantization} self ADP1"
+            )));
+            assert!(registry.contains(&format!(
+                "entry.{index}.module_plan_operator_receipt_path=../evidence/{id}/soup.operator"
+            )));
+            assert!(registry.contains(&format!("entry.{index}.operator_receipt_operator_id={id}")));
+            assert!(registry.contains(&format!(
+                "entry.{index}.operator_receipt_operator_kind=seed-weighted-parent-pool-soup"
+            )));
+            assert_module_plan_with_operator(&root, &id, quantization, &registry, "soup");
+
+            let operator_receipt =
+                fs::read_to_string(root.join("evidence").join(&id).join("soup.operator")).unwrap();
+            assert!(operator_receipt.contains("operator_kind=seed-weighted-parent-pool-soup"));
+            assert!(
+                operator_receipt.contains("soup_merge_rule=seed-weighted-direct-parameter-average")
+            );
+
+            let assembly_receipt =
+                fs::read_to_string(root.join("models").join(format!("{id}.assembly.receipt")))
+                    .unwrap();
+            assert!(assembly_receipt.contains("assembly_strategy=multi-parent-weighted-soup"));
+            assert!(assembly_receipt.contains(&format!("../evidence/{id}/soup.operator")));
+            assert!(assembly_receipt.contains(&format!("../evidence/{id}/soup.multi.admission")));
+            assert!(root
+                .join("evidence")
+                .join(&id)
+                .join("soup.multi.admission")
+                .exists());
+            assert!(!root
+                .join("evidence")
+                .join(&id)
+                .join("sign-merge.multi.admission")
+                .exists());
+        }
+        assert!(root.join("app").join("app.js").exists());
+        assert!(root.join("runtime").join("tinyrustlm.wasm").exists());
+        assert_runtime_manifest(&root);
+
+        fs::remove_dir_all(root.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn writes_combined_browser_multi_parent_mixed_operator_bundle() {
+        // Exercises the mixed operator selector path across both generated parent-pool families.
+        let root = unique_dir("combined-mixed").join("tinyrustlm");
+        write_bundle_path_with_quantization_and_operator(&root, "all", "mixed").unwrap();
+
+        let registry = fs::read_to_string(root.join("models").join("selector.registry")).unwrap();
+        assert!(registry.contains("entry_count=6"));
+        assert!(registry.contains("selector_default_strategy=browser-frugal-quantized"));
+        assert!(registry.contains("selector_default_candidate_id=multi-parent-sign-merge-q4"));
+        assert!(registry.contains("selector_default_quantization=q4_0"));
+        for (
+            index,
+            quantization,
+            suffix,
+            family,
+            evidence_prefix,
+            operator_kind,
+            assembly_strategy,
+        ) in [
+            (
+                0,
+                "f32",
+                "f32",
+                "multi-parent-sign-merge",
+                "sign-merge",
+                "sign-aware-parent-pool-merge",
+                "multi-parent-sign-merge",
+            ),
+            (
+                1,
+                "q8_0",
+                "q8",
+                "multi-parent-sign-merge",
+                "sign-merge",
+                "sign-aware-parent-pool-merge",
+                "multi-parent-sign-merge",
+            ),
+            (
+                2,
+                "q4_0",
+                "q4",
+                "multi-parent-sign-merge",
+                "sign-merge",
+                "sign-aware-parent-pool-merge",
+                "multi-parent-sign-merge",
+            ),
+            (
+                3,
+                "f32",
+                "f32",
+                "multi-parent-soup",
+                "soup",
+                "seed-weighted-parent-pool-soup",
+                "multi-parent-weighted-soup",
+            ),
+            (
+                4,
+                "q8_0",
+                "q8",
+                "multi-parent-soup",
+                "soup",
+                "seed-weighted-parent-pool-soup",
+                "multi-parent-weighted-soup",
+            ),
+            (
+                5,
+                "q4_0",
+                "q4",
+                "multi-parent-soup",
+                "soup",
+                "seed-weighted-parent-pool-soup",
+                "multi-parent-weighted-soup",
+            ),
+        ] {
+            let id = format!("{family}-{suffix}");
+            assert!(registry.contains(&format!("entry.{index}.candidate_id={id}")));
+            assert!(registry.contains(&format!("entry.{index}.quantization={quantization}")));
+            assert!(registry.contains(&format!(
+                "entry.{index}.module_plan_operator_receipt_path=../evidence/{id}/{evidence_prefix}.operator"
+            )));
+            assert!(registry.contains(&format!(
+                "entry.{index}.operator_receipt_operator_kind={operator_kind}"
+            )));
+            assert_module_plan_with_operator(&root, &id, quantization, &registry, evidence_prefix);
+
+            let assembly_receipt =
+                fs::read_to_string(root.join("models").join(format!("{id}.assembly.receipt")))
+                    .unwrap();
+            assert!(assembly_receipt.contains(&format!("assembly_strategy={assembly_strategy}")));
+            assert!(assembly_receipt.contains(&format!(
+                "../evidence/{id}/{evidence_prefix}.multi.admission"
+            )));
+            assert!(root
+                .join("evidence")
+                .join(&id)
+                .join(format!("{evidence_prefix}.multi.admission"))
                 .exists());
         }
         assert!(root.join("app").join("app.js").exists());

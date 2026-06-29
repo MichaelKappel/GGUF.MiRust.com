@@ -1,4 +1,4 @@
-//! Promotion templates for validated multi-parent sign-merge candidates.
+//! Promotion templates for validated multi-parent parent-pool candidates.
 
 use std::fs;
 use std::io;
@@ -32,6 +32,21 @@ const CANDIDATE_KEYS: [&str; 11] = [
     "candidate_output_contract",
     "candidate_tokenizer_checksum",
     "candidate_tensor_layout_checksum",
+];
+
+const SCHEDULE_KEYS: [&str; 12] = [
+    "evolution_recipe_version",
+    "evolution_recipe_strategy",
+    "evolution_recipe_status",
+    "evolution_selection_source",
+    "evolution_relatedness_contract_checksum",
+    "evolution_schedule_checksum_algorithm",
+    "evolution_schedule_checksum",
+    "scheduled_operator_family_index",
+    "scheduled_operator_family_kind",
+    "scheduled_operator_family_command",
+    "scheduled_operator_family_selection_rule",
+    "scheduled_operator_family_output_gate",
 ];
 
 /// Writes a promotion template for a validated multi-parent candidate manifest.
@@ -235,6 +250,9 @@ pub(crate) fn build_template_text(
         "operator_output_status",
         require_key(&candidate_fields, "operator_output_status")?,
     );
+    for key in SCHEDULE_KEYS {
+        push_line(&mut text, key, require_key(&candidate_fields, key)?);
+    }
     for key in CANDIDATE_KEYS {
         push_line(&mut text, key, require_key(&candidate_fields, key)?);
     }
@@ -362,6 +380,9 @@ mod tests {
 
         assert!(promotion.contains("promotion_kind=multi-parent-sign-merge"));
         assert!(promotion.contains("candidate_manifest_checksum=0x"));
+        assert!(promotion.contains("evolution_schedule_checksum=0x"));
+        assert!(promotion.contains("scheduled_operator_family_index=0"));
+        assert!(promotion.contains("scheduled_operator_family_command=sign-merge-candidate"));
         assert!(promotion.contains("runtime_smoke_status=pending"));
         assert!(promotion.contains(
             "required_next_gate=run-runtime-smoke-and-eval-before-multi-parent-admission"
@@ -548,6 +569,7 @@ mod tests {
 
         let promotion = std::fs::read_to_string(promotion_path).unwrap();
         assert!(promotion.contains("parent_count=3"));
+        assert!(promotion.contains("scheduled_operator_family_kind=sign-aware-parent-pool-merge"));
         assert!(promotion.contains("browser_selector_status=not-admitted"));
     }
 

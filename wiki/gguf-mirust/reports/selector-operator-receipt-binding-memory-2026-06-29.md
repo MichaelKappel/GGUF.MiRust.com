@@ -9,7 +9,7 @@ TinyRustLM selector registries now preserve the full two-parent operator receipt
 - `tinyrustlm/tools/slm_pack/src/selector.rs` copies receipt-bound admission fields into selector entries as `entry.N.operator_receipt_*`.
 - The copied fields include status, path, checksum, operator id, operator kind, candidate `.slm` checksum, and candidate artifact byte count.
 - Registry validation recomputes the expected entry from the admission text and rejects drift in any copied receipt field.
-- Existing multi-parent admissions still keep their bare sign-merge `operator_receipt_checksum`; the full copied field family is emitted only for receipt-bound two-parent admissions.
+- Multi-parent admissions now also emit the full receipt-bound field family, so generated sign-merge and soup entries can render the same browser Operator row as two-parent receipt-bound admissions.
 - `entry.N.mate_selection_checksum` now includes the copied operator receipt family when present.
 - `tinyrustlm/app/app.js` parses optional selector receipt metadata, validates candidate checksum and byte equality, stores it on the selected model, and renders a compact Model Provenance Operator row.
 - `tinyrustlm/app/index.html` adds the Operator row, and the Rust browser harness checks the new DOM id.
@@ -33,4 +33,4 @@ No coverage tool is active in this no-third-party workspace. Focused selector te
 
 ## Routing
 
-Load this report before changing `selector-registry`, `validate-selector-registry`, selector provenance fields, Model Provenance Operator rendering, mate-selection checksum inputs, or assumptions about receipt-bound admissions reaching browser selector entries.
+Load this report before changing `selector-registry`, `validate-selector-registry`, selector provenance fields, Model Provenance Operator rendering, mate-selection checksum inputs, or assumptions about receipt-bound admissions reaching browser selector entries. For generated multi-parent browser proof, also load `browser-multi-parent-operator-provenance-memory-2026-06-29.md`.

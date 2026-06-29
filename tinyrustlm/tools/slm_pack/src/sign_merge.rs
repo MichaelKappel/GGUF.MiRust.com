@@ -30,6 +30,15 @@ const RELATEDNESS_KEYS: [&str; 5] = [
     "relatedness_all_pairs_status",
     "relatedness_contract_checksum",
 ];
+const EVOLUTION_RECIPE_KEYS: [&str; 7] = [
+    "evolution_recipe_version",
+    "evolution_recipe_strategy",
+    "evolution_recipe_status",
+    "evolution_selection_source",
+    "evolution_relatedness_contract_checksum",
+    "evolution_schedule_checksum_algorithm",
+    "evolution_schedule_checksum",
+];
 
 #[derive(Clone)]
 struct RecipeParent {
@@ -549,6 +558,7 @@ fn recipe_weight_for_parent(artifacts: &[ParentArtifact], parent_index: usize) -
         .seed_weight_ppm)
 }
 
+// Builds the replay receipt that connects this sign-merge output to its scheduled family.
 fn build_receipt_text(
     recipe_fields: &HashMap<String, String>,
     recipe_parents: &[RecipeParent],
@@ -575,6 +585,13 @@ fn build_receipt_text(
         "parent_pool_recipe_checksum",
         &hex64(provenance::text_checksum(recipe_text.as_bytes())),
     );
+    push_evolution_schedule_lines(
+        &mut text,
+        recipe_fields,
+        OPERATOR_KIND,
+        "sign-merge-candidate",
+        SIGN_SELECTION_RULE,
+    )?;
     push_line(
         &mut text,
         "population_review_checksum",
@@ -695,6 +712,57 @@ fn build_receipt_text(
     push_line(&mut text, "operator_output_status", OPERATOR_OUTPUT_STATUS);
     push_line(&mut text, "required_next_gate", REQUIRED_NEXT_GATE);
     Ok(text)
+}
+
+// Copies the matching recipe schedule family into the operator receipt.
+fn push_evolution_schedule_lines(
+    text: &mut String,
+    recipe_fields: &HashMap<String, String>,
+    operator_kind: &str,
+    command: &str,
+    selection_rule: &str,
+) -> io::Result<()> {
+    for key in EVOLUTION_RECIPE_KEYS {
+        push_line(text, key, require_key(recipe_fields, key)?);
+    }
+    let family_count = parse_usize(
+        require_key(recipe_fields, "evolution_operator_family_count")?,
+        "evolution_operator_family_count",
+    )?;
+    for index in 0..family_count {
+        let prefix = format!("evolution_operator_family.{index}");
+        if required_prefixed(recipe_fields, &prefix, "operator_kind")? != operator_kind {
+            continue;
+        }
+        require_equal(recipe_fields, &format!("{prefix}.command"), command)?;
+        require_equal(
+            recipe_fields,
+            &format!("{prefix}.selection_rule"),
+            selection_rule,
+        )?;
+        require_equal(
+            recipe_fields,
+            &format!("{prefix}.output_gate"),
+            REQUIRED_NEXT_GATE,
+        )?;
+        push_line(text, "scheduled_operator_family_index", &index.to_string());
+        push_line(text, "scheduled_operator_family_kind", operator_kind);
+        push_line(text, "scheduled_operator_family_command", command);
+        push_line(
+            text,
+            "scheduled_operator_family_selection_rule",
+            selection_rule,
+        );
+        push_line(
+            text,
+            "scheduled_operator_family_output_gate",
+            REQUIRED_NEXT_GATE,
+        );
+        return Ok(());
+    }
+    Err(invalid(
+        "parent-pool evolution schedule does not include sign-merge operator family",
+    ))
 }
 
 fn push_parent_receipt_lines(
@@ -970,6 +1038,9 @@ mod tests {
         let merged = parse_model_values(&candidate).unwrap();
         assert!(merged.tensors[0].values[0] > base.tensors[0].values[0]);
         assert!(receipt.contains("operator_kind=sign-aware-parent-pool-merge"));
+        assert!(receipt.contains("evolution_schedule_checksum=0x"));
+        assert!(receipt.contains("scheduled_operator_family_index=0"));
+        assert!(receipt.contains("scheduled_operator_family_command=sign-merge-candidate"));
         assert!(receipt.contains("sign_positive_parameter_count="));
         assert!(receipt.contains("sign_selected_delta_observation_count="));
     }
@@ -1166,6 +1237,7 @@ mod tests {
 
         let receipt = std::fs::read_to_string(receipt_path).unwrap();
         assert!(receipt.contains("operator_output_status=slm-validated"));
+        assert!(receipt.contains("scheduled_operator_family_command=sign-merge-candidate"));
         slm_validate::validate_path(&candidate_path).unwrap();
     }
 

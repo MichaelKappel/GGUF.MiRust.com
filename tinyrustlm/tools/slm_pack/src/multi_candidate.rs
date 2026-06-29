@@ -1,4 +1,4 @@
-//! Candidate manifests for validated sign-aware parent-pool outputs.
+//! Candidate manifests for validated parent-pool operator outputs.
 
 use std::collections::HashMap;
 use std::fs;
@@ -9,10 +9,11 @@ use crate::blend::{hex64, invalid, parse_manifest, push_line, require_equal, req
 use crate::provenance;
 use crate::sign_merge;
 use crate::slm_validate::{self, ValidationReport};
+use crate::soup;
 
 const MANIFEST_VERSION: &str = "1";
 const MANIFEST_SCOPE: &str = "offline-model-breeding-multi-parent-candidate";
-const MANIFEST_STATUS: &str = "validated-sign-merge-output";
+const MANIFEST_STATUS: &str = "validated-parent-pool-operator-output";
 const ARTIFACT_KIND: &str = "slm";
 const CANDIDATE_STATUS: &str = "artifact-written";
 const CANDIDATE_ARTIFACT_STATUS: &str = "written";
@@ -21,12 +22,24 @@ const CANDIDATE_EVAL_STATUS: &str = "pending";
 const PROMOTION_STATUS: &str = "pending";
 const REQUIRED_NEXT_GATE: &str = "multi-parent-promotion-template-plus-runtime-smoke-plus-eval";
 
-const RECEIPT_KEYS: [&str; 21] = [
+const RECEIPT_KEYS: [&str; 33] = [
     "operator_kind",
     "operator_status",
     "operator_output_status",
     "recipe_kind",
     "parent_pool_recipe_checksum",
+    "evolution_recipe_version",
+    "evolution_recipe_strategy",
+    "evolution_recipe_status",
+    "evolution_selection_source",
+    "evolution_relatedness_contract_checksum",
+    "evolution_schedule_checksum_algorithm",
+    "evolution_schedule_checksum",
+    "scheduled_operator_family_index",
+    "scheduled_operator_family_kind",
+    "scheduled_operator_family_command",
+    "scheduled_operator_family_selection_rule",
+    "scheduled_operator_family_output_gate",
     "population_review_checksum",
     "promotion_ledger_checksum",
     "admission_set_checksum",
@@ -89,7 +102,89 @@ const SIGN_KEYS: [&str; 12] = [
     "sign_selected_delta_observation_count",
 ];
 
-/// Writes a manifest for a sign-merge candidate after recomputing its full input chain.
+const SOUP_KEYS: [&str; 9] = [
+    "base_parent_index",
+    "soup_merge_rule",
+    "soup_weight_source",
+    "soup_weight_unit",
+    "soup_total_parameter_count",
+    "soup_parent_weight_checksum",
+    "soup_weighted_value_checksum",
+    "soup_changed_from_frontier_count",
+    "soup_changed_from_frontier_density_ppm",
+];
+
+#[derive(Clone, Copy)]
+enum ParentPoolOperator {
+    SignMerge,
+    Soup,
+}
+
+impl ParentPoolOperator {
+    // Classifies a parent-pool receipt so recomputation uses the owning operator module.
+    fn from_receipt(receipt: &HashMap<String, String>) -> io::Result<Self> {
+        match require_key(receipt, "operator_kind")? {
+            "sign-aware-parent-pool-merge" => Ok(Self::SignMerge),
+            "seed-weighted-parent-pool-soup" => Ok(Self::Soup),
+            other => Err(invalid(&format!(
+                "unsupported multi-parent operator_kind: {other}"
+            ))),
+        }
+    }
+
+    // Checks version and kind fields that identify the concrete parent-pool operator.
+    fn validate_identity(self, receipt: &HashMap<String, String>) -> io::Result<()> {
+        match self {
+            Self::SignMerge => {
+                require_equal(receipt, "tinyrustlm_sign_merge_operator_version", "1")?;
+                require_equal(receipt, "operator_kind", "sign-aware-parent-pool-merge")?;
+            }
+            Self::Soup => {
+                require_equal(receipt, "tinyrustlm_soup_operator_version", "1")?;
+                require_equal(receipt, "operator_kind", "seed-weighted-parent-pool-soup")?;
+            }
+        }
+        Ok(())
+    }
+
+    // Recomputes candidate bytes and receipt text through the operator that produced them.
+    fn validate_candidate_text(
+        self,
+        ledger_text: &str,
+        review_text: &str,
+        recipe_text: &str,
+        parent_bytes: &[(String, Vec<u8>)],
+        candidate_bytes: &[u8],
+        candidate_path: &str,
+        receipt_text: &str,
+        admission_texts: &[String],
+    ) -> io::Result<()> {
+        match self {
+            Self::SignMerge => sign_merge::validate_candidate_text(
+                ledger_text,
+                review_text,
+                recipe_text,
+                parent_bytes,
+                candidate_bytes,
+                candidate_path,
+                receipt_text,
+                admission_texts,
+            ),
+            Self::Soup => soup::validate_candidate_text(
+                ledger_text,
+                review_text,
+                recipe_text,
+                parent_bytes,
+                candidate_bytes,
+                candidate_path,
+                receipt_text,
+                admission_texts,
+            ),
+        }
+    }
+}
+
+/// Writes a manifest for a parent-pool candidate after recomputing its full input chain.
 pub(crate) fn write_manifest_path(
     ledger: &Path,
     review: &Path,
@@ -128,7 +223,7 @@ pub(crate) fn write_manifest_path(
     Ok(())
 }
 
-/// Validates a multi-parent candidate manifest against the sign-merge evidence chain.
+/// Validates a multi-parent candidate manifest against the parent-pool operator evidence chain.
 pub(crate) fn validate_manifest_path(
     ledger: &Path,
     review: &Path,
@@ -200,7 +295,9 @@ pub(crate) fn build_manifest_text(
     receipt_text: &str,
     admission_texts: &[String],
 ) -> io::Result<String> {
-    sign_merge::validate_candidate_text(
+    let receipt = parse_manifest(receipt_text, "parent-pool operator receipt")?;
+    let operator = ParentPoolOperator::from_receipt(&receipt)?;
+    operator.validate_candidate_text(
         ledger_text,
         review_text,
         recipe_text,
@@ -210,10 +307,16 @@ pub(crate) fn build_manifest_text(
         receipt_text,
         admission_texts,
     )?;
-    let receipt = parse_manifest(receipt_text, "sign-merge operator receipt")?;
     let recipe = parse_manifest(recipe_text, "parent-pool recipe")?;
     let report = slm_validate::validate_bytes(candidate_bytes, candidate_path)?;
-    validate_receipt_and_recipe(&receipt, &recipe, &report, receipt_text, recipe_text)?;
+    validate_receipt_and_recipe(
+        operator,
+        &receipt,
+        &recipe,
+        &report,
+        receipt_text,
+        recipe_text,
+    )?;
 
     let parent_count = parse_parent_count(&receipt)?;
     let mut text = String::new();
@@ -238,14 +341,7 @@ pub(crate) fn build_manifest_text(
     for index in 0..parent_count {
         push_parent_lines(&mut text, &receipt, index)?;
     }
-    for key in SIGN_KEYS {
-        push_line(&mut text, key, require_key(&receipt, key)?);
-    }
-    push_line(
-        &mut text,
-        "sign_rejected_delta_observation_count",
-        require_key(&receipt, "sign_rejected_delta_observation_count")?,
-    );
+    push_operator_specific_lines(&mut text, operator, &receipt)?;
     push_candidate_lines(&mut text, &report);
     push_line(
         &mut text,
@@ -305,14 +401,14 @@ pub(crate) fn validate_manifest_text(
 }
 
 fn validate_receipt_and_recipe(
+    operator: ParentPoolOperator,
     receipt: &HashMap<String, String>,
     recipe: &HashMap<String, String>,
     report: &ValidationReport,
     receipt_text: &str,
     recipe_text: &str,
 ) -> io::Result<()> {
-    require_equal(receipt, "tinyrustlm_sign_merge_operator_version", "1")?;
-    require_equal(receipt, "operator_kind", "sign-aware-parent-pool-merge")?;
+    operator.validate_identity(receipt)?;
     require_equal(receipt, "operator_status", "candidate-written")?;
     require_equal(receipt, "operator_output_status", "slm-validated")?;
     require_equal(
@@ -333,9 +429,17 @@ fn validate_receipt_and_recipe(
         "relatedness_pair_count",
         "relatedness_all_pairs_status",
         "relatedness_contract_checksum",
+        "evolution_recipe_version",
+        "evolution_recipe_strategy",
+        "evolution_recipe_status",
+        "evolution_selection_source",
+        "evolution_relatedness_contract_checksum",
+        "evolution_schedule_checksum_algorithm",
+        "evolution_schedule_checksum",
     ] {
         require_equal(receipt, key, require_key(recipe, key)?)?;
     }
+    validate_scheduled_family_fields(operator, receipt, recipe)?;
     require_equal(
         receipt,
         "parent_pool_recipe_checksum",
@@ -353,13 +457,119 @@ fn validate_receipt_and_recipe(
     require_key(receipt, "candidate_quantization")?;
     require_key(receipt, "candidate_output_contract")?;
     require_key(receipt, "candidate_tokenizer_checksum")?;
-    require_key(receipt, "sign_rejected_delta_observation_count")?;
+    validate_operator_specific_fields(operator, receipt)?;
     require_key(receipt, "parent_count")?;
     require_key(receipt, "operator_kind")?;
     require_key(receipt, "operator_status")?;
     require_key(receipt, "operator_output_status")?;
     if receipt_text.is_empty() {
-        return Err(invalid("sign-merge operator receipt is empty"));
+        return Err(invalid("parent-pool operator receipt is empty"));
+    }
+    Ok(())
+}
+
+// Confirms that the receipt points at the same scheduled operator family as the recipe.
+fn validate_scheduled_family_fields(
+    operator: ParentPoolOperator,
+    receipt: &HashMap<String, String>,
+    recipe: &HashMap<String, String>,
+) -> io::Result<()> {
+    let index = require_key(receipt, "scheduled_operator_family_index")?
+        .parse::<usize>()
+        .map_err(|_| invalid("scheduled_operator_family_index must be an integer"))?;
+    let family_count = require_key(recipe, "evolution_operator_family_count")?
+        .parse::<usize>()
+        .map_err(|_| invalid("evolution_operator_family_count must be an integer"))?;
+    if index >= family_count {
+        return Err(invalid(
+            "scheduled operator family index is outside the recipe family count",
+        ));
+    }
+    let (expected_kind, expected_command, expected_selection_rule) = match operator {
+        ParentPoolOperator::SignMerge => (
+            "sign-aware-parent-pool-merge",
+            "sign-merge-candidate",
+            "seed-weighted-delta-sign-consensus",
+        ),
+        ParentPoolOperator::Soup => (
+            "seed-weighted-parent-pool-soup",
+            "soup-candidate",
+            "seed-weighted-direct-parameter-average",
+        ),
+    };
+    require_equal(receipt, "scheduled_operator_family_kind", expected_kind)?;
+    require_equal(
+        receipt,
+        "scheduled_operator_family_command",
+        expected_command,
+    )?;
+    require_equal(
+        receipt,
+        "scheduled_operator_family_selection_rule",
+        expected_selection_rule,
+    )?;
+    require_equal(
+        receipt,
+        "scheduled_operator_family_output_gate",
+        "multi-parent-candidate-manifest-plus-runtime-smoke-plus-eval",
+    )?;
+    let prefix = format!("evolution_operator_family.{index}");
+    require_equal(recipe, &format!("{prefix}.operator_kind"), expected_kind)?;
+    require_equal(recipe, &format!("{prefix}.command"), expected_command)?;
+    require_equal(
+        recipe,
+        &format!("{prefix}.selection_rule"),
+        expected_selection_rule,
+    )?;
+    require_equal(
+        recipe,
+        &format!("{prefix}.output_gate"),
+        "multi-parent-candidate-manifest-plus-runtime-smoke-plus-eval",
+    )?;
+    Ok(())
+}
+
+fn push_operator_specific_lines(
+    text: &mut String,
+    operator: ParentPoolOperator,
+    receipt: &HashMap<String, String>,
+) -> io::Result<()> {
+    match operator {
+        ParentPoolOperator::SignMerge => {
+            for key in SIGN_KEYS {
+                push_line(text, key, require_key(receipt, key)?);
+            }
+            push_line(
+                text,
+                "sign_rejected_delta_observation_count",
+                require_key(receipt, "sign_rejected_delta_observation_count")?,
+            );
+        }
+        ParentPoolOperator::Soup => {
+            for key in SOUP_KEYS {
+                push_line(text, key, require_key(receipt, key)?);
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_operator_specific_fields(
+    operator: ParentPoolOperator,
+    receipt: &HashMap<String, String>,
+) -> io::Result<()> {
+    match operator {
+        ParentPoolOperator::SignMerge => {
+            for key in SIGN_KEYS {
+                require_key(receipt, key)?;
+            }
+            require_key(receipt, "sign_rejected_delta_observation_count")?;
+        }
+        ParentPoolOperator::Soup => {
+            for key in SOUP_KEYS {
+                require_key(receipt, key)?;
+            }
+        }
     }
     Ok(())
 }
@@ -443,6 +653,7 @@ mod tests {
     use crate::parent_pool;
     use crate::population;
     use crate::promotion;
+    use crate::soup;
     use crate::tensor_writer::{tiny_fixture_tensors_with_dtype, ModelShape, DTYPE_F32};
     use crate::tokenizer_writer::ByteTokenizerSection;
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -485,13 +696,111 @@ mod tests {
         )
         .unwrap();
 
-        assert!(manifest.contains("candidate_manifest_status=validated-sign-merge-output"));
+        assert!(
+            manifest.contains("candidate_manifest_status=validated-parent-pool-operator-output")
+        );
         assert!(manifest.contains("operator_receipt_checksum=0x"));
+        assert!(manifest.contains("operator_kind=sign-aware-parent-pool-merge"));
+        assert!(manifest.contains("evolution_schedule_checksum=0x"));
+        assert!(manifest.contains("scheduled_operator_family_index=0"));
+        assert!(manifest.contains("scheduled_operator_family_command=sign-merge-candidate"));
+        assert!(manifest.contains("sign_selection_rule=seed-weighted-delta-sign-consensus"));
         assert!(manifest.contains("candidate_eval_status=pending"));
         assert!(manifest.contains("promotion_status=pending"));
         assert!(manifest.contains(
             "required_next_gate=multi-parent-promotion-template-plus-runtime-smoke-plus-eval"
         ));
+    }
+
+    #[test]
+    fn writes_and_validates_multi_parent_soup_candidate_manifest_text() {
+        let fixture = soup_fixture();
+        let manifest = build_manifest_text(
+            &fixture.ledger,
+            &fixture.review,
+            &fixture.recipe,
+            &fixture.parents,
+            &fixture.candidate,
+            "candidate.slm",
+            &fixture.receipt,
+            &fixture.admissions,
+        )
+        .unwrap();
+
+        validate_manifest_text(
+            &fixture.ledger,
+            &fixture.review,
+            &fixture.recipe,
+            &fixture.parents,
+            &fixture.candidate,
+            "candidate.slm",
+            &fixture.receipt,
+            &manifest,
+            &fixture.admissions,
+        )
+        .unwrap();
+
+        assert!(
+            manifest.contains("candidate_manifest_status=validated-parent-pool-operator-output")
+        );
+        assert!(manifest.contains("operator_kind=seed-weighted-parent-pool-soup"));
+        assert!(manifest.contains("evolution_schedule_checksum=0x"));
+        assert!(manifest.contains("scheduled_operator_family_index=1"));
+        assert!(manifest.contains("scheduled_operator_family_command=soup-candidate"));
+        assert!(manifest.contains("soup_merge_rule=seed-weighted-direct-parameter-average"));
+        assert!(manifest.contains("soup_parent_weight_checksum=0x"));
+        assert!(manifest.contains("soup_weighted_value_checksum=0x"));
+        assert!(!manifest.contains("sign_selection_rule="));
+    }
+
+    #[test]
+    fn rejects_unsupported_parent_pool_operator_kind() {
+        let fixture = soup_fixture();
+        let receipt = fixture.receipt.replace(
+            "operator_kind=seed-weighted-parent-pool-soup",
+            "operator_kind=unknown-parent-pool-operator",
+        );
+
+        let error = build_manifest_text(
+            &fixture.ledger,
+            &fixture.review,
+            &fixture.recipe,
+            &fixture.parents,
+            &fixture.candidate,
+            "candidate.slm",
+            &receipt,
+            &fixture.admissions,
+        )
+        .unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("operator_kind"));
+    }
+
+    #[test]
+    fn rejects_soup_receipt_version_drift() {
+        let fixture = soup_fixture();
+        let receipt = fixture.receipt.replace(
+            "tinyrustlm_soup_operator_version=1",
+            "tinyrustlm_soup_operator_version=2",
+        );
+
+        let error = build_manifest_text(
+            &fixture.ledger,
+            &fixture.review,
+            &fixture.recipe,
+            &fixture.parents,
+            &fixture.candidate,
+            "candidate.slm",
+            &receipt,
+            &fixture.admissions,
+        )
+        .unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error
+            .to_string()
+            .contains("tinyrustlm_soup_operator_version"));
     }
 
     #[test]
@@ -683,6 +992,14 @@ mod tests {
     }
 
     fn fixture() -> Fixture {
+        fixture_with_operator(false)
+    }
+
+    fn soup_fixture() -> Fixture {
+        fixture_with_operator(true)
+    }
+
+    fn fixture_with_operator(use_soup: bool) -> Fixture {
         let alpha_bytes = tiny_fixture_f32_bytes_with_offset(0.0);
         let beta_bytes = tiny_fixture_f32_bytes_with_offset(0.003);
         let gamma_bytes = tiny_fixture_f32_bytes_with_offset(0.006);
@@ -710,15 +1027,27 @@ mod tests {
             ("beta.slm".to_string(), beta_bytes),
             ("gamma.slm".to_string(), gamma_bytes),
         ];
-        let (candidate, receipt) = sign_merge::build_candidate_bytes_and_receipt(
-            &ledger,
-            &review,
-            &recipe,
-            &parents,
-            "candidate.slm",
-            &admissions,
-        )
-        .unwrap();
+        let (candidate, receipt) = if use_soup {
+            soup::build_candidate_bytes_and_receipt(
+                &ledger,
+                &review,
+                &recipe,
+                &parents,
+                "candidate.slm",
+                &admissions,
+            )
+            .unwrap()
+        } else {
+            sign_merge::build_candidate_bytes_and_receipt(
+                &ledger,
+                &review,
+                &recipe,
+                &parents,
+                "candidate.slm",
+                &admissions,
+            )
+            .unwrap()
+        };
         Fixture {
             ledger,
             review,

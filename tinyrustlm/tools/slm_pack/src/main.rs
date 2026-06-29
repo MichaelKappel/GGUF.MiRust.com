@@ -8,6 +8,7 @@ mod browser_bundle;
 mod candidate;
 mod compatibility;
 mod crossover;
+mod dare;
 mod delta;
 mod federated;
 mod ledger;
@@ -20,10 +21,12 @@ mod parent_pool;
 mod population;
 mod promotion;
 mod provenance;
+mod prune;
 mod quant_writer;
 mod selector;
 mod sign_merge;
 mod slm_validate;
+mod soup;
 mod sparse_delta;
 mod tensor_writer;
 mod tokenizer_writer;
@@ -81,8 +84,32 @@ fn run() -> io::Result<()> {
             ));
         };
         let quantization = args.next().unwrap_or_else(|| "f32".to_string());
-        return browser_bundle::write_bundle_path_with_quantization(
+        let operator = args.next().unwrap_or_else(|| "sign-merge".to_string());
+        return browser_bundle::write_bundle_path_with_quantization_and_operator(
             Path::new(&root),
+            &quantization,
+            &operator,
+        );
+    }
+    if output == "browser-converted-trained-bundle" {
+        let Some(root) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "browser-converted-trained-bundle requires an output tinyrustlm root",
+            ));
+        };
+        let Some(source_dir) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "browser-converted-trained-bundle requires an input source directory",
+            ));
+        };
+        let quantization = args.next().unwrap_or_else(|| "q8_0".to_string());
+        return browser_bundle::write_converted_trained_bundle_path(
+            Path::new(&root),
+            Path::new(&source_dir),
             &quantization,
         );
     }
@@ -512,6 +539,114 @@ fn run() -> io::Result<()> {
             Path::new(&receipt),
         );
     }
+    if output == "prune-candidate" {
+        let Some(compatibility_report) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "prune-candidate requires an input compatibility report path",
+            ));
+        };
+        let Some(lineage_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "prune-candidate requires an input lineage path",
+            ));
+        };
+        let Some(base_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "prune-candidate requires a base parent .slm path",
+            ));
+        };
+        let Some(reference_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "prune-candidate requires a reference parent .slm path",
+            ));
+        };
+        let Some(output_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "prune-candidate requires an output candidate .slm path",
+            ));
+        };
+        let Some(output_receipt) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "prune-candidate requires an output operator receipt path",
+            ));
+        };
+        let keep_ppm = args.next();
+        let floor_ppm = args.next();
+        return prune::write_candidate_path(
+            Path::new(&compatibility_report),
+            Path::new(&lineage_manifest),
+            Path::new(&base_parent),
+            Path::new(&reference_parent),
+            Path::new(&output_slm),
+            Path::new(&output_receipt),
+            keep_ppm.as_deref(),
+            floor_ppm.as_deref(),
+        );
+    }
+    if output == "validate-prune-candidate" {
+        let Some(compatibility_report) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-prune-candidate requires an input compatibility report path",
+            ));
+        };
+        let Some(lineage_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-prune-candidate requires an input lineage path",
+            ));
+        };
+        let Some(base_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-prune-candidate requires a base parent .slm path",
+            ));
+        };
+        let Some(reference_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-prune-candidate requires a reference parent .slm path",
+            ));
+        };
+        let Some(candidate_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-prune-candidate requires a candidate .slm path",
+            ));
+        };
+        let Some(receipt) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-prune-candidate requires an input operator receipt path",
+            ));
+        };
+        return prune::validate_candidate_path(
+            Path::new(&compatibility_report),
+            Path::new(&lineage_manifest),
+            Path::new(&base_parent),
+            Path::new(&reference_parent),
+            Path::new(&candidate_slm),
+            Path::new(&receipt),
+        );
+    }
     if output == "federated-candidate" {
         let Some(compatibility_report) = args.next() else {
             print_usage();
@@ -824,6 +959,116 @@ fn run() -> io::Result<()> {
             ));
         };
         return sparse_delta::validate_candidate_path(
+            Path::new(&compatibility_report),
+            Path::new(&lineage_manifest),
+            Path::new(&base_parent),
+            Path::new(&target_parent),
+            Path::new(&candidate_slm),
+            Path::new(&receipt),
+        );
+    }
+    if output == "dare-candidate" {
+        let Some(compatibility_report) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "dare-candidate requires an input compatibility report path",
+            ));
+        };
+        let Some(lineage_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "dare-candidate requires an input lineage path",
+            ));
+        };
+        let Some(base_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "dare-candidate requires a base parent .slm path",
+            ));
+        };
+        let Some(target_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "dare-candidate requires a target parent .slm path",
+            ));
+        };
+        let Some(output_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "dare-candidate requires an output candidate .slm path",
+            ));
+        };
+        let Some(output_receipt) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "dare-candidate requires an output operator receipt path",
+            ));
+        };
+        let delta_weight_ppm = args.next();
+        let keep_ppm = args.next();
+        let dropout_seed = args.next();
+        return dare::write_candidate_path(
+            Path::new(&compatibility_report),
+            Path::new(&lineage_manifest),
+            Path::new(&base_parent),
+            Path::new(&target_parent),
+            Path::new(&output_slm),
+            Path::new(&output_receipt),
+            delta_weight_ppm.as_deref(),
+            keep_ppm.as_deref(),
+            dropout_seed.as_deref(),
+        );
+    }
+    if output == "validate-dare-candidate" {
+        let Some(compatibility_report) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-dare-candidate requires an input compatibility report path",
+            ));
+        };
+        let Some(lineage_manifest) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-dare-candidate requires an input lineage path",
+            ));
+        };
+        let Some(base_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-dare-candidate requires a base parent .slm path",
+            ));
+        };
+        let Some(target_parent) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-dare-candidate requires a target parent .slm path",
+            ));
+        };
+        let Some(candidate_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-dare-candidate requires a candidate .slm path",
+            ));
+        };
+        let Some(receipt) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-dare-candidate requires an input operator receipt path",
+            ));
+        };
+        return dare::validate_candidate_path(
             Path::new(&compatibility_report),
             Path::new(&lineage_manifest),
             Path::new(&base_parent),
@@ -1883,6 +2128,102 @@ fn run() -> io::Result<()> {
             &admission_records,
         );
     }
+    if output == "soup-candidate" {
+        let Some(input_ledger) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "soup-candidate requires an input ledger path",
+            ));
+        };
+        let Some(input_review) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "soup-candidate requires an input review path",
+            ));
+        };
+        let Some(input_recipe) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "soup-candidate requires an input parent-pool recipe path",
+            ));
+        };
+        let Some(output_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "soup-candidate requires an output candidate .slm path",
+            ));
+        };
+        let Some(output_receipt) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "soup-candidate requires an output operator receipt path",
+            ));
+        };
+        let (parent_paths, admission_records) =
+            split_parent_admission_args("soup-candidate", args.collect())?;
+        return soup::write_candidate_path(
+            Path::new(&input_ledger),
+            Path::new(&input_review),
+            Path::new(&input_recipe),
+            Path::new(&output_slm),
+            Path::new(&output_receipt),
+            &parent_paths,
+            &admission_records,
+        );
+    }
+    if output == "validate-soup-candidate" {
+        let Some(input_ledger) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-soup-candidate requires an input ledger path",
+            ));
+        };
+        let Some(input_review) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-soup-candidate requires an input review path",
+            ));
+        };
+        let Some(input_recipe) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-soup-candidate requires an input parent-pool recipe path",
+            ));
+        };
+        let Some(candidate_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-soup-candidate requires a candidate .slm path",
+            ));
+        };
+        let Some(input_receipt) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-soup-candidate requires an input operator receipt path",
+            ));
+        };
+        let (parent_paths, admission_records) =
+            split_parent_admission_args("validate-soup-candidate", args.collect())?;
+        return soup::validate_candidate_path(
+            Path::new(&input_ledger),
+            Path::new(&input_review),
+            Path::new(&input_recipe),
+            Path::new(&candidate_slm),
+            Path::new(&input_receipt),
+            &parent_paths,
+            &admission_records,
+        );
+    }
     if output == "multi-parent-candidate-manifest" {
         let Some(input_ledger) = args.next() else {
             print_usage();
@@ -2753,7 +3094,7 @@ fn split_parent_admission_args(
 
 fn print_usage() {
     eprintln!(
-        "usage: tinyrustlm-slm-pack <output.slm> [tiny-fixture|tiny-fixture-tied|tiny-fixture-q8|tiny-fixture-q4|tiny-fixture-bpe|tinylm16-f32|tinylm16-q8|tinylm16-q4]\n       tinyrustlm-slm-pack validate <input.slm>\n       tinyrustlm-slm-pack browser-multi-parent-bundle <output-tinyrustlm-root> [f32|q8_0|q4_0|all]\n       tinyrustlm-slm-pack runtime-wasm-manifest <input.wasm> <output.wasm.manifest>\n       tinyrustlm-slm-pack compatibility <left-parent.slm> <right-parent.slm> [output.compat]\n       tinyrustlm-slm-pack lineage-template <input.compat> <output.lineage> <candidate-id> <operator-id> [resource-budget]\n       tinyrustlm-slm-pack validate-lineage <input.compat> <input.lineage>\n       tinyrustlm-slm-pack blend-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <output.slm> <output.operator> [parent0-weight-ppm]\n       tinyrustlm-slm-pack validate-blend-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack crossover-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <output.slm> <output.operator> [crossover-seed] [parent0-keep-ppm]\n       tinyrustlm-slm-pack validate-crossover-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm]\n       tinyrustlm-slm-pack validate-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack sparse-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm] [keep-ppm]\n       tinyrustlm-slm-pack validate-sparse-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.adapter> <output.adapter.manifest>\n       tinyrustlm-slm-pack validate-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest>\n       tinyrustlm-slm-pack sparse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.adapter> <output.adapter.manifest> [delta-weight-ppm] [keep-ppm]\n       tinyrustlm-slm-pack validate-sparse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest>\n       tinyrustlm-slm-pack fuse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest> <output.slm> <output.operator>\n       tinyrustlm-slm-pack validate-fuse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack candidate-manifest <input.compat> <input.lineage> <candidate.slm> <output.candidate>\n       tinyrustlm-slm-pack validate-candidate <input.compat> <input.lineage> <candidate.slm> <input.candidate>\n       tinyrustlm-slm-pack promotion-template <input.compat> <input.lineage> <candidate.slm> <input.candidate> <output.promotion> [promoter-id] [promotion-scope]\n       tinyrustlm-slm-pack validate-promotion <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion>\n       tinyrustlm-slm-pack admission-record <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion> <input.manifest> <input.runtime> <input.eval> <output.admission> [selector-id]\n       tinyrustlm-slm-pack validate-admission <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion> <input.manifest> <input.runtime> <input.eval> <input.admission>\n       tinyrustlm-slm-pack promotion-ledger <output.ledger> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-promotion-ledger <input.ledger> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack selector-registry <output.registry> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-selector-registry <input.registry> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack manifest <input.slm> <output.manifest> [deterministic-smoke|converted-trained]\n       tinyrustlm-slm-pack validate-manifest <input.slm> <input.manifest>\n       tinyrustlm-slm-pack runtime-smoke <input.slm> <input.manifest> <output.runtime>\n       tinyrustlm-slm-pack validate-runtime-smoke <input.slm> <input.manifest> <input.runtime>\n       tinyrustlm-slm-pack eval-template <input.slm> <input.manifest> <output.eval> [assistant-quality]\n       tinyrustlm-slm-pack quality-gate <input.slm> <input.manifest> <runtime-smoke|assistant-quality> [input.eval]\n       tinyrustlm-slm-pack source-template <output-source-dir> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied]\n       tinyrustlm-slm-pack validate-source <input-source-dir>\n       tinyrustlm-slm-pack convert-trained <input-source-dir> <output.slm> [f32|q8_0|q4_0]"
+        "usage: tinyrustlm-slm-pack <output.slm> [tiny-fixture|tiny-fixture-tied|tiny-fixture-q8|tiny-fixture-q4|tiny-fixture-bpe|tinylm16-f32|tinylm16-q8|tinylm16-q4]\n       tinyrustlm-slm-pack validate <input.slm>\n       tinyrustlm-slm-pack browser-multi-parent-bundle <output-tinyrustlm-root> [f32|q8_0|q4_0|all] [sign-merge|soup|mixed]\n       tinyrustlm-slm-pack browser-converted-trained-bundle <output-tinyrustlm-root> <input-source-dir> [f32|q8_0|q4_0|all]\n       tinyrustlm-slm-pack runtime-wasm-manifest <input.wasm> <output.wasm.manifest>\n       tinyrustlm-slm-pack compatibility <left-parent.slm> <right-parent.slm> [output.compat]\n       tinyrustlm-slm-pack lineage-template <input.compat> <output.lineage> <candidate-id> <operator-id> [resource-budget]\n       tinyrustlm-slm-pack validate-lineage <input.compat> <input.lineage>\n       tinyrustlm-slm-pack blend-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <output.slm> <output.operator> [parent0-weight-ppm]\n       tinyrustlm-slm-pack validate-blend-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack crossover-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <output.slm> <output.operator> [crossover-seed] [parent0-keep-ppm]\n       tinyrustlm-slm-pack validate-crossover-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm]\n       tinyrustlm-slm-pack validate-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack sparse-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm] [keep-ppm]\n       tinyrustlm-slm-pack validate-sparse-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.adapter> <output.adapter.manifest>\n       tinyrustlm-slm-pack validate-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest>\n       tinyrustlm-slm-pack sparse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.adapter> <output.adapter.manifest> [delta-weight-ppm] [keep-ppm]\n       tinyrustlm-slm-pack validate-sparse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest>\n       tinyrustlm-slm-pack fuse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest> <output.slm> <output.operator>\n       tinyrustlm-slm-pack validate-fuse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack candidate-manifest <input.compat> <input.lineage> <candidate.slm> <output.candidate>\n       tinyrustlm-slm-pack validate-candidate <input.compat> <input.lineage> <candidate.slm> <input.candidate>\n       tinyrustlm-slm-pack promotion-template <input.compat> <input.lineage> <candidate.slm> <input.candidate> <output.promotion> [promoter-id] [promotion-scope]\n       tinyrustlm-slm-pack validate-promotion <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion>\n       tinyrustlm-slm-pack admission-record <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion> <input.manifest> <input.runtime> <input.eval> <output.admission> [selector-id]\n       tinyrustlm-slm-pack validate-admission <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion> <input.manifest> <input.runtime> <input.eval> <input.admission>\n       tinyrustlm-slm-pack promotion-ledger <output.ledger> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-promotion-ledger <input.ledger> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack selector-registry <output.registry> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-selector-registry <input.registry> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack manifest <input.slm> <output.manifest> [deterministic-smoke|converted-trained]\n       tinyrustlm-slm-pack validate-manifest <input.slm> <input.manifest>\n       tinyrustlm-slm-pack runtime-smoke <input.slm> <input.manifest> <output.runtime>\n       tinyrustlm-slm-pack validate-runtime-smoke <input.slm> <input.manifest> <input.runtime>\n       tinyrustlm-slm-pack eval-template <input.slm> <input.manifest> <output.eval> [assistant-quality]\n       tinyrustlm-slm-pack quality-gate <input.slm> <input.manifest> <runtime-smoke|assistant-quality> [input.eval]\n       tinyrustlm-slm-pack source-template <output-source-dir> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied]\n       tinyrustlm-slm-pack validate-source <input-source-dir>\n       tinyrustlm-slm-pack convert-trained <input-source-dir> <output.slm> [f32|q8_0|q4_0]"
     );
     eprintln!(
         "       tinyrustlm-slm-pack candidate-manifest <input.compat> <input.lineage> <candidate.slm> <output.candidate> [input.operator]\n       tinyrustlm-slm-pack validate-candidate <input.compat> <input.lineage> <candidate.slm> <input.candidate> [input.operator]"
@@ -2771,7 +3112,13 @@ fn print_usage() {
         "       tinyrustlm-slm-pack mutation-candidate <input.compat> <input.lineage> <base-parent.slm> <reference-parent.slm> <output.slm> <output.operator> [mutation-seed] [mutation-rate-ppm] [mutation-magnitude-ppm]\n       tinyrustlm-slm-pack validate-mutation-candidate <input.compat> <input.lineage> <base-parent.slm> <reference-parent.slm> <candidate.slm> <input.operator>"
     );
     eprintln!(
+        "       tinyrustlm-slm-pack prune-candidate <input.compat> <input.lineage> <base-parent.slm> <reference-parent.slm> <output.slm> <output.operator> [keep-ppm] [floor-ppm]\n       tinyrustlm-slm-pack validate-prune-candidate <input.compat> <input.lineage> <base-parent.slm> <reference-parent.slm> <candidate.slm> <input.operator>"
+    );
+    eprintln!(
         "       tinyrustlm-slm-pack federated-candidate <input.compat> <input.lineage> <base-parent.slm> <local-update-parent.slm> <output.slm> <output.operator> [local-update-weight-ppm]\n       tinyrustlm-slm-pack validate-federated-candidate <input.compat> <input.lineage> <base-parent.slm> <local-update-parent.slm> <candidate.slm> <input.operator>"
+    );
+    eprintln!(
+        "       tinyrustlm-slm-pack dare-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm] [keep-ppm] [dropout-seed]\n       tinyrustlm-slm-pack validate-dare-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>"
     );
     eprintln!(
         "       tinyrustlm-slm-pack low-rank-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.adapter> <output.adapter.manifest> [rank-limit]\n       tinyrustlm-slm-pack validate-low-rank-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest>"
@@ -2784,6 +3131,9 @@ fn print_usage() {
     );
     eprintln!(
         "       tinyrustlm-slm-pack sign-merge-candidate <input.ledger> <input.review> <input.recipe> <output.slm> <output.operator> --parents <parent.slm> [...parent.slm] --admissions <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-sign-merge-candidate <input.ledger> <input.review> <input.recipe> <candidate.slm> <input.operator> --parents <parent.slm> [...parent.slm] --admissions <input.admission> [...input.admission]"
+    );
+    eprintln!(
+        "       tinyrustlm-slm-pack soup-candidate <input.ledger> <input.review> <input.recipe> <output.slm> <output.operator> --parents <parent.slm> [...parent.slm] --admissions <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-soup-candidate <input.ledger> <input.review> <input.recipe> <candidate.slm> <input.operator> --parents <parent.slm> [...parent.slm] --admissions <input.admission> [...input.admission]"
     );
     eprintln!(
         "       tinyrustlm-slm-pack multi-parent-candidate-manifest <input.ledger> <input.review> <input.recipe> <candidate.slm> <input.operator> <output.candidate> --parents <parent.slm> [...parent.slm] --admissions <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-multi-parent-candidate <input.ledger> <input.review> <input.recipe> <candidate.slm> <input.operator> <input.candidate> --parents <parent.slm> [...parent.slm] --admissions <input.admission> [...input.admission]"

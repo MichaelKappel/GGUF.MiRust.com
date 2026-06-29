@@ -46,17 +46,6 @@ const MODULE_PLAN_FETCH_COUNT_LIMIT: u64 = 32;
 const MODULE_PLAN_ROUTE_SET_VERSION: &str = "1";
 const MODULE_PLAN_ROUTE_SET_CHECKSUM_ALGORITHM: &str = "tinyrustlm-text-checksum-v1";
 const MODULE_PLAN_ASSEMBLY_EVIDENCE_FILE_COUNT: u64 = 9;
-const MODULE_PLAN_ASSEMBLY_EVIDENCE_FILES: &[&str] = &[
-    "population.ledger",
-    "population.review",
-    "parent-pool.recipe",
-    "sign-merge.operator",
-    "sign-merge.candidate",
-    "sign-merge.promotion",
-    "sign-merge.runtime",
-    "sign-merge.eval",
-    "sign-merge.multi.admission",
-];
 const MODULE_PLAN_WASM_MEMORY_INITIAL_PAGES: u64 = 17;
 const MODULE_PLAN_WASM_EXPORT_SET: &str = "tinyrustlm-generate-v1";
 const MODULE_PLAN_WASM_TRANSFER_STRATEGY: &str = "copy-then-release-v1";
@@ -90,11 +79,30 @@ const POPULATION_STATUS: &str = "population-review-bound";
 const MATE_SELECTION_STRATEGY: &str = "selector-mate-selection-route-v1";
 const MATE_SELECTION_PARENT_POOL_STATUS: &str = "parent-pool-bound";
 const MATE_SELECTION_ADMISSION_STATUS: &str = "admission-only";
+const EVOLUTION_RECIPE_VERSION: &str = "1";
+const EVOLUTION_RECIPE_STRATEGY: &str = "population-based-parent-pool-replay-v1";
+const EVOLUTION_RECIPE_STATUS: &str = "planned";
+const EVOLUTION_SELECTION_SOURCE: &str = "population-review-frontier-v1";
+const EVOLUTION_SCHEDULE_CHECKSUM_ALGORITHM: &str = "tinyrustlm-text-checksum-v1";
 const PHENOTYPE_EVIDENCE_STRATEGY: &str = "selector-phenotype-evidence-v1";
 const PHENOTYPE_EVIDENCE_STATUS: &str = "runtime-eval-bound";
 const HERITABLE_ARTIFACT_STRATEGY: &str = "selector-heritable-artifact-v1";
 const HERITABLE_ARTIFACT_STATUS: &str = "served-artifact-bound";
 const FITNESS_VECTOR_STATUS: &str = "eval-bound";
+const EVOLUTION_SCHEDULE_KEYS: &[&str] = &[
+    "evolution_recipe_version",
+    "evolution_recipe_strategy",
+    "evolution_recipe_status",
+    "evolution_selection_source",
+    "evolution_relatedness_contract_checksum",
+    "evolution_schedule_checksum_algorithm",
+    "evolution_schedule_checksum",
+    "scheduled_operator_family_index",
+    "scheduled_operator_family_kind",
+    "scheduled_operator_family_command",
+    "scheduled_operator_family_selection_rule",
+    "scheduled_operator_family_output_gate",
+];
 const ADAPTER_KEY_SUFFIXES: &[&str] = &[
     "adapter_path",
     "adapter_manifest_path",
@@ -200,6 +208,7 @@ struct RegistryEntry {
     promotion_ledger_checksum: Option<String>,
     admission_set_checksum: Option<String>,
     parent_count: usize,
+    evolution_schedule: Option<RegistryEvolutionSchedule>,
     adapters: Vec<RegistryAdapterRoute>,
     adapter_family: Option<RegistryAdapterFamilyRoute>,
     assembly: Option<RegistryAssemblyRoute>,
@@ -215,6 +224,22 @@ struct RegistryOperatorReceipt {
     operator_kind: String,
     candidate_slm_checksum: String,
     candidate_artifact_bytes: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct RegistryEvolutionSchedule {
+    recipe_version: String,
+    recipe_strategy: String,
+    recipe_status: String,
+    selection_source: String,
+    relatedness_contract_checksum: String,
+    schedule_checksum_algorithm: String,
+    schedule_checksum: String,
+    family_index: String,
+    family_kind: String,
+    family_command: String,
+    family_selection_rule: String,
+    family_output_gate: String,
 }
 
 /// Optional browser-local adapter sidecar metadata for a selector registry entry.
@@ -648,6 +673,7 @@ pub(crate) fn build_registry_text_with_module_plan_routes(
             &registry_entry_mate_selection_checksum(entry),
         );
         push_registry_operator_receipt_lines(&mut text, &prefix, entry);
+        push_registry_evolution_schedule_lines(&mut text, &prefix, entry);
         push_line(
             &mut text,
             &format!("{prefix}.phenotype_evidence_id"),
@@ -1247,6 +1273,9 @@ fn entries_from_admissions(admission_texts: &[String]) -> io::Result<Vec<Registr
         let model_shape = require_key(&fields, "candidate_model_shape")?.to_string();
         let model_bytes = selector_model_bytes(require_key(&fields, "candidate_artifact_bytes")?)?;
         let tokenizer_checksum = require_key(&fields, "candidate_tokenizer_checksum")?.to_string();
+        let operator_receipt = registry_operator_receipt_from_fields(&fields)?;
+        let evolution_schedule =
+            registry_evolution_schedule_from_fields(&fields, operator_receipt.as_ref())?;
         entries.push(RegistryEntry {
             candidate_id: candidate_id.clone(),
             display_name: display_name(
@@ -1284,7 +1313,7 @@ fn entries_from_admissions(admission_texts: &[String]) -> io::Result<Vec<Registr
                 .get("admission_kind")
                 .cloned()
                 .unwrap_or_else(|| "selector-admission".to_string()),
-            operator_receipt: registry_operator_receipt_from_fields(&fields)?,
+            operator_receipt,
             operator_receipt_checksum: fields.get("operator_receipt_checksum").cloned(),
             parent_pool_recipe_checksum: fields.get("parent_pool_recipe_checksum").cloned(),
             population_review_checksum: fields.get("population_review_checksum").cloned(),
@@ -1304,6 +1333,7 @@ fn entries_from_admissions(admission_texts: &[String]) -> io::Result<Vec<Registr
                 }
                 None => 1,
             },
+            evolution_schedule,
             adapters: Vec::new(),
             adapter_family: None,
             assembly: None,
@@ -1354,6 +1384,84 @@ fn registry_operator_receipt_from_fields(
         operator_kind: require_key(fields, "operator_receipt_operator_kind")?.to_string(),
         candidate_slm_checksum,
         candidate_artifact_bytes,
+    }))
+}
+
+// Copies parent-pool evolution schedule fields once an admission binds an operator receipt.
+fn registry_evolution_schedule_from_fields(
+    fields: &HashMap<String, String>,
+    operator_receipt: Option<&RegistryOperatorReceipt>,
+) -> io::Result<Option<RegistryEvolutionSchedule>> {
+    if !EVOLUTION_SCHEDULE_KEYS
+        .iter()
+        .any(|key| fields.contains_key(*key))
+    {
+        return Ok(None);
+    }
+    let Some(receipt) = operator_receipt else {
+        return Err(invalid(
+            "selector registry evolution schedule requires an operator receipt",
+        ));
+    };
+    require_equal(fields, "evolution_recipe_version", EVOLUTION_RECIPE_VERSION)?;
+    require_equal(
+        fields,
+        "evolution_recipe_strategy",
+        EVOLUTION_RECIPE_STRATEGY,
+    )?;
+    require_equal(fields, "evolution_recipe_status", EVOLUTION_RECIPE_STATUS)?;
+    require_equal(
+        fields,
+        "evolution_selection_source",
+        EVOLUTION_SELECTION_SOURCE,
+    )?;
+    require_equal(
+        fields,
+        "evolution_schedule_checksum_algorithm",
+        EVOLUTION_SCHEDULE_CHECKSUM_ALGORITHM,
+    )?;
+    let relatedness_contract_checksum =
+        require_key(fields, "evolution_relatedness_contract_checksum")?.to_string();
+    let schedule_checksum = require_key(fields, "evolution_schedule_checksum")?.to_string();
+    validate_hex64(
+        &relatedness_contract_checksum,
+        "evolution_relatedness_contract_checksum",
+    )?;
+    validate_hex64(&schedule_checksum, "evolution_schedule_checksum")?;
+    let family_index = require_key(fields, "scheduled_operator_family_index")?.to_string();
+    if family_index.parse::<usize>().is_err() {
+        return Err(invalid(
+            "selector registry scheduled_operator_family_index is invalid",
+        ));
+    }
+    for key in [
+        "scheduled_operator_family_kind",
+        "scheduled_operator_family_command",
+        "scheduled_operator_family_selection_rule",
+        "scheduled_operator_family_output_gate",
+    ] {
+        validate_registry_slug(require_key(fields, key)?, key)?;
+    }
+    require_equal(
+        fields,
+        "scheduled_operator_family_kind",
+        &receipt.operator_kind,
+    )?;
+    Ok(Some(RegistryEvolutionSchedule {
+        recipe_version: EVOLUTION_RECIPE_VERSION.to_string(),
+        recipe_strategy: EVOLUTION_RECIPE_STRATEGY.to_string(),
+        recipe_status: EVOLUTION_RECIPE_STATUS.to_string(),
+        selection_source: EVOLUTION_SELECTION_SOURCE.to_string(),
+        relatedness_contract_checksum,
+        schedule_checksum_algorithm: EVOLUTION_SCHEDULE_CHECKSUM_ALGORITHM.to_string(),
+        schedule_checksum,
+        family_index,
+        family_kind: require_key(fields, "scheduled_operator_family_kind")?.to_string(),
+        family_command: require_key(fields, "scheduled_operator_family_command")?.to_string(),
+        family_selection_rule: require_key(fields, "scheduled_operator_family_selection_rule")?
+            .to_string(),
+        family_output_gate: require_key(fields, "scheduled_operator_family_output_gate")?
+            .to_string(),
     }))
 }
 
@@ -2171,13 +2279,7 @@ pub(crate) fn validate_registry_module_plan_route(
         ));
     }
     validate_hex64(&route.route_set_checksum, "module plan route set checksum")?;
-    if route.operator_receipt_path
-        != module_plan_evidence_route(&route.candidate_id, "sign-merge.operator")
-    {
-        return Err(invalid(
-            "selector registry module plan operator receipt path is invalid",
-        ));
-    }
+    module_plan_operator_evidence_prefix(&route.candidate_id, &route.operator_receipt_path)?;
     validate_hex64(
         &route.operator_receipt_checksum,
         "module plan operator receipt checksum",
@@ -2386,6 +2488,7 @@ fn module_plan_route_set_checksum(
         &family.receipt_path,
         &entry.adapters,
         family.auto_apply_stack_count,
+        &route.operator_receipt_path,
     )
 }
 
@@ -2398,9 +2501,13 @@ fn module_plan_route_set_checksum_from_parts(
     adapter_family_path: &str,
     adapters: &[RegistryAdapterRoute],
     stack_count: usize,
+    operator_receipt_path: &str,
 ) -> io::Result<String> {
     // Builds the same route classes the browser fetches during generated self-assembly.
-    let evidence_count = u64::try_from(MODULE_PLAN_ASSEMBLY_EVIDENCE_FILES.len())
+    let evidence_files = module_plan_assembly_evidence_files(
+        &module_plan_operator_evidence_prefix(candidate_id, operator_receipt_path)?,
+    );
+    let evidence_count = u64::try_from(evidence_files.len())
         .map_err(|_| invalid("selector registry module plan route set is invalid"))?;
     if evidence_count != MODULE_PLAN_ASSEMBLY_EVIDENCE_FILE_COUNT {
         return Err(invalid(
@@ -2413,11 +2520,11 @@ fn module_plan_route_set_checksum_from_parts(
     module_plan_push_route(&mut routes, "model", model_path);
     module_plan_push_route(&mut routes, "model-manifest", manifest_path);
     module_plan_push_route(&mut routes, "assembly-receipt", assembly_path);
-    for file_name in MODULE_PLAN_ASSEMBLY_EVIDENCE_FILES {
+    for file_name in evidence_files {
         module_plan_push_route(
             &mut routes,
             "assembly-evidence",
-            &module_plan_evidence_route(candidate_id, file_name),
+            &module_plan_evidence_route(candidate_id, &file_name),
         );
     }
     module_plan_push_route(&mut routes, "adapter-family-receipt", adapter_family_path);
@@ -2465,6 +2572,53 @@ fn module_plan_push_route(routes: &mut Vec<(String, String)>, kind: &str, path: 
 fn module_plan_evidence_route(candidate_id: &str, file_name: &str) -> String {
     // Canonicalizes generated evidence routes from the admitted selector candidate id.
     format!("../evidence/{candidate_id}/{file_name}")
+}
+
+fn module_plan_operator_evidence_prefix(
+    candidate_id: &str,
+    operator_receipt_path: &str,
+) -> io::Result<String> {
+    // Extracts the operator-specific evidence lane from the bound operator receipt path.
+    let route_prefix = format!("../evidence/{candidate_id}/");
+    let Some(file_name) = operator_receipt_path.strip_prefix(&route_prefix) else {
+        return Err(invalid(
+            "selector registry module plan operator receipt path is invalid",
+        ));
+    };
+    let Some(operator_prefix) = file_name.strip_suffix(".operator") else {
+        return Err(invalid(
+            "selector registry module plan operator receipt path is invalid",
+        ));
+    };
+    if operator_prefix.is_empty()
+        || operator_prefix.len() > 64
+        || !operator_prefix
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+        || operator_prefix.starts_with('-')
+        || operator_prefix.ends_with('-')
+        || !matches!(operator_prefix, "sign-merge" | "soup")
+    {
+        return Err(invalid(
+            "selector registry module plan operator receipt path is invalid",
+        ));
+    }
+    Ok(operator_prefix.to_string())
+}
+
+fn module_plan_assembly_evidence_files(operator_prefix: &str) -> Vec<String> {
+    // Builds the fixed evidence route family for whichever parent-pool operator made the candidate.
+    vec![
+        "population.ledger".to_string(),
+        "population.review".to_string(),
+        "parent-pool.recipe".to_string(),
+        format!("{operator_prefix}.operator"),
+        format!("{operator_prefix}.candidate"),
+        format!("{operator_prefix}.promotion"),
+        format!("{operator_prefix}.runtime"),
+        format!("{operator_prefix}.eval"),
+        format!("{operator_prefix}.multi.admission"),
+    ]
 }
 
 fn module_plan_checksum_for_routes(routes: &[(String, String)]) -> String {
@@ -2739,6 +2893,19 @@ fn validate_hex64(value: &str, label: &str) -> io::Result<()> {
     Ok(())
 }
 
+fn validate_registry_slug(value: &str, label: &str) -> io::Result<()> {
+    // Keeps copied schedule commands and family names browser-safe without path semantics.
+    if value.is_empty()
+        || value.len() > 96
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
+    {
+        return Err(invalid(&format!("selector registry {label} is invalid")));
+    }
+    Ok(())
+}
+
 fn default_max_tokens(model_shape: &str) -> usize {
     if model_shape.contains("hidden=16") {
         16
@@ -2748,6 +2915,10 @@ fn default_max_tokens(model_shape: &str) -> usize {
 }
 
 fn display_name(candidate_id: &str, quantization: &str) -> String {
+    // Gives converted source artifacts a stable browser label while leaving operator ids literal.
+    if candidate_id.starts_with("converted-trained-") {
+        return format!("Converted trained-source {quantization}");
+    }
     format!("{candidate_id} {quantization}")
 }
 
@@ -3303,7 +3474,73 @@ fn push_registry_operator_receipt_lines(text: &mut String, prefix: &str, entry: 
     }
 }
 
-// Includes every copied operator receipt field in the mate-selection proof digest.
+// Emits parent-pool evolution schedule fields for browser provenance and validation.
+fn push_registry_evolution_schedule_lines(text: &mut String, prefix: &str, entry: &RegistryEntry) {
+    if let Some(schedule) = &entry.evolution_schedule {
+        push_line(
+            text,
+            &format!("{prefix}.evolution_recipe_version"),
+            &schedule.recipe_version,
+        );
+        push_line(
+            text,
+            &format!("{prefix}.evolution_recipe_strategy"),
+            &schedule.recipe_strategy,
+        );
+        push_line(
+            text,
+            &format!("{prefix}.evolution_recipe_status"),
+            &schedule.recipe_status,
+        );
+        push_line(
+            text,
+            &format!("{prefix}.evolution_selection_source"),
+            &schedule.selection_source,
+        );
+        push_line(
+            text,
+            &format!("{prefix}.evolution_relatedness_contract_checksum"),
+            &schedule.relatedness_contract_checksum,
+        );
+        push_line(
+            text,
+            &format!("{prefix}.evolution_schedule_checksum_algorithm"),
+            &schedule.schedule_checksum_algorithm,
+        );
+        push_line(
+            text,
+            &format!("{prefix}.evolution_schedule_checksum"),
+            &schedule.schedule_checksum,
+        );
+        push_line(
+            text,
+            &format!("{prefix}.scheduled_operator_family_index"),
+            &schedule.family_index,
+        );
+        push_line(
+            text,
+            &format!("{prefix}.scheduled_operator_family_kind"),
+            &schedule.family_kind,
+        );
+        push_line(
+            text,
+            &format!("{prefix}.scheduled_operator_family_command"),
+            &schedule.family_command,
+        );
+        push_line(
+            text,
+            &format!("{prefix}.scheduled_operator_family_selection_rule"),
+            &schedule.family_selection_rule,
+        );
+        push_line(
+            text,
+            &format!("{prefix}.scheduled_operator_family_output_gate"),
+            &schedule.family_output_gate,
+        );
+    }
+}
+
+// Includes copied operator and schedule fields in the mate-selection proof digest.
 fn push_operator_receipt_checksum_inputs(text: &mut String, entry: &RegistryEntry) {
     if let Some(receipt) = &entry.operator_receipt {
         push_line(text, "operator_receipt_status", &receipt.status);
@@ -3339,6 +3576,65 @@ fn push_operator_receipt_checksum_inputs(text: &mut String, entry: &RegistryEntr
             "operator_receipt_candidate_artifact_bytes",
             "admission-only",
         );
+    }
+    push_evolution_schedule_checksum_inputs(text, entry);
+}
+
+// Includes copied schedule metadata in the selector proof digest when a parent pool is scheduled.
+fn push_evolution_schedule_checksum_inputs(text: &mut String, entry: &RegistryEntry) {
+    if let Some(schedule) = &entry.evolution_schedule {
+        push_line(text, "evolution_recipe_version", &schedule.recipe_version);
+        push_line(text, "evolution_recipe_strategy", &schedule.recipe_strategy);
+        push_line(text, "evolution_recipe_status", &schedule.recipe_status);
+        push_line(
+            text,
+            "evolution_selection_source",
+            &schedule.selection_source,
+        );
+        push_line(
+            text,
+            "evolution_relatedness_contract_checksum",
+            &schedule.relatedness_contract_checksum,
+        );
+        push_line(
+            text,
+            "evolution_schedule_checksum_algorithm",
+            &schedule.schedule_checksum_algorithm,
+        );
+        push_line(
+            text,
+            "evolution_schedule_checksum",
+            &schedule.schedule_checksum,
+        );
+        push_line(
+            text,
+            "scheduled_operator_family_index",
+            &schedule.family_index,
+        );
+        push_line(
+            text,
+            "scheduled_operator_family_kind",
+            &schedule.family_kind,
+        );
+        push_line(
+            text,
+            "scheduled_operator_family_command",
+            &schedule.family_command,
+        );
+        push_line(
+            text,
+            "scheduled_operator_family_selection_rule",
+            &schedule.family_selection_rule,
+        );
+        push_line(
+            text,
+            "scheduled_operator_family_output_gate",
+            &schedule.family_output_gate,
+        );
+    } else {
+        for key in EVOLUTION_SCHEDULE_KEYS {
+            push_line(text, key, "admission-only");
+        }
     }
 }
 
@@ -3668,6 +3964,18 @@ mod tests {
     }
 
     #[test]
+    fn display_name_labels_converted_trained_source_entries() {
+        assert_eq!(
+            display_name("converted-trained-q8", "q8_0"),
+            "Converted trained-source q8_0"
+        );
+        assert_eq!(
+            display_name("tiny-q8-candidate", "q8_0"),
+            "tiny-q8-candidate q8_0"
+        );
+    }
+
+    #[test]
     fn writes_and_validates_selector_registry_from_operator_receipt_bound_admission() {
         let admission = fixture_operator_receipt_bound_admission(
             "tiny-q8-candidate",
@@ -3701,6 +4009,164 @@ mod tests {
     }
 
     #[test]
+    fn writes_and_validates_selector_registry_from_federated_receipt_bound_admission() {
+        let admission = fixture_operator_receipt_bound_admission_with_kind(
+            "tiny-q8-federated",
+            "tinyrustlm/models/tiny-q8-federated.slm",
+            "federated-local-update-average",
+        );
+        let registry = build_registry_text(&[admission.clone()]).unwrap();
+        let admission_fields = parse_manifest(&admission, "admission").unwrap();
+        let registry_fields = parse_manifest(&registry, "selector registry").unwrap();
+
+        validate_registry_text(&registry, &[admission]).unwrap();
+        assert_eq!(
+            registry_fields["entry.0.operator_receipt_status"],
+            "receipt-bound"
+        );
+        assert_eq!(
+            registry_fields["entry.0.operator_receipt_operator_kind"],
+            "federated-local-update-average"
+        );
+        assert_eq!(
+            registry_fields["entry.0.operator_receipt_checksum"],
+            admission_fields["operator_receipt_checksum"]
+        );
+        assert_eq!(
+            registry_fields["entry.0.operator_receipt_candidate_slm_checksum"],
+            registry_fields["entry.0.slm_checksum"]
+        );
+        assert_eq!(
+            registry_fields["entry.0.operator_receipt_candidate_artifact_bytes"],
+            registry_fields["entry.0.model_bytes"]
+        );
+    }
+
+    #[test]
+    fn writes_and_validates_selector_registry_from_prune_receipt_bound_admission() {
+        let admission = fixture_operator_receipt_bound_admission_with_kind(
+            "tiny-q8-prune",
+            "tinyrustlm/models/tiny-q8-prune.slm",
+            "deterministic-magnitude-parameter-pruning",
+        );
+        let registry = build_registry_text(&[admission.clone()]).unwrap();
+        let admission_fields = parse_manifest(&admission, "admission").unwrap();
+        let registry_fields = parse_manifest(&registry, "selector registry").unwrap();
+
+        validate_registry_text(&registry, &[admission]).unwrap();
+        assert_eq!(
+            registry_fields["entry.0.operator_receipt_status"],
+            "receipt-bound"
+        );
+        assert_eq!(
+            registry_fields["entry.0.operator_receipt_operator_kind"],
+            "deterministic-magnitude-parameter-pruning"
+        );
+        assert_eq!(
+            registry_fields["entry.0.operator_receipt_checksum"],
+            admission_fields["operator_receipt_checksum"]
+        );
+        assert_eq!(
+            registry_fields["entry.0.operator_receipt_candidate_slm_checksum"],
+            registry_fields["entry.0.slm_checksum"]
+        );
+        assert_eq!(
+            registry_fields["entry.0.operator_receipt_candidate_artifact_bytes"],
+            registry_fields["entry.0.model_bytes"]
+        );
+    }
+
+    #[test]
+    fn writes_and_validates_selector_registry_from_dare_receipt_bound_admission() {
+        // Confirms DARE operator receipts keep their kind and byte echo through selector routing.
+        let admission = fixture_operator_receipt_bound_admission_with_kind(
+            "tiny-q8-dare",
+            "tinyrustlm/models/tiny-q8-dare.slm",
+            "dropout-rescaled-task-delta",
+        );
+        let registry = build_registry_text(&[admission.clone()]).unwrap();
+        let admission_fields = parse_manifest(&admission, "admission").unwrap();
+        let registry_fields = parse_manifest(&registry, "selector registry").unwrap();
+
+        validate_registry_text(&registry, &[admission]).unwrap();
+        assert_eq!(
+            registry_fields["entry.0.operator_receipt_status"],
+            "receipt-bound"
+        );
+        assert_eq!(
+            registry_fields["entry.0.operator_receipt_operator_kind"],
+            "dropout-rescaled-task-delta"
+        );
+        assert_eq!(
+            registry_fields["entry.0.operator_receipt_checksum"],
+            admission_fields["operator_receipt_checksum"]
+        );
+        assert_eq!(
+            registry_fields["entry.0.operator_receipt_candidate_slm_checksum"],
+            registry_fields["entry.0.slm_checksum"]
+        );
+        assert_eq!(
+            registry_fields["entry.0.operator_receipt_candidate_artifact_bytes"],
+            registry_fields["entry.0.model_bytes"]
+        );
+    }
+
+    #[test]
+    fn rejects_selector_registry_federated_operator_receipt_kind_drift() {
+        let admission = fixture_operator_receipt_bound_admission_with_kind(
+            "tiny-q8-federated",
+            "tinyrustlm/models/tiny-q8-federated.slm",
+            "federated-local-update-average",
+        );
+        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
+            "entry.0.operator_receipt_operator_kind=federated-local-update-average",
+            "entry.0.operator_receipt_operator_kind=deterministic-bounded-parameter-mutation",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("operator_receipt_operator_kind"));
+    }
+
+    #[test]
+    fn rejects_selector_registry_prune_operator_receipt_kind_drift() {
+        let admission = fixture_operator_receipt_bound_admission_with_kind(
+            "tiny-q8-prune",
+            "tinyrustlm/models/tiny-q8-prune.slm",
+            "deterministic-magnitude-parameter-pruning",
+        );
+        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
+            "entry.0.operator_receipt_operator_kind=deterministic-magnitude-parameter-pruning",
+            "entry.0.operator_receipt_operator_kind=deterministic-bounded-parameter-mutation",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("operator_receipt_operator_kind"));
+    }
+
+    #[test]
+    fn rejects_selector_registry_dare_operator_receipt_kind_drift() {
+        // Keeps DARE selector entries bound to the exact operator kind copied from admission.
+        let admission = fixture_operator_receipt_bound_admission_with_kind(
+            "tiny-q8-dare",
+            "tinyrustlm/models/tiny-q8-dare.slm",
+            "dropout-rescaled-task-delta",
+        );
+        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
+            "entry.0.operator_receipt_operator_kind=dropout-rescaled-task-delta",
+            "entry.0.operator_receipt_operator_kind=direct-parameter-task-delta",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("operator_receipt_operator_kind"));
+    }
+
+    #[test]
     fn writes_and_validates_selector_registry_from_multi_parent_admission_record() {
         let admission =
             fixture_multi_parent_admission("tiny-sign-merge", "tinyrustlm/models/sign-merge.slm");
@@ -3712,6 +4178,36 @@ mod tests {
         validate_registry_text(&registry, &[admission]).unwrap();
         assert!(registry.contains("entry.0.candidate_id=tiny-sign-merge"));
         assert!(registry.contains("entry.0.model_path=../models/sign-merge.slm"));
+        assert!(registry.contains("entry.0.operator_receipt_status=receipt-bound"));
+        assert!(registry
+            .contains("entry.0.operator_receipt_operator_kind=sign-aware-parent-pool-merge"));
+        assert!(
+            registry.contains("entry.0.operator_receipt_candidate_slm_checksum=0x000000000000000c")
+        );
+        assert!(registry.contains("entry.0.operator_receipt_candidate_artifact_bytes=1024"));
+        assert!(registry.contains("entry.0.evolution_recipe_version=1"));
+        assert!(registry
+            .contains("entry.0.evolution_recipe_strategy=population-based-parent-pool-replay-v1"));
+        assert!(registry.contains("entry.0.evolution_recipe_status=planned"));
+        assert!(
+            registry.contains("entry.0.evolution_selection_source=population-review-frontier-v1")
+        );
+        assert!(
+            registry.contains("entry.0.evolution_relatedness_contract_checksum=0x0000000000000016")
+        );
+        assert!(registry
+            .contains("entry.0.evolution_schedule_checksum_algorithm=tinyrustlm-text-checksum-v1"));
+        assert!(registry.contains("entry.0.evolution_schedule_checksum=0x0000000000000017"));
+        assert!(registry.contains("entry.0.scheduled_operator_family_index=0"));
+        assert!(registry
+            .contains("entry.0.scheduled_operator_family_kind=sign-aware-parent-pool-merge"));
+        assert!(registry.contains("entry.0.scheduled_operator_family_command=sign-merge-candidate"));
+        assert!(registry.contains(
+            "entry.0.scheduled_operator_family_selection_rule=seed-weighted-delta-sign-consensus"
+        ));
+        assert!(registry.contains(
+            "entry.0.scheduled_operator_family_output_gate=multi-parent-candidate-manifest-plus-runtime-smoke-plus-eval"
+        ));
         assert!(registry.contains("entry.0.selector_status=admitted"));
         assert_eq!(
             fields["entry.0.mate_selection_id"],
@@ -3726,6 +4222,21 @@ mod tests {
             fields["entry.0.mate_selection_checksum"],
             registry_entry_mate_selection_checksum(entry)
         );
+    }
+
+    #[test]
+    fn rejects_selector_registry_scheduled_operator_family_kind_drift() {
+        let admission =
+            fixture_multi_parent_admission("tiny-sign-merge", "tinyrustlm/models/sign-merge.slm");
+        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
+            "entry.0.scheduled_operator_family_kind=sign-aware-parent-pool-merge",
+            "entry.0.scheduled_operator_family_kind=seed-weighted-parent-pool-soup",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("scheduled_operator_family_kind"));
     }
 
     #[test]
@@ -6195,6 +6706,34 @@ mod tests {
         candidate_path: &str,
         candidate: Vec<u8>,
     ) -> String {
+        fixture_operator_receipt_bound_admission_for_bytes_with_kind(
+            candidate_id,
+            candidate_path,
+            candidate,
+            "deterministic-bounded-parameter-mutation",
+        )
+    }
+
+    fn fixture_operator_receipt_bound_admission_with_kind(
+        candidate_id: &str,
+        candidate_path: &str,
+        operator_kind: &str,
+    ) -> String {
+        fixture_operator_receipt_bound_admission_for_bytes_with_kind(
+            candidate_id,
+            candidate_path,
+            tiny_fixture_q8_bytes(),
+            operator_kind,
+        )
+    }
+
+    // Builds a full two-parent admission chain with the requested operator kind in the bound receipt.
+    fn fixture_operator_receipt_bound_admission_for_bytes_with_kind(
+        candidate_id: &str,
+        candidate_path: &str,
+        candidate: Vec<u8>,
+        operator_kind: &str,
+    ) -> String {
         let compatibility = compatibility::compatibility_text_for_bytes(
             &candidate,
             "left.slm",
@@ -6205,7 +6744,8 @@ mod tests {
         let lineage =
             lineage::build_template_text(&compatibility, candidate_id, "operator-a", "fit")
                 .unwrap();
-        let receipt = operator_receipt_text(&lineage, &candidate, candidate_path);
+        let receipt =
+            operator_receipt_text_with_kind(&lineage, &candidate, candidate_path, operator_kind);
         let candidate_manifest = candidate::build_manifest_text_with_operator_receipt_text(
             &compatibility,
             &lineage,
@@ -6300,15 +6840,17 @@ mod tests {
         .unwrap()
     }
 
-    fn operator_receipt_text(lineage_text: &str, candidate: &[u8], candidate_path: &str) -> String {
+    // Keeps the synthetic receipt minimal while letting tests prove non-mutation operator routing.
+    fn operator_receipt_text_with_kind(
+        lineage_text: &str,
+        candidate: &[u8],
+        candidate_path: &str,
+        operator_kind: &str,
+    ) -> String {
         let lineage_fields = parse_manifest(lineage_text, "lineage").unwrap();
         let report = slm_validate::validate_bytes(candidate, candidate_path).unwrap();
         let mut text = String::new();
-        push_line(
-            &mut text,
-            "operator_kind",
-            "deterministic-bounded-parameter-mutation",
-        );
+        push_line(&mut text, "operator_kind", operator_kind);
         push_line(
             &mut text,
             "candidate_id",
@@ -6408,6 +6950,7 @@ mod tests {
             "../models/tiny-f32.adapter-family.receipt",
             &adapters,
             2,
+            &format!("../evidence/{candidate_id}/sign-merge.operator"),
         )
         .unwrap();
         RegistryModulePlanRoute {
@@ -6488,6 +7031,28 @@ mod tests {
             promotion::DEFAULT_PROMOTION_SCOPE,
         );
         push_line(&mut text, "operator_receipt_checksum", "0x0000000000000001");
+        push_line(&mut text, "operator_receipt_status", "receipt-bound");
+        push_line(
+            &mut text,
+            "operator_receipt_path",
+            "tinyrustlm/models/sign-merge.operator",
+        );
+        push_line(&mut text, "operator_receipt_operator_id", candidate_id);
+        push_line(
+            &mut text,
+            "operator_receipt_operator_kind",
+            "sign-aware-parent-pool-merge",
+        );
+        push_line(
+            &mut text,
+            "operator_receipt_candidate_slm_checksum",
+            "0x000000000000000c",
+        );
+        push_line(
+            &mut text,
+            "operator_receipt_candidate_artifact_bytes",
+            "1024",
+        );
         push_line(
             &mut text,
             "parent_pool_recipe_checksum",
@@ -6507,6 +7072,54 @@ mod tests {
             "0x0000000000000006",
         );
         push_line(&mut text, "parent_count", "3");
+        push_line(&mut text, "evolution_recipe_version", "1");
+        push_line(
+            &mut text,
+            "evolution_recipe_strategy",
+            "population-based-parent-pool-replay-v1",
+        );
+        push_line(&mut text, "evolution_recipe_status", "planned");
+        push_line(
+            &mut text,
+            "evolution_selection_source",
+            "population-review-frontier-v1",
+        );
+        push_line(
+            &mut text,
+            "evolution_relatedness_contract_checksum",
+            "0x0000000000000016",
+        );
+        push_line(
+            &mut text,
+            "evolution_schedule_checksum_algorithm",
+            "tinyrustlm-text-checksum-v1",
+        );
+        push_line(
+            &mut text,
+            "evolution_schedule_checksum",
+            "0x0000000000000017",
+        );
+        push_line(&mut text, "scheduled_operator_family_index", "0");
+        push_line(
+            &mut text,
+            "scheduled_operator_family_kind",
+            "sign-aware-parent-pool-merge",
+        );
+        push_line(
+            &mut text,
+            "scheduled_operator_family_command",
+            "sign-merge-candidate",
+        );
+        push_line(
+            &mut text,
+            "scheduled_operator_family_selection_rule",
+            "seed-weighted-delta-sign-consensus",
+        );
+        push_line(
+            &mut text,
+            "scheduled_operator_family_output_gate",
+            "multi-parent-candidate-manifest-plus-runtime-smoke-plus-eval",
+        );
         push_line(&mut text, "candidate_id", candidate_id);
         push_line(
             &mut text,
