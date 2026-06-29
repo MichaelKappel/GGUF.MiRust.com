@@ -1,5 +1,5 @@
-profile: gguf-mirust.file-handoff.v10
-updated_utc: 2026-06-28T13:05:00Z
+profile: gguf-mirust.file-handoff.v14
+updated_utc: 2026-06-29T02:39:17Z
 handoff_root: agent-file-handoff/
 active_buckets:
   content: agent-file-handoff/Content/
@@ -36,12 +36,17 @@ strategy_refresh_2026_06_28:
   research_memory_rule: Research/reference bodies stay under wiki/gguf-mirust/research/; hot .uai files carry routing, implementation boundaries, and next-step prompts; long-term memory carries checksum pointers.
   short_term_reference_rule: .uai/short-term-memory.uai records current report indexes, research reference routes, active bucket disposition, and the long-term ledger route after each intake or strategy refresh.
   report_pointer_audit_rule: After report or research memory changes, audit wiki/gguf-mirust/reports/*.md and wiki/gguf-mirust/research/*.md against .uai/long-term-memory.uai before calling the handoff complete.
-  diverse_model_breeding_reference_rule: Model Breeding ideas route through durable research lanes for compatible merges, sparse lineage, adapter ecology, population search, federated/local updates, browser-constrained assembly, UAIX memory strategy, heritable artifacts, mate selection, phenotype evidence, and fit boundaries.
+  diverse_model_breeding_reference_rule: Model Breeding ideas route through durable research lanes for compatible merges, sparse lineage, adapter ecology, population search, federated/local updates, browser-constrained assembly, UAIX memory strategy, heritable artifacts, mate selection, phenotype evidence, fit boundaries, genome/fitness/novelty/speciation metadata, and zero-dependency browser-runtime guidance.
   voice_memory_rule: Public-copy voice routes through .uai/taboo.uai before model-breeding, mutualist, tiny-ecology, or UAIX strategy copy is published; use proof, craft, lineage, fit, local agency, routes, and implementation evidence.
 current_scan:
-  scanned_utc: 2026-06-28T13:05:00Z
+  scanned_utc: 2026-06-29T02:39:17Z
   content_bucket_non_placeholder_files: 0
   improvement_bucket_non_placeholder_files: 0
   misplaced_root_files: 0
-  status: all_reports_processed
-  action: Active buckets were empty during the module-plan origin-policy memory refresh; preserved reports remain in raw evidence, wiki synthesis, intake ledger, short-term report routes, and long-term pointer routes.
+  ide_adjacent_handoff_checked: E:\Source\WP\MikeKappel\agent-file-handoff\
+  ide_adjacent_non_placeholder_files: 0
+  attachment_reference_checked: C:\Users\AI\.codex\attachments\pasted-text-attachments.json and recent pasted-text files
+  attachment_reference_found: no_current_gguf_handoff_research_latest_attachment_material_is_2026_06_27_or_older_and_not_new_gguf_research
+  e_drive_free_bytes_at_scan: 66609135616
+  status: no_new_active_intake
+  action: Live scan found no new active Content or Improvement files in the canonical GGUF handoff buckets; the visible IDE-adjacent handoff path only contained placeholder README files; the active IDE attachment path was absent, recent attachments were not new GGUF research, and the preserved 2026-06-28 research route remains the current ModelBreeder and zero-dependency guidance body.

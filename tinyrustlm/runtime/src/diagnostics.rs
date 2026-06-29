@@ -19,6 +19,10 @@ pub struct Diagnostics {
     pub peak_scratch_arena_usage: usize,
     /// Current KV cache length.
     pub kv_cache_length: usize,
+    /// Allocated KV cache storage size in bytes.
+    pub kv_cache_byte_budget: usize,
+    /// Allocated KV cache storage expressed as 64 KiB WebAssembly pages.
+    pub kv_cache_page_count: usize,
     /// Active quantization mode.
     pub active_quantization_mode: &'static str,
     /// Count of adapter packages applied to the currently loaded model.
@@ -58,6 +62,8 @@ impl Default for Diagnostics {
             tokens_per_second: 0.0,
             peak_scratch_arena_usage: 0,
             kv_cache_length: 0,
+            kv_cache_byte_budget: 0,
+            kv_cache_page_count: 0,
             active_quantization_mode: "none",
             adapter_apply_count: 0,
             last_adapter_checksum: 0,
@@ -88,6 +94,19 @@ impl Diagnostics {
         self.logits_summary.clear();
         self.selected_next_token = 0;
         self.top_k_candidates.clear();
+    }
+
+    /// Records the model-specific KV cache allocation after a model load.
+    pub fn record_kv_cache_allocation(&mut self, byte_budget: usize, page_count: usize) {
+        self.kv_cache_byte_budget = byte_budget;
+        self.kv_cache_page_count = page_count;
+    }
+
+    /// Clears KV cache allocation diagnostics when no model is loaded.
+    pub fn reset_kv_cache_allocation(&mut self) {
+        self.kv_cache_length = 0;
+        self.kv_cache_byte_budget = 0;
+        self.kv_cache_page_count = 0;
     }
 
     /// Records a freshly loaded model as the start of a runtime assembly state.
@@ -123,13 +142,15 @@ impl Diagnostics {
     pub fn render_json(&self, out: &mut Vec<u8>) {
         out.clear();
         let text = format!(
-            "{{\n  \"model_load_time_ms\": {},\n  \"prompt_token_count\": {},\n  \"generated_token_count\": {},\n  \"tokens_per_second\": {:.3},\n  \"peak_scratch_arena_usage\": {},\n  \"kv_cache_length\": {},\n  \"active_quantization_mode\": \"{}\",\n  \"adapter_apply_count\": {},\n  \"last_adapter_checksum\": \"0x{:016x}\",\n  \"assembly_state_checksum\": \"0x{:016x}\",\n  \"model_loaded\": {},\n  \"last_error\": \"{}\",\n  \"tokenizer_output\": \"{}\",\n  \"logits_summary\": \"{}\",\n  \"selected_next_token\": {},\n  \"top_k_candidates\": \"{}\",\n  \"sampling_temperature\": {:.3},\n  \"sampling_top_k\": {},\n  \"sampling_top_p\": {:.3},\n  \"sampling_seed\": {}\n}}",
+            "{{\n  \"model_load_time_ms\": {},\n  \"prompt_token_count\": {},\n  \"generated_token_count\": {},\n  \"tokens_per_second\": {:.3},\n  \"peak_scratch_arena_usage\": {},\n  \"kv_cache_length\": {},\n  \"kv_cache_byte_budget\": {},\n  \"kv_cache_page_count\": {},\n  \"active_quantization_mode\": \"{}\",\n  \"adapter_apply_count\": {},\n  \"last_adapter_checksum\": \"0x{:016x}\",\n  \"assembly_state_checksum\": \"0x{:016x}\",\n  \"model_loaded\": {},\n  \"last_error\": \"{}\",\n  \"tokenizer_output\": \"{}\",\n  \"logits_summary\": \"{}\",\n  \"selected_next_token\": {},\n  \"top_k_candidates\": \"{}\",\n  \"sampling_temperature\": {:.3},\n  \"sampling_top_k\": {},\n  \"sampling_top_p\": {:.3},\n  \"sampling_seed\": {}\n}}",
             self.model_load_time_ms,
             self.prompt_token_count,
             self.generated_token_count,
             self.tokens_per_second,
             self.peak_scratch_arena_usage,
             self.kv_cache_length,
+            self.kv_cache_byte_budget,
+            self.kv_cache_page_count,
             self.active_quantization_mode,
             self.adapter_apply_count,
             self.last_adapter_checksum,
@@ -210,9 +231,26 @@ mod tests {
         assert!(text.contains("quote \\\" slash \\\\ bell \\u0007 next\\nline"));
         assert!(text.contains("separator \\u2028 paragraph \\u2029"));
         assert!(text.contains("tab\\tform\\fback\\b"));
+        assert!(text.contains("\"kv_cache_byte_budget\": 0"));
+        assert!(text.contains("\"kv_cache_page_count\": 0"));
         assert!(text.contains("\"adapter_apply_count\": 0"));
         assert!(text.contains("\"last_adapter_checksum\": \"0x0000000000000000\""));
         assert!(text.contains("\"assembly_state_checksum\": \"0x0000000000000000\""));
+    }
+
+    #[test]
+    fn diagnostics_records_and_clears_kv_cache_allocation() {
+        let mut diagnostics = Diagnostics::default();
+        diagnostics.record_kv_cache_allocation(131_072, 2);
+        diagnostics.kv_cache_length = 7;
+        diagnostics.reset_generation();
+        assert_eq!(diagnostics.kv_cache_length, 0);
+        assert_eq!(diagnostics.kv_cache_byte_budget, 131_072);
+        assert_eq!(diagnostics.kv_cache_page_count, 2);
+
+        diagnostics.reset_kv_cache_allocation();
+        assert_eq!(diagnostics.kv_cache_byte_budget, 0);
+        assert_eq!(diagnostics.kv_cache_page_count, 0);
     }
 
     #[test]

@@ -1,19 +1,24 @@
-profile: gguf-mirust.intake-outcome-ledger.v4
-updated_utc: 2026-06-26T18:44:35Z
+profile: gguf-mirust.intake-outcome-ledger.v8
+updated_utc: 2026-06-29T02:39:17Z
 active_scan:
   content_bucket: agent-file-handoff/Content/
   improvement_bucket: agent-file-handoff/Improvement/
   content_non_placeholder_files: 0
   improvement_non_placeholder_files: 0
-  result: all_reports_processed_and_source_bucket_cleared
+  result: 2026_06_29_rescan_no_new_active_intake_existing_research_route_used
+  latest_scan_utc: 2026-06-29T02:39:17Z
+  ide_adjacent_handoff_checked: E:\Source\WP\MikeKappel\agent-file-handoff\
+  ide_adjacent_non_placeholder_files: 0
+  attachment_scan_result: active_ide_attachment_path_absent_recent_attachment_material_2026_06_27_or_older_no_new_current_gguf_handoff_research
+  e_drive_free_bytes_at_scan: 66609135616
 shared_disposition_context:
   disposition: preserved-to-durable-memory
-  actual_source_work: Processed 23 Improvement reports on 2026-06-25 and 26 model-breeding Improvement reports on 2026-06-26 into distributed long-term LLM Wiki memory, preserved exact originals under raw/gguf-mirust/, updated report navigation, and cleared processed source copies from the active handoff bucket.
+  actual_source_work: Processed 23 Improvement reports on 2026-06-25, 26 model-breeding Improvement reports on 2026-06-26, and 4 ModelBreeder/zero-dependency research files on 2026-06-28 into distributed long-term LLM Wiki memory, preserved exact originals under raw/gguf-mirust/, and updated report navigation.
   hot_memory_update: .uai/short-term-memory.uai, .uai/report-synthesis.uai, .uai/file-handoff.uai, .uai/intake-outcome-ledger.uai, .uai/long-term-memory.uai, .uai/receiver-brief.uai, .uai/taboo.uai, and wiki/gguf-mirust routing files updated.
-  durable_preservation_evidence: raw/gguf-mirust/MANIFEST.md and report intake indexes for 2026-06-25 and 2026-06-26 record source files, checksums, duplicate relationships, and thematic synthesis routes.
-  checks: live bucket scan, raw copy counts 23 and 26, source-to-raw SHA256 verification, report synthesis file creation, wiki route update, stale scaffold wording scan, exact filename correction for curly-apostrophe report.
+  durable_preservation_evidence: raw/gguf-mirust/MANIFEST.md and report intake indexes for 2026-06-25, 2026-06-26, and 2026-06-28 record source files, checksums, duplicate relationships, and thematic synthesis routes.
+  checks: live bucket scan, raw copy counts 23, 26, and 4, source-to-raw SHA256 verification, report synthesis file creation, wiki route update, stale scaffold wording scan, exact filename correction for curly-apostrophe report.
   blockers: none_current
-  source_site_removal_or_keep_active_reason: Removed processed report copies from agent-file-handoff/Improvement/ after exact originals were preserved in raw evidence and durable synthesis records were created.
+  source_site_removal_or_keep_active_reason: Removed processed report copies from agent-file-handoff/Improvement/ after exact originals were preserved in raw evidence and durable synthesis records were created, including the 4-file 2026-06-28 research intake.
 report_intake_2026_06_26:
   source_bucket: agent-file-handoff/Improvement/
   raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/
@@ -29,7 +34,43 @@ report_intake_2026_06_26:
   durable_preservation_evidence: raw/gguf-mirust/MANIFEST.md, report-intake-index-2026-06-26.md, model-breeding-ecology-memory-2026-06-26.md, and model-breeding-reference-ideas-2026-06-26.md.
   checks: live bucket scan, raw copy count 26, source-to-raw SHA256 verification, durable synthesis creation, wiki route update.
   blockers: none_current
+  source_site_removal_or_keep_active_reason: Removed processed source copies after exact originals, durable synthesis, hot routing, and pointer ledger records were created.
+report_intake_2026_06_28:
+  source_bucket: agent-file-handoff/Improvement/
+  raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-28/
+  durable_index: wiki/gguf-mirust/reports/report-intake-index-2026-06-28.md
+  durable_research: wiki/gguf-mirust/research/modelbreeder-zero-dependency-reference-ideas-2026-06-28.md
+  source_count: 4
+  duplicate_groups:
+    - sha256:18FE9E16D435D53892C8963E14212B7A3BEDFEE84E9FCD0AC87CB7BA322DA1E9 maps to two ModelBreeder guidance filenames.
+  disposition: preserved-to-durable-memory
+  actual_source_work: Synthesized ModelBreeder genome, fitness, novelty, population, speciation, product-voice, and zero-dependency browser-runtime research into future guidance lanes.
+  hot_memory_update: Updated report synthesis, short-term memory, file handoff, intake ledger, taboo route, wiki index, knowledge map, source guide, log, and long-term pointer routing.
+  durable_preservation_evidence: raw/gguf-mirust/MANIFEST.md, report-intake-index-2026-06-28.md, and modelbreeder-zero-dependency-reference-ideas-2026-06-28.md.
+  checks: live bucket scan, raw copy count 4, source-to-raw SHA256 verification, durable research route creation, wiki route update.
+  blockers: none_current
   source_site_removal_or_keep_active_reason: Remove processed source copies after exact originals, durable synthesis, hot routing, and pointer ledger records are complete.
+entries_2026_06_28:
+  - source_path: agent-file-handoff/Improvement/ModelBreeder site and theory emphasize controlled evolution.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-28/ModelBreeder site and theory emphasize controlled evolution.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/research/modelbreeder-zero-dependency-reference-ideas-2026-06-28.md
+    routing_summary: Routes agents to ModelBreeder genome, fitness vector, novelty, population, speciation, CLI loop, and public-copy voice guidance.
+  - source_path: agent-file-handoff/Improvement/ModelBreeder Theory vs. Source Files.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-28/ModelBreeder Theory vs. Source Files.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/research/modelbreeder-zero-dependency-reference-ideas-2026-06-28.md
+    routing_summary: Routes agents to browser client-side model visualization, Rust inference contrast, and broader breeder-paradigm vocabulary.
+  - source_path: agent-file-handoff/Improvement/theory emphasize controlled evolution of AI models.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-28/theory emphasize controlled evolution of AI models.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/research/modelbreeder-zero-dependency-reference-ideas-2026-06-28.md
+    routing_summary: Duplicate ModelBreeder guidance source; preserve filename and route through the canonical 2026-06-28 research page.
+  - source_path: agent-file-handoff/Improvement/Zero-Dependency Rust LLM Improvements.md
+    raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-28/Zero-Dependency Rust LLM Improvements.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/gguf-mirust/research/modelbreeder-zero-dependency-reference-ideas-2026-06-28.md
+    routing_summary: Routes agents to zero-dependency Wasm SIMD, hierarchical quantization, adapters, tokenizer, sampler, KV-cache, allocator, multimodal, and telemetry guidance.
 entries_2026_06_26:
   - source_path: agent-file-handoff/Improvement/4Fs and code beadingmodel breeding.md
     raw_evidence_path: raw/gguf-mirust/report-intake-2026-06-26/4Fs and code beadingmodel breeding.md

@@ -106,12 +106,61 @@
   const registryModulePlanExecutionProfile = "single-threaded-wasm-local-v1";
   const registryModulePlanFetchPolicy = "local-no-store-v1";
   const registryModulePlanOriginPolicy = "same-origin-loopback-local-v1";
+  const registryModulePlanFetchCountLimit = 32;
+  const registryModulePlanPlannedFetchCount = 21;
   const registryModulePlanWasmMemoryInitialPages = 17;
+  const registryModulePlanWasmExportSet = "tinyrustlm-generate-v1";
+  const registryModulePlanWasmTransferStrategy = "copy-then-release-v1";
+  const registryModulePlanModelReleaseStrategy = "free-before-reassembly-v1";
+  const registryModulePlanRuntimeResetStrategy = "reset-context-before-assembly-v1";
+  const registryModulePlanAdapterValidationStrategy = "rust-validate-before-apply-v1";
+  const registryModulePlanAdapterValidationCount = 3;
+  const registryModulePlanAdapterApplyCount = 3;
+  const registryModulePlanWasmHeapMinBytes = 64 * 1024;
+  const registryModulePlanWasmExports = [
+    "memory",
+    "alloc",
+    "dealloc",
+    "init_runtime",
+    "load_model",
+    "generate",
+    "set_sampling_config",
+    "generate_next_token",
+    "validate_adapter_delta",
+    "apply_adapter_delta",
+    "last_result_ptr",
+    "last_result_len",
+    "get_diagnostics_ptr",
+    "get_diagnostics_len",
+    "reset_context",
+    "free_model"
+  ];
+  const registryModulePlanContextTokenLimitLimit = 4096;
+  const registryModulePlanSamplerCandidateCap = 1024;
+  const registryModulePlanPromptByteLimit = 4 * 1024;
   const registryModulePlanRuntimeScratchByteBudget = 64 * 1024;
+  const registryModulePlanOutputByteLimit = 64 * 1024;
+  const registryModulePlanKvCacheByteBudgetLimit = 8 * 1024 * 1024;
   const runtimeWasmKind = "tinyrustlm-rust-wasm";
   const runtimeWasmStatus = "validated-local-runtime";
   const runtimeWasmNextGate = "instantiate-wasm-runtime";
   const selectorDefaultStrategy = "browser-frugal-quantized";
+  const registryGenomeStrategy = "selector-admission-genome-v1";
+  const registryGenomeLineageStatus = "admission-bound";
+  const registrySpeciesStrategy = "selector-speciation-fit-v1";
+  const registrySpeciesFitStatus = "browser-fit-bound";
+  const registryNoveltyStrategy = "selector-novelty-sketch-v1";
+  const registryNoveltyStatus = "behavior-sketch-bound";
+  const registryPopulationStrategy = "selector-population-review-route-v1";
+  const registryPopulationStatus = "population-review-bound";
+  const registryMateSelectionStrategy = "selector-mate-selection-route-v1";
+  const registryMateSelectionParentPoolStatus = "parent-pool-bound";
+  const registryMateSelectionAdmissionStatus = "admission-only";
+  const registryPhenotypeEvidenceStrategy = "selector-phenotype-evidence-v1";
+  const registryPhenotypeEvidenceStatus = "runtime-eval-bound";
+  const registryHeritableArtifactStrategy = "selector-heritable-artifact-v1";
+  const registryHeritableArtifactStatus = "served-artifact-bound";
+  const registryFitnessVectorStatus = "eval-bound";
   const selectorModelByteBudget = 32 * 1024 * 1024;
   const selectorRegistryTextByteBudget = 256 * 1024;
   const manifestTextByteBudget = 64 * 1024;
@@ -120,10 +169,13 @@
   const registryModulePlanTotalByteBudgetLimit =
     selectorModelByteBudget +
     registryAdapterAutoApplyByteBudget +
+    registryModulePlanKvCacheByteBudgetLimit +
     manifestTextByteBudget +
     receiptTextByteBudget +
     receiptTextByteBudget +
-    registryModulePlanRuntimeScratchByteBudget;
+    registryModulePlanPromptByteLimit +
+    registryModulePlanRuntimeScratchByteBudget +
+    registryModulePlanOutputByteLimit;
   const adapterFamilyReceiptStatus = "validated";
   const assemblyReceiptStatus = "validated";
   const assemblyReceiptStrategy = "multi-parent-sign-merge";
@@ -250,6 +302,14 @@
     provenanceAdmission: document.getElementById("provenanceAdmission"),
     provenanceQualityClaim: document.getElementById("provenanceQualityClaim"),
     provenanceTrainedClaim: document.getElementById("provenanceTrainedClaim"),
+    provenanceGenome: document.getElementById("provenanceGenome"),
+    provenanceSpecies: document.getElementById("provenanceSpecies"),
+    provenanceNovelty: document.getElementById("provenanceNovelty"),
+    provenancePopulation: document.getElementById("provenancePopulation"),
+    provenanceMateSelection: document.getElementById("provenanceMateSelection"),
+    provenancePhenotype: document.getElementById("provenancePhenotype"),
+    provenanceArtifact: document.getElementById("provenanceArtifact"),
+    provenanceFitness: document.getElementById("provenanceFitness"),
     provenanceEvalCases: document.getElementById("provenanceEvalCases"),
     provenanceEvalChecksum: document.getElementById("provenanceEvalChecksum"),
     provenanceChecksum: document.getElementById("provenanceChecksum"),
@@ -266,12 +326,31 @@
     modulePlanExecution: document.getElementById("modulePlanExecution"),
     modulePlanFetch: document.getElementById("modulePlanFetch"),
     modulePlanOrigin: document.getElementById("modulePlanOrigin"),
+    modulePlanFetchLimit: document.getElementById("modulePlanFetchLimit"),
+    modulePlanPlannedFetchCount: document.getElementById("modulePlanPlannedFetchCount"),
     modulePlanWasmPages: document.getElementById("modulePlanWasmPages"),
+    modulePlanWasmExportSet: document.getElementById("modulePlanWasmExportSet"),
+    modulePlanWasmTransferStrategy: document.getElementById("modulePlanWasmTransferStrategy"),
+    modulePlanModelReleaseStrategy: document.getElementById("modulePlanModelReleaseStrategy"),
+    modulePlanRuntimeResetStrategy: document.getElementById("modulePlanRuntimeResetStrategy"),
+    modulePlanAdapterValidationStrategy: document.getElementById("modulePlanAdapterValidationStrategy"),
+    modulePlanAdapterValidationCount: document.getElementById("modulePlanAdapterValidationCount"),
+    modulePlanAdapterApplyCount: document.getElementById("modulePlanAdapterApplyCount"),
+    modulePlanWasmHeapMinBytes: document.getElementById("modulePlanWasmHeapMinBytes"),
+    modulePlanContextTokens: document.getElementById("modulePlanContextTokens"),
+    modulePlanSamplerCap: document.getElementById("modulePlanSamplerCap"),
+    modulePlanTokenizer: document.getElementById("modulePlanTokenizer"),
     modulePlanModules: document.getElementById("modulePlanModules"),
     modulePlanModelBudget: document.getElementById("modulePlanModelBudget"),
     modulePlanAdapterBudget: document.getElementById("modulePlanAdapterBudget"),
+    modulePlanAdapterStackBudget: document.getElementById("modulePlanAdapterStackBudget"),
     modulePlanScratchBudget: document.getElementById("modulePlanScratchBudget"),
+    modulePlanPromptLimit: document.getElementById("modulePlanPromptLimit"),
+    modulePlanOutputLimit: document.getElementById("modulePlanOutputLimit"),
+    modulePlanKvCacheBudget: document.getElementById("modulePlanKvCacheBudget"),
+    modulePlanKvCachePages: document.getElementById("modulePlanKvCachePages"),
     modulePlanTotalBudget: document.getElementById("modulePlanTotalBudget"),
+    modulePlanTotalLimit: document.getElementById("modulePlanTotalLimit"),
     modulePlanBytes: document.getElementById("modulePlanBytes"),
     modulePlanChecksums: document.getElementById("modulePlanChecksums"),
     modulePlanSlots: document.getElementById("modulePlanSlots"),
@@ -304,6 +383,15 @@
     return readString(state.exports.get_diagnostics_ptr(), state.exports.get_diagnostics_len());
   }
 
+  // Parses runtime diagnostics after adapter assembly so module-plan counters can be checked.
+  function readDiagnosticsJson() {
+    try {
+      return JSON.parse(readDiagnostics());
+    } catch (_error) {
+      return null;
+    }
+  }
+
   function allocCopy(bytes) {
     const ptr = state.exports.alloc(bytes.length);
     if (!ptr) {
@@ -319,6 +407,15 @@
     }
   }
 
+  function probeWasmHeapAllocation(byteCount) {
+    // Proves the declared generated-module transfer floor before bytes enter WASM.
+    const ptr = state.exports.alloc(byteCount);
+    if (!ptr) {
+      throw new Error("Module plan WASM heap allocation probe failed");
+    }
+    release(ptr, byteCount);
+  }
+
   // Captures the static exported memory footprint before runtime init can grow it.
   function wasmMemoryInitialPages() {
     const pageBytes = 64 * 1024;
@@ -327,6 +424,21 @@
       throw new Error("WASM memory byte length was not page aligned");
     }
     return byteLength / pageBytes;
+  }
+
+  // Checks the named Rust/WASM ABI before a generated module plan can fetch model bytes.
+  function hasRuntimeWasmExport(name) {
+    if (name === "memory") {
+      return state.exports.memory && state.exports.memory.buffer instanceof ArrayBuffer;
+    }
+    return typeof state.exports[name] === "function";
+  }
+
+  function verifyModulePlanWasmExports(exportSet) {
+    if (exportSet !== registryModulePlanWasmExportSet) {
+      return false;
+    }
+    return registryModulePlanWasmExports.every((name) => hasRuntimeWasmExport(name));
   }
 
   function renderDiagnostics() {
@@ -425,7 +537,7 @@
   function readSamplingConfig() {
     const config = {
       temperature: clampNumber(el.temperature.value, 0, 5, 0),
-      topK: clampInteger(el.topK.value, 1, 1024, 1),
+      topK: clampInteger(el.topK.value, 1, registryModulePlanSamplerCandidateCap, 1),
       topP: clampNumber(el.topP.value, 0.01, 1, 1),
       seed: clampInteger(el.seed.value, 0, 4294967295, 1)
     };
@@ -869,22 +981,207 @@
     };
   }
 
+  // Reads selector genome routing fields before a registry entry can become selectable.
+  function registryGenomeEntry(fields, prefix) {
+    const genomeId = fields[`${prefix}.genome_id`];
+    const strategy = fields[`${prefix}.genome_strategy`];
+    const lineageStatus = fields[`${prefix}.genome_lineage_status`];
+    const lineageChecksum = fields[`${prefix}.genome_lineage_checksum`];
+    if (
+      !isRegistryHex64(genomeId) ||
+      strategy !== registryGenomeStrategy ||
+      lineageStatus !== registryGenomeLineageStatus ||
+      !isRegistryHex64(lineageChecksum)
+    ) {
+      return null;
+    }
+    return {
+      id: genomeId,
+      strategy,
+      lineageStatus,
+      lineageChecksum
+    };
+  }
+
+  // Reads selector species-fit fields that group candidates by browser-compatible traits.
+  function registrySpeciesEntry(fields, prefix) {
+    const speciesId = fields[`${prefix}.species_id`];
+    const strategy = fields[`${prefix}.species_strategy`];
+    const fitStatus = fields[`${prefix}.species_fit_status`];
+    const fitChecksum = fields[`${prefix}.species_fit_checksum`];
+    if (
+      !isRegistryHex64(speciesId) ||
+      strategy !== registrySpeciesStrategy ||
+      fitStatus !== registrySpeciesFitStatus ||
+      !isRegistryHex64(fitChecksum)
+    ) {
+      return null;
+    }
+    return {
+      id: speciesId,
+      strategy,
+      fitStatus,
+      fitChecksum
+    };
+  }
+
+  // Reads selector novelty sketches that preserve behavior variety across candidates.
+  function registryNoveltyEntry(fields, prefix) {
+    const noveltyId = fields[`${prefix}.novelty_id`];
+    const strategy = fields[`${prefix}.novelty_strategy`];
+    const status = fields[`${prefix}.novelty_status`];
+    const checksum = fields[`${prefix}.novelty_checksum`];
+    if (
+      !isRegistryHex64(noveltyId) ||
+      strategy !== registryNoveltyStrategy ||
+      status !== registryNoveltyStatus ||
+      !isRegistryHex64(checksum)
+    ) {
+      return null;
+    }
+    return {
+      id: noveltyId,
+      strategy,
+      status,
+      checksum
+    };
+  }
+
+  // Reads selector population review routes that connect candidates to population context.
+  function registryPopulationEntry(fields, prefix) {
+    const populationId = fields[`${prefix}.population_id`];
+    const strategy = fields[`${prefix}.population_strategy`];
+    const status = fields[`${prefix}.population_status`];
+    const checksum = fields[`${prefix}.population_checksum`];
+    if (
+      !isRegistryHex64(populationId) ||
+      strategy !== registryPopulationStrategy ||
+      status !== registryPopulationStatus ||
+      !isRegistryHex64(checksum)
+    ) {
+      return null;
+    }
+    return {
+      id: populationId,
+      strategy,
+      status,
+      checksum
+    };
+  }
+
+  // Reads selector mate-selection routes that bind parent-pool recipes to provenance.
+  function registryMateSelectionEntry(fields, prefix) {
+    const mateSelectionId = fields[`${prefix}.mate_selection_id`];
+    const strategy = fields[`${prefix}.mate_selection_strategy`];
+    const status = fields[`${prefix}.mate_selection_status`];
+    const parentCount = registryDecimalByteCount(fields[`${prefix}.mate_selection_parent_count`]);
+    const checksum = fields[`${prefix}.mate_selection_checksum`];
+    const isKnownStatus =
+      status === registryMateSelectionParentPoolStatus ||
+      status === registryMateSelectionAdmissionStatus;
+    if (
+      !isRegistryHex64(mateSelectionId) ||
+      strategy !== registryMateSelectionStrategy ||
+      !isKnownStatus ||
+      parentCount === null ||
+      !isRegistryHex64(checksum)
+    ) {
+      return null;
+    }
+    if (status === registryMateSelectionParentPoolStatus && parentCount < 2) {
+      return null;
+    }
+    if (status === registryMateSelectionAdmissionStatus && parentCount !== 1) {
+      return null;
+    }
+    return {
+      id: mateSelectionId,
+      strategy,
+      status,
+      parentCount,
+      checksum
+    };
+  }
+
+  // Reads selector phenotype evidence that binds runtime and eval observations to provenance.
+  function registryPhenotypeEvidenceEntry(fields, prefix) {
+    const phenotypeEvidenceId = fields[`${prefix}.phenotype_evidence_id`];
+    const strategy = fields[`${prefix}.phenotype_evidence_strategy`];
+    const status = fields[`${prefix}.phenotype_evidence_status`];
+    const checksum = fields[`${prefix}.phenotype_evidence_checksum`];
+    if (
+      !isRegistryHex64(phenotypeEvidenceId) ||
+      strategy !== registryPhenotypeEvidenceStrategy ||
+      status !== registryPhenotypeEvidenceStatus ||
+      !isRegistryHex64(checksum)
+    ) {
+      return null;
+    }
+    return {
+      id: phenotypeEvidenceId,
+      strategy,
+      status,
+      checksum
+    };
+  }
+
+  // Reads selector heritable artifact metadata that binds served model identity to provenance.
+  function registryHeritableArtifactEntry(fields, prefix) {
+    const artifactId = fields[`${prefix}.heritable_artifact_id`];
+    const strategy = fields[`${prefix}.heritable_artifact_strategy`];
+    const status = fields[`${prefix}.heritable_artifact_status`];
+    const checksum = fields[`${prefix}.heritable_artifact_checksum`];
+    if (
+      !isRegistryHex64(artifactId) ||
+      strategy !== registryHeritableArtifactStrategy ||
+      status !== registryHeritableArtifactStatus ||
+      !isRegistryHex64(checksum)
+    ) {
+      return null;
+    }
+    return {
+      id: artifactId,
+      strategy,
+      status,
+      checksum
+    };
+  }
+
+  // Reads scoped eval facts as a compact fitness vector for selector provenance.
   function registryEvalEvidenceEntry(fields, prefix) {
     const checksum = fields[`${prefix}.eval_case_evidence_checksum`];
     const casesPassed = registryDecimalByteCount(fields[`${prefix}.cases_passed`]);
-    if (!isRegistryHex64(checksum) || casesPassed === null) {
+    const fitnessVectorStatus = fields[`${prefix}.fitness_vector_status`];
+    const fitnessVectorChecksum = fields[`${prefix}.fitness_vector_checksum`];
+    if (
+      !isRegistryHex64(checksum) ||
+      casesPassed === null ||
+      fitnessVectorStatus !== registryFitnessVectorStatus ||
+      !isRegistryHex64(fitnessVectorChecksum)
+    ) {
       return null;
     }
     return {
       checksum,
       casesPassed,
+      fitnessVectorStatus,
+      fitnessVectorChecksum,
       qualityScope: fields[`${prefix}.quality_scope`] || "",
       qualityBoundary: fields[`${prefix}.quality_boundary`] || "",
       evalDataset: fields[`${prefix}.eval_dataset`] || ""
     };
   }
 
-  function registryModulePlanEntry(fields, prefix, adapterFamily, assembly, modelBytes) {
+  function registryModulePlanEntry(
+    fields,
+    prefix,
+    adapterFamily,
+    assembly,
+    modelBytes,
+    tokenizerChecksum,
+    contextTokenLimit,
+    maxTokens
+  ) {
     const keys = [
       "module_plan_path",
       "module_plan_checksum",
@@ -897,11 +1194,30 @@
       "module_plan_execution_profile",
       "module_plan_fetch_policy",
       "module_plan_origin_policy",
+      "module_plan_fetch_count_limit",
+      "module_plan_planned_fetch_count",
       "module_plan_wasm_memory_initial_pages",
+      "module_plan_wasm_export_set",
+      "module_plan_wasm_transfer_strategy",
+      "module_plan_model_release_strategy",
+      "module_plan_runtime_reset_strategy",
+      "module_plan_adapter_validation_strategy",
+      "module_plan_adapter_validation_count",
+      "module_plan_adapter_apply_count",
+      "module_plan_wasm_heap_min_bytes",
+      "module_plan_context_token_limit",
+      "module_plan_sampler_candidate_cap",
+      "module_plan_tokenizer_checksum",
       "module_plan_model_byte_budget",
       "module_plan_adapter_byte_budget",
+      "module_plan_adapter_stack_byte_budget",
+      "module_plan_prompt_byte_limit",
       "module_plan_runtime_scratch_byte_budget",
+      "module_plan_output_byte_limit",
+      "module_plan_kv_cache_byte_budget",
+      "module_plan_kv_cache_page_count",
       "module_plan_total_byte_budget",
+      "module_plan_total_byte_budget_limit",
       "module_plan_module_count"
     ];
     const hasModulePlan = keys.some((key) => fields[`${prefix}.${key}`]);
@@ -915,12 +1231,45 @@
       fields[`${prefix}.module_plan_wasm_memory_initial_pages`] || "0",
       10
     );
+    const fetchCountLimit = registryDecimalCount(
+      fields[`${prefix}.module_plan_fetch_count_limit`]
+    );
+    const plannedFetchCount = registryDecimalCount(
+      fields[`${prefix}.module_plan_planned_fetch_count`]
+    );
+    const wasmExportSet = fields[`${prefix}.module_plan_wasm_export_set`] || "";
+    const wasmHeapMinBytes = registryDecimalByteCount(
+      fields[`${prefix}.module_plan_wasm_heap_min_bytes`]
+    );
+    const planContextTokenLimit = registryDecimalCount(
+      fields[`${prefix}.module_plan_context_token_limit`]
+    );
+    const samplerCandidateCap = registryDecimalCount(
+      fields[`${prefix}.module_plan_sampler_candidate_cap`]
+    );
+    const adapterApplyCount = registryDecimalCount(
+      fields[`${prefix}.module_plan_adapter_apply_count`]
+    );
+    const adapterValidationCount = registryDecimalCount(
+      fields[`${prefix}.module_plan_adapter_validation_count`]
+    );
+    const planTokenizerChecksum = fields[`${prefix}.module_plan_tokenizer_checksum`] || "";
     const modelByteBudget = registryDecimalByteCount(fields[`${prefix}.module_plan_model_byte_budget`]);
     const adapterByteBudget = registryDecimalByteCount(fields[`${prefix}.module_plan_adapter_byte_budget`]);
+    const adapterStackByteBudget = registryDecimalByteCount(
+      fields[`${prefix}.module_plan_adapter_stack_byte_budget`]
+    );
+    const promptByteLimit = registryDecimalByteCount(fields[`${prefix}.module_plan_prompt_byte_limit`]);
     const runtimeScratchByteBudget = registryDecimalByteCount(
       fields[`${prefix}.module_plan_runtime_scratch_byte_budget`]
     );
+    const outputByteLimit = registryDecimalByteCount(fields[`${prefix}.module_plan_output_byte_limit`]);
+    const kvCacheByteBudget = registryDecimalByteCount(fields[`${prefix}.module_plan_kv_cache_byte_budget`]);
+    const kvCachePageCount = Number.parseInt(fields[`${prefix}.module_plan_kv_cache_page_count`] || "0", 10);
     const totalByteBudget = registryDecimalByteCount(fields[`${prefix}.module_plan_total_byte_budget`]);
+    const totalByteBudgetLimit = registryDecimalByteCount(
+      fields[`${prefix}.module_plan_total_byte_budget_limit`]
+    );
     if (!isSafeRegistryModulePlanPath(receiptPath) || !isRegistryHex64(receiptChecksum)) {
       return null;
     }
@@ -949,9 +1298,72 @@
       return null;
     }
     if (
+      fetchCountLimit === null ||
+      fetchCountLimit !== registryModulePlanFetchCountLimit
+    ) {
+      return null;
+    }
+    if (
       !Number.isInteger(wasmMemoryInitialPages) ||
       String(wasmMemoryInitialPages) !== fields[`${prefix}.module_plan_wasm_memory_initial_pages`] ||
       wasmMemoryInitialPages !== registryModulePlanWasmMemoryInitialPages
+    ) {
+      return null;
+    }
+    if (wasmExportSet !== registryModulePlanWasmExportSet) {
+      return null;
+    }
+    if (fields[`${prefix}.module_plan_wasm_transfer_strategy`] !== registryModulePlanWasmTransferStrategy) {
+      return null;
+    }
+    if (fields[`${prefix}.module_plan_model_release_strategy`] !== registryModulePlanModelReleaseStrategy) {
+      return null;
+    }
+    if (fields[`${prefix}.module_plan_runtime_reset_strategy`] !== registryModulePlanRuntimeResetStrategy) {
+      return null;
+    }
+    if (
+      fields[`${prefix}.module_plan_adapter_validation_strategy`] !==
+      registryModulePlanAdapterValidationStrategy
+    ) {
+      return null;
+    }
+    if (
+      adapterApplyCount === null ||
+      !adapterFamily ||
+      adapterApplyCount !== adapterFamily.autoApplyStackCount ||
+      adapterApplyCount !== registryModulePlanAdapterApplyCount
+    ) {
+      return null;
+    }
+    if (
+      adapterValidationCount === null ||
+      !adapterFamily ||
+      adapterValidationCount !== adapterFamily.autoApplyStackCount ||
+      adapterValidationCount !== adapterApplyCount ||
+      adapterValidationCount !== registryModulePlanAdapterValidationCount
+    ) {
+      return null;
+    }
+    if (
+      planContextTokenLimit === null ||
+      planContextTokenLimit !== contextTokenLimit ||
+      planContextTokenLimit < maxTokens ||
+      planContextTokenLimit > registryModulePlanContextTokenLimitLimit
+    ) {
+      return null;
+    }
+    // Keeps generated module plans bound to the runtime's fixed-size sampler candidate buffer.
+    if (
+      samplerCandidateCap === null ||
+      samplerCandidateCap !== registryModulePlanSamplerCandidateCap
+    ) {
+      return null;
+    }
+    if (
+      !isRegistryHex64(planTokenizerChecksum) ||
+      !isRegistryHex64(tokenizerChecksum) ||
+      planTokenizerChecksum !== tokenizerChecksum
     ) {
       return null;
     }
@@ -965,20 +1377,74 @@
       return null;
     }
     if (
+      adapterStackByteBudget === null ||
+      adapterStackByteBudget <= 0 ||
+      adapterStackByteBudget > adapterByteBudget
+    ) {
+      return null;
+    }
+    if (promptByteLimit === null || promptByteLimit !== registryModulePlanPromptByteLimit) {
+      return null;
+    }
+    if (
+      wasmHeapMinBytes === null ||
+      wasmHeapMinBytes !== modulePlanWasmHeapMinBytes(
+        modelByteBudget,
+        adapterStackByteBudget,
+        promptByteLimit
+      )
+    ) {
+      return null;
+    }
+    if (
       runtimeScratchByteBudget === null ||
       runtimeScratchByteBudget !== registryModulePlanRuntimeScratchByteBudget
     ) {
       return null;
     }
+    if (outputByteLimit === null || outputByteLimit !== registryModulePlanOutputByteLimit) {
+      return null;
+    }
+    if (
+      kvCacheByteBudget === null ||
+      kvCacheByteBudget > registryModulePlanKvCacheByteBudgetLimit ||
+      !Number.isInteger(kvCachePageCount) ||
+      String(kvCachePageCount) !== fields[`${prefix}.module_plan_kv_cache_page_count`] ||
+      kvCachePageCount !== modulePlanPageCountForBytes(kvCacheByteBudget)
+    ) {
+      return null;
+    }
     if (
       totalByteBudget === null ||
-      totalByteBudget < modelBytes + runtimeScratchByteBudget ||
-      totalByteBudget > registryModulePlanTotalByteBudgetLimit
+      totalByteBudget <
+        modelBytes +
+          adapterStackByteBudget +
+          promptByteLimit +
+          runtimeScratchByteBudget +
+          outputByteLimit +
+          kvCacheByteBudget ||
+      totalByteBudget > totalByteBudgetLimit
+    ) {
+      return null;
+    }
+    if (
+      totalByteBudgetLimit === null ||
+      totalByteBudgetLimit !== registryModulePlanTotalByteBudgetLimit
     ) {
       return null;
     }
     const expectedModuleCount = 4 + adapterFamily.autoApplyStackCount;
     if (!Number.isInteger(moduleCount) || moduleCount !== expectedModuleCount) {
+      return null;
+    }
+    const declaredFetchCount =
+      registryModulePlanDeclaredFetchCount(adapterFamily, assembly, moduleCount);
+    if (
+      plannedFetchCount === null ||
+      plannedFetchCount !== declaredFetchCount ||
+      plannedFetchCount !== registryModulePlanPlannedFetchCount ||
+      plannedFetchCount > fetchCountLimit
+    ) {
       return null;
     }
     return {
@@ -993,13 +1459,53 @@
       executionProfile: fields[`${prefix}.module_plan_execution_profile`],
       fetchPolicy: fields[`${prefix}.module_plan_fetch_policy`],
       originPolicy: fields[`${prefix}.module_plan_origin_policy`],
+      fetchCountLimit,
+      plannedFetchCount,
       wasmMemoryInitialPages,
+      wasmExportSet,
+      wasmTransferStrategy: fields[`${prefix}.module_plan_wasm_transfer_strategy`],
+      modelReleaseStrategy: fields[`${prefix}.module_plan_model_release_strategy`],
+      runtimeResetStrategy: fields[`${prefix}.module_plan_runtime_reset_strategy`],
+      adapterValidationStrategy: fields[`${prefix}.module_plan_adapter_validation_strategy`],
+      adapterValidationCount,
+      adapterApplyCount,
+      wasmHeapMinBytes,
+      contextTokenLimit: planContextTokenLimit,
+      samplerCandidateCap,
+      tokenizerChecksum: planTokenizerChecksum,
       modelByteBudget,
       adapterByteBudget,
+      adapterStackByteBudget,
+      promptByteLimit,
       runtimeScratchByteBudget,
+      outputByteLimit,
+      kvCacheByteBudget,
+      kvCachePageCount,
       totalByteBudget,
+      totalByteBudgetLimit,
       moduleCount
     };
+  }
+
+  // Counts route fetches implied by selector metadata before a generated model is accepted.
+  function registryModulePlanDeclaredFetchCount(adapterFamily, assembly, moduleCount) {
+    let fetchCount = 1 + moduleCount;
+    if (assembly) {
+      fetchCount += assemblyEvidenceRoutes.length;
+    }
+    if (adapterFamily) {
+      fetchCount += adapterFamily.count;
+    }
+    return fetchCount;
+  }
+
+  function modulePlanWasmHeapMinBytes(modelByteBudget, adapterStackByteBudget, promptByteLimit) {
+    return Math.max(
+      registryModulePlanWasmHeapMinBytes,
+      modelByteBudget,
+      adapterStackByteBudget,
+      promptByteLimit
+    );
   }
 
   function registryModelEntries(fields) {
@@ -1042,6 +1548,15 @@
       if (modelBytes === null) {
         return null;
       }
+      const modelShape = fields[`${prefix}.model_shape`] || "";
+      const contextTokenLimit = registryModelShapeContextTokenLimit(modelShape);
+      if (contextTokenLimit === null || contextTokenLimit < maxTokens) {
+        return null;
+      }
+      const tokenizerChecksum = fields[`${prefix}.tokenizer_checksum`] || "";
+      if (tokenizerChecksum && !isRegistryHex64(tokenizerChecksum)) {
+        return null;
+      }
       const quantization = fields[`${prefix}.quantization`] || "";
       const adapters = registryAdapterEntries(fields, prefix, quantization);
       if (!adapters) {
@@ -1055,11 +1570,48 @@
       if (assembly === null) {
         return null;
       }
+      const genome = registryGenomeEntry(fields, prefix);
+      if (!genome) {
+        return null;
+      }
+      const species = registrySpeciesEntry(fields, prefix);
+      if (!species) {
+        return null;
+      }
+      const novelty = registryNoveltyEntry(fields, prefix);
+      if (!novelty) {
+        return null;
+      }
+      const population = registryPopulationEntry(fields, prefix);
+      if (!population) {
+        return null;
+      }
+      const mateSelection = registryMateSelectionEntry(fields, prefix);
+      if (!mateSelection) {
+        return null;
+      }
+      const phenotypeEvidence = registryPhenotypeEvidenceEntry(fields, prefix);
+      if (!phenotypeEvidence) {
+        return null;
+      }
+      const heritableArtifact = registryHeritableArtifactEntry(fields, prefix);
+      if (!heritableArtifact) {
+        return null;
+      }
       const evalEvidence = registryEvalEvidenceEntry(fields, prefix);
       if (!evalEvidence) {
         return null;
       }
-      const modulePlan = registryModulePlanEntry(fields, prefix, adapterFamily, assembly, modelBytes);
+      const modulePlan = registryModulePlanEntry(
+        fields,
+        prefix,
+        adapterFamily,
+        assembly,
+        modelBytes,
+        tokenizerChecksum,
+        contextTokenLimit,
+        maxTokens
+      );
       if (modulePlan === null) {
         return null;
       }
@@ -1068,10 +1620,19 @@
         path: modelPath,
         modelBytes,
         maxTokens,
+        contextTokenLimit,
+        tokenizerChecksum,
         quantization,
         adapters,
         adapterFamily: adapterFamily || null,
         autoApplyPreferredAdapter: Boolean(adapterFamily),
+        genome,
+        species,
+        novelty,
+        population,
+        mateSelection,
+        phenotypeEvidence,
+        heritableArtifact,
         evalEvidence,
         assembly: assembly || null,
         modulePlan: modulePlan || null
@@ -1131,19 +1692,41 @@
     return byteBudget;
   }
 
-  function registryDecimalByteCount(value) {
+  function registryDecimalCount(value) {
+    // Accepts exact positive decimal registry fields without whitespace or leading zero drift.
     if (!value) {
       return null;
     }
-    const bytes = Number.parseInt(value, 10);
+    const count = Number.parseInt(value, 10);
     if (
-      !Number.isSafeInteger(bytes) ||
-      String(bytes) !== value ||
-      bytes < 1
+      !Number.isSafeInteger(count) ||
+      String(count) !== value ||
+      count < 1
     ) {
       return null;
     }
-    return bytes;
+    return count;
+  }
+
+  function registryDecimalByteCount(value) {
+    return registryDecimalCount(value);
+  }
+
+  function registryModelShapeContextTokenLimit(modelShape) {
+    const match = String(modelShape || "").match(/(?:^|,)(?:context|ctx)=(\d+)(?:,|$)/);
+    if (!match) {
+      return null;
+    }
+    const tokens = registryDecimalCount(match[1]);
+    if (tokens === null || tokens > registryModulePlanContextTokenLimitLimit) {
+      return null;
+    }
+    return tokens;
+  }
+
+  function modulePlanPageCountForBytes(bytes) {
+    // Mirrors the Rust 64 KiB page math for selector and receipt KV-cache checks.
+    return Math.ceil(bytes / (64 * 1024));
   }
 
   function registryDefaultModelKey(fields, models) {
@@ -1225,14 +1808,44 @@
     return bytes;
   }
 
+  // Renders manifest provenance together with selector genome, species, novelty, population, mate-selection, phenotype, artifact, and fitness evidence.
   function renderProvenance(status, fields, isError) {
     setText(el.provenanceState, status, isError);
     const model = paths.models[state.activeModelKey] || null;
+    const genome = model && model.genome ? model.genome : null;
+    const species = model && model.species ? model.species : null;
+    const novelty = model && model.novelty ? model.novelty : null;
+    const population = model && model.population ? model.population : null;
+    const mateSelection = model && model.mateSelection ? model.mateSelection : null;
+    const phenotypeEvidence = model && model.phenotypeEvidence ? model.phenotypeEvidence : null;
+    const heritableArtifact = model && model.heritableArtifact ? model.heritableArtifact : null;
     const evalEvidence = model && model.evalEvidence ? model.evalEvidence : null;
     el.provenanceSourceKind.textContent = manifestValue(fields, "source_kind");
     el.provenanceAdmission.textContent = manifestValue(fields, "admission_status");
     el.provenanceQualityClaim.textContent = manifestValue(fields, "quality_claim");
     el.provenanceTrainedClaim.textContent = manifestValue(fields, "trained_quality_claim");
+    el.provenanceGenome.textContent = genome ? genome.id : "unavailable";
+    el.provenanceSpecies.textContent = species
+      ? `${species.fitStatus} / ${species.id} / ${species.fitChecksum}`
+      : "unavailable";
+    el.provenanceNovelty.textContent = novelty
+      ? `${novelty.status} / ${novelty.id} / ${novelty.checksum}`
+      : "unavailable";
+    el.provenancePopulation.textContent = population
+      ? `${population.status} / ${population.id} / ${population.checksum}`
+      : "unavailable";
+    el.provenanceMateSelection.textContent = mateSelection
+      ? `${mateSelection.status} / ${mateSelection.parentCount} parents / ${mateSelection.id} / ${mateSelection.checksum}`
+      : "unavailable";
+    el.provenancePhenotype.textContent = phenotypeEvidence
+      ? `${phenotypeEvidence.status} / ${phenotypeEvidence.id} / ${phenotypeEvidence.checksum}`
+      : "unavailable";
+    el.provenanceArtifact.textContent = heritableArtifact
+      ? `${heritableArtifact.status} / ${heritableArtifact.id} / ${heritableArtifact.checksum}`
+      : "unavailable";
+    el.provenanceFitness.textContent = evalEvidence
+      ? `${evalEvidence.fitnessVectorStatus} / ${evalEvidence.fitnessVectorChecksum}`
+      : "unavailable";
     el.provenanceEvalCases.textContent = evalEvidence ? `${evalEvidence.casesPassed} passed` : "unavailable";
     el.provenanceEvalChecksum.textContent = evalEvidence ? evalEvidence.checksum : "unavailable";
     el.provenanceChecksum.textContent = manifestValue(fields, "slm_checksum");
@@ -1277,6 +1890,40 @@
       return "unavailable";
     }
     return `${value} bytes`;
+  }
+
+  function modulePlanTokenSummary(fields, key) {
+    if (!fields) {
+      return "unavailable";
+    }
+    const tokens = registryDecimalCount(fields[key]);
+    return tokens === null ? "unavailable" : `${tokens} tokens`;
+  }
+
+  function modulePlanSamplerSummary(fields) {
+    if (!fields) {
+      return "unavailable";
+    }
+    const candidates = registryDecimalCount(fields.module_plan_sampler_candidate_cap);
+    return candidates === null ? "unavailable" : `${candidates} candidates`;
+  }
+
+  // Formats the receipt-owned route-count envelope for the Module Plan panel.
+  function modulePlanFetchCountSummary(fields) {
+    if (!fields) {
+      return "unavailable";
+    }
+    const fetches = registryDecimalCount(fields.module_plan_fetch_count_limit);
+    return fetches === null ? "unavailable" : `${fetches} fetches`;
+  }
+
+  // Formats the exact self-assembly route count declared by the verified receipt.
+  function modulePlanPlannedFetchSummary(fields) {
+    if (!fields) {
+      return "unavailable";
+    }
+    const fetches = registryDecimalCount(fields.module_plan_planned_fetch_count);
+    return fetches === null ? "unavailable" : `${fetches} fetches`;
   }
 
   function modulePlanModuleByteSummary(fields) {
@@ -1406,15 +2053,73 @@
     el.modulePlanExecution.textContent = manifestValue(fields, "module_plan_execution_profile");
     el.modulePlanFetch.textContent = manifestValue(fields, "module_plan_fetch_policy");
     el.modulePlanOrigin.textContent = manifestValue(fields, "module_plan_origin_policy");
+    el.modulePlanFetchLimit.textContent = modulePlanFetchCountSummary(fields);
+    el.modulePlanPlannedFetchCount.textContent = modulePlanPlannedFetchSummary(fields);
     el.modulePlanWasmPages.textContent = manifestValue(fields, "module_plan_wasm_memory_initial_pages");
+    el.modulePlanWasmExportSet.textContent = manifestValue(fields, "module_plan_wasm_export_set");
+    el.modulePlanWasmTransferStrategy.textContent = manifestValue(
+      fields,
+      "module_plan_wasm_transfer_strategy"
+    );
+    el.modulePlanModelReleaseStrategy.textContent = manifestValue(
+      fields,
+      "module_plan_model_release_strategy"
+    );
+    el.modulePlanRuntimeResetStrategy.textContent = manifestValue(
+      fields,
+      "module_plan_runtime_reset_strategy"
+    );
+    el.modulePlanAdapterValidationStrategy.textContent = manifestValue(
+      fields,
+      "module_plan_adapter_validation_strategy"
+    );
+    el.modulePlanAdapterValidationCount.textContent = manifestValue(
+      fields,
+      "module_plan_adapter_validation_count"
+    );
+    el.modulePlanAdapterApplyCount.textContent = manifestValue(
+      fields,
+      "module_plan_adapter_apply_count"
+    );
+    el.modulePlanWasmHeapMinBytes.textContent = modulePlanByteSummary(
+      fields,
+      "module_plan_wasm_heap_min_bytes"
+    );
+    el.modulePlanContextTokens.textContent = modulePlanTokenSummary(
+      fields,
+      "module_plan_context_token_limit"
+    );
+    el.modulePlanSamplerCap.textContent = modulePlanSamplerSummary(fields);
+    el.modulePlanTokenizer.textContent = manifestValue(fields, "module_plan_tokenizer_checksum");
     el.modulePlanModules.textContent = manifestValue(fields, "module_count");
     el.modulePlanModelBudget.textContent = modulePlanByteSummary(fields, "module_plan_model_byte_budget");
     el.modulePlanAdapterBudget.textContent = modulePlanByteSummary(fields, "module_plan_adapter_byte_budget");
+    el.modulePlanAdapterStackBudget.textContent = modulePlanByteSummary(
+      fields,
+      "module_plan_adapter_stack_byte_budget"
+    );
     el.modulePlanScratchBudget.textContent = modulePlanByteSummary(
       fields,
       "module_plan_runtime_scratch_byte_budget"
     );
+    el.modulePlanPromptLimit.textContent = modulePlanByteSummary(
+      fields,
+      "module_plan_prompt_byte_limit"
+    );
+    el.modulePlanOutputLimit.textContent = modulePlanByteSummary(
+      fields,
+      "module_plan_output_byte_limit"
+    );
+    el.modulePlanKvCacheBudget.textContent = modulePlanByteSummary(
+      fields,
+      "module_plan_kv_cache_byte_budget"
+    );
+    el.modulePlanKvCachePages.textContent = manifestValue(fields, "module_plan_kv_cache_page_count");
     el.modulePlanTotalBudget.textContent = modulePlanByteSummary(fields, "module_plan_total_byte_budget");
+    el.modulePlanTotalLimit.textContent = modulePlanByteSummary(
+      fields,
+      "module_plan_total_byte_budget_limit"
+    );
     el.modulePlanBytes.textContent = modulePlanModuleByteSummary(fields);
     el.modulePlanChecksums.textContent = modulePlanChecksumSummary(fields);
     el.modulePlanSlots.textContent = modulePlanSlotSummary(fields);
@@ -1751,6 +2456,9 @@
       for (const index of autoApplyIndexes) {
         autoApplyBytes += adapterManifestArtifactBytes(manifestFields[index], "Adapter manifest");
       }
+      if (model.modulePlan && autoApplyBytes !== model.modulePlan.adapterStackByteBudget) {
+        throw new Error("Module plan adapter stack byte budget mismatch");
+      }
       if (autoApplyBytes > model.adapterFamily.autoApplyByteBudget) {
         throw new Error("Adapter auto assembly byte budget exceeded");
       }
@@ -1782,6 +2490,30 @@
     requireManifestEqual(fields, "module_plan_execution_profile", plan.executionProfile, source);
     requireManifestEqual(fields, "module_plan_fetch_policy", plan.fetchPolicy, source);
     requireManifestEqual(fields, "module_plan_origin_policy", plan.originPolicy, source);
+    const fetchCountLimit = requireModulePlanCount(
+      fields,
+      "module_plan_fetch_count_limit",
+      plan.fetchCountLimit
+    );
+    if (
+      fetchCountLimit !== registryModulePlanFetchCountLimit ||
+      modulePlanDeclaredFetchCount(model, plan.moduleCount) > fetchCountLimit
+    ) {
+      throw new Error("Module plan fetch count limit mismatch");
+    }
+    const plannedFetchCount = requireModulePlanCount(
+      fields,
+      "module_plan_planned_fetch_count",
+      plan.plannedFetchCount
+    );
+    const declaredFetchCount = modulePlanDeclaredFetchCount(model, plan.moduleCount);
+    if (
+      plannedFetchCount !== declaredFetchCount ||
+      plannedFetchCount !== registryModulePlanPlannedFetchCount ||
+      plannedFetchCount > fetchCountLimit
+    ) {
+      throw new Error("Module plan planned fetch count mismatch");
+    }
     const wasmMemoryInitialPages = requireManifestField(
       fields,
       "module_plan_wasm_memory_initial_pages",
@@ -1793,6 +2525,129 @@
     ) {
       throw new Error("Module plan WASM memory initial pages mismatch");
     }
+    const wasmExportSet = requireManifestField(fields, "module_plan_wasm_export_set", source);
+    if (wasmExportSet !== plan.wasmExportSet || !verifyModulePlanWasmExports(wasmExportSet)) {
+      throw new Error("Module plan WASM export set mismatch");
+    }
+    const wasmTransferStrategy = requireManifestField(
+      fields,
+      "module_plan_wasm_transfer_strategy",
+      source
+    );
+    if (
+      wasmTransferStrategy !== plan.wasmTransferStrategy ||
+      wasmTransferStrategy !== registryModulePlanWasmTransferStrategy
+    ) {
+      throw new Error("Module plan WASM transfer strategy mismatch");
+    }
+    const modelReleaseStrategy = requireManifestField(
+      fields,
+      "module_plan_model_release_strategy",
+      source
+    );
+    if (
+      modelReleaseStrategy !== plan.modelReleaseStrategy ||
+      modelReleaseStrategy !== registryModulePlanModelReleaseStrategy
+    ) {
+      throw new Error("Module plan model release strategy mismatch");
+    }
+    const runtimeResetStrategy = requireManifestField(
+      fields,
+      "module_plan_runtime_reset_strategy",
+      source
+    );
+    if (
+      runtimeResetStrategy !== plan.runtimeResetStrategy ||
+      runtimeResetStrategy !== registryModulePlanRuntimeResetStrategy
+    ) {
+      throw new Error("Module plan runtime reset strategy mismatch");
+    }
+    const adapterValidationStrategy = requireManifestField(
+      fields,
+      "module_plan_adapter_validation_strategy",
+      source
+    );
+    if (
+      adapterValidationStrategy !== plan.adapterValidationStrategy ||
+      adapterValidationStrategy !== registryModulePlanAdapterValidationStrategy
+    ) {
+      throw new Error("Module plan adapter validation strategy mismatch");
+    }
+    const adapterValidationCountValue = requireManifestField(
+      fields,
+      "module_plan_adapter_validation_count",
+      source
+    );
+    const adapterValidationCount = registryDecimalCount(adapterValidationCountValue);
+    if (
+      adapterValidationCount === null ||
+      adapterValidationCount !== plan.adapterValidationCount ||
+      adapterValidationCount !== plan.adapterApplyCount ||
+      (model.adapterFamily && adapterValidationCount !== model.adapterFamily.autoApplyStackCount) ||
+      adapterValidationCount !== registryModulePlanAdapterValidationCount
+    ) {
+      throw new Error("Module plan adapter validation count mismatch");
+    }
+    const adapterApplyCountValue = requireManifestField(
+      fields,
+      "module_plan_adapter_apply_count",
+      source
+    );
+    const adapterApplyCount = registryDecimalCount(adapterApplyCountValue);
+    if (
+      adapterApplyCount === null ||
+      adapterApplyCount !== plan.adapterApplyCount ||
+      (model.adapterFamily && adapterApplyCount !== model.adapterFamily.autoApplyStackCount) ||
+      adapterApplyCount !== registryModulePlanAdapterApplyCount
+    ) {
+      throw new Error("Module plan adapter apply count mismatch");
+    }
+    const wasmHeapMinValue = requireManifestField(
+      fields,
+      "module_plan_wasm_heap_min_bytes",
+      source
+    );
+    const wasmHeapMinBytes = registryDecimalByteCount(wasmHeapMinValue);
+    if (wasmHeapMinBytes === null || wasmHeapMinBytes !== plan.wasmHeapMinBytes) {
+      throw new Error("Module plan WASM heap min bytes mismatch");
+    }
+    const contextTokenLimitValue = requireManifestField(
+      fields,
+      "module_plan_context_token_limit",
+      source
+    );
+    const contextTokenLimit = registryDecimalCount(contextTokenLimitValue);
+    if (
+      contextTokenLimit === null ||
+      contextTokenLimit !== plan.contextTokenLimit ||
+      contextTokenLimit !== model.contextTokenLimit ||
+      contextTokenLimit < model.maxTokens ||
+      contextTokenLimit > registryModulePlanContextTokenLimitLimit
+    ) {
+      throw new Error("Module plan context token limit mismatch");
+    }
+    const samplerCandidateCapValue = requireManifestField(
+      fields,
+      "module_plan_sampler_candidate_cap",
+      source
+    );
+    const samplerCandidateCap = registryDecimalCount(samplerCandidateCapValue);
+    // Mirrors the fixed top-k candidate buffer before generated model bytes are fetched.
+    if (
+      samplerCandidateCap === null ||
+      samplerCandidateCap !== plan.samplerCandidateCap ||
+      samplerCandidateCap !== registryModulePlanSamplerCandidateCap
+    ) {
+      throw new Error("Module plan sampler candidate cap mismatch");
+    }
+    const tokenizerChecksum = requireManifestField(fields, "module_plan_tokenizer_checksum", source);
+    if (
+      !isRegistryHex64(tokenizerChecksum) ||
+      tokenizerChecksum !== plan.tokenizerChecksum ||
+      tokenizerChecksum !== model.tokenizerChecksum
+    ) {
+      throw new Error("Module plan tokenizer checksum mismatch");
+    }
     const modelByteBudget = requireModulePlanByteBudget(
       fields,
       "module_plan_model_byte_budget",
@@ -1803,15 +2658,54 @@
       "module_plan_adapter_byte_budget",
       plan.adapterByteBudget
     );
+    const adapterStackByteBudget = requireModulePlanByteBudget(
+      fields,
+      "module_plan_adapter_stack_byte_budget",
+      plan.adapterStackByteBudget
+    );
+    const promptByteLimit = requireModulePlanByteBudget(
+      fields,
+      "module_plan_prompt_byte_limit",
+      plan.promptByteLimit
+    );
     const runtimeScratchByteBudget = requireModulePlanByteBudget(
       fields,
       "module_plan_runtime_scratch_byte_budget",
       plan.runtimeScratchByteBudget
     );
+    const outputByteLimit = requireModulePlanByteBudget(
+      fields,
+      "module_plan_output_byte_limit",
+      plan.outputByteLimit
+    );
+    const kvCacheByteBudget = requireModulePlanByteBudget(
+      fields,
+      "module_plan_kv_cache_byte_budget",
+      plan.kvCacheByteBudget
+    );
+    const kvCachePageCountValue = requireManifestField(
+      fields,
+      "module_plan_kv_cache_page_count",
+      source
+    );
+    const kvCachePageCount = Number.parseInt(kvCachePageCountValue, 10);
+    if (
+      !Number.isInteger(kvCachePageCount) ||
+      String(kvCachePageCount) !== kvCachePageCountValue ||
+      kvCachePageCount !== plan.kvCachePageCount ||
+      kvCachePageCount !== modulePlanPageCountForBytes(kvCacheByteBudget)
+    ) {
+      throw new Error("Module plan KV cache page count mismatch");
+    }
     const totalByteBudget = requireModulePlanByteBudget(
       fields,
       "module_plan_total_byte_budget",
       plan.totalByteBudget
+    );
+    const totalByteBudgetLimit = requireModulePlanByteBudget(
+      fields,
+      "module_plan_total_byte_budget_limit",
+      plan.totalByteBudgetLimit
     );
     if (modelByteBudget !== model.modelBytes) {
       throw new Error("Module plan model byte budget mismatch");
@@ -1819,8 +2713,33 @@
     if (model.adapterFamily && adapterByteBudget !== model.adapterFamily.autoApplyByteBudget) {
       throw new Error("Module plan adapter byte budget mismatch");
     }
+    if (adapterStackByteBudget <= 0 || adapterStackByteBudget > adapterByteBudget) {
+      throw new Error("Module plan adapter stack byte budget mismatch");
+    }
+    if (promptByteLimit !== registryModulePlanPromptByteLimit) {
+      throw new Error("Module plan prompt byte limit mismatch");
+    }
+    if (
+      wasmHeapMinBytes !==
+      modulePlanWasmHeapMinBytes(modelByteBudget, adapterStackByteBudget, promptByteLimit)
+    ) {
+      throw new Error("Module plan WASM heap min bytes mismatch");
+    }
+    probeWasmHeapAllocation(wasmHeapMinBytes);
     if (runtimeScratchByteBudget !== registryModulePlanRuntimeScratchByteBudget) {
       throw new Error("Module plan runtime scratch byte budget mismatch");
+    }
+    if (outputByteLimit !== registryModulePlanOutputByteLimit) {
+      throw new Error("Module plan output byte limit mismatch");
+    }
+    if (kvCacheByteBudget > registryModulePlanKvCacheByteBudgetLimit) {
+      throw new Error("Module plan KV cache byte budget mismatch");
+    }
+    if (
+      totalByteBudgetLimit !== registryModulePlanTotalByteBudgetLimit ||
+      totalByteBudget > totalByteBudgetLimit
+    ) {
+      throw new Error("Module plan total byte budget limit mismatch");
     }
     requireManifestEqual(fields, "model_path", model.path, source);
     requireManifestEqual(fields, "manifest_path", `${model.path}.manifest`, source);
@@ -1920,6 +2839,7 @@
         receiptTextByteBudget
       );
       const seen = new Set();
+      let declaredStackByteBudget = 0;
       for (let stackIndex = 0; stackIndex < model.adapterFamily.autoApplyStackCount; stackIndex += 1) {
         const moduleIndex = stackIndex + 4;
         const prefix = `module.${moduleIndex}`;
@@ -1940,7 +2860,7 @@
         requireManifestEqual(fields, `${prefix}.role`, modulePlanAdapterRole(adapter.path), source);
         requireManifestEqual(fields, `${prefix}.phase`, modulePlanPhase(moduleIndex), source);
         requireManifestEqual(fields, `${prefix}.depends_on`, modulePlanDependency(moduleIndex), source);
-        requireModulePlanByteCount(
+        declaredStackByteBudget += requireModulePlanByteCount(
           fields,
           prefix,
           null,
@@ -1966,8 +2886,21 @@
         );
         seen.add(adapterIndex);
       }
+      if (declaredStackByteBudget !== adapterStackByteBudget) {
+        throw new Error("Module plan adapter stack byte budget mismatch");
+      }
     }
-    if (modulePlanDeclaredByteTotal(fields, moduleCount, runtimeScratchByteBudget) !== totalByteBudget) {
+    if (
+      modulePlanDeclaredByteTotal(
+        fields,
+      moduleCount,
+      promptByteLimit,
+      runtimeScratchByteBudget,
+      outputByteLimit,
+        kvCacheByteBudget
+      ) !==
+      totalByteBudget
+    ) {
       throw new Error("Module plan total byte budget mismatch");
     }
     return fields;
@@ -2017,9 +2950,39 @@
     return bytes;
   }
 
+  // Requires a decimal module-plan count to match the selector-owned envelope.
+  function requireModulePlanCount(fields, key, expected) {
+    const source = "Module plan";
+    const value = requireManifestField(fields, key, source);
+    const count = registryDecimalCount(value);
+    if (count === null || count !== expected) {
+      throw new Error(`Module plan ${key.replace(/_/g, " ")} mismatch`);
+    }
+    return count;
+  }
+
+  // Mirrors the route classes fetched during generated self-assembly.
+  function modulePlanDeclaredFetchCount(model, moduleCount) {
+    let fetchCount = 1 + moduleCount;
+    if (model.assembly) {
+      fetchCount += assemblyEvidenceRoutes.length;
+    }
+    if (Array.isArray(model.adapters)) {
+      fetchCount += model.adapters.length;
+    }
+    return fetchCount;
+  }
+
   // Recomputes the receipt-declared self-assembly total before generated bytes are used.
-  function modulePlanDeclaredByteTotal(fields, moduleCount, runtimeScratchByteBudget) {
-    let total = runtimeScratchByteBudget;
+  function modulePlanDeclaredByteTotal(
+    fields,
+    moduleCount,
+    promptByteLimit,
+    runtimeScratchByteBudget,
+    outputByteLimit,
+    kvCacheByteBudget
+  ) {
+    let total = promptByteLimit + runtimeScratchByteBudget + outputByteLimit + kvCacheByteBudget;
     for (let index = 0; index < moduleCount; index += 1) {
       const bytes = registryDecimalByteCount(
         requireManifestField(fields, `module.${index}.byte_count`, "Module plan")
@@ -2288,6 +3251,29 @@
     return true;
   }
 
+  function applyModulePlanRuntimeReset(model, selectedModel) {
+    // Applies the module-plan reset boundary after model bytes load and before assembly work begins.
+    if (!model.modulePlan) {
+      return true;
+    }
+    if (model.modulePlan.runtimeResetStrategy !== registryModulePlanRuntimeResetStrategy) {
+      throw new Error("Module plan runtime reset strategy mismatch");
+    }
+    if (!state.exports || typeof state.exports.reset_context !== "function") {
+      throw new Error("WASM runtime does not expose context reset");
+    }
+    const code = state.exports.reset_context();
+    const text = readLastResult() || `reset_context returned ${code}`;
+    appendConsole(`reset_context(${selectedModel}) -> ${code}\n${text}`);
+    renderDiagnostics();
+    if (code !== 0) {
+      throw new Error(text);
+    }
+    state.hasContext = false;
+    state.lastMeasuredTokens = 0;
+    return true;
+  }
+
   async function loadSelectedModel() {
     const loadId = state.modelLoadSequence + 1;
     state.modelLoadSequence = loadId;
@@ -2391,6 +3377,25 @@
     setText(el.runtimeStatus, loadCode === 0 ? "Ready" : "Model rejected", loadCode !== 0);
     setText(el.errorState, loadCode === 0 ? "none" : readLastResult(), loadCode !== 0);
     if (loadCode === 0) {
+      try {
+        applyModulePlanRuntimeReset(model, selectedModel);
+      } catch (error) {
+        const text = errorMessage(error);
+        state.modelLoaded = false;
+        state.hasContext = false;
+        state.lastMeasuredTokens = 0;
+        setText(el.modelState, "runtime reset rejected", true);
+        setText(el.runtimeStatus, "Model load failed", true);
+        setText(el.errorState, text, true);
+        renderProvenance("model not loaded", null, true);
+        renderModulePlan(text, model.modulePlanReceipt, true);
+        resetModulePlanTrace(text, true);
+        renderAssembly("model not loaded", null, true);
+        setText(el.adapterState, "model not loaded", true);
+        setControls(false, true);
+        renderDiagnostics();
+        return false;
+      }
       if (model.modulePlan) {
         recordModulePlanTrace("model accepted");
       }
@@ -2512,6 +3517,18 @@
     const indexes = Array.isArray(model.adapterFamilyAutoApplyIndexes)
       ? model.adapterFamilyAutoApplyIndexes
       : [model.adapterFamilyPreferredIndex];
+    if (
+      !model.modulePlan ||
+      model.modulePlan.adapterValidationStrategy !== registryModulePlanAdapterValidationStrategy
+    ) {
+      throw new Error("Module plan adapter validation strategy mismatch");
+    }
+    if (model.modulePlan.adapterApplyCount !== indexes.length) {
+      throw new Error("Module plan adapter apply count mismatch");
+    }
+    if (model.modulePlan.adapterValidationCount !== indexes.length) {
+      throw new Error("Module plan adapter validation count mismatch");
+    }
     let autoAssemblyBytes = 0;
     const verifiedStack = [];
     const adapters = modelAdapters(model);
@@ -2532,11 +3549,16 @@
         verifiedStack.push({ index, adapterBytes });
         autoAssemblyBytes += adapterBytes.length;
       }
+      let validated = 0;
       for (const verified of verifiedStack) {
         if (loadId !== state.modelLoadSequence) {
           return false;
         }
         validateAdapterWithRuntime(adapters[verified.index], verified.adapterBytes);
+        validated += 1;
+      }
+      if (validated !== model.modulePlan.adapterValidationCount) {
+        throw new Error("Module plan adapter validation count mismatch");
       }
     } catch (error) {
       const text = errorMessage(error);
@@ -2566,6 +3588,14 @@
         return false;
       }
       applied += 1;
+    }
+    const diagnostics = readDiagnosticsJson();
+    if (
+      applied !== model.modulePlan.adapterApplyCount ||
+      !diagnostics ||
+      diagnostics.adapter_apply_count !== model.modulePlan.adapterApplyCount
+    ) {
+      throw new Error("Module plan adapter apply count mismatch");
     }
     if (applied > 1) {
       appendConsole(`adapter_stack_applied(${applied})`);
@@ -2719,6 +3749,18 @@
       return;
     }
     const bytes = state.encoder.encode(el.prompt.value);
+    // Keeps prompt transfer bytes inside the same envelope declared by generated module plans.
+    if (bytes.length > registryModulePlanPromptByteLimit) {
+      const text = "prompt byte limit exceeded";
+      setText(el.response, text, true);
+      setText(el.errorState, text, true);
+      el.console.textContent = text;
+      appendMessage("user", el.prompt.value, false);
+      appendMessage("assistant", text, true);
+      renderDiagnostics();
+      setControls(true, true);
+      return;
+    }
     const ptr = allocCopy(bytes);
     const maxTokens = Math.max(1, Math.min(512, Number.parseInt(el.maxTokens.value, 10) || 1));
     el.maxTokens.value = String(maxTokens);

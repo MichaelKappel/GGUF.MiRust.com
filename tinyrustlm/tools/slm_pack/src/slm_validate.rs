@@ -73,6 +73,26 @@ impl ValidationReport {
         self.file_bytes
     }
 
+    /// Returns the runtime KV-cache allocation implied by the model header.
+    pub(crate) fn kv_cache_byte_budget(&self) -> io::Result<u64> {
+        kv_cache_byte_budget_from_shape(
+            self.header.layer_count,
+            self.header.max_context,
+            self.header.kv_head_count,
+            self.header.head_dim,
+        )
+    }
+
+    /// Returns the maximum context token count declared by the validated header.
+    pub(crate) fn context_token_limit(&self) -> u32 {
+        self.header.max_context
+    }
+
+    /// Returns the KV-cache byte budget as a 64 KiB WebAssembly page count.
+    pub(crate) fn kv_cache_page_count(&self) -> io::Result<u64> {
+        kv_cache_page_count_for_bytes(self.kv_cache_byte_budget()?)
+    }
+
     /// Returns the parsed `.slm` version.
     pub(crate) fn slm_version(&self) -> u32 {
         self.header.version
@@ -303,6 +323,33 @@ fn validate_checksum(bytes: &[u8], header: &SlmHeader) -> io::Result<()> {
         return Err(invalid("checksum mismatch"));
     }
     Ok(())
+}
+
+fn kv_cache_byte_budget_from_shape(
+    layer_count: u32,
+    max_context: u32,
+    kv_head_count: u32,
+    head_dim: u32,
+) -> io::Result<u64> {
+    // Mirrors runtime KV allocation math so module-plan receipts use validated model shape.
+    let key_value_copies = 2u64;
+    let f32_bytes = 4u64;
+    u64::from(layer_count)
+        .checked_mul(u64::from(max_context))
+        .and_then(|value| value.checked_mul(u64::from(kv_head_count)))
+        .and_then(|value| value.checked_mul(u64::from(head_dim)))
+        .and_then(|value| value.checked_mul(key_value_copies))
+        .and_then(|value| value.checked_mul(f32_bytes))
+        .ok_or_else(|| invalid("kv cache byte budget overflow"))
+}
+
+fn kv_cache_page_count_for_bytes(bytes: u64) -> io::Result<u64> {
+    // Converts the byte envelope to WebAssembly page units for browser display and checks.
+    let page_bytes = 64 * 1024u64;
+    bytes
+        .checked_add(page_bytes - 1)
+        .map(|value| value / page_bytes)
+        .ok_or_else(|| invalid("kv cache page count overflow"))
 }
 
 fn validate_tokenizer(bytes: &[u8], header: &SlmHeader) -> io::Result<()> {
@@ -834,6 +881,9 @@ mod tests {
         assert_eq!(report.quantization_label, "f32");
         assert_ne!(report.tokenizer_checksum(), 0);
         assert_ne!(report.tensor_layout_checksum(), 0);
+        assert_eq!(report.context_token_limit(), 16);
+        assert_eq!(report.kv_cache_byte_budget().unwrap(), 1024);
+        assert_eq!(report.kv_cache_page_count().unwrap(), 1);
     }
 
     #[test]

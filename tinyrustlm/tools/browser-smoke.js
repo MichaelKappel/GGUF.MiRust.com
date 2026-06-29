@@ -11,15 +11,15 @@ const path = require("path");
 const appUrl = process.argv[2] || "http://127.0.0.1:8080/app/";
 const port = Number(process.argv[3] || 9223);
 const smokeMode = process.argv[5] || "single";
-const combinedSelectorRouteSoakMode = smokeMode === "combined-selector-route-soak" || smokeMode === "combined-selector-route-extended-soak";
-const expectedModel = process.argv[4] || (smokeMode === "multi-parent-registry" ? "multi-parent-sign-merge-q8" : smokeMode === "adapter-sidecar-registry-q8" ? "tinyq8" : smokeMode === "adapter-manifest-budget" || smokeMode === "adapter-family-receipt-drift" || smokeMode === "adapter-manifest-drift" || smokeMode === "source-backed-alr1-manifest-drift" || smokeMode === "adapter-artifact-drift" || smokeMode === "adapter-stack-prefetch-drift" || smokeMode === "adapter-stack-rust-validate-drift" || smokeMode === "module-plan-profile-drift" || smokeMode === "module-plan-execution-profile-drift" || smokeMode === "module-plan-fetch-policy-drift" || smokeMode === "module-plan-origin-policy-drift" || smokeMode === "module-plan-wasm-memory-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-runtime-scratch-drift" || smokeMode === "module-plan-total-budget-drift" || smokeMode === "module-plan-count-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift" || smokeMode === "assembly-eval-case-drift" || smokeMode === "assembly-evidence-file-drift" || smokeMode === "combined-selector-assembly" || smokeMode === "combined-selector-cycle" || combinedSelectorRouteSoakMode || smokeMode === "combined-selector-reload-soak" ? "multi-parent-sign-merge-q4" : smokeMode === "multi-parent-registry-file" || smokeMode === "adapter-sidecar-registry-file" ? "multi-parent-sign-merge-f32" : smokeMode === "adapter-sidecar" || smokeMode === "adapter-sidecar-checksum-mismatch" ? "tinyf32" : "tinylm16q8");
+const combinedSelectorRouteSoakMode = smokeMode === "combined-selector-route-soak" || smokeMode === "combined-selector-route-extended-soak" || smokeMode === "combined-selector-route-stress-soak";
+const expectedModel = process.argv[4] || (smokeMode === "multi-parent-registry" ? "multi-parent-sign-merge-q8" : smokeMode === "adapter-sidecar-registry-q8" ? "tinyq8" : smokeMode === "adapter-manifest-budget" || smokeMode === "adapter-family-receipt-drift" || smokeMode === "adapter-manifest-drift" || smokeMode === "source-backed-alr1-manifest-drift" || smokeMode === "adapter-artifact-drift" || smokeMode === "adapter-stack-prefetch-drift" || smokeMode === "adapter-stack-rust-validate-drift" || smokeMode === "module-plan-profile-drift" || smokeMode === "module-plan-execution-profile-drift" || smokeMode === "module-plan-fetch-policy-drift" || smokeMode === "module-plan-origin-policy-drift" || smokeMode === "module-plan-wasm-memory-drift" || smokeMode === "module-plan-wasm-export-set-drift" || smokeMode === "module-plan-wasm-transfer-drift" || smokeMode === "module-plan-model-release-drift" || smokeMode === "module-plan-runtime-reset-drift" || smokeMode === "module-plan-adapter-validation-drift" || smokeMode === "module-plan-adapter-validation-count-drift" || smokeMode === "module-plan-adapter-apply-count-drift" || smokeMode === "module-plan-wasm-heap-drift" || smokeMode === "module-plan-context-token-drift" || smokeMode === "module-plan-sampler-cap-drift" || smokeMode === "module-plan-tokenizer-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-runtime-scratch-drift" || smokeMode === "module-plan-output-limit-drift" || smokeMode === "module-plan-prompt-limit-drift" || smokeMode === "module-plan-fetch-count-drift" || smokeMode === "module-plan-planned-fetch-count-drift" || smokeMode === "module-plan-kv-cache-drift" || smokeMode === "module-plan-adapter-stack-budget-drift" || smokeMode === "module-plan-total-budget-drift" || smokeMode === "module-plan-total-limit-drift" || smokeMode === "module-plan-count-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift" || smokeMode === "assembly-eval-case-drift" || smokeMode === "assembly-evidence-file-drift" || smokeMode === "combined-selector-assembly" || smokeMode === "combined-selector-cycle" || combinedSelectorRouteSoakMode || smokeMode === "combined-selector-reload-soak" ? "multi-parent-sign-merge-q4" : smokeMode === "multi-parent-registry-file" || smokeMode === "adapter-sidecar-registry-file" ? "multi-parent-sign-merge-f32" : smokeMode === "adapter-sidecar" || smokeMode === "adapter-sidecar-checksum-mismatch" ? "tinyf32" : "tinylm16q8");
 const enduranceCycles = Math.max(2, Math.min(20, Number.parseInt(process.argv[6] || "4", 10) || 4));
 const performanceTokens = Math.max(2, Math.min(8, Number.parseInt(process.argv[6] || "4", 10) || 4));
 const performanceSoakCycles = Math.max(2, Math.min(10, Number.parseInt(process.argv[6] || "3", 10) || 3));
 const performanceSoakTokens = Math.max(2, Math.min(8, Number.parseInt(process.argv[7] || "4", 10) || 4));
-const combinedSelectorDefaultCycles = smokeMode === "combined-selector-route-extended-soak" ? "5" : smokeMode === "combined-selector-route-soak" ? "3" : "2";
-const combinedSelectorMinCycles = smokeMode === "combined-selector-route-extended-soak" ? 5 : smokeMode === "combined-selector-route-soak" ? 3 : 2;
-const combinedSelectorCycles = Math.max(combinedSelectorMinCycles, Math.min(6, Number.parseInt(process.argv[6] || combinedSelectorDefaultCycles, 10) || Number.parseInt(combinedSelectorDefaultCycles, 10)));
+const combinedSelectorDefaultCycles = smokeMode === "combined-selector-route-stress-soak" ? "8" : smokeMode === "combined-selector-route-extended-soak" ? "5" : smokeMode === "combined-selector-route-soak" ? "3" : "2";
+const combinedSelectorMinCycles = smokeMode === "combined-selector-route-stress-soak" ? 8 : smokeMode === "combined-selector-route-extended-soak" ? 5 : smokeMode === "combined-selector-route-soak" ? 3 : 2;
+const combinedSelectorCycles = Math.max(combinedSelectorMinCycles, Math.min(10, Number.parseInt(process.argv[6] || combinedSelectorDefaultCycles, 10) || Number.parseInt(combinedSelectorDefaultCycles, 10)));
 const combinedSelectorReloads = Math.max(2, Math.min(6, Number.parseInt(process.argv[6] || "2", 10) || 2));
 const checksumMask64 = (1n << 64n) - 1n;
 const checksumPrime64 = 0x100000001b3n;
@@ -130,7 +130,28 @@ const expectedModulePlanRoutes = {
 const expectedModulePlanExecutionProfile = "single-threaded-wasm-local-v1";
 const expectedModulePlanFetchPolicy = "local-no-store-v1";
 const expectedModulePlanOriginPolicy = "same-origin-loopback-local-v1";
+const expectedModulePlanFetchLimit = "32 fetches";
+const expectedModulePlanFetchLimitCount = 32;
+const expectedModulePlanPlannedFetches = "21 fetches";
+const expectedModulePlanActualFetches = 21;
 const expectedModulePlanWasmMemoryInitialPages = "17";
+const expectedModulePlanWasmExportSet = "tinyrustlm-generate-v1";
+const expectedModulePlanWasmTransferStrategy = "copy-then-release-v1";
+const expectedModulePlanModelReleaseStrategy = "free-before-reassembly-v1";
+const expectedModulePlanRuntimeResetStrategy = "reset-context-before-assembly-v1";
+const expectedModulePlanAdapterValidationStrategy = "rust-validate-before-apply-v1";
+const expectedModulePlanAdapterValidationCount = "3";
+const expectedModulePlanAdapterValidationCountValue = 3;
+const expectedModulePlanAdapterApplyCount = "3";
+const expectedModulePlanAdapterApplyCountValue = 3;
+const expectedModulePlanWasmHeapMinBytes = "65536 bytes";
+const expectedModulePlanContextTokens = "16 tokens";
+const expectedModulePlanSamplerCap = "1024 candidates";
+const expectedModulePlanAdapterStackBudget = "22144 bytes";
+const expectedModulePlanPromptLimit = "4096 bytes";
+const expectedModulePlanOutputLimit = "65536 bytes";
+const expectedModulePlanKvCacheBudget = "1024 bytes";
+const expectedModulePlanKvCachePages = "1";
 
 const expectedModulePlanModelBudgets = {
   "multi-parent-sign-merge-q8": "8832 bytes",
@@ -139,21 +160,27 @@ const expectedModulePlanModelBudgets = {
 };
 
 const expectedModulePlanTotalBudgets = {
-  "multi-parent-sign-merge-q8": "104999 bytes",
-  "multi-parent-sign-merge-q4": "102759 bytes",
-  "multi-parent-sign-merge-f32": "116533 bytes"
+  "multi-parent-sign-merge-q8": "175657 bytes",
+  "multi-parent-sign-merge-q4": "173417 bytes",
+  "multi-parent-sign-merge-f32": "187191 bytes"
+};
+
+const expectedModulePlanTotalLimits = {
+  "multi-parent-sign-merge-q8": "43454464 bytes",
+  "multi-parent-sign-merge-q4": "43454464 bytes",
+  "multi-parent-sign-merge-f32": "43454464 bytes"
 };
 
 const expectedModulePlanBytes = {
-  "multi-parent-sign-merge-q8": "0: 8832 bytes, 1: 592 bytes, 2: 1896 bytes, 3: 5999 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 1088 bytes",
-  "multi-parent-sign-merge-q4": "0: 6592 bytes, 1: 592 bytes, 2: 1896 bytes, 3: 5999 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 1088 bytes",
-  "multi-parent-sign-merge-f32": "0: 20352 bytes, 1: 593 bytes, 2: 1909 bytes, 3: 5999 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 1088 bytes"
+  "multi-parent-sign-merge-q8": "0: 8832 bytes, 1: 594 bytes, 2: 1896 bytes, 3: 5999 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 1088 bytes",
+  "multi-parent-sign-merge-q4": "0: 6592 bytes, 1: 594 bytes, 2: 1896 bytes, 3: 5999 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 1088 bytes",
+  "multi-parent-sign-merge-f32": "0: 20352 bytes, 1: 595 bytes, 2: 1909 bytes, 3: 5999 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 1088 bytes"
 };
 
 const expectedModulePlanChecksums = {
-  "multi-parent-sign-merge-q8": "0: 0x0132bc82d5a0d7d6, 1: 0xa057c2ed7a3b614b, 2: 0x77f4b0d6ea4e0f4f, 3: 0x3fd79a1199458a98, 4: 0x8194a8a671285019, 5: 0x6fa5d29bee9b7cfb, 6: 0x1ed9d08142edfda9",
-  "multi-parent-sign-merge-q4": "0: 0x1a6808e3098d1ce0, 1: 0x20c772a471d34448, 2: 0x18553450b9ce4036, 3: 0xadf9bc30a3625656, 4: 0x0bd71e0020bc6ebf, 5: 0x69638218a1dd1eb6, 6: 0xcaf46ccfc262fad2",
-  "multi-parent-sign-merge-f32": "0: 0x8a0e6c4c01998199, 1: 0x408da471f3c64a2e, 2: 0x6ee2ab952802942f, 3: 0x84e40864dc6aedde, 4: 0xe9669ade4571fd42, 5: 0x34008cedc028ed5c, 6: 0x1c64143141c223b5"
+  "multi-parent-sign-merge-q8": "0: 0x0132bc82d5a0d7d6, 1: 0x3d14ef7fa1b3ae05, 2: 0xad66de0b203ffca1, 3: 0x59268023ad4e3c0f, 4: 0x8194a8a671285019, 5: 0x6fa5d29bee9b7cfb, 6: 0x1ed9d08142edfda9",
+  "multi-parent-sign-merge-q4": "0: 0x1a6808e3098d1ce0, 1: 0x6d74e9f101d2b990, 2: 0x90860d865bb402e5, 3: 0xc5c8992662a5788e, 4: 0x0bd71e0020bc6ebf, 5: 0x69638218a1dd1eb6, 6: 0xcaf46ccfc262fad2",
+  "multi-parent-sign-merge-f32": "0: 0x8a0e6c4c01998199, 1: 0x1fe27dc9a8b25956, 2: 0x10214fcc0189495e, 3: 0x3822d9dae682fcd3, 4: 0xe9669ade4571fd42, 5: 0x34008cedc028ed5c, 6: 0x1c64143141c223b5"
 };
 
 const expectedModulePlanRoles =
@@ -251,6 +278,15 @@ function requestUrlPathEquals(requestUrl, expectedPath) {
   }
 }
 
+// Normalizes browser request URLs so route-budget checks can reason about paths only.
+function requestUrlPath(requestUrl) {
+  try {
+    return new URL(requestUrl).pathname;
+  } catch (_error) {
+    return requestUrl;
+  }
+}
+
 function networkPathIndex(networkRequests, expectedPath) {
   return networkRequests.findIndex((requestUrl) => {
     try {
@@ -341,6 +377,54 @@ function isHex64(value) {
   return /^0x[0-9a-fA-F]{16}$/.test(String(value || ""));
 }
 
+function isFitnessVectorSummary(value) {
+  // Matches the compact browser text rendered from selector fitness vector metadata.
+  const parts = String(value || "").split(" / ");
+  return parts.length === 2 && parts[0] === "eval-bound" && isHex64(parts[1]);
+}
+
+function isSpeciesFitSummary(value) {
+  // Matches the compact browser text rendered from selector species-fit metadata.
+  const parts = String(value || "").split(" / ");
+  return parts.length === 3 && parts[0] === "browser-fit-bound" && isHex64(parts[1]) && isHex64(parts[2]);
+}
+
+function isNoveltySummary(value) {
+  // Matches the compact browser text rendered from selector novelty sketch metadata.
+  const parts = String(value || "").split(" / ");
+  return parts.length === 3 && parts[0] === "behavior-sketch-bound" && isHex64(parts[1]) && isHex64(parts[2]);
+}
+
+function isPopulationSummary(value) {
+  // Matches the compact browser text rendered from selector population review metadata.
+  const parts = String(value || "").split(" / ");
+  return parts.length === 3 && parts[0] === "population-review-bound" && isHex64(parts[1]) && isHex64(parts[2]);
+}
+
+function isMateSelectionSummary(value) {
+  // Matches the compact browser text rendered from selector mate-selection metadata.
+  const parts = String(value || "").split(" / ");
+  return (
+    parts.length === 4 &&
+    (parts[0] === "parent-pool-bound" || parts[0] === "admission-only") &&
+    /^[1-9][0-9]* parents$/.test(parts[1]) &&
+    isHex64(parts[2]) &&
+    isHex64(parts[3])
+  );
+}
+
+function isPhenotypeEvidenceSummary(value) {
+  // Matches the compact browser text rendered from selector phenotype evidence metadata.
+  const parts = String(value || "").split(" / ");
+  return parts.length === 3 && parts[0] === "runtime-eval-bound" && isHex64(parts[1]) && isHex64(parts[2]);
+}
+
+function isHeritableArtifactSummary(value) {
+  // Matches the compact browser text rendered from selector heritable artifact metadata.
+  const parts = String(value || "").split(" / ");
+  return parts.length === 3 && parts[0] === "served-artifact-bound" && isHex64(parts[1]) && isHex64(parts[2]);
+}
+
 function isNonZeroHex64(value) {
   return isHex64(value) && String(value) !== "0x0000000000000000";
 }
@@ -407,6 +491,65 @@ function driftModulePlanRuntimeScratchBudget(receiptText) {
   return receiptText.replace(original, drifted);
 }
 
+function driftModulePlanOutputByteLimit(receiptText) {
+  // Mutates the declared output cap so the browser validates it before fetching generated bytes.
+  const original = "module_plan_output_byte_limit=65536";
+  const drifted = "module_plan_output_byte_limit=65535";
+  if (!receiptText.includes(original)) {
+    throw new Error("module plan output byte limit field was not found");
+  }
+  return receiptText.replace(original, drifted);
+}
+
+function driftModulePlanPromptByteLimit(receiptText) {
+  // Mutates the declared prompt cap so input-transfer validation is receipt-bound.
+  const original = "module_plan_prompt_byte_limit=4096";
+  const drifted = "module_plan_prompt_byte_limit=4095";
+  if (!receiptText.includes(original)) {
+    throw new Error("module plan prompt byte limit field was not found");
+  }
+  return receiptText.replace(original, drifted);
+}
+
+function driftModulePlanFetchCountLimit(receiptText) {
+  // Mutates the route cap so request-count envelopes are checked before model fetches.
+  const original = "module_plan_fetch_count_limit=32";
+  const drifted = "module_plan_fetch_count_limit=31";
+  if (!receiptText.includes(original)) {
+    throw new Error("module plan fetch count limit field was not found");
+  }
+  return receiptText.replace(original, drifted);
+}
+
+function driftModulePlanPlannedFetchCount(receiptText) {
+  // Mutates the exact generated route count so route-count planning is receipt-bound.
+  const original = `module_plan_planned_fetch_count=${expectedModulePlanActualFetches}`;
+  const drifted = "module_plan_planned_fetch_count=20";
+  if (!receiptText.includes(original)) {
+    throw new Error("module plan planned fetch count field was not found");
+  }
+  return receiptText.replace(original, drifted);
+}
+
+function driftModulePlanKvCachePageCount(receiptText) {
+  // Mutates only the KV page count so the smoke isolates cache-envelope validation.
+  const original = `module_plan_kv_cache_page_count=${expectedModulePlanKvCachePages}`;
+  const drifted = "module_plan_kv_cache_page_count=2";
+  if (!receiptText.includes(original)) {
+    throw new Error("module plan KV cache page count field was not found");
+  }
+  return receiptText.replace(original, drifted);
+}
+
+function driftModulePlanAdapterStackBudget(receiptText) {
+  const original = "module_plan_adapter_stack_byte_budget=22144";
+  const drifted = "module_plan_adapter_stack_byte_budget=22143";
+  if (!receiptText.includes(original)) {
+    throw new Error("module plan adapter stack byte budget field was not found");
+  }
+  return receiptText.replace(original, drifted);
+}
+
 function driftModulePlanTotalBudget(receiptText) {
   const totalMatch = receiptText.match(/^module_plan_total_byte_budget=(\d+)$/m);
   if (!totalMatch) {
@@ -417,6 +560,18 @@ function driftModulePlanTotalBudget(receiptText) {
     throw new Error("module plan total byte budget field was invalid");
   }
   return receiptText.replace(totalMatch[0], `module_plan_total_byte_budget=${total - 1}`);
+}
+
+function driftModulePlanTotalLimit(receiptText) {
+  const limitMatch = receiptText.match(/^module_plan_total_byte_budget_limit=(\d+)$/m);
+  if (!limitMatch) {
+    throw new Error("module plan total byte budget limit field was not found");
+  }
+  const limit = Number.parseInt(limitMatch[1], 10);
+  if (!Number.isSafeInteger(limit) || limit < 2) {
+    throw new Error("module plan total byte budget limit field was invalid");
+  }
+  return receiptText.replace(limitMatch[0], `module_plan_total_byte_budget_limit=${limit - 1}`);
 }
 
 // Mutates only receipt cardinality so selector-declared module counts must remain authoritative.
@@ -439,6 +594,111 @@ function driftModulePlanWasmMemory(receiptText) {
     throw new Error("module plan WASM memory initial pages field was not found");
   }
   return receiptText.replace(original, drifted);
+}
+
+// Mutates only the named ABI set so the smoke isolates Rust/WASM export validation.
+function driftModulePlanWasmExportSet(receiptText) {
+  const original = `module_plan_wasm_export_set=${expectedModulePlanWasmExportSet}`;
+  const drifted = "module_plan_wasm_export_set=tinyrustlm-extra-v1";
+  if (!receiptText.includes(original)) {
+    throw new Error("module plan WASM export set field was not found");
+  }
+  return receiptText.replace(original, drifted);
+}
+
+function driftModulePlanWasmTransferStrategy(receiptText) {
+  const original = `module_plan_wasm_transfer_strategy=${expectedModulePlanWasmTransferStrategy}`;
+  const drifted = "module_plan_wasm_transfer_strategy=copy-keep-v1";
+  if (!receiptText.includes(original)) {
+    throw new Error("module plan WASM transfer strategy field was not found");
+  }
+  return receiptText.replace(original, drifted);
+}
+
+function driftModulePlanModelReleaseStrategy(receiptText) {
+  const original = `module_plan_model_release_strategy=${expectedModulePlanModelReleaseStrategy}`;
+  const drifted = "module_plan_model_release_strategy=keep-resident-v1";
+  if (!receiptText.includes(original)) {
+    throw new Error("module plan model release strategy field was not found");
+  }
+  return receiptText.replace(original, drifted);
+}
+
+// Mutates only the reset strategy so drift stays isolated to runtime-context reset binding.
+function driftModulePlanRuntimeResetStrategy(receiptText) {
+  const original = `module_plan_runtime_reset_strategy=${expectedModulePlanRuntimeResetStrategy}`;
+  const drifted = "module_plan_runtime_reset_strategy=skip-reset-v1";
+  if (!receiptText.includes(original)) {
+    throw new Error("module plan runtime reset strategy field was not found");
+  }
+  return receiptText.replace(original, drifted);
+}
+
+// Mutates only the adapter validation strategy so the smoke isolates Rust pre-apply validation binding.
+function driftModulePlanAdapterValidationStrategy(receiptText) {
+  const original = `module_plan_adapter_validation_strategy=${expectedModulePlanAdapterValidationStrategy}`;
+  const drifted = "module_plan_adapter_validation_strategy=apply-without-rust-validate-v1";
+  if (!receiptText.includes(original)) {
+    throw new Error("module plan adapter validation strategy field was not found");
+  }
+  return receiptText.replace(original, drifted);
+}
+
+// Mutates only the adapter validation count so the smoke isolates Rust validation cardinality.
+function driftModulePlanAdapterValidationCount(receiptText) {
+  const original = `module_plan_adapter_validation_count=${expectedModulePlanAdapterValidationCount}`;
+  const drifted = "module_plan_adapter_validation_count=2";
+  if (!receiptText.includes(original)) {
+    throw new Error("module plan adapter validation count field was not found");
+  }
+  return receiptText.replace(original, drifted);
+}
+
+// Mutates only the adapter apply count so the smoke isolates planned stack cardinality.
+function driftModulePlanAdapterApplyCount(receiptText) {
+  const original = `module_plan_adapter_apply_count=${expectedModulePlanAdapterApplyCount}`;
+  const drifted = "module_plan_adapter_apply_count=2";
+  if (!receiptText.includes(original)) {
+    throw new Error("module plan adapter apply count field was not found");
+  }
+  return receiptText.replace(original, drifted);
+}
+
+function driftModulePlanWasmHeapMinBytes(receiptText) {
+  const original = "module_plan_wasm_heap_min_bytes=65536";
+  const drifted = "module_plan_wasm_heap_min_bytes=65535";
+  if (!receiptText.includes(original)) {
+    throw new Error("module plan WASM heap min bytes field was not found");
+  }
+  return receiptText.replace(original, drifted);
+}
+
+function driftModulePlanContextTokenLimit(receiptText) {
+  const original = "module_plan_context_token_limit=16";
+  const drifted = "module_plan_context_token_limit=15";
+  if (!receiptText.includes(original)) {
+    throw new Error("module plan context token limit field was not found");
+  }
+  return receiptText.replace(original, drifted);
+}
+
+// Mutates only the sampler cap so the smoke isolates fixed-buffer sampler metadata.
+function driftModulePlanSamplerCandidateCap(receiptText) {
+  const original = "module_plan_sampler_candidate_cap=1024";
+  const drifted = "module_plan_sampler_candidate_cap=1025";
+  if (!receiptText.includes(original)) {
+    throw new Error("module plan sampler candidate cap field was not found");
+  }
+  return receiptText.replace(original, drifted);
+}
+
+// Mutates only tokenizer identity so the smoke isolates module-plan tokenizer binding.
+function driftModulePlanTokenizerChecksum(receiptText) {
+  const checksumPattern = /^module_plan_tokenizer_checksum=0x[0-9a-fA-F]{16}$/m;
+  if (!checksumPattern.test(receiptText)) {
+    throw new Error("module plan tokenizer checksum field was not found");
+  }
+  return receiptText.replace(checksumPattern, "module_plan_tokenizer_checksum=0x00000000000000f1");
 }
 
 function driftModulePlanProfile(receiptText) {
@@ -1074,6 +1334,14 @@ async function runPageAdapterSidecarSmoke(client, modelKey, expectAutoAssembly) 
         selectedModel: byId("modelSelect").value,
         modelOptions,
         adapterState: byId("adapterState").textContent,
+        provenanceGenome: byId("provenanceGenome").textContent,
+        provenanceSpecies: byId("provenanceSpecies").textContent,
+        provenanceNovelty: byId("provenanceNovelty").textContent,
+        provenancePopulation: byId("provenancePopulation").textContent,
+        provenanceMateSelection: byId("provenanceMateSelection").textContent,
+        provenancePhenotype: byId("provenancePhenotype").textContent,
+        provenanceArtifact: byId("provenanceArtifact").textContent,
+        provenanceFitness: byId("provenanceFitness").textContent,
         provenanceEvalCases: byId("provenanceEvalCases").textContent,
         provenanceEvalChecksum: byId("provenanceEvalChecksum").textContent,
         assemblyState: byId("assemblyState").textContent,
@@ -1088,12 +1356,31 @@ async function runPageAdapterSidecarSmoke(client, modelKey, expectAutoAssembly) 
         modulePlanExecution: byId("modulePlanExecution").textContent,
         modulePlanFetch: byId("modulePlanFetch").textContent,
         modulePlanOrigin: byId("modulePlanOrigin").textContent,
+        modulePlanFetchLimit: byId("modulePlanFetchLimit").textContent,
+        modulePlanPlannedFetchCount: byId("modulePlanPlannedFetchCount").textContent,
         modulePlanWasmPages: byId("modulePlanWasmPages").textContent,
+        modulePlanWasmExportSet: byId("modulePlanWasmExportSet").textContent,
+        modulePlanWasmTransferStrategy: byId("modulePlanWasmTransferStrategy").textContent,
+        modulePlanModelReleaseStrategy: byId("modulePlanModelReleaseStrategy").textContent,
+        modulePlanRuntimeResetStrategy: byId("modulePlanRuntimeResetStrategy").textContent,
+        modulePlanAdapterValidationStrategy: byId("modulePlanAdapterValidationStrategy").textContent,
+        modulePlanAdapterValidationCount: byId("modulePlanAdapterValidationCount").textContent,
+        modulePlanAdapterApplyCount: byId("modulePlanAdapterApplyCount").textContent,
+        modulePlanWasmHeapMinBytes: byId("modulePlanWasmHeapMinBytes").textContent,
+        modulePlanContextTokens: byId("modulePlanContextTokens").textContent,
+        modulePlanSamplerCap: byId("modulePlanSamplerCap").textContent,
+        modulePlanTokenizer: byId("modulePlanTokenizer").textContent,
         modulePlanModules: byId("modulePlanModules").textContent,
         modulePlanModelBudget: byId("modulePlanModelBudget").textContent,
         modulePlanAdapterBudget: byId("modulePlanAdapterBudget").textContent,
+        modulePlanAdapterStackBudget: byId("modulePlanAdapterStackBudget").textContent,
         modulePlanScratchBudget: byId("modulePlanScratchBudget").textContent,
+        modulePlanPromptLimit: byId("modulePlanPromptLimit").textContent,
+        modulePlanOutputLimit: byId("modulePlanOutputLimit").textContent,
+        modulePlanKvCacheBudget: byId("modulePlanKvCacheBudget").textContent,
+        modulePlanKvCachePages: byId("modulePlanKvCachePages").textContent,
         modulePlanTotalBudget: byId("modulePlanTotalBudget").textContent,
+        modulePlanTotalLimit: byId("modulePlanTotalLimit").textContent,
         modulePlanBytes: byId("modulePlanBytes").textContent,
         modulePlanChecksums: byId("modulePlanChecksums").textContent,
         modulePlanSlots: byId("modulePlanSlots").textContent,
@@ -1132,8 +1419,9 @@ async function runPageAdapterSidecarSmoke(client, modelKey, expectAutoAssembly) 
   return parseEvaluateValue(result);
 }
 
+// Drives repeated q4/q8/f32 browser assemblies; cycles is bounded so route-soak modes stay finite.
 async function runPageCombinedSelectorAssemblySmoke(client, cycles) {
-  const cycleCount = Math.max(1, Math.min(6, Number.parseInt(String(cycles || 1), 10) || 1));
+  const cycleCount = Math.max(1, Math.min(10, Number.parseInt(String(cycles || 1), 10) || 1));
   const expression = `
     (async () => {
       const expectedModels = ${JSON.stringify(combinedSelectorModels)};
@@ -1156,11 +1444,17 @@ async function runPageCombinedSelectorAssemblySmoke(client, cycles) {
       };
       const waitForReadyAssembly = async (modelKey) => {
         for (let index = 0; index < 900; index += 1) {
-          const ready = byId("modelSelect").value === modelKey &&
-            byId("generateButton") &&
-            !byId("generateButton").disabled &&
-            byId("runtimeStatus").textContent === "Ready";
-          const assembled = byId("adapterState") && byId("adapterState").textContent === "applied";
+          const modelSelect = byId("modelSelect");
+          const generateButton = byId("generateButton");
+          const runtimeStatus = byId("runtimeStatus");
+          const adapterState = byId("adapterState");
+          const ready = modelSelect &&
+            modelSelect.value === modelKey &&
+            generateButton &&
+            !generateButton.disabled &&
+            runtimeStatus &&
+            runtimeStatus.textContent === "Ready";
+          const assembled = adapterState && adapterState.textContent === "applied";
           if (ready && assembled) {
             return true;
           }
@@ -1168,6 +1462,15 @@ async function runPageCombinedSelectorAssemblySmoke(client, cycles) {
         }
         return false;
       };
+      for (let index = 0; index < 900; index += 1) {
+        if (byId("modelSelect") && byId("runtimeStatus") && byId("adapterState")) {
+          break;
+        }
+        await sleep(100);
+      }
+      if (!byId("modelSelect")) {
+        throw new Error("modelSelect missing before combined selector assembly smoke");
+      }
       for (let index = 0; index < 900; index += 1) {
         const options = Array.from(byId("modelSelect").options).map((option) => option.value);
         if (
@@ -1240,6 +1543,14 @@ async function runPageCombinedSelectorAssemblySmoke(client, cycles) {
           selectedModel: byId("modelSelect").value,
           modelOptions,
           adapterState: byId("adapterState").textContent,
+          provenanceGenome: byId("provenanceGenome").textContent,
+          provenanceSpecies: byId("provenanceSpecies").textContent,
+          provenanceNovelty: byId("provenanceNovelty").textContent,
+          provenancePopulation: byId("provenancePopulation").textContent,
+          provenanceMateSelection: byId("provenanceMateSelection").textContent,
+          provenancePhenotype: byId("provenancePhenotype").textContent,
+          provenanceArtifact: byId("provenanceArtifact").textContent,
+          provenanceFitness: byId("provenanceFitness").textContent,
           provenanceEvalCases: byId("provenanceEvalCases").textContent,
           provenanceEvalChecksum: byId("provenanceEvalChecksum").textContent,
           assemblyState: byId("assemblyState").textContent,
@@ -1254,12 +1565,31 @@ async function runPageCombinedSelectorAssemblySmoke(client, cycles) {
           modulePlanExecution: byId("modulePlanExecution").textContent,
           modulePlanFetch: byId("modulePlanFetch").textContent,
           modulePlanOrigin: byId("modulePlanOrigin").textContent,
+          modulePlanFetchLimit: byId("modulePlanFetchLimit").textContent,
+          modulePlanPlannedFetchCount: byId("modulePlanPlannedFetchCount").textContent,
           modulePlanWasmPages: byId("modulePlanWasmPages").textContent,
+          modulePlanWasmExportSet: byId("modulePlanWasmExportSet").textContent,
+          modulePlanWasmTransferStrategy: byId("modulePlanWasmTransferStrategy").textContent,
+          modulePlanModelReleaseStrategy: byId("modulePlanModelReleaseStrategy").textContent,
+          modulePlanRuntimeResetStrategy: byId("modulePlanRuntimeResetStrategy").textContent,
+          modulePlanAdapterValidationStrategy: byId("modulePlanAdapterValidationStrategy").textContent,
+          modulePlanAdapterValidationCount: byId("modulePlanAdapterValidationCount").textContent,
+          modulePlanAdapterApplyCount: byId("modulePlanAdapterApplyCount").textContent,
+          modulePlanWasmHeapMinBytes: byId("modulePlanWasmHeapMinBytes").textContent,
+          modulePlanContextTokens: byId("modulePlanContextTokens").textContent,
+          modulePlanSamplerCap: byId("modulePlanSamplerCap").textContent,
+          modulePlanTokenizer: byId("modulePlanTokenizer").textContent,
           modulePlanModules: byId("modulePlanModules").textContent,
           modulePlanModelBudget: byId("modulePlanModelBudget").textContent,
           modulePlanAdapterBudget: byId("modulePlanAdapterBudget").textContent,
+          modulePlanAdapterStackBudget: byId("modulePlanAdapterStackBudget").textContent,
           modulePlanScratchBudget: byId("modulePlanScratchBudget").textContent,
+          modulePlanPromptLimit: byId("modulePlanPromptLimit").textContent,
+          modulePlanOutputLimit: byId("modulePlanOutputLimit").textContent,
+          modulePlanKvCacheBudget: byId("modulePlanKvCacheBudget").textContent,
+          modulePlanKvCachePages: byId("modulePlanKvCachePages").textContent,
           modulePlanTotalBudget: byId("modulePlanTotalBudget").textContent,
+          modulePlanTotalLimit: byId("modulePlanTotalLimit").textContent,
           modulePlanBytes: byId("modulePlanBytes").textContent,
           modulePlanChecksums: byId("modulePlanChecksums").textContent,
           modulePlanSlots: byId("modulePlanSlots").textContent,
@@ -1522,9 +1852,10 @@ async function runPageLoopSmoke(client) {
   return parseEvaluateValue(result);
 }
 
-async function runPageModelErrorSmoke(client) {
+async function runPageModelErrorSmoke(client, modelKey) {
   const expression = `
     (async () => {
+      const expectedModel = ${JSON.stringify(modelKey || "")};
       const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       const byId = (id) => document.getElementById(id);
       const parseDiagnostics = () => {
@@ -1534,6 +1865,18 @@ async function runPageModelErrorSmoke(client) {
           return {};
         }
       };
+      if (expectedModel) {
+        for (let index = 0; index < 600; index += 1) {
+          if (byId("modelSelect")) {
+            break;
+          }
+          await sleep(100);
+        }
+        if (byId("modelSelect") && byId("modelSelect").value !== expectedModel) {
+          byId("modelSelect").value = expectedModel;
+          byId("modelSelect").dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      }
       for (let index = 0; index < 600; index += 1) {
         const status = byId("runtimeStatus") ? byId("runtimeStatus").textContent : "Booting";
         if (status !== "Booting" && status !== "Loading runtime" && status !== "Loading local model") {
@@ -1554,7 +1897,20 @@ async function runPageModelErrorSmoke(client) {
         modulePlanExecution: byId("modulePlanExecution").textContent,
         modulePlanFetch: byId("modulePlanFetch").textContent,
         modulePlanOrigin: byId("modulePlanOrigin").textContent,
+        modulePlanFetchLimit: byId("modulePlanFetchLimit").textContent,
+        modulePlanPlannedFetchCount: byId("modulePlanPlannedFetchCount").textContent,
         modulePlanWasmPages: byId("modulePlanWasmPages").textContent,
+        modulePlanWasmExportSet: byId("modulePlanWasmExportSet").textContent,
+        modulePlanWasmTransferStrategy: byId("modulePlanWasmTransferStrategy").textContent,
+        modulePlanModelReleaseStrategy: byId("modulePlanModelReleaseStrategy").textContent,
+        modulePlanRuntimeResetStrategy: byId("modulePlanRuntimeResetStrategy").textContent,
+        modulePlanAdapterValidationStrategy: byId("modulePlanAdapterValidationStrategy").textContent,
+        modulePlanAdapterValidationCount: byId("modulePlanAdapterValidationCount").textContent,
+        modulePlanAdapterApplyCount: byId("modulePlanAdapterApplyCount").textContent,
+        modulePlanWasmHeapMinBytes: byId("modulePlanWasmHeapMinBytes").textContent,
+        modulePlanContextTokens: byId("modulePlanContextTokens").textContent,
+        modulePlanSamplerCap: byId("modulePlanSamplerCap").textContent,
+        modulePlanTokenizer: byId("modulePlanTokenizer").textContent,
         selectedModel: byId("modelSelect").value,
         generateDisabled: byId("generateButton").disabled,
         stepTokenDisabled: byId("stepTokenButton").disabled,
@@ -2090,6 +2446,14 @@ async function runPageUiAudit(client) {
           provenanceAdmission: byId("provenanceAdmission").textContent,
           provenanceQualityClaim: byId("provenanceQualityClaim").textContent,
           provenanceTrainedClaim: byId("provenanceTrainedClaim").textContent,
+          provenanceGenome: byId("provenanceGenome").textContent,
+          provenanceSpecies: byId("provenanceSpecies").textContent,
+          provenanceNovelty: byId("provenanceNovelty").textContent,
+          provenancePopulation: byId("provenancePopulation").textContent,
+          provenanceMateSelection: byId("provenanceMateSelection").textContent,
+          provenancePhenotype: byId("provenancePhenotype").textContent,
+          provenanceArtifact: byId("provenanceArtifact").textContent,
+          provenanceFitness: byId("provenanceFitness").textContent,
           provenanceEvalCases: byId("provenanceEvalCases").textContent,
           provenanceEvalChecksum: byId("provenanceEvalChecksum").textContent,
           provenanceChecksum: byId("provenanceChecksum").textContent,
@@ -2106,12 +2470,31 @@ async function runPageUiAudit(client) {
           modulePlanExecution: byId("modulePlanExecution").textContent,
           modulePlanFetch: byId("modulePlanFetch").textContent,
           modulePlanOrigin: byId("modulePlanOrigin").textContent,
+          modulePlanFetchLimit: byId("modulePlanFetchLimit").textContent,
+          modulePlanPlannedFetchCount: byId("modulePlanPlannedFetchCount").textContent,
           modulePlanWasmPages: byId("modulePlanWasmPages").textContent,
+          modulePlanWasmExportSet: byId("modulePlanWasmExportSet").textContent,
+          modulePlanWasmTransferStrategy: byId("modulePlanWasmTransferStrategy").textContent,
+          modulePlanModelReleaseStrategy: byId("modulePlanModelReleaseStrategy").textContent,
+          modulePlanRuntimeResetStrategy: byId("modulePlanRuntimeResetStrategy").textContent,
+          modulePlanAdapterValidationStrategy: byId("modulePlanAdapterValidationStrategy").textContent,
+          modulePlanAdapterValidationCount: byId("modulePlanAdapterValidationCount").textContent,
+          modulePlanAdapterApplyCount: byId("modulePlanAdapterApplyCount").textContent,
+          modulePlanWasmHeapMinBytes: byId("modulePlanWasmHeapMinBytes").textContent,
+          modulePlanContextTokens: byId("modulePlanContextTokens").textContent,
+          modulePlanSamplerCap: byId("modulePlanSamplerCap").textContent,
+          modulePlanTokenizer: byId("modulePlanTokenizer").textContent,
           modulePlanModules: byId("modulePlanModules").textContent,
           modulePlanModelBudget: byId("modulePlanModelBudget").textContent,
           modulePlanAdapterBudget: byId("modulePlanAdapterBudget").textContent,
+          modulePlanAdapterStackBudget: byId("modulePlanAdapterStackBudget").textContent,
           modulePlanScratchBudget: byId("modulePlanScratchBudget").textContent,
+          modulePlanPromptLimit: byId("modulePlanPromptLimit").textContent,
+          modulePlanOutputLimit: byId("modulePlanOutputLimit").textContent,
+          modulePlanKvCacheBudget: byId("modulePlanKvCacheBudget").textContent,
+          modulePlanKvCachePages: byId("modulePlanKvCachePages").textContent,
           modulePlanTotalBudget: byId("modulePlanTotalBudget").textContent,
+          modulePlanTotalLimit: byId("modulePlanTotalLimit").textContent,
           modulePlanBytes: byId("modulePlanBytes").textContent,
           modulePlanChecksums: byId("modulePlanChecksums").textContent,
           modulePlanSlots: byId("modulePlanSlots").textContent,
@@ -2431,7 +2814,13 @@ function assertModulePlanDriftSmoke(result, modelKey, networkRequests, driftLabe
     failures.push(`module plan route was not requested: ${expectedModulePlanRoute}`);
   }
   const expectedModelRoute = expectedRouteForModel(modelKey);
-  if (expectedModelRoute && networkIncludesPath(networkRequests, expectedModelRoute)) {
+  const modulePlanRequestIndex = expectedModulePlanRoute
+    ? networkRequests.findIndex((requestUrl) => requestUrl.includes(expectedModulePlanRoute))
+    : -1;
+  const modelRequestIndex = expectedModelRoute
+    ? networkRequests.findIndex((requestUrl) => requestUrl.includes(expectedModelRoute))
+    : -1;
+  if (expectedModelRoute && modelRequestIndex > modulePlanRequestIndex) {
     failures.push(`generated model route was requested after ${driftLabel}`);
   }
   const allowedOrigin = new URL(appUrl).origin;
@@ -2469,6 +2858,71 @@ function assertModulePlanRuntimeScratchDriftSmoke(result, modelKey, networkReque
   );
 }
 
+function assertModulePlanOutputLimitDriftSmoke(result, modelKey, networkRequests) {
+  // Checks that output-limit drift stops at module-plan validation.
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan output limit drift",
+    "Module plan module plan output byte limit mismatch"
+  );
+}
+
+function assertModulePlanPromptLimitDriftSmoke(result, modelKey, networkRequests) {
+  // Checks that prompt-limit drift stops at module-plan validation.
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan prompt limit drift",
+    "Module plan module plan prompt byte limit mismatch"
+  );
+}
+
+function assertModulePlanFetchCountDriftSmoke(result, modelKey, networkRequests) {
+  // Checks that fetch-count drift stops before generated route assembly begins.
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan fetch count drift",
+    "Module plan module plan fetch count limit mismatch"
+  );
+}
+
+function assertModulePlanPlannedFetchCountDriftSmoke(result, modelKey, networkRequests) {
+  // Checks that planned-fetch drift stops before generated route assembly begins.
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan planned fetch count drift",
+    "Module plan module plan planned fetch count mismatch"
+  );
+}
+
+function assertModulePlanKvCacheDriftSmoke(result, modelKey, networkRequests) {
+  // Verifies KV drift stops at module-plan validation before generated artifact fetches.
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan KV cache drift",
+    "Module plan KV cache page count mismatch"
+  );
+}
+
+function assertModulePlanAdapterStackBudgetDriftSmoke(result, modelKey, networkRequests) {
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan adapter stack budget drift",
+    "Module plan module plan adapter stack byte budget mismatch"
+  );
+}
+
 function assertModulePlanTotalBudgetDriftSmoke(result, modelKey, networkRequests) {
   assertModulePlanDriftSmoke(
     result,
@@ -2476,6 +2930,16 @@ function assertModulePlanTotalBudgetDriftSmoke(result, modelKey, networkRequests
     networkRequests,
     "module plan total budget drift",
     "Module plan module plan total byte budget mismatch"
+  );
+}
+
+function assertModulePlanTotalLimitDriftSmoke(result, modelKey, networkRequests) {
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan total limit drift",
+    "Module plan module plan total byte budget limit mismatch"
   );
 }
 
@@ -2517,6 +2981,117 @@ function assertModulePlanWasmMemoryDriftSmoke(result, modelKey, networkRequests)
     networkRequests,
     "module plan WASM memory drift",
     "Module plan WASM memory initial pages mismatch"
+  );
+}
+
+function assertModulePlanWasmExportSetDriftSmoke(result, modelKey, networkRequests) {
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan WASM export-set drift",
+    "Module plan WASM export set mismatch"
+  );
+}
+
+function assertModulePlanWasmTransferDriftSmoke(result, modelKey, networkRequests) {
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan WASM transfer strategy drift",
+    "Module plan WASM transfer strategy mismatch"
+  );
+}
+
+function assertModulePlanModelReleaseDriftSmoke(result, modelKey, networkRequests) {
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan model release strategy drift",
+    "Module plan model release strategy mismatch"
+  );
+}
+
+function assertModulePlanRuntimeResetDriftSmoke(result, modelKey, networkRequests) {
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan runtime reset strategy drift",
+    "Module plan runtime reset strategy mismatch"
+  );
+}
+
+function assertModulePlanAdapterValidationDriftSmoke(result, modelKey, networkRequests) {
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan adapter validation strategy drift",
+    "Module plan adapter validation strategy mismatch"
+  );
+}
+
+function assertModulePlanAdapterValidationCountDriftSmoke(result, modelKey, networkRequests) {
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan adapter validation count drift",
+    "Module plan adapter validation count mismatch"
+  );
+}
+
+function assertModulePlanAdapterApplyCountDriftSmoke(result, modelKey, networkRequests) {
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan adapter apply count drift",
+    "Module plan adapter apply count mismatch"
+  );
+}
+
+function assertModulePlanWasmHeapDriftSmoke(result, modelKey, networkRequests) {
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan WASM heap drift",
+    "Module plan WASM heap min bytes mismatch"
+  );
+}
+
+function assertModulePlanContextTokenDriftSmoke(result, modelKey, networkRequests) {
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan context token drift",
+    "Module plan context token limit mismatch"
+  );
+}
+
+function assertModulePlanSamplerCapDriftSmoke(result, modelKey, networkRequests) {
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan sampler cap drift",
+    "Module plan sampler candidate cap mismatch"
+  );
+}
+
+function assertModulePlanTokenizerDriftSmoke(result, modelKey, networkRequests) {
+  // Verifies tokenizer drift stops at module-plan validation before generated model fetches.
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan tokenizer drift",
+    "Module plan tokenizer checksum mismatch"
   );
 }
 
@@ -3662,6 +4237,24 @@ function assertRuntimeAssemblyDiagnostics(diagnostics, expectedApplyCount, label
   }
 }
 
+function assertModulePlanRuntimeResetBeforeAssembly(result, modelKey, failures) {
+  // Keeps generated model loads from carrying prompt state into verified assembly/adapters.
+  const consoleText = String(result.consoleBeforeGenerate || result.console || "");
+  const resetIndex = consoleText.indexOf(`reset_context(${modelKey}) -> 0`);
+  if (resetIndex < 0) {
+    failures.push(`module plan runtime reset log was missing for ${modelKey}`);
+    return;
+  }
+  const assemblyMarkers = [
+    consoleText.indexOf("validate_adapter_delta"),
+    consoleText.indexOf("apply_adapter_delta"),
+    consoleText.indexOf("adapter_stack_applied")
+  ].filter((index) => index >= 0);
+  if (assemblyMarkers.length > 0 && resetIndex > Math.min(...assemblyMarkers)) {
+    failures.push(`module plan runtime reset happened after assembly work for ${modelKey}`);
+  }
+}
+
 function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAutoAssembly, options = {}) {
   const failures = [];
   const checkExactModulePlanSummaries = options.checkExactModulePlanSummaries !== false;
@@ -3720,6 +4313,12 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
     if (validateCalls.length < Math.max(1, expectedStackRoutes.length)) {
       failures.push("pre-generation console did not include validate_adapter_delta");
     }
+    const observedValidateCount = Number.isInteger(result.validateCallsSincePreviousStep)
+      ? result.validateCallsSincePreviousStep
+      : validateCalls.length;
+    if (expectedStackRoutes.length > 1 && observedValidateCount !== expectedModulePlanAdapterValidationCountValue) {
+      failures.push(`pre-generation validate count was ${observedValidateCount}`);
+    }
     if (applyCalls.length < Math.max(1, expectedStackRoutes.length)) {
       failures.push("pre-generation console did not include apply_adapter_delta");
     }
@@ -3749,7 +4348,7 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
     }
     assertRuntimeAssemblyDiagnostics(
       reset,
-      expectedStackRoutes.length,
+      expectedModulePlanAdapterApplyCountValue,
       "auto-assembly reset diagnostics",
       failures
     );
@@ -3762,7 +4361,7 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
     }
     assertRuntimeAssemblyDiagnostics(
       generated,
-      expectedStackRoutes.length,
+      expectedModulePlanAdapterApplyCountValue,
       "assembled generation diagnostics",
       failures
     );
@@ -3807,17 +4406,68 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
   }
   const expectsEvalProof =
     modelKey.startsWith("multi-parent-sign-merge-") ||
+    result.provenanceGenome !== "unavailable" ||
+    result.provenanceSpecies !== "unavailable" ||
+    result.provenanceNovelty !== "unavailable" ||
+    result.provenancePopulation !== "unavailable" ||
+    result.provenanceMateSelection !== "unavailable" ||
+    result.provenancePhenotype !== "unavailable" ||
+    result.provenanceArtifact !== "unavailable" ||
+    result.provenanceFitness !== "unavailable" ||
     result.provenanceEvalCases !== "unavailable" ||
     result.provenanceEvalChecksum !== "unavailable";
   if (expectsEvalProof) {
+    if (!isHex64(result.provenanceGenome)) {
+      failures.push(`provenance genome was ${result.provenanceGenome}`);
+    }
+    if (!isSpeciesFitSummary(result.provenanceSpecies)) {
+      failures.push(`provenance species was ${result.provenanceSpecies}`);
+    }
+    if (!isNoveltySummary(result.provenanceNovelty)) {
+      failures.push(`provenance novelty was ${result.provenanceNovelty}`);
+    }
+    if (!isPopulationSummary(result.provenancePopulation)) {
+      failures.push(`provenance population was ${result.provenancePopulation}`);
+    }
+    if (!isMateSelectionSummary(result.provenanceMateSelection)) {
+      failures.push(`provenance mate selection was ${result.provenanceMateSelection}`);
+    }
+    if (
+      modelKey.startsWith("multi-parent-sign-merge-") &&
+      !String(result.provenanceMateSelection || "").startsWith("parent-pool-bound / 3 parents / ")
+    ) {
+      failures.push(`provenance mate selection route was ${result.provenanceMateSelection}`);
+    }
+    if (!isPhenotypeEvidenceSummary(result.provenancePhenotype)) {
+      failures.push(`provenance phenotype was ${result.provenancePhenotype}`);
+    }
+    if (!isHeritableArtifactSummary(result.provenanceArtifact)) {
+      failures.push(`provenance artifact was ${result.provenanceArtifact}`);
+    }
+    if (!isFitnessVectorSummary(result.provenanceFitness)) {
+      failures.push(`provenance fitness was ${result.provenanceFitness}`);
+    }
     if (result.provenanceEvalCases !== "1 passed") {
       failures.push(`provenance eval cases were ${result.provenanceEvalCases}`);
     }
     if (!isHex64(result.provenanceEvalChecksum)) {
       failures.push(`provenance eval checksum was ${result.provenanceEvalChecksum}`);
     }
-  } else if (result.provenanceEvalCases !== "unavailable" || result.provenanceEvalChecksum !== "unavailable") {
-    failures.push(`manual model eval proof was ${result.provenanceEvalCases}/${result.provenanceEvalChecksum}`);
+  } else if (
+    result.provenanceGenome !== "unavailable" ||
+    result.provenanceSpecies !== "unavailable" ||
+    result.provenanceNovelty !== "unavailable" ||
+    result.provenancePopulation !== "unavailable" ||
+    result.provenanceMateSelection !== "unavailable" ||
+    result.provenancePhenotype !== "unavailable" ||
+    result.provenanceArtifact !== "unavailable" ||
+    result.provenanceFitness !== "unavailable" ||
+    result.provenanceEvalCases !== "unavailable" ||
+    result.provenanceEvalChecksum !== "unavailable"
+  ) {
+    failures.push(
+      `manual model eval proof was ${result.provenanceGenome}/${result.provenanceSpecies}/${result.provenanceNovelty}/${result.provenancePopulation}/${result.provenanceMateSelection}/${result.provenancePhenotype}/${result.provenanceArtifact}/${result.provenanceFitness}/${result.provenanceEvalCases}/${result.provenanceEvalChecksum}`
+    );
   }
   const expectedAdapterRoute = expectedAdapterRoutes[modelKey] || "/models/tiny-test-model-self.adp1";
   if (!networkIncludesPath(networkRequests, expectedAdapterRoute)) {
@@ -3884,8 +4534,48 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
     if (result.modulePlanOrigin !== expectedModulePlanOriginPolicy) {
       failures.push(`module plan origin policy was ${result.modulePlanOrigin}`);
     }
+    if (result.modulePlanFetchLimit !== expectedModulePlanFetchLimit) {
+      failures.push(`module plan fetch limit was ${result.modulePlanFetchLimit}`);
+    }
+    if (result.modulePlanPlannedFetchCount !== expectedModulePlanPlannedFetches) {
+      failures.push(`module plan planned fetch count was ${result.modulePlanPlannedFetchCount}`);
+    }
     if (result.modulePlanWasmPages !== expectedModulePlanWasmMemoryInitialPages) {
       failures.push(`module plan WASM pages was ${result.modulePlanWasmPages}`);
+    }
+    if (result.modulePlanWasmExportSet !== expectedModulePlanWasmExportSet) {
+      failures.push(`module plan WASM ABI was ${result.modulePlanWasmExportSet}`);
+    }
+    if (result.modulePlanWasmTransferStrategy !== expectedModulePlanWasmTransferStrategy) {
+      failures.push(`module plan WASM transfer strategy was ${result.modulePlanWasmTransferStrategy}`);
+    }
+    if (result.modulePlanModelReleaseStrategy !== expectedModulePlanModelReleaseStrategy) {
+      failures.push(`module plan model release strategy was ${result.modulePlanModelReleaseStrategy}`);
+    }
+    if (result.modulePlanRuntimeResetStrategy !== expectedModulePlanRuntimeResetStrategy) {
+      failures.push(`module plan runtime reset strategy was ${result.modulePlanRuntimeResetStrategy}`);
+    }
+    if (result.modulePlanAdapterValidationStrategy !== expectedModulePlanAdapterValidationStrategy) {
+      failures.push(`module plan adapter validation strategy was ${result.modulePlanAdapterValidationStrategy}`);
+    }
+    if (result.modulePlanAdapterValidationCount !== expectedModulePlanAdapterValidationCount) {
+      failures.push(`module plan adapter validation count was ${result.modulePlanAdapterValidationCount}`);
+    }
+    if (result.modulePlanAdapterApplyCount !== expectedModulePlanAdapterApplyCount) {
+      failures.push(`module plan adapter apply count was ${result.modulePlanAdapterApplyCount}`);
+    }
+    assertModulePlanRuntimeResetBeforeAssembly(result, modelKey, failures);
+    if (result.modulePlanWasmHeapMinBytes !== expectedModulePlanWasmHeapMinBytes) {
+      failures.push(`module plan WASM heap floor was ${result.modulePlanWasmHeapMinBytes}`);
+    }
+    if (result.modulePlanContextTokens !== expectedModulePlanContextTokens) {
+      failures.push(`module plan context tokens was ${result.modulePlanContextTokens}`);
+    }
+    if (result.modulePlanSamplerCap !== expectedModulePlanSamplerCap) {
+      failures.push(`module plan sampler cap was ${result.modulePlanSamplerCap}`);
+    }
+    if (!isNonZeroHex64(result.modulePlanTokenizer)) {
+      failures.push(`module plan tokenizer checksum was ${result.modulePlanTokenizer}`);
     }
     const expectedModuleCount = String(4 + (expectedAdapterStackRoutes[modelKey] || []).length);
     if (result.modulePlanModules !== expectedModuleCount) {
@@ -3898,13 +4588,32 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
     if (result.modulePlanAdapterBudget !== "1048576 bytes") {
       failures.push(`module plan adapter budget was ${result.modulePlanAdapterBudget}`);
     }
+    if (result.modulePlanAdapterStackBudget !== expectedModulePlanAdapterStackBudget) {
+      failures.push(`module plan adapter stack budget was ${result.modulePlanAdapterStackBudget}`);
+    }
     if (result.modulePlanScratchBudget !== "65536 bytes") {
       failures.push(`module plan scratch budget was ${result.modulePlanScratchBudget}`);
+    }
+    if (result.modulePlanPromptLimit !== expectedModulePlanPromptLimit) {
+      failures.push(`module plan prompt limit was ${result.modulePlanPromptLimit}`);
+    }
+    if (result.modulePlanOutputLimit !== "65536 bytes") {
+      failures.push(`module plan output limit was ${result.modulePlanOutputLimit}`);
+    }
+    if (result.modulePlanKvCacheBudget !== expectedModulePlanKvCacheBudget) {
+      failures.push(`module plan KV cache budget was ${result.modulePlanKvCacheBudget}`);
+    }
+    if (result.modulePlanKvCachePages !== expectedModulePlanKvCachePages) {
+      failures.push(`module plan KV cache pages was ${result.modulePlanKvCachePages}`);
     }
     if (checkExactModulePlanSummaries) {
       const expectedTotalBudget = expectedModulePlanTotalBudgets[modelKey];
       if (expectedTotalBudget && result.modulePlanTotalBudget !== expectedTotalBudget) {
         failures.push(`module plan total budget was ${result.modulePlanTotalBudget}`);
+      }
+      const expectedTotalLimit = expectedModulePlanTotalLimits[modelKey];
+      if (expectedTotalLimit && result.modulePlanTotalLimit !== expectedTotalLimit) {
+        failures.push(`module plan total limit was ${result.modulePlanTotalLimit}`);
       }
       const expectedBytes = expectedModulePlanBytes[modelKey];
       if (expectedBytes && result.modulePlanBytes !== expectedBytes) {
@@ -3917,6 +4626,9 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
     } else {
       if (!/^\d+ bytes$/.test(String(result.modulePlanTotalBudget || ""))) {
         failures.push(`module plan total budget was ${result.modulePlanTotalBudget}`);
+      }
+      if (!/^\d+ bytes$/.test(String(result.modulePlanTotalLimit || ""))) {
+        failures.push(`module plan total limit was ${result.modulePlanTotalLimit}`);
       }
       if (!/^0: \d+ bytes, 1: \d+ bytes, 2: \d+ bytes, 3: \d+ bytes, 4: \d+ bytes, 5: \d+ bytes, 6: \d+ bytes$/.test(String(result.modulePlanBytes || ""))) {
         failures.push(`module plan bytes were ${result.modulePlanBytes}`);
@@ -3979,6 +4691,7 @@ function combinedSelectorSequence(cycles) {
 }
 
 function assertCombinedSelectorSequenceSmoke(result, networkRequests, expectedSequence, failures, options = {}) {
+  const checkActualFetchBudget = options.checkActualFetchBudget !== false;
   if (result.initialSelectedModel !== "multi-parent-sign-merge-q4") {
     failures.push(`combined selector default was ${result.initialSelectedModel}`);
   }
@@ -4028,6 +4741,14 @@ function assertCombinedSelectorSequenceSmoke(result, networkRequests, expectedSe
         } else if (planIndex >= 0 && stackIndex < planIndex) {
           failures.push(`adapter stack route was requested before module plan for ${modelKey}: ${stackRoute}`);
         }
+      }
+    }
+  }
+  if (checkActualFetchBudget) {
+    for (const modelKey of combinedSelectorModels) {
+      const passes = expectedSequence.filter((expectedModel) => expectedModel === modelKey).length;
+      if (passes > 0) {
+        assertModulePlanActualFetchBudget(modelKey, networkRequests, passes, failures);
       }
     }
   }
@@ -4095,7 +4816,7 @@ function assertCombinedSelectorCycleSmoke(result, networkRequests, cycles) {
           failures.push(`${expectedModel} free_model was recorded after validation`);
         }
       }
-      if (step.validateCallsSincePreviousStep < expectedStackCount) {
+      if (step.validateCallsSincePreviousStep !== expectedModulePlanAdapterValidationCountValue) {
         failures.push(`${expectedModel} validation delta was ${step.validateCallsSincePreviousStep}`);
       }
       if (step.applyCallsSincePreviousStep < expectedStackCount) {
@@ -4123,6 +4844,43 @@ function expectedSelfAssemblyRoutes(modelKey) {
     ...(expectedAdapterManifestRoutes[modelKey] || []),
     ...(expectedAdapterStackRoutes[modelKey] || [])
   ].filter(Boolean);
+}
+
+// Counts actual generated self-assembly requests owned by one module-plan model key.
+function modulePlanGovernedRequestCount(networkRequests, modelKey) {
+  return networkRequests.filter((requestUrl) => {
+    const pathname = requestUrlPath(requestUrl);
+    return (
+      pathname === `/models/${modelKey}.module-plan.receipt` ||
+      pathname === `/models/${modelKey}.slm` ||
+      pathname === `/models/${modelKey}.slm.manifest` ||
+      pathname === `/models/${modelKey}.assembly.receipt` ||
+      pathname === `/models/${modelKey}.adapter-family.receipt` ||
+      pathname.startsWith(`/models/${modelKey}-`) ||
+      pathname.startsWith(`/evidence/${modelKey}/`)
+    );
+  }).length;
+}
+
+// Binds the exact planned route count and 32-fetch envelope to observed generated routes.
+function assertModulePlanActualFetchBudget(modelKey, networkRequests, passes, failures) {
+  const expectedPerPass = expectedSelfAssemblyRoutes(modelKey).length;
+  if (expectedPerPass !== expectedModulePlanActualFetches) {
+    failures.push(`${modelKey} expected route fixture count was ${expectedPerPass}`);
+  }
+  const expectedTotal = expectedPerPass * passes;
+  const plannedTotal = expectedModulePlanActualFetches * passes;
+  if (expectedTotal !== plannedTotal) {
+    failures.push(`${modelKey} planned governed request count was ${plannedTotal}; expected ${expectedTotal}`);
+  }
+  const observedTotal = modulePlanGovernedRequestCount(networkRequests, modelKey);
+  if (observedTotal !== expectedTotal) {
+    failures.push(`${modelKey} governed request count was ${observedTotal}; expected ${expectedTotal}`);
+  }
+  const allowedTotal = expectedModulePlanFetchLimitCount * passes;
+  if (observedTotal > allowedTotal) {
+    failures.push(`${modelKey} governed request count ${observedTotal} exceeded ${allowedTotal}`);
+  }
 }
 
 function assertCombinedSelectorRouteSoakSmoke(result, networkRequests, cycles) {
@@ -4161,9 +4919,12 @@ function assertCombinedSelectorReloadSoakSmoke(result, networkRequests, reloads)
         networkRequests,
         combinedSelectorSequence(1),
         failures,
-        { checkExactModulePlanSummaries: false }
+        { checkExactModulePlanSummaries: false, checkActualFetchBudget: false }
       );
     }
+  }
+  for (const modelKey of combinedSelectorModels) {
+    assertModulePlanActualFetchBudget(modelKey, networkRequests, reloads, failures);
   }
   for (const route of ["/runtime/tinyrustlm.wasm.manifest", "/models/selector.registry"]) {
     const count = networkPathCount(networkRequests, route);
@@ -4465,6 +5226,50 @@ function assertModelErrorSmoke(result, networkRequests) {
   }
 }
 
+async function runPagePromptLimitSmoke(client) {
+  const expression = `
+    (async () => {
+      const byId = (id) => document.getElementById(id);
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const parseDiagnostics = () => {
+        try {
+          return JSON.parse(byId("diagnostics").textContent);
+        } catch {
+          return null;
+        }
+      };
+      for (let index = 0; index < 600; index += 1) {
+        if (!byId("generateButton").disabled && byId("runtimeStatus").textContent === "Ready") {
+          break;
+        }
+        await sleep(100);
+      }
+      byId("prompt").value = "a".repeat(4097);
+      byId("generateButton").click();
+      await sleep(100);
+      return JSON.stringify({
+        runtimeStatus: byId("runtimeStatus").textContent,
+        modelState: byId("modelState").textContent,
+        errorState: byId("errorState").textContent,
+        response: byId("response").textContent,
+        console: byId("console").textContent,
+        diagnostics: parseDiagnostics(),
+        stepTokenDisabled: byId("stepTokenButton").disabled,
+        generateDisabled: byId("generateButton").disabled,
+        resetDisabled: byId("resetButton").disabled,
+        modelSelectDisabled: byId("modelSelect").disabled
+      });
+    })()
+  `;
+  const result = await client.send("Runtime.evaluate", {
+    expression,
+    awaitPromise: true,
+    returnByValue: true,
+    timeout: 120000
+  });
+  return parseEvaluateValue(result);
+}
+
 function assertMissingModelSmoke(result, networkRequests) {
   const failures = [];
   if (result.runtimeStatus !== "Model load failed") {
@@ -4537,6 +5342,50 @@ function assertContextErrorSmoke(result, networkRequests) {
   }
   if (!result.stepTokenDisabled) {
     failures.push("step-token control was enabled after context error");
+  }
+  const allowedOrigin = new URL(appUrl).origin;
+  for (const requestUrl of networkRequests) {
+    if (!requestUrl.startsWith("http://") && !requestUrl.startsWith("https://")) {
+      continue;
+    }
+    const origin = new URL(requestUrl).origin;
+    if (origin !== allowedOrigin) {
+      failures.push(`remote request observed: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertPromptLimitSmoke(result, networkRequests) {
+  const failures = [];
+  if (result.runtimeStatus !== "Ready") {
+    failures.push(`runtime status was ${result.runtimeStatus}`);
+  }
+  if (!String(result.modelState || "").startsWith("loaded")) {
+    failures.push(`model state was ${result.modelState}`);
+  }
+  if (result.errorState !== "prompt byte limit exceeded") {
+    failures.push(`error state was ${result.errorState}`);
+  }
+  if (result.response !== "prompt byte limit exceeded") {
+    failures.push(`response was ${JSON.stringify(result.response)}`);
+  }
+  if (result.console !== "prompt byte limit exceeded") {
+    failures.push(`console was ${JSON.stringify(result.console)}`);
+  }
+  if (result.diagnostics && result.diagnostics.prompt_token_count !== 0) {
+    failures.push(`prompt tokens were ${result.diagnostics.prompt_token_count}`);
+  }
+  if (result.diagnostics && result.diagnostics.generated_token_count !== 0) {
+    failures.push(`generated count was ${result.diagnostics.generated_token_count}`);
+  }
+  if (result.generateDisabled || result.resetDisabled || result.modelSelectDisabled) {
+    failures.push("controls were unexpectedly disabled after prompt byte limit");
+  }
+  if (!result.stepTokenDisabled) {
+    failures.push("step-token control was enabled after prompt byte limit");
   }
   const allowedOrigin = new URL(appUrl).origin;
   for (const requestUrl of networkRequests) {
@@ -4983,6 +5832,30 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
   if (snapshot.provenanceTrainedClaim !== "not-claimed") {
     failures.push(`${prefix} provenance trained claim was ${snapshot.provenanceTrainedClaim}`);
   }
+  if (snapshot.provenanceGenome !== "unavailable") {
+    failures.push(`${prefix} provenance genome was ${snapshot.provenanceGenome}`);
+  }
+  if (snapshot.provenanceSpecies !== "unavailable") {
+    failures.push(`${prefix} provenance species was ${snapshot.provenanceSpecies}`);
+  }
+  if (snapshot.provenanceNovelty !== "unavailable") {
+    failures.push(`${prefix} provenance novelty was ${snapshot.provenanceNovelty}`);
+  }
+  if (snapshot.provenancePopulation !== "unavailable") {
+    failures.push(`${prefix} provenance population was ${snapshot.provenancePopulation}`);
+  }
+  if (snapshot.provenanceMateSelection !== "unavailable") {
+    failures.push(`${prefix} provenance mate selection was ${snapshot.provenanceMateSelection}`);
+  }
+  if (snapshot.provenancePhenotype !== "unavailable") {
+    failures.push(`${prefix} provenance phenotype was ${snapshot.provenancePhenotype}`);
+  }
+  if (snapshot.provenanceArtifact !== "unavailable") {
+    failures.push(`${prefix} provenance artifact was ${snapshot.provenanceArtifact}`);
+  }
+  if (snapshot.provenanceFitness !== "unavailable") {
+    failures.push(`${prefix} provenance fitness was ${snapshot.provenanceFitness}`);
+  }
   if (snapshot.provenanceEvalCases !== "unavailable") {
     failures.push(`${prefix} provenance eval cases were ${snapshot.provenanceEvalCases}`);
   }
@@ -5007,11 +5880,29 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
   if (snapshot.modulePlanAdapterBudget !== "unavailable") {
     failures.push(`${prefix} module plan adapter budget was ${snapshot.modulePlanAdapterBudget}`);
   }
+  if (snapshot.modulePlanAdapterStackBudget !== "unavailable") {
+    failures.push(`${prefix} module plan adapter stack budget was ${snapshot.modulePlanAdapterStackBudget}`);
+  }
   if (snapshot.modulePlanScratchBudget !== "unavailable") {
     failures.push(`${prefix} module plan scratch budget was ${snapshot.modulePlanScratchBudget}`);
   }
+  if (snapshot.modulePlanPromptLimit !== "unavailable") {
+    failures.push(`${prefix} module plan prompt limit was ${snapshot.modulePlanPromptLimit}`);
+  }
+  if (snapshot.modulePlanOutputLimit !== "unavailable") {
+    failures.push(`${prefix} module plan output limit was ${snapshot.modulePlanOutputLimit}`);
+  }
+  if (snapshot.modulePlanKvCacheBudget !== "unavailable") {
+    failures.push(`${prefix} module plan KV cache budget was ${snapshot.modulePlanKvCacheBudget}`);
+  }
+  if (snapshot.modulePlanKvCachePages !== "unavailable") {
+    failures.push(`${prefix} module plan KV cache pages was ${snapshot.modulePlanKvCachePages}`);
+  }
   if (snapshot.modulePlanTotalBudget !== "unavailable") {
     failures.push(`${prefix} module plan total budget was ${snapshot.modulePlanTotalBudget}`);
+  }
+  if (snapshot.modulePlanTotalLimit !== "unavailable") {
+    failures.push(`${prefix} module plan total limit was ${snapshot.modulePlanTotalLimit}`);
   }
   if (snapshot.modulePlanExecution !== "unavailable") {
     failures.push(`${prefix} module plan execution profile was ${snapshot.modulePlanExecution}`);
@@ -5022,8 +5913,47 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
   if (snapshot.modulePlanOrigin !== "unavailable") {
     failures.push(`${prefix} module plan origin policy was ${snapshot.modulePlanOrigin}`);
   }
+  if (snapshot.modulePlanFetchLimit !== "unavailable") {
+    failures.push(`${prefix} module plan fetch limit was ${snapshot.modulePlanFetchLimit}`);
+  }
+  if (snapshot.modulePlanPlannedFetchCount !== "unavailable") {
+    failures.push(`${prefix} module plan planned fetch count was ${snapshot.modulePlanPlannedFetchCount}`);
+  }
   if (snapshot.modulePlanWasmPages !== "unavailable") {
     failures.push(`${prefix} module plan WASM pages was ${snapshot.modulePlanWasmPages}`);
+  }
+  if (snapshot.modulePlanWasmExportSet !== "unavailable") {
+    failures.push(`${prefix} module plan WASM ABI was ${snapshot.modulePlanWasmExportSet}`);
+  }
+  if (snapshot.modulePlanWasmTransferStrategy !== "unavailable") {
+    failures.push(`${prefix} module plan WASM transfer strategy was ${snapshot.modulePlanWasmTransferStrategy}`);
+  }
+  if (snapshot.modulePlanModelReleaseStrategy !== "unavailable") {
+    failures.push(`${prefix} module plan model release strategy was ${snapshot.modulePlanModelReleaseStrategy}`);
+  }
+  if (snapshot.modulePlanRuntimeResetStrategy !== "unavailable") {
+    failures.push(`${prefix} module plan runtime reset strategy was ${snapshot.modulePlanRuntimeResetStrategy}`);
+  }
+  if (snapshot.modulePlanAdapterValidationStrategy !== "unavailable") {
+    failures.push(`${prefix} module plan adapter validation strategy was ${snapshot.modulePlanAdapterValidationStrategy}`);
+  }
+  if (snapshot.modulePlanAdapterValidationCount !== "unavailable") {
+    failures.push(`${prefix} module plan adapter validation count was ${snapshot.modulePlanAdapterValidationCount}`);
+  }
+  if (snapshot.modulePlanAdapterApplyCount !== "unavailable") {
+    failures.push(`${prefix} module plan adapter apply count was ${snapshot.modulePlanAdapterApplyCount}`);
+  }
+  if (snapshot.modulePlanWasmHeapMinBytes !== "unavailable") {
+    failures.push(`${prefix} module plan WASM heap floor was ${snapshot.modulePlanWasmHeapMinBytes}`);
+  }
+  if (snapshot.modulePlanContextTokens !== "unavailable") {
+    failures.push(`${prefix} module plan context tokens was ${snapshot.modulePlanContextTokens}`);
+  }
+  if (snapshot.modulePlanSamplerCap !== "unavailable") {
+    failures.push(`${prefix} module plan sampler cap was ${snapshot.modulePlanSamplerCap}`);
+  }
+  if (snapshot.modulePlanTokenizer !== "unavailable") {
+    failures.push(`${prefix} module plan tokenizer was ${snapshot.modulePlanTokenizer}`);
   }
   if (snapshot.modulePlanBytes !== "unavailable") {
     failures.push(`${prefix} module plan bytes were ${snapshot.modulePlanBytes}`);
@@ -5258,8 +6188,38 @@ function installMultiParentRegistryInterceptor(client) {
         "entry.0.model_shape=vocab=260,hidden=512,layers=4,heads=8,kv_heads=8,head_dim=64,ffn=2048,context=512",
         "entry.0.quantization=q8_0",
         "entry.0.output_contract=separate-output-weight",
+        "entry.0.genome_id=0x00000000000000a1",
+        "entry.0.genome_strategy=selector-admission-genome-v1",
+        "entry.0.genome_lineage_status=admission-bound",
+        "entry.0.genome_lineage_checksum=0x00000000000000a2",
+        "entry.0.species_id=0x00000000000000a3",
+        "entry.0.species_strategy=selector-speciation-fit-v1",
+        "entry.0.species_fit_status=browser-fit-bound",
+        "entry.0.species_fit_checksum=0x00000000000000a4",
+        "entry.0.novelty_id=0x00000000000000a6",
+        "entry.0.novelty_strategy=selector-novelty-sketch-v1",
+        "entry.0.novelty_status=behavior-sketch-bound",
+        "entry.0.novelty_checksum=0x00000000000000a7",
+        "entry.0.population_id=0x00000000000000a8",
+        "entry.0.population_strategy=selector-population-review-route-v1",
+        "entry.0.population_status=population-review-bound",
+        "entry.0.population_checksum=0x00000000000000a9",
+        "entry.0.mate_selection_id=0x00000000000000aa",
+        "entry.0.mate_selection_strategy=selector-mate-selection-route-v1",
+        "entry.0.mate_selection_status=parent-pool-bound",
+        "entry.0.mate_selection_parent_count=3",
+        "entry.0.mate_selection_checksum=0x00000000000000ab",
+        "entry.0.phenotype_evidence_id=0x00000000000000ac",
+        "entry.0.phenotype_evidence_strategy=selector-phenotype-evidence-v1",
+        "entry.0.phenotype_evidence_status=runtime-eval-bound",
+        "entry.0.phenotype_evidence_checksum=0x00000000000000ad",
+        "entry.0.heritable_artifact_id=0x00000000000000ae",
+        "entry.0.heritable_artifact_strategy=selector-heritable-artifact-v1",
+        "entry.0.heritable_artifact_status=served-artifact-bound",
+        "entry.0.heritable_artifact_checksum=0x00000000000000af",
         "entry.0.admission_checksum=0x0000000000000050",
         "entry.0.promotion_manifest_checksum=0x0000000000000051",
+        "entry.0.provenance_manifest_checksum=0x0000000000000055",
         "entry.0.runtime_smoke_manifest_checksum=0x0000000000000052",
         "entry.0.eval_manifest_checksum=0x0000000000000053",
         "entry.0.eval_case_evidence_checksum=0x0000000000000054",
@@ -5267,6 +6227,8 @@ function installMultiParentRegistryInterceptor(client) {
         "entry.0.quality_boundary=fixture-runtime-and-eval-plumbing-not-product-assistant-quality",
         "entry.0.eval_dataset=tinyrustlm/tests/fixtures/assistant-quality-eval-cases.txt",
         "entry.0.cases_passed=1",
+        "entry.0.fitness_vector_status=eval-bound",
+        "entry.0.fitness_vector_checksum=0x00000000000000a5",
         "entry.0.selector_status=admitted",
         "entry.0.public_claim_status=bound-to-eval-scope",
         "required_next_gate=browser-loads-selector-registry-entry-models",
@@ -5320,8 +6282,38 @@ function installSelectorBudgetRegistryInterceptor(client) {
         "entry.0.model_shape=vocab=260,hidden=512,layers=4,heads=8,kv_heads=8,head_dim=64,ffn=2048,context=512",
         "entry.0.quantization=q4_0",
         "entry.0.output_contract=separate-output-weight",
+        "entry.0.genome_id=0x00000000000000b1",
+        "entry.0.genome_strategy=selector-admission-genome-v1",
+        "entry.0.genome_lineage_status=admission-bound",
+        "entry.0.genome_lineage_checksum=0x00000000000000b2",
+        "entry.0.species_id=0x00000000000000b3",
+        "entry.0.species_strategy=selector-speciation-fit-v1",
+        "entry.0.species_fit_status=browser-fit-bound",
+        "entry.0.species_fit_checksum=0x00000000000000b4",
+        "entry.0.novelty_id=0x00000000000000b6",
+        "entry.0.novelty_strategy=selector-novelty-sketch-v1",
+        "entry.0.novelty_status=behavior-sketch-bound",
+        "entry.0.novelty_checksum=0x00000000000000b7",
+        "entry.0.population_id=0x00000000000000b8",
+        "entry.0.population_strategy=selector-population-review-route-v1",
+        "entry.0.population_status=population-review-bound",
+        "entry.0.population_checksum=0x00000000000000b9",
+        "entry.0.mate_selection_id=0x00000000000000ba",
+        "entry.0.mate_selection_strategy=selector-mate-selection-route-v1",
+        "entry.0.mate_selection_status=parent-pool-bound",
+        "entry.0.mate_selection_parent_count=3",
+        "entry.0.mate_selection_checksum=0x00000000000000bb",
+        "entry.0.phenotype_evidence_id=0x00000000000000bc",
+        "entry.0.phenotype_evidence_strategy=selector-phenotype-evidence-v1",
+        "entry.0.phenotype_evidence_status=runtime-eval-bound",
+        "entry.0.phenotype_evidence_checksum=0x00000000000000bd",
+        "entry.0.heritable_artifact_id=0x00000000000000be",
+        "entry.0.heritable_artifact_strategy=selector-heritable-artifact-v1",
+        "entry.0.heritable_artifact_status=served-artifact-bound",
+        "entry.0.heritable_artifact_checksum=0x00000000000000bf",
         "entry.0.admission_checksum=0x0000000000000083",
         "entry.0.promotion_manifest_checksum=0x0000000000000084",
+        "entry.0.provenance_manifest_checksum=0x0000000000000088",
         "entry.0.runtime_smoke_manifest_checksum=0x0000000000000085",
         "entry.0.eval_manifest_checksum=0x0000000000000086",
         "entry.0.eval_case_evidence_checksum=0x0000000000000087",
@@ -5329,6 +6321,8 @@ function installSelectorBudgetRegistryInterceptor(client) {
         "entry.0.quality_boundary=fixture-runtime-and-eval-plumbing-not-product-assistant-quality",
         "entry.0.eval_dataset=tinyrustlm/tests/fixtures/assistant-quality-eval-cases.txt",
         "entry.0.cases_passed=1",
+        "entry.0.fitness_vector_status=eval-bound",
+        "entry.0.fitness_vector_checksum=0x00000000000000b5",
         "entry.0.selector_status=admitted",
         "entry.0.public_claim_status=bound-to-eval-scope",
         "required_next_gate=browser-loads-selector-registry-entry-models",
@@ -5382,8 +6376,38 @@ function installSidecarBudgetContractRegistryInterceptor(client) {
         "entry.0.model_shape=vocab=260,hidden=16,layers=1,heads=2,kv_heads=2,head_dim=8,ffn=32,context=32",
         "entry.0.quantization=q4_0",
         "entry.0.output_contract=separate-output-weight",
+        "entry.0.genome_id=0x00000000000000c1",
+        "entry.0.genome_strategy=selector-admission-genome-v1",
+        "entry.0.genome_lineage_status=admission-bound",
+        "entry.0.genome_lineage_checksum=0x00000000000000c2",
+        "entry.0.species_id=0x00000000000000c3",
+        "entry.0.species_strategy=selector-speciation-fit-v1",
+        "entry.0.species_fit_status=browser-fit-bound",
+        "entry.0.species_fit_checksum=0x00000000000000c4",
+        "entry.0.novelty_id=0x00000000000000c6",
+        "entry.0.novelty_strategy=selector-novelty-sketch-v1",
+        "entry.0.novelty_status=behavior-sketch-bound",
+        "entry.0.novelty_checksum=0x00000000000000c7",
+        "entry.0.population_id=0x00000000000000c8",
+        "entry.0.population_strategy=selector-population-review-route-v1",
+        "entry.0.population_status=population-review-bound",
+        "entry.0.population_checksum=0x00000000000000c9",
+        "entry.0.mate_selection_id=0x00000000000000ca",
+        "entry.0.mate_selection_strategy=selector-mate-selection-route-v1",
+        "entry.0.mate_selection_status=parent-pool-bound",
+        "entry.0.mate_selection_parent_count=3",
+        "entry.0.mate_selection_checksum=0x00000000000000cb",
+        "entry.0.phenotype_evidence_id=0x00000000000000cc",
+        "entry.0.phenotype_evidence_strategy=selector-phenotype-evidence-v1",
+        "entry.0.phenotype_evidence_status=runtime-eval-bound",
+        "entry.0.phenotype_evidence_checksum=0x00000000000000cd",
+        "entry.0.heritable_artifact_id=0x00000000000000ce",
+        "entry.0.heritable_artifact_strategy=selector-heritable-artifact-v1",
+        "entry.0.heritable_artifact_status=served-artifact-bound",
+        "entry.0.heritable_artifact_checksum=0x00000000000000cf",
         "entry.0.admission_checksum=0x0000000000000093",
         "entry.0.promotion_manifest_checksum=0x0000000000000094",
+        "entry.0.provenance_manifest_checksum=0x0000000000000098",
         "entry.0.runtime_smoke_manifest_checksum=0x0000000000000095",
         "entry.0.eval_manifest_checksum=0x0000000000000096",
         "entry.0.eval_case_evidence_checksum=0x0000000000000097",
@@ -5391,6 +6415,8 @@ function installSidecarBudgetContractRegistryInterceptor(client) {
         "entry.0.quality_boundary=fixture-runtime-and-eval-plumbing-not-product-assistant-quality",
         "entry.0.eval_dataset=tinyrustlm/tests/fixtures/assistant-quality-eval-cases.txt",
         "entry.0.cases_passed=1",
+        "entry.0.fitness_vector_status=eval-bound",
+        "entry.0.fitness_vector_checksum=0x00000000000000c5",
         "entry.0.selector_status=admitted",
         "entry.0.public_claim_status=bound-to-eval-scope",
         "required_next_gate=browser-loads-selector-registry-entry-models",
@@ -5498,8 +6524,41 @@ function installModulePlanRuntimeScratchDriftInterceptor(client, modelKey) {
   installModulePlanDriftInterceptor(client, modelKey, driftModulePlanRuntimeScratchBudget);
 }
 
+function installModulePlanOutputLimitDriftInterceptor(client, modelKey) {
+  // Routes output-limit drift through the shared module-plan receipt interceptor.
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanOutputByteLimit);
+}
+
+function installModulePlanPromptLimitDriftInterceptor(client, modelKey) {
+  // Routes prompt-limit drift through the shared module-plan receipt interceptor.
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanPromptByteLimit);
+}
+
+function installModulePlanFetchCountDriftInterceptor(client, modelKey) {
+  // Routes fetch-count drift through the shared module-plan receipt interceptor.
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanFetchCountLimit);
+}
+
+function installModulePlanPlannedFetchCountDriftInterceptor(client, modelKey) {
+  // Routes planned-fetch drift through the shared module-plan receipt interceptor.
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanPlannedFetchCount);
+}
+
+function installModulePlanKvCacheDriftInterceptor(client, modelKey) {
+  // Wires the KV drift mutation into the shared module-plan interception path.
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanKvCachePageCount);
+}
+
+function installModulePlanAdapterStackBudgetDriftInterceptor(client, modelKey) {
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanAdapterStackBudget);
+}
+
 function installModulePlanTotalBudgetDriftInterceptor(client, modelKey) {
   installModulePlanDriftInterceptor(client, modelKey, driftModulePlanTotalBudget);
+}
+
+function installModulePlanTotalLimitDriftInterceptor(client, modelKey) {
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanTotalLimit);
 }
 
 // Hooks count drift into checksum-consistent module-plan receipt interception.
@@ -5509,6 +6568,51 @@ function installModulePlanCountDriftInterceptor(client, modelKey) {
 
 function installModulePlanWasmMemoryDriftInterceptor(client, modelKey) {
   installModulePlanDriftInterceptor(client, modelKey, driftModulePlanWasmMemory);
+}
+
+function installModulePlanWasmExportSetDriftInterceptor(client, modelKey) {
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanWasmExportSet);
+}
+
+function installModulePlanWasmTransferDriftInterceptor(client, modelKey) {
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanWasmTransferStrategy);
+}
+
+function installModulePlanModelReleaseDriftInterceptor(client, modelKey) {
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanModelReleaseStrategy);
+}
+
+function installModulePlanRuntimeResetDriftInterceptor(client, modelKey) {
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanRuntimeResetStrategy);
+}
+
+function installModulePlanAdapterValidationDriftInterceptor(client, modelKey) {
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanAdapterValidationStrategy);
+}
+
+function installModulePlanAdapterValidationCountDriftInterceptor(client, modelKey) {
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanAdapterValidationCount);
+}
+
+function installModulePlanAdapterApplyCountDriftInterceptor(client, modelKey) {
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanAdapterApplyCount);
+}
+
+function installModulePlanWasmHeapDriftInterceptor(client, modelKey) {
+  // Routes the allocator floor through checksum-consistent module-plan interception.
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanWasmHeapMinBytes);
+}
+
+function installModulePlanContextTokenDriftInterceptor(client, modelKey) {
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanContextTokenLimit);
+}
+
+function installModulePlanSamplerCapDriftInterceptor(client, modelKey) {
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanSamplerCandidateCap);
+}
+
+function installModulePlanTokenizerDriftInterceptor(client, modelKey) {
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanTokenizerChecksum);
 }
 
 function installModulePlanProfileDriftInterceptor(client, modelKey) {
@@ -5971,8 +7075,38 @@ function installQuantizedAdapterRegistryInterceptor(client) {
         "entry.0.model_shape=vocab=260,hidden=16,layers=1,heads=2,kv_heads=2,head_dim=8,ffn=32,context=32",
         "entry.0.quantization=q8_0",
         "entry.0.output_contract=separate-output-weight",
+        "entry.0.genome_id=0x00000000000000d1",
+        "entry.0.genome_strategy=selector-admission-genome-v1",
+        "entry.0.genome_lineage_status=admission-bound",
+        "entry.0.genome_lineage_checksum=0x00000000000000d2",
+        "entry.0.species_id=0x00000000000000d3",
+        "entry.0.species_strategy=selector-speciation-fit-v1",
+        "entry.0.species_fit_status=browser-fit-bound",
+        "entry.0.species_fit_checksum=0x00000000000000d4",
+        "entry.0.novelty_id=0x00000000000000d6",
+        "entry.0.novelty_strategy=selector-novelty-sketch-v1",
+        "entry.0.novelty_status=behavior-sketch-bound",
+        "entry.0.novelty_checksum=0x00000000000000d7",
+        "entry.0.population_id=0x00000000000000d8",
+        "entry.0.population_strategy=selector-population-review-route-v1",
+        "entry.0.population_status=population-review-bound",
+        "entry.0.population_checksum=0x00000000000000d9",
+        "entry.0.mate_selection_id=0x00000000000000da",
+        "entry.0.mate_selection_strategy=selector-mate-selection-route-v1",
+        "entry.0.mate_selection_status=admission-only",
+        "entry.0.mate_selection_parent_count=1",
+        "entry.0.mate_selection_checksum=0x00000000000000db",
+        "entry.0.phenotype_evidence_id=0x00000000000000dc",
+        "entry.0.phenotype_evidence_strategy=selector-phenotype-evidence-v1",
+        "entry.0.phenotype_evidence_status=runtime-eval-bound",
+        "entry.0.phenotype_evidence_checksum=0x00000000000000dd",
+        "entry.0.heritable_artifact_id=0x00000000000000de",
+        "entry.0.heritable_artifact_strategy=selector-heritable-artifact-v1",
+        "entry.0.heritable_artifact_status=served-artifact-bound",
+        "entry.0.heritable_artifact_checksum=0x00000000000000df",
         "entry.0.admission_checksum=0x0000000000000062",
         "entry.0.promotion_manifest_checksum=0x0000000000000063",
+        "entry.0.provenance_manifest_checksum=0x0000000000000067",
         "entry.0.runtime_smoke_manifest_checksum=0x0000000000000064",
         "entry.0.eval_manifest_checksum=0x0000000000000065",
         "entry.0.eval_case_evidence_checksum=0x0000000000000066",
@@ -5980,6 +7114,8 @@ function installQuantizedAdapterRegistryInterceptor(client) {
         "entry.0.quality_boundary=fixture-runtime-and-eval-plumbing-not-product-assistant-quality",
         "entry.0.eval_dataset=tinyrustlm/tests/fixtures/assistant-quality-eval-cases.txt",
         "entry.0.cases_passed=1",
+        "entry.0.fitness_vector_status=eval-bound",
+        "entry.0.fitness_vector_checksum=0x00000000000000d5",
         "entry.0.selector_status=admitted",
         "entry.0.public_claim_status=bound-to-eval-scope",
         "entry.0.adapter_path=../models/tiny-test-model-q8-self.adp1",
@@ -6048,7 +7184,7 @@ async function main() {
     await client.send("Page.enable", {});
     await client.send("Runtime.enable", {});
     await client.send("Network.enable", {});
-    if (smokeMode === "model-error" || smokeMode === "missing-model" || smokeMode === "multi-parent-registry" || smokeMode === "selector-budget" || smokeMode === "sidecar-budget-contract" || smokeMode === "runtime-manifest-drift" || smokeMode === "module-plan-profile-drift" || smokeMode === "module-plan-execution-profile-drift" || smokeMode === "module-plan-fetch-policy-drift" || smokeMode === "module-plan-origin-policy-drift" || smokeMode === "module-plan-wasm-memory-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-runtime-scratch-drift" || smokeMode === "module-plan-total-budget-drift" || smokeMode === "module-plan-count-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift" || smokeMode === "assembly-eval-case-drift" || smokeMode === "assembly-evidence-file-drift" || smokeMode === "adapter-family-receipt-drift" || smokeMode === "adapter-manifest-drift" || smokeMode === "source-backed-alr1-manifest-drift" || smokeMode === "adapter-artifact-drift" || smokeMode === "adapter-stack-prefetch-drift" || smokeMode === "adapter-stack-rust-validate-drift" || smokeMode === "adapter-sidecar-registry-q8" || smokeMode === "adapter-sidecar-checksum-mismatch" || smokeMode === "adapter-manifest-budget") {
+    if (smokeMode === "model-error" || smokeMode === "missing-model" || smokeMode === "multi-parent-registry" || smokeMode === "selector-budget" || smokeMode === "sidecar-budget-contract" || smokeMode === "runtime-manifest-drift" || smokeMode === "module-plan-profile-drift" || smokeMode === "module-plan-execution-profile-drift" || smokeMode === "module-plan-fetch-policy-drift" || smokeMode === "module-plan-origin-policy-drift" || smokeMode === "module-plan-wasm-memory-drift" || smokeMode === "module-plan-wasm-export-set-drift" || smokeMode === "module-plan-wasm-heap-drift" || smokeMode === "module-plan-context-token-drift" || smokeMode === "module-plan-sampler-cap-drift" || smokeMode === "module-plan-tokenizer-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-runtime-scratch-drift" || smokeMode === "module-plan-output-limit-drift" || smokeMode === "module-plan-prompt-limit-drift" || smokeMode === "module-plan-fetch-count-drift" || smokeMode === "module-plan-planned-fetch-count-drift" || smokeMode === "module-plan-kv-cache-drift" || smokeMode === "module-plan-adapter-stack-budget-drift" || smokeMode === "module-plan-total-budget-drift" || smokeMode === "module-plan-total-limit-drift" || smokeMode === "module-plan-count-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift" || smokeMode === "assembly-eval-case-drift" || smokeMode === "assembly-evidence-file-drift" || smokeMode === "adapter-family-receipt-drift" || smokeMode === "adapter-manifest-drift" || smokeMode === "source-backed-alr1-manifest-drift" || smokeMode === "adapter-artifact-drift" || smokeMode === "adapter-stack-prefetch-drift" || smokeMode === "adapter-stack-rust-validate-drift" || smokeMode === "adapter-sidecar-registry-q8" || smokeMode === "adapter-sidecar-checksum-mismatch" || smokeMode === "adapter-manifest-budget") {
       if (smokeMode === "model-error") {
         installMalformedModelInterceptor(client);
       } else if (smokeMode === "missing-model") {
@@ -6065,12 +7201,36 @@ async function main() {
         installModulePlanOriginPolicyDriftInterceptor(client, expectedModel);
       } else if (smokeMode === "module-plan-wasm-memory-drift") {
         installModulePlanWasmMemoryDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-wasm-export-set-drift") {
+        installModulePlanWasmExportSetDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-wasm-heap-drift") {
+        installModulePlanWasmHeapDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-context-token-drift") {
+        installModulePlanContextTokenDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-sampler-cap-drift") {
+        installModulePlanSamplerCapDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-tokenizer-drift") {
+        installModulePlanTokenizerDriftInterceptor(client, expectedModel);
       } else if (smokeMode === "module-plan-resource-drift") {
         installModulePlanResourceDriftInterceptor(client, expectedModel);
       } else if (smokeMode === "module-plan-runtime-scratch-drift") {
         installModulePlanRuntimeScratchDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-output-limit-drift") {
+        installModulePlanOutputLimitDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-prompt-limit-drift") {
+        installModulePlanPromptLimitDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-fetch-count-drift") {
+        installModulePlanFetchCountDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-planned-fetch-count-drift") {
+        installModulePlanPlannedFetchCountDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-kv-cache-drift") {
+        installModulePlanKvCacheDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-adapter-stack-budget-drift") {
+        installModulePlanAdapterStackBudgetDriftInterceptor(client, expectedModel);
       } else if (smokeMode === "module-plan-total-budget-drift") {
         installModulePlanTotalBudgetDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-total-limit-drift") {
+        installModulePlanTotalLimitDriftInterceptor(client, expectedModel);
       } else if (smokeMode === "module-plan-count-drift") {
         installModulePlanCountDriftInterceptor(client, expectedModel);
       } else if (smokeMode === "module-plan-graph-drift") {
@@ -6118,6 +7278,72 @@ async function main() {
       } else {
         installMultiParentRegistryInterceptor(client);
       }
+      await client.send("Fetch.enable", {
+        patterns: [
+          {
+            urlPattern: "*",
+            requestStage: "Request"
+          }
+        ]
+      });
+    }
+    if (smokeMode === "module-plan-wasm-transfer-drift") {
+      installModulePlanWasmTransferDriftInterceptor(client, expectedModel);
+      await client.send("Fetch.enable", {
+        patterns: [
+          {
+            urlPattern: "*",
+            requestStage: "Request"
+          }
+        ]
+      });
+    }
+    if (smokeMode === "module-plan-model-release-drift") {
+      installModulePlanModelReleaseDriftInterceptor(client, expectedModel);
+      await client.send("Fetch.enable", {
+        patterns: [
+          {
+            urlPattern: "*",
+            requestStage: "Request"
+          }
+        ]
+      });
+    }
+    if (smokeMode === "module-plan-runtime-reset-drift") {
+      installModulePlanRuntimeResetDriftInterceptor(client, expectedModel);
+      await client.send("Fetch.enable", {
+        patterns: [
+          {
+            urlPattern: "*",
+            requestStage: "Request"
+          }
+        ]
+      });
+    }
+    if (smokeMode === "module-plan-adapter-validation-drift") {
+      installModulePlanAdapterValidationDriftInterceptor(client, expectedModel);
+      await client.send("Fetch.enable", {
+        patterns: [
+          {
+            urlPattern: "*",
+            requestStage: "Request"
+          }
+        ]
+      });
+    }
+    if (smokeMode === "module-plan-adapter-validation-count-drift") {
+      installModulePlanAdapterValidationCountDriftInterceptor(client, expectedModel);
+      await client.send("Fetch.enable", {
+        patterns: [
+          {
+            urlPattern: "*",
+            requestStage: "Request"
+          }
+        ]
+      });
+    }
+    if (smokeMode === "module-plan-adapter-apply-count-drift") {
+      installModulePlanAdapterApplyCountDriftInterceptor(client, expectedModel);
       await client.send("Fetch.enable", {
         patterns: [
           {
@@ -6391,7 +7617,7 @@ async function main() {
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
           await sleep(500);
-          result = await runPageModelErrorSmoke(client);
+          result = await runPageModelErrorSmoke(client, expectedModel);
           break;
         } catch (error) {
           if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
@@ -6431,13 +7657,109 @@ async function main() {
       }
       assertAssemblyEvidenceFileDriftSmoke(result, expectedModel, networkRequests);
       result.networkRequests = networkRequests;
-    } else if (smokeMode === "module-plan-profile-drift" || smokeMode === "module-plan-execution-profile-drift" || smokeMode === "module-plan-fetch-policy-drift" || smokeMode === "module-plan-origin-policy-drift" || smokeMode === "module-plan-wasm-memory-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-runtime-scratch-drift" || smokeMode === "module-plan-total-budget-drift" || smokeMode === "module-plan-count-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift") {
+    } else if (smokeMode === "module-plan-wasm-transfer-drift") {
       networkRequests.length = 0;
       await client.send("Page.reload", { ignoreCache: true });
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
           await sleep(500);
-          result = await runPageModelErrorSmoke(client);
+          result = await runPageModelErrorSmoke(client, expectedModel);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertModulePlanWasmTransferDriftSmoke(result, expectedModel, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (smokeMode === "module-plan-model-release-drift") {
+      networkRequests.length = 0;
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageModelErrorSmoke(client, expectedModel);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertModulePlanModelReleaseDriftSmoke(result, expectedModel, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (smokeMode === "module-plan-runtime-reset-drift") {
+      networkRequests.length = 0;
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageModelErrorSmoke(client, expectedModel);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertModulePlanRuntimeResetDriftSmoke(result, expectedModel, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (smokeMode === "module-plan-adapter-validation-drift") {
+      networkRequests.length = 0;
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageModelErrorSmoke(client, expectedModel);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertModulePlanAdapterValidationDriftSmoke(result, expectedModel, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (smokeMode === "module-plan-adapter-validation-count-drift") {
+      networkRequests.length = 0;
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageModelErrorSmoke(client, expectedModel);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertModulePlanAdapterValidationCountDriftSmoke(result, expectedModel, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (smokeMode === "module-plan-adapter-apply-count-drift") {
+      networkRequests.length = 0;
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageModelErrorSmoke(client, expectedModel);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertModulePlanAdapterApplyCountDriftSmoke(result, expectedModel, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (smokeMode === "module-plan-profile-drift" || smokeMode === "module-plan-execution-profile-drift" || smokeMode === "module-plan-fetch-policy-drift" || smokeMode === "module-plan-origin-policy-drift" || smokeMode === "module-plan-wasm-memory-drift" || smokeMode === "module-plan-wasm-export-set-drift" || smokeMode === "module-plan-wasm-heap-drift" || smokeMode === "module-plan-context-token-drift" || smokeMode === "module-plan-sampler-cap-drift" || smokeMode === "module-plan-tokenizer-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-runtime-scratch-drift" || smokeMode === "module-plan-output-limit-drift" || smokeMode === "module-plan-prompt-limit-drift" || smokeMode === "module-plan-fetch-count-drift" || smokeMode === "module-plan-planned-fetch-count-drift" || smokeMode === "module-plan-kv-cache-drift" || smokeMode === "module-plan-adapter-stack-budget-drift" || smokeMode === "module-plan-total-budget-drift" || smokeMode === "module-plan-total-limit-drift" || smokeMode === "module-plan-count-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift") {
+      networkRequests.length = 0;
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageModelErrorSmoke(client, expectedModel);
           break;
         } catch (error) {
           if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
@@ -6455,12 +7777,36 @@ async function main() {
         assertModulePlanOriginPolicyDriftSmoke(result, expectedModel, networkRequests);
       } else if (smokeMode === "module-plan-wasm-memory-drift") {
         assertModulePlanWasmMemoryDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-wasm-export-set-drift") {
+        assertModulePlanWasmExportSetDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-wasm-heap-drift") {
+        assertModulePlanWasmHeapDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-context-token-drift") {
+        assertModulePlanContextTokenDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-sampler-cap-drift") {
+        assertModulePlanSamplerCapDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-tokenizer-drift") {
+        assertModulePlanTokenizerDriftSmoke(result, expectedModel, networkRequests);
       } else if (smokeMode === "module-plan-resource-drift") {
         assertModulePlanResourceDriftSmoke(result, expectedModel, networkRequests);
       } else if (smokeMode === "module-plan-runtime-scratch-drift") {
         assertModulePlanRuntimeScratchDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-output-limit-drift") {
+        assertModulePlanOutputLimitDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-prompt-limit-drift") {
+        assertModulePlanPromptLimitDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-fetch-count-drift") {
+        assertModulePlanFetchCountDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-planned-fetch-count-drift") {
+        assertModulePlanPlannedFetchCountDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-kv-cache-drift") {
+        assertModulePlanKvCacheDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-adapter-stack-budget-drift") {
+        assertModulePlanAdapterStackBudgetDriftSmoke(result, expectedModel, networkRequests);
       } else if (smokeMode === "module-plan-total-budget-drift") {
         assertModulePlanTotalBudgetDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-total-limit-drift") {
+        assertModulePlanTotalLimitDriftSmoke(result, expectedModel, networkRequests);
       } else if (smokeMode === "module-plan-count-drift") {
         assertModulePlanCountDriftSmoke(result, expectedModel, networkRequests);
       } else if (smokeMode === "module-plan-graph-drift") {
@@ -6525,6 +7871,21 @@ async function main() {
         }
       }
       assertContextErrorSmoke(result, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (smokeMode === "prompt-limit") {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPagePromptLimitSmoke(client);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertPromptLimitSmoke(result, networkRequests);
       result.networkRequests = networkRequests;
     } else {
       for (let attempt = 0; attempt < 3; attempt += 1) {

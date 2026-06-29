@@ -1,5 +1,5 @@
-profile: gguf-mirust.taboo.v9
-updated_utc: 2026-06-28T11:25:34Z
+profile: gguf-mirust.taboo.v11
+updated_utc: 2026-06-29T01:39:45Z
 scope: public_site_voice_and_project_copy
 purpose: Keep GGUF.MiRust.com focused on constructive local-model craft, verifiable Rust/WASM execution, model lineage, research momentum, and user agency.
 authority:
@@ -20,6 +20,8 @@ authority:
   human_update_2026_06_28_setup_handoff_site_rule: UAIX setup-file-handoff strategy should be used here as constructive routing memory for reports, research, short-term routes, and long-term checksum pointers; caution-centered commentary belongs on separate sites.
   human_update_2026_06_28_latest_direct_rule_2: Keep warnings, cautions, worry, and concern-led messaging out of GGUF.MiRust.com public copy; this file is the intentional local place to name those taboo terms while the site speaks in routes, lineage, proof, fit, local agency, and implementation evidence.
   human_update_2026_06_28_source_backed_route_rule: Model Breeding, UAIX File Handoff, and source-backed ALR1 route copy for this site should stay in route, lineage, proof, fit, local agency, and implementation evidence language; warning, caution, and worry language belongs only in this taboo routing file when it must be named.
+  human_update_2026_06_28_modelbreeder_research_rule: The 2026-06-28 ModelBreeder research intake should guide GGUF.MiRust.com toward fitness, scope notes, breeding invariants, evaluation checkpoints, local agency, proof-of-use, genome lineage, and implementation fit language.
+  human_update_2026_06_29_latest_direct_rule: Keep this website focused on Model Breeding routes, research references, proof, lineage, fit, local agency, and implementation evidence; caution-centered wording belongs here only as taboo routing memory.
 public_site_voice:
   preferred_emphasis:
     - browser-local Rust/WASM execution

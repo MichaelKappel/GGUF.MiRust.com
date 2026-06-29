@@ -3,7 +3,7 @@ title: GGUF.MiRust.com LLM Wiki Index
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/
 status: planned_pending_publication
-reviewed_utc: 2026-06-28T20:20:00Z
+reviewed_utc: 2026-06-29T02:53:13Z
 ---
 
 # GGUF.MiRust.com
@@ -17,6 +17,7 @@ This local LLM Wiki namespace routes durable memory for the GGUF.MiRust.com Rust
 - [Log](log.md)
 - [Report Intake Index 2026-06-25](reports/report-intake-index-2026-06-25.md)
 - [Report Intake Index 2026-06-26](reports/report-intake-index-2026-06-26.md)
+- [Report Intake Index 2026-06-28](reports/report-intake-index-2026-06-28.md)
 
 ## Report Memory
 
@@ -69,14 +70,32 @@ This local LLM Wiki namespace routes durable memory for the GGUF.MiRust.com Rust
 - [Browser Module Plan Execution Profile Memory](reports/browser-module-plan-execution-profile-memory-2026-06-28.md)
 - [Browser Module Plan Fetch Policy Memory](reports/browser-module-plan-fetch-policy-memory-2026-06-28.md)
 - [Browser Module Plan Origin Policy Memory](reports/browser-module-plan-origin-policy-memory-2026-06-28.md)
+- [Browser Module Plan Fetch Count Memory](reports/browser-module-plan-fetch-count-memory-2026-06-28.md)
 - [Browser Module Plan Runtime Scratch Memory](reports/browser-module-plan-runtime-scratch-memory-2026-06-28.md)
+- [Browser Module Plan Output Limit Memory](reports/browser-module-plan-output-limit-memory-2026-06-28.md)
 - [Browser Module Plan Total Budget Memory](reports/browser-module-plan-total-budget-memory-2026-06-28.md)
+- [Browser Module Plan Total Limit Memory](reports/browser-module-plan-total-limit-memory-2026-06-28.md)
 - [Browser Module Plan WASM Memory Memory](reports/browser-module-plan-wasm-memory-memory-2026-06-28.md)
+- [Browser Module Plan WASM Export Set Memory](reports/browser-module-plan-wasm-export-set-memory-2026-06-28.md)
+- [Browser Module Plan WASM Heap Memory](reports/browser-module-plan-wasm-heap-memory-2026-06-28.md)
+- [Browser Module Plan WASM Transfer Memory](reports/browser-module-plan-wasm-transfer-memory-2026-06-28.md)
+- [Browser Module Plan Model Release Memory](reports/browser-module-plan-model-release-memory-2026-06-29.md)
+- [Browser Module Plan Runtime Reset Memory](reports/browser-module-plan-runtime-reset-memory-2026-06-29.md)
+- [Browser Module Plan Adapter Validation Memory](reports/browser-module-plan-adapter-validation-memory-2026-06-29.md)
+- [Browser Module Plan Adapter Validation Count Memory](reports/browser-module-plan-adapter-validation-count-memory-2026-06-29.md)
+- [Browser Module Plan Adapter Apply Count Memory](reports/browser-module-plan-adapter-apply-count-memory-2026-06-29.md)
+- [Browser Module Plan KV Cache Memory](reports/browser-module-plan-kv-cache-memory-2026-06-28.md)
+- [Browser Module Plan Adapter Stack Budget Memory](reports/browser-module-plan-adapter-stack-budget-memory-2026-06-28.md)
+- [Browser Module Plan Context Token Memory](reports/browser-module-plan-context-token-memory-2026-06-28.md)
+- [Browser Module Plan Tokenizer Memory](reports/browser-module-plan-tokenizer-memory-2026-06-28.md)
+- [Browser Module Plan Sampler Cap Memory](reports/browser-module-plan-sampler-cap-memory-2026-06-28.md)
+- [Browser Module Plan Prompt Limit Memory](reports/browser-module-plan-prompt-limit-memory-2026-06-28.md)
 - [Browser Module Plan Count Drift Memory](reports/browser-module-plan-count-drift-memory-2026-06-28.md)
 - [Browser Combined Selector Assembly Memory](reports/browser-combined-selector-assembly-memory-2026-06-28.md)
 - [Browser Combined Selector Cycle Memory](reports/browser-combined-selector-cycle-memory-2026-06-28.md)
 - [Browser Combined Selector Route Soak Memory](reports/browser-combined-selector-route-soak-memory-2026-06-28.md)
 - [Browser Combined Selector Extended Route Soak Memory](reports/browser-combined-selector-extended-route-soak-memory-2026-06-28.md)
+- [Browser Combined Selector Stress Route Soak Memory](reports/browser-combined-selector-stress-route-soak-memory-2026-06-28.md)
 - [Browser Combined Selector Reload Soak Memory](reports/browser-combined-selector-reload-soak-memory-2026-06-28.md)
 - [Browser Assembly Trace Memory](reports/browser-assembly-trace-memory-2026-06-28.md)
 - [Browser Eval Case Evidence Checksum Memory](reports/browser-eval-case-evidence-checksum-memory-2026-06-28.md)
@@ -89,11 +108,19 @@ This local LLM Wiki namespace routes durable memory for the GGUF.MiRust.com Rust
 - [Browser Adapter Stack Rust Validate Memory](reports/browser-adapter-stack-rust-validate-memory-2026-06-28.md)
 - [Browser Adapter Stack Rust Validate Drift Memory](reports/browser-adapter-stack-rust-validate-drift-memory-2026-06-28.md)
 - [Browser Runtime Assembly Diagnostics Memory](reports/browser-runtime-assembly-diagnostics-memory-2026-06-28.md)
+- [Browser Selector Genome Fitness Memory](reports/browser-selector-genome-fitness-memory-2026-06-28.md)
+- [Browser Selector Species Fit Memory](reports/browser-selector-species-fit-memory-2026-06-28.md)
+- [Browser Selector Novelty Memory](reports/browser-selector-novelty-memory-2026-06-28.md)
+- [Browser Selector Population Memory](reports/browser-selector-population-memory-2026-06-28.md)
+- [Browser Selector Mate Selection Memory](reports/browser-selector-mate-selection-memory-2026-06-28.md)
+- [Browser Selector Phenotype Evidence Memory](reports/browser-selector-phenotype-evidence-memory-2026-06-28.md)
+- [Browser Selector Heritable Artifact Memory](reports/browser-selector-heritable-artifact-memory-2026-06-28.md)
 - [Model Breeding Reference Ideas](research/model-breeding-reference-ideas-2026-06-26.md)
+- [ModelBreeder and Zero-Dependency Reference Ideas](research/modelbreeder-zero-dependency-reference-ideas-2026-06-28.md)
 - [UAIX File Handoff Memory Strategy Dogfood](../../docs/dogfood/uaix-file-handoff-memory-strategy-2026-06-26.md)
 
 ## Boundary
 
 This namespace is a source memory plan for TinyRustLM. Current implementation claims must still be verified through `workspace.uai`, `.uai/test-plan.uai`, source files, and local test output before being repeated publicly.
 
-Latest route: Browser Module Plan Count Drift Memory records checksum-consistent receipt `module_count` drift against selector `module_plan_module_count` before generated model or stack route fetch; load `.uai/short-term-memory.uai`, `.uai/long-term-memory.uai`, the source-backed ALR1 route report, the Browser Runtime Assembly Diagnostics report, the Browser Adapter Stack Rust Validate reports, the Browser Combined Selector reports, the Browser Module Plan reports, the Browser Assembly reports, the Model Breeding reference page, and the UAIX dogfood note for the current memory map.
+Latest route: Browser Module Plan Adapter Validation Count Memory implements selector-to-receipt `module_plan_adapter_validation_count=3` binding plus per-step Rust validation-call agreement for generated self-assembly; load `.uai/short-term-memory.uai`, `.uai/long-term-memory.uai`, the 2026-06-28 report intake index, the Browser Selector reports, the Browser Combined Selector reports, the Browser Module Plan reports including adapter validation count, adapter apply count, adapter validation, runtime reset, model release, WASM transfer, WASM heap, WASM export set, KV cache, adapter stack budget, context token limit, tokenizer identity, sampler cap, prompt limit, and fetch count, the Model Breeding reference pages, and the UAIX dogfood note for the current memory map.

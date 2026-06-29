@@ -3,7 +3,7 @@ title: GGUF.MiRust.com Source Memory Guide
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/source-memory-guide/
 status: planned_pending_publication
-reviewed_utc: 2026-06-28T20:20:00Z
+reviewed_utc: 2026-06-29T02:53:13Z
 ---
 
 # GGUF.MiRust.com Source Memory Guide
@@ -18,7 +18,7 @@ Hot Project Handoff memory lives in `.uai/`. Start with `.uai/startup-packet.uai
 
 Reviewed durable memory lives in `wiki/gguf-mirust/` and publishes under `https://aiwikis.org/gguf-mirust/` when deployed. Raw evidence manifests live under `raw/gguf-mirust/`.
 
-Report-derived long-term memory lives under `wiki/gguf-mirust/reports/`. Start with `reports/report-intake-index-2026-06-25.md` for the first processed batch and `reports/report-intake-index-2026-06-26.md` for model-breeding research, then load only the thematic synthesis record needed for the task.
+Report-derived long-term memory lives under `wiki/gguf-mirust/reports/`. Start with `reports/report-intake-index-2026-06-25.md` for the first processed batch, `reports/report-intake-index-2026-06-26.md` for model-breeding research, and `reports/report-intake-index-2026-06-28.md` for ModelBreeder plus zero-dependency browser-runtime research, then load only the thematic synthesis record needed for the task.
 
 UAIX File Handoff strategy is recorded in `docs/dogfood/uaix-file-handoff-memory-strategy-2026-06-26.md`. Current report pages are represented in `.uai/long-term-memory.uai`; `.uai/short-term-memory.uai` tells agents which report, research, dogfood, and pointer-ledger routes to open now.
 
@@ -52,6 +52,8 @@ For combined selector route-soak proof, load `reports/browser-combined-selector-
 
 For combined selector extended route-soak proof, load `reports/browser-combined-selector-extended-route-soak-memory-2026-06-28.md` when `combined-selector-route-extended-soak`, five-cycle q4_0/q8_0/f32 route pressure, fifteen generated assemblies, path-flexible total-budget checks, or extended route-count proof is in scope.
 
+For combined selector stress route-soak proof, load `reports/browser-combined-selector-stress-route-soak-memory-2026-06-28.md` when `combined-selector-route-stress-soak`, eight-cycle q4_0/q8_0/f32 route pressure, twenty-four generated assemblies, or deeper self-assembly route-count proof is in scope.
+
 For combined selector reload-soak proof, load `reports/browser-combined-selector-reload-soak-memory-2026-06-28.md` when `combined-selector-reload-soak`, registry default boot selection, fresh page-lifetime self-assembly, or reload route-count proof is in scope.
 
 For browser module-plan profile proof, load `reports/browser-module-plan-profile-memory-2026-06-28.md` when `browser-constrained-v1`, selector-to-receipt self-assembly profile matching, generated module-plan profile fields, or `module-plan-profile-drift` is in scope.
@@ -62,17 +64,65 @@ For browser module-plan fetch-policy proof, load `reports/browser-module-plan-fe
 
 For browser module-plan origin-policy proof, load `reports/browser-module-plan-origin-policy-memory-2026-06-28.md` when `same-origin-loopback-local-v1`, Module Plan `Origin`, generated module-plan origin fields, same-origin local assembly behavior, or `module-plan-origin-policy-drift` is in scope.
 
+For browser module-plan fetch-count proof, load `reports/browser-module-plan-fetch-count-memory-2026-06-28.md` when `module_plan_fetch_count_limit`, Module Plan `Fetch Limit`, generated self-assembly route counts, or `module-plan-fetch-count-drift` is in scope.
+
 For browser module-plan runtime scratch proof, load `reports/browser-module-plan-runtime-scratch-memory-2026-06-28.md` when `module_plan_runtime_scratch_byte_budget`, Module Plan `Scratch Budget`, browser runtime scratch envelopes, or `module-plan-runtime-scratch-drift` is in scope.
 
 For browser module-plan total budget proof, load `reports/browser-module-plan-total-budget-memory-2026-06-28.md` when `module_plan_total_byte_budget`, Module Plan `Total Budget`, exact module-plan self-assembly totals, or `module-plan-total-budget-drift` is in scope.
 
+For browser module-plan total limit proof, load `reports/browser-module-plan-total-limit-memory-2026-06-28.md` when `module_plan_total_byte_budget_limit`, Module Plan `Total Limit`, explicit browser self-assembly caps, or `module-plan-total-limit-drift` is in scope.
+
 For browser module-plan WASM memory proof, load `reports/browser-module-plan-wasm-memory-memory-2026-06-28.md` when `module_plan_wasm_memory_initial_pages`, Module Plan `WASM Pages`, pre-init exported WASM memory page checks, or `module-plan-wasm-memory-drift` is in scope.
+
+For browser module-plan WASM export-set proof, load `reports/browser-module-plan-wasm-export-set-memory-2026-06-28.md` when `module_plan_wasm_export_set`, `tinyrustlm-generate-v1`, instantiated WASM export checks, Module Plan `WASM ABI`, or `module-plan-wasm-export-set-drift` is in scope.
+
+For browser module-plan WASM heap proof, load `reports/browser-module-plan-wasm-heap-memory-2026-06-28.md` when `module_plan_wasm_heap_min_bytes`, Module Plan `Heap Floor`, browser allocation probes, or `module-plan-wasm-heap-drift` is in scope.
+
+For browser module-plan WASM transfer proof, load `reports/browser-module-plan-wasm-transfer-memory-2026-06-28.md` when `module_plan_wasm_transfer_strategy`, `copy-then-release-v1`, Module Plan `Transfer`, browser byte-copy release discipline, or `module-plan-wasm-transfer-drift` is in scope.
+
+For browser module-plan model-release proof, load `reports/browser-module-plan-model-release-memory-2026-06-29.md` when `module_plan_model_release_strategy`, `free-before-reassembly-v1`, Module Plan `Release`, generated model lifetime discipline, or `module-plan-model-release-drift` is in scope.
+
+For browser module-plan runtime-reset proof, load `reports/browser-module-plan-runtime-reset-memory-2026-06-29.md` when `module_plan_runtime_reset_strategy`, `reset-context-before-assembly-v1`, Module Plan `Reset`, generated runtime context reset sequencing, or `module-plan-runtime-reset-drift` is in scope.
+
+For browser module-plan adapter-validation proof, load `reports/browser-module-plan-adapter-validation-memory-2026-06-29.md` when `module_plan_adapter_validation_strategy`, `rust-validate-before-apply-v1`, Module Plan `Validate`, generated adapter validation sequencing, or `module-plan-adapter-validation-drift` is in scope.
+
+For browser module-plan adapter validation-count proof, load `reports/browser-module-plan-adapter-validation-count-memory-2026-06-29.md` when `module_plan_adapter_validation_count`, Module Plan `Validate Count`, actual Rust validation-call cardinality, adapter-family stack count agreement, or `module-plan-adapter-validation-count-drift` is in scope.
+
+For browser module-plan adapter apply-count proof, load `reports/browser-module-plan-adapter-apply-count-memory-2026-06-29.md` when `module_plan_adapter_apply_count`, Module Plan `Apply Count`, runtime `adapter_apply_count`, generated adapter stack cardinality, or `module-plan-adapter-apply-count-drift` is in scope.
+
+For browser module-plan KV-cache proof, load `reports/browser-module-plan-kv-cache-memory-2026-06-28.md` when `module_plan_kv_cache_byte_budget`, `module_plan_kv_cache_page_count`, Module Plan `KV Budget` or `KV Pages`, runtime KV diagnostics, or `module-plan-kv-cache-drift` is in scope.
+
+For browser module-plan output-limit proof, load `reports/browser-module-plan-output-limit-memory-2026-06-28.md` when `module_plan_output_byte_limit`, Module Plan `Output Limit`, generated-result caps, output-buffer boundaries, or `module-plan-output-limit-drift` is in scope.
+
+For browser module-plan adapter-stack budget proof, load `reports/browser-module-plan-adapter-stack-budget-memory-2026-06-28.md` when `module_plan_adapter_stack_byte_budget`, Module Plan `Stack Budget`, generated auto-stack byte totals, or `module-plan-adapter-stack-budget-drift` is in scope.
+
+For browser module-plan context-token proof, load `reports/browser-module-plan-context-token-memory-2026-06-28.md` when `module_plan_context_token_limit`, Module Plan `Context`, selector model-shape context parsing, or `module-plan-context-token-drift` is in scope.
+
+For browser module-plan tokenizer proof, load `reports/browser-module-plan-tokenizer-memory-2026-06-28.md` when `module_plan_tokenizer_checksum`, Module Plan `Tokenizer`, tokenizer-aware genome/species checksums, selector tokenizer routing, or `module-plan-tokenizer-drift` is in scope.
+
+For browser module-plan sampler-cap proof, load `reports/browser-module-plan-sampler-cap-memory-2026-06-28.md` when `module_plan_sampler_candidate_cap`, Module Plan `Sampler Cap`, fixed-buffer Top K clamping, or `module-plan-sampler-cap-drift` is in scope.
+
+For browser module-plan prompt-limit proof, load `reports/browser-module-plan-prompt-limit-memory-2026-06-28.md` when `module_plan_prompt_byte_limit`, Module Plan `Prompt Limit`, source prompt byte transfer, total budget math, `module-plan-prompt-limit-drift`, or `prompt-limit` source smoke behavior is in scope.
 
 For browser module-plan count drift proof, load `reports/browser-module-plan-count-drift-memory-2026-06-28.md` when selector `module_plan_module_count`, receipt `module_count`, module-plan cardinality, or `module-plan-count-drift` is in scope.
 
 For browser assembly trace proof, load `reports/browser-assembly-trace-memory-2026-06-28.md` when the Module Plan Trace row, browser load checkpoints, generated all-root trace assertion, or ready-state sequencing is in scope.
 
 For browser eval-case evidence checksum proof, load `reports/browser-eval-case-evidence-checksum-memory-2026-06-28.md` when selector admission eval evidence fields, promotion-ledger admission copies, generated assembly receipt eval digests, Model Provenance eval fields, or browser-smoke registry-backed provenance assertions are in scope.
+
+For browser selector genome/fitness proof, load `reports/browser-selector-genome-fitness-memory-2026-06-28.md` when selector `genome_id`, genome lineage checksums, scoped fitness-vector checksums, Model Provenance genome/fitness rows, or ModelBreeder-inspired browser registry metadata are in scope.
+
+For browser selector species-fit proof, load `reports/browser-selector-species-fit-memory-2026-06-28.md` when selector `species_id`, `species_strategy=selector-speciation-fit-v1`, `species_fit_status=browser-fit-bound`, `species_fit_checksum`, Model Provenance Species rows, or ModelBreeder speciation-fit browser registry metadata are in scope.
+
+For browser selector novelty proof, load `reports/browser-selector-novelty-memory-2026-06-28.md` when selector `novelty_id`, `novelty_strategy=selector-novelty-sketch-v1`, `novelty_status=behavior-sketch-bound`, `novelty_checksum`, Model Provenance Novelty rows, or ModelBreeder behavior-sketch registry metadata are in scope.
+
+For browser selector population proof, load `reports/browser-selector-population-memory-2026-06-28.md` when selector `population_id`, `population_strategy=selector-population-review-route-v1`, `population_status=population-review-bound`, `population_checksum`, Model Provenance Population rows, or ModelBreeder population-review registry metadata are in scope.
+
+For browser selector mate-selection proof, load `reports/browser-selector-mate-selection-memory-2026-06-28.md` when selector `mate_selection_id`, `mate_selection_strategy=selector-mate-selection-route-v1`, `mate_selection_status`, `mate_selection_parent_count`, `mate_selection_checksum`, Model Provenance Mate Selection rows, or ModelBreeder parent-pool route metadata are in scope.
+
+For browser selector phenotype-evidence proof, load `reports/browser-selector-phenotype-evidence-memory-2026-06-28.md` when selector `phenotype_evidence_id`, `phenotype_evidence_strategy=selector-phenotype-evidence-v1`, `phenotype_evidence_status=runtime-eval-bound`, `phenotype_evidence_checksum`, `provenance_manifest_checksum`, Model Provenance Phenotype rows, or ModelBreeder phenotype-evidence registry metadata are in scope.
+
+For browser selector heritable-artifact proof, load `reports/browser-selector-heritable-artifact-memory-2026-06-28.md` when selector `heritable_artifact_id`, `heritable_artifact_strategy=selector-heritable-artifact-v1`, `heritable_artifact_status=served-artifact-bound`, `heritable_artifact_checksum`, Model Provenance Artifact rows, or ModelBreeder artifact-inheritance registry metadata are in scope.
 
 For browser assembly eval-case drift proof, load `reports/browser-assembly-eval-case-drift-memory-2026-06-28.md` when generated assembly receipt eval digests, selector-to-assembly digest matching, Assembly Evidence failure states, or `assembly-eval-case-drift` smoke assertions are in scope.
 
@@ -139,6 +189,8 @@ For browser module-plan byte-count proof, load `reports/browser-module-plan-byte
 For browser module-plan checksum proof, load `reports/browser-module-plan-checksums-memory-2026-06-27.md` when `.module-plan.receipt` `module.N.checksum` fields, rendered checksum summaries, stack artifact checksum matching, or `module-plan-checksum-drift` assertions are in scope.
 
 Model-breeding references live under `wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md`; open it for compatible merge, sparse-lineage, adapter-ecology, low-rank ALR1/LoRA reference routing, source-backed browser ALR1 routing, population-search, federated/local-update, browser-constrained-assembly, UAIX-memory-strategy, sparse-mask breadcrumb, objective-vector, parent-relatedness, evolutionary-recipe, adaptive-search, and multi-objective-fitness routing.
+
+ModelBreeder and zero-dependency references live under `wiki/gguf-mirust/research/modelbreeder-zero-dependency-reference-ideas-2026-06-28.md`; open it for genome/fitness/novelty/population/mate-selection/phenotype-evidence/speciation fields, public-copy voice routing, zero-dependency Wasm SIMD, hierarchical quantization, deterministic tokenizer/sampler, KV-cache, allocator, multimodal, and telemetry guidance.
 
 ## Active File Intake
 

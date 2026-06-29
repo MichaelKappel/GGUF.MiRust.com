@@ -42,8 +42,29 @@ const MODULE_PLAN_PROFILE: &str = "browser-constrained-v1";
 const MODULE_PLAN_EXECUTION_PROFILE: &str = "single-threaded-wasm-local-v1";
 const MODULE_PLAN_FETCH_POLICY: &str = "local-no-store-v1";
 const MODULE_PLAN_ORIGIN_POLICY: &str = "same-origin-loopback-local-v1";
+const MODULE_PLAN_FETCH_COUNT_LIMIT: u64 = 32;
+const MODULE_PLAN_ASSEMBLY_EVIDENCE_FILE_COUNT: u64 = 9;
 const MODULE_PLAN_WASM_MEMORY_INITIAL_PAGES: u64 = 17;
+const MODULE_PLAN_WASM_EXPORT_SET: &str = "tinyrustlm-generate-v1";
+const MODULE_PLAN_WASM_TRANSFER_STRATEGY: &str = "copy-then-release-v1";
+const MODULE_PLAN_MODEL_RELEASE_STRATEGY: &str = "free-before-reassembly-v1";
+const MODULE_PLAN_RUNTIME_RESET_STRATEGY: &str = "reset-context-before-assembly-v1";
+const MODULE_PLAN_ADAPTER_VALIDATION_STRATEGY: &str = "rust-validate-before-apply-v1";
+const MODULE_PLAN_WASM_HEAP_MIN_BYTES: u64 = 64 * 1024;
+const MODULE_PLAN_SAMPLER_CANDIDATE_CAP: u64 = 1024;
+const MODULE_PLAN_PROMPT_BYTE_LIMIT: u64 = 4 * 1024;
 const MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET: u64 = 64 * 1024;
+const MODULE_PLAN_OUTPUT_BYTE_LIMIT: u64 = 64 * 1024;
+const MODULE_PLAN_KV_CACHE_BYTE_BUDGET_LIMIT: u64 = 8 * 1024 * 1024;
+const MODULE_PLAN_TOTAL_BYTE_BUDGET_LIMIT: u64 = 32 * 1024 * 1024
+    + 1024 * 1024
+    + MODULE_PLAN_KV_CACHE_BYTE_BUDGET_LIMIT
+    + 64 * 1024
+    + 128 * 1024
+    + 128 * 1024
+    + MODULE_PLAN_PROMPT_BYTE_LIMIT
+    + MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET
+    + MODULE_PLAN_OUTPUT_BYTE_LIMIT;
 const SOURCE_KIND: &str = "converted-trained";
 const APP_FILES: [&str; 3] = ["index.html", "app.css", "app.js"];
 const RUNTIME_WASM_FILE: &str = "tinyrustlm.wasm";
@@ -412,14 +433,26 @@ fn write_bundle_module_plan_receipt(
     let model_path = format!("../models/{}", spec.model_file);
     let manifest_path = format!("../models/{}.manifest", spec.model_file);
     let model_checksum = hex64(report.checksum());
+    let tokenizer_checksum = hex64(report.tokenizer_checksum());
     let model_byte_budget = u64::try_from(report.file_bytes())
         .map_err(|_| invalid("module plan model byte budget overflow"))?;
     let adapter_byte_budget = adapter_family_route.auto_apply_byte_budget;
+    let context_token_limit = u64::from(report.context_token_limit());
+    let kv_cache_byte_budget = report.kv_cache_byte_budget()?;
+    let kv_cache_page_count = report.kv_cache_page_count()?;
+    if kv_cache_byte_budget > MODULE_PLAN_KV_CACHE_BYTE_BUDGET_LIMIT {
+        return Err(invalid("module plan kv cache byte budget exceeds limit"));
+    }
     let manifest_byte_count = file_byte_count(provenance_manifest_path)?;
     let assembly_receipt_byte_count = file_byte_count(assembly_receipt_path)?;
     let adapter_family_receipt_byte_count = file_byte_count(adapter_family_receipt_path)?;
     let manifest_checksum = text_file_checksum(provenance_manifest_path)?;
     let stack_indexes = bundle_auto_apply_stack_indexes(bundle_adapter_routes.len());
+    let adapter_validation_count = u64::try_from(stack_indexes.len())
+        .map_err(|_| invalid("module plan adapter validation count overflow"))?;
+    let adapter_apply_count = adapter_validation_count;
+    let adapter_manifest_fetch_count = u64::try_from(adapter_family_route.adapter_count)
+        .map_err(|_| invalid("module plan planned fetch count overflow"))?;
     let module_count = 4usize
         .checked_add(stack_indexes.len())
         .ok_or_else(|| invalid("module plan count overflow"))?;
@@ -429,13 +462,29 @@ fn write_bundle_module_plan_receipt(
         ));
     }
     let stack_byte_counts = module_plan_stack_byte_counts(&stack_indexes, bundle_adapter_routes)?;
+    let adapter_stack_byte_budget =
+        stack_byte_counts
+            .iter()
+            .try_fold(0u64, |total, byte_count| {
+                total
+                    .checked_add(*byte_count)
+                    .ok_or_else(|| invalid("module plan adapter stack byte budget overflow"))
+            })?;
+    let wasm_heap_min_bytes = module_plan_wasm_heap_min_bytes(
+        model_byte_budget,
+        adapter_stack_byte_budget,
+        MODULE_PLAN_PROMPT_BYTE_LIMIT,
+    );
     let total_byte_budget = module_plan_total_byte_budget(
         model_byte_budget,
+        kv_cache_byte_budget,
         manifest_byte_count,
         assembly_receipt_byte_count,
         adapter_family_receipt_byte_count,
         &stack_byte_counts,
     )?;
+    let planned_fetch_count =
+        module_plan_planned_fetch_count(module_count, adapter_manifest_fetch_count)?;
 
     let mut text = String::new();
     push_line(&mut text, "tinyrustlm_module_plan_version", "1");
@@ -466,11 +515,81 @@ fn write_bundle_module_plan_receipt(
         "module_plan_origin_policy",
         MODULE_PLAN_ORIGIN_POLICY,
     );
+    push_line(
+        &mut text,
+        "module_plan_fetch_count_limit",
+        &MODULE_PLAN_FETCH_COUNT_LIMIT.to_string(),
+    );
+    push_line(
+        &mut text,
+        "module_plan_planned_fetch_count",
+        &planned_fetch_count.to_string(),
+    );
     // The page count mirrors the runtime's exported linear-memory size before init.
     push_line(
         &mut text,
         "module_plan_wasm_memory_initial_pages",
         &MODULE_PLAN_WASM_MEMORY_INITIAL_PAGES.to_string(),
+    );
+    push_line(
+        &mut text,
+        "module_plan_wasm_export_set",
+        MODULE_PLAN_WASM_EXPORT_SET,
+    );
+    push_line(
+        &mut text,
+        "module_plan_wasm_transfer_strategy",
+        MODULE_PLAN_WASM_TRANSFER_STRATEGY,
+    );
+    push_line(
+        &mut text,
+        "module_plan_model_release_strategy",
+        MODULE_PLAN_MODEL_RELEASE_STRATEGY,
+    );
+    push_line(
+        &mut text,
+        "module_plan_runtime_reset_strategy",
+        MODULE_PLAN_RUNTIME_RESET_STRATEGY,
+    );
+    push_line(
+        &mut text,
+        "module_plan_adapter_validation_strategy",
+        MODULE_PLAN_ADAPTER_VALIDATION_STRATEGY,
+    );
+    push_line(
+        &mut text,
+        "module_plan_adapter_validation_count",
+        &adapter_validation_count.to_string(),
+    );
+    push_line(
+        &mut text,
+        "module_plan_adapter_apply_count",
+        &adapter_apply_count.to_string(),
+    );
+    push_line(
+        &mut text,
+        "module_plan_wasm_heap_min_bytes",
+        &wasm_heap_min_bytes.to_string(),
+    );
+    push_line(
+        &mut text,
+        "module_plan_context_token_limit",
+        &context_token_limit.to_string(),
+    );
+    push_line(
+        &mut text,
+        "module_plan_sampler_candidate_cap",
+        &MODULE_PLAN_SAMPLER_CANDIDATE_CAP.to_string(),
+    );
+    push_line(
+        &mut text,
+        "module_plan_tokenizer_checksum",
+        &tokenizer_checksum,
+    );
+    push_line(
+        &mut text,
+        "module_plan_prompt_byte_limit",
+        &MODULE_PLAN_PROMPT_BYTE_LIMIT.to_string(),
     );
     push_line(
         &mut text,
@@ -484,13 +603,38 @@ fn write_bundle_module_plan_receipt(
     );
     push_line(
         &mut text,
+        "module_plan_adapter_stack_byte_budget",
+        &adapter_stack_byte_budget.to_string(),
+    );
+    push_line(
+        &mut text,
         "module_plan_runtime_scratch_byte_budget",
         &MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET.to_string(),
     );
     push_line(
         &mut text,
+        "module_plan_output_byte_limit",
+        &MODULE_PLAN_OUTPUT_BYTE_LIMIT.to_string(),
+    );
+    push_line(
+        &mut text,
+        "module_plan_kv_cache_byte_budget",
+        &kv_cache_byte_budget.to_string(),
+    );
+    push_line(
+        &mut text,
+        "module_plan_kv_cache_page_count",
+        &kv_cache_page_count.to_string(),
+    );
+    push_line(
+        &mut text,
         "module_plan_total_byte_budget",
         &total_byte_budget.to_string(),
+    );
+    push_line(
+        &mut text,
+        "module_plan_total_byte_budget_limit",
+        &MODULE_PLAN_TOTAL_BYTE_BUDGET_LIMIT.to_string(),
     );
     push_line(&mut text, "model_path", &model_path);
     push_line(&mut text, "manifest_path", &manifest_path);
@@ -648,11 +792,30 @@ fn write_bundle_module_plan_receipt(
         execution_profile: MODULE_PLAN_EXECUTION_PROFILE.to_string(),
         fetch_policy: MODULE_PLAN_FETCH_POLICY.to_string(),
         origin_policy: MODULE_PLAN_ORIGIN_POLICY.to_string(),
+        fetch_count_limit: MODULE_PLAN_FETCH_COUNT_LIMIT,
+        planned_fetch_count,
         wasm_memory_initial_pages: MODULE_PLAN_WASM_MEMORY_INITIAL_PAGES,
+        wasm_export_set: MODULE_PLAN_WASM_EXPORT_SET.to_string(),
+        wasm_transfer_strategy: MODULE_PLAN_WASM_TRANSFER_STRATEGY.to_string(),
+        model_release_strategy: MODULE_PLAN_MODEL_RELEASE_STRATEGY.to_string(),
+        runtime_reset_strategy: MODULE_PLAN_RUNTIME_RESET_STRATEGY.to_string(),
+        adapter_validation_strategy: MODULE_PLAN_ADAPTER_VALIDATION_STRATEGY.to_string(),
+        adapter_validation_count,
+        adapter_apply_count,
+        wasm_heap_min_bytes,
+        context_token_limit,
+        sampler_candidate_cap: MODULE_PLAN_SAMPLER_CANDIDATE_CAP,
+        tokenizer_checksum,
+        prompt_byte_limit: MODULE_PLAN_PROMPT_BYTE_LIMIT,
         model_byte_budget,
         adapter_byte_budget,
+        adapter_stack_byte_budget,
         runtime_scratch_byte_budget: MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET,
+        output_byte_limit: MODULE_PLAN_OUTPUT_BYTE_LIMIT,
+        kv_cache_byte_budget,
+        kv_cache_page_count,
         total_byte_budget,
+        total_byte_budget_limit: MODULE_PLAN_TOTAL_BYTE_BUDGET_LIMIT,
         receipt_checksum: hex64(provenance::text_checksum(text.as_bytes())),
         module_count,
     })
@@ -672,9 +835,37 @@ fn module_plan_stack_byte_counts(
     Ok(byte_counts)
 }
 
+fn module_plan_wasm_heap_min_bytes(
+    model_byte_budget: u64,
+    adapter_stack_byte_budget: u64,
+    prompt_byte_limit: u64,
+) -> u64 {
+    // Mirrors the browser allocation probe floor before generated bytes enter WASM.
+    MODULE_PLAN_WASM_HEAP_MIN_BYTES
+        .max(model_byte_budget)
+        .max(adapter_stack_byte_budget)
+        .max(prompt_byte_limit)
+}
+
+fn module_plan_planned_fetch_count(
+    module_count: usize,
+    adapter_manifest_fetch_count: u64,
+) -> io::Result<u64> {
+    // Counts generated self-assembly fetches across the receipt, modules,
+    // evidence files, and adapter manifests.
+    let module_count = u64::try_from(module_count)
+        .map_err(|_| invalid("module plan planned fetch count overflow"))?;
+    module_count
+        .checked_add(1)
+        .and_then(|value| value.checked_add(MODULE_PLAN_ASSEMBLY_EVIDENCE_FILE_COUNT))
+        .and_then(|value| value.checked_add(adapter_manifest_fetch_count))
+        .ok_or_else(|| invalid("module plan planned fetch count overflow"))
+}
+
 // Builds the browser-local assembly envelope from exact staged modules plus runtime scratch.
 fn module_plan_total_byte_budget(
     model_byte_budget: u64,
+    kv_cache_byte_budget: u64,
     manifest_byte_count: u64,
     assembly_receipt_byte_count: u64,
     adapter_family_receipt_byte_count: u64,
@@ -685,7 +876,10 @@ fn module_plan_total_byte_budget(
         manifest_byte_count,
         assembly_receipt_byte_count,
         adapter_family_receipt_byte_count,
+        kv_cache_byte_budget,
+        MODULE_PLAN_PROMPT_BYTE_LIMIT,
         MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET,
+        MODULE_PLAN_OUTPUT_BYTE_LIMIT,
     ] {
         total = total
             .checked_add(byte_count)
@@ -1292,6 +1486,11 @@ mod tests {
         let file_name = format!("{id}.module-plan.receipt");
         let module_plan = fs::read_to_string(root.join("models").join(&file_name)).unwrap();
         let checksum = hex64(provenance::text_checksum(module_plan.as_bytes()));
+        let model_path = root.join("models").join(format!("{id}.slm"));
+        let model_bytes_body = fs::read(&model_path).unwrap();
+        let report =
+            slm_validate::validate_bytes(&model_bytes_body, &display_path(&model_path)).unwrap();
+        let tokenizer_checksum = hex64(report.tokenizer_checksum());
         let model_bytes = fs::metadata(root.join("models").join(format!("{id}.slm")))
             .unwrap()
             .len();
@@ -1320,6 +1519,18 @@ mod tests {
             fs::metadata(root.join("models").join(format!("{id}-low-rank.alr1")))
                 .unwrap()
                 .len();
+        let kv_cache_bytes = 1024u64;
+        let adapter_stack_byte_budget =
+            family_adapter_bytes + sparse_adapter_bytes + low_rank_adapter_bytes;
+        let total_byte_budget = model_bytes
+            + manifest_bytes
+            + assembly_receipt_bytes
+            + adapter_family_receipt_bytes
+            + adapter_stack_byte_budget
+            + kv_cache_bytes
+            + MODULE_PLAN_PROMPT_BYTE_LIMIT
+            + MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET
+            + MODULE_PLAN_OUTPUT_BYTE_LIMIT;
         assert!(registry.contains(&format!("module_plan_path=../models/{file_name}")));
         assert!(registry.contains(&format!("module_plan_checksum={checksum}")));
         assert!(registry.contains("module_plan_status=receipt-validated"));
@@ -1330,10 +1541,40 @@ mod tests {
         assert!(registry.contains("module_plan_execution_profile=single-threaded-wasm-local-v1"));
         assert!(registry.contains("module_plan_fetch_policy=local-no-store-v1"));
         assert!(registry.contains("module_plan_origin_policy=same-origin-loopback-local-v1"));
+        assert!(registry.contains("module_plan_fetch_count_limit=32"));
+        assert!(registry.contains("module_plan_planned_fetch_count=21"));
         assert!(registry.contains("module_plan_wasm_memory_initial_pages=17"));
+        assert!(registry.contains("module_plan_wasm_export_set=tinyrustlm-generate-v1"));
+        assert!(registry.contains("module_plan_wasm_transfer_strategy=copy-then-release-v1"));
+        assert!(registry.contains("module_plan_model_release_strategy=free-before-reassembly-v1"));
+        assert!(registry
+            .contains("module_plan_runtime_reset_strategy=reset-context-before-assembly-v1"));
+        assert!(registry
+            .contains("module_plan_adapter_validation_strategy=rust-validate-before-apply-v1"));
+        assert!(registry.contains("module_plan_adapter_validation_count=3"));
+        assert!(registry.contains("module_plan_adapter_apply_count=3"));
+        assert!(registry.contains("module_plan_wasm_heap_min_bytes=65536"));
+        assert!(registry.contains("module_plan_context_token_limit=16"));
+        assert!(registry.contains("module_plan_sampler_candidate_cap=1024"));
+        assert!(registry.contains(&format!(
+            "module_plan_tokenizer_checksum={tokenizer_checksum}"
+        )));
+        assert!(registry.contains("module_plan_prompt_byte_limit=4096"));
         assert!(registry.contains(&format!("module_plan_model_byte_budget={model_bytes}")));
         assert!(registry.contains("module_plan_adapter_byte_budget=1048576"));
+        assert!(registry.contains(&format!(
+            "module_plan_adapter_stack_byte_budget={adapter_stack_byte_budget}"
+        )));
         assert!(registry.contains("module_plan_runtime_scratch_byte_budget=65536"));
+        assert!(registry.contains("module_plan_output_byte_limit=65536"));
+        assert!(registry.contains("module_plan_kv_cache_byte_budget=1024"));
+        assert!(registry.contains("module_plan_kv_cache_page_count=1"));
+        assert!(registry.contains(&format!(
+            "module_plan_total_byte_budget={total_byte_budget}"
+        )));
+        assert!(registry.contains(&format!(
+            "module_plan_total_byte_budget_limit={MODULE_PLAN_TOTAL_BYTE_BUDGET_LIMIT}"
+        )));
         assert!(registry.contains("module_plan_module_count=7"));
         assert!(module_plan.contains("tinyrustlm_module_plan_version=1"));
         assert!(module_plan.contains("module_plan_kind=browser-local-module-plan"));
@@ -1348,10 +1589,42 @@ mod tests {
         assert!(module_plan.contains("module_plan_execution_profile=single-threaded-wasm-local-v1"));
         assert!(module_plan.contains("module_plan_fetch_policy=local-no-store-v1"));
         assert!(module_plan.contains("module_plan_origin_policy=same-origin-loopback-local-v1"));
+        assert!(module_plan.contains("module_plan_fetch_count_limit=32"));
+        assert!(module_plan.contains("module_plan_planned_fetch_count=21"));
         assert!(module_plan.contains("module_plan_wasm_memory_initial_pages=17"));
+        assert!(module_plan.contains("module_plan_wasm_export_set=tinyrustlm-generate-v1"));
+        assert!(module_plan.contains("module_plan_wasm_transfer_strategy=copy-then-release-v1"));
+        assert!(
+            module_plan.contains("module_plan_model_release_strategy=free-before-reassembly-v1")
+        );
+        assert!(module_plan
+            .contains("module_plan_runtime_reset_strategy=reset-context-before-assembly-v1"));
+        assert!(module_plan
+            .contains("module_plan_adapter_validation_strategy=rust-validate-before-apply-v1"));
+        assert!(module_plan.contains("module_plan_adapter_validation_count=3"));
+        assert!(module_plan.contains("module_plan_adapter_apply_count=3"));
+        assert!(module_plan.contains("module_plan_wasm_heap_min_bytes=65536"));
+        assert!(module_plan.contains("module_plan_context_token_limit=16"));
+        assert!(module_plan.contains("module_plan_sampler_candidate_cap=1024"));
+        assert!(module_plan.contains(&format!(
+            "module_plan_tokenizer_checksum={tokenizer_checksum}"
+        )));
+        assert!(module_plan.contains("module_plan_prompt_byte_limit=4096"));
         assert!(module_plan.contains(&format!("module_plan_model_byte_budget={model_bytes}")));
         assert!(module_plan.contains("module_plan_adapter_byte_budget=1048576"));
+        assert!(module_plan.contains(&format!(
+            "module_plan_adapter_stack_byte_budget={adapter_stack_byte_budget}"
+        )));
         assert!(module_plan.contains("module_plan_runtime_scratch_byte_budget=65536"));
+        assert!(module_plan.contains("module_plan_output_byte_limit=65536"));
+        assert!(module_plan.contains("module_plan_kv_cache_byte_budget=1024"));
+        assert!(module_plan.contains("module_plan_kv_cache_page_count=1"));
+        assert!(module_plan.contains(&format!(
+            "module_plan_total_byte_budget={total_byte_budget}"
+        )));
+        assert!(module_plan.contains(&format!(
+            "module_plan_total_byte_budget_limit={MODULE_PLAN_TOTAL_BYTE_BUDGET_LIMIT}"
+        )));
         assert!(module_plan.contains(&format!("model_path=../models/{id}.slm")));
         assert!(module_plan.contains(&format!("manifest_path=../models/{id}.slm.manifest")));
         assert!(module_plan.contains(&format!("quantization={quantization}")));
@@ -1428,6 +1701,61 @@ mod tests {
         ));
     }
 
+    fn assert_registry_breeding_fields(registry: &str, prefix: &str) {
+        // Checks the ModelBreeder-inspired registry fields that route genome, species, population, mate-selection, phenotype, artifact, and fitness evidence.
+        assert!(registry.contains(&format!("{prefix}.genome_id=0x")));
+        assert!(registry.contains(&format!(
+            "{prefix}.genome_strategy=selector-admission-genome-v1"
+        )));
+        assert!(registry.contains(&format!("{prefix}.genome_lineage_status=admission-bound")));
+        assert!(registry.contains(&format!("{prefix}.genome_lineage_checksum=0x")));
+        assert!(registry.contains(&format!("{prefix}.species_id=0x")));
+        assert!(registry.contains(&format!(
+            "{prefix}.species_strategy=selector-speciation-fit-v1"
+        )));
+        assert!(registry.contains(&format!("{prefix}.species_fit_status=browser-fit-bound")));
+        assert!(registry.contains(&format!("{prefix}.species_fit_checksum=0x")));
+        assert!(registry.contains(&format!("{prefix}.novelty_id=0x")));
+        assert!(registry.contains(&format!(
+            "{prefix}.novelty_strategy=selector-novelty-sketch-v1"
+        )));
+        assert!(registry.contains(&format!("{prefix}.novelty_status=behavior-sketch-bound")));
+        assert!(registry.contains(&format!("{prefix}.novelty_checksum=0x")));
+        assert!(registry.contains(&format!("{prefix}.population_id=0x")));
+        assert!(registry.contains(&format!(
+            "{prefix}.population_strategy=selector-population-review-route-v1"
+        )));
+        assert!(registry.contains(&format!(
+            "{prefix}.population_status=population-review-bound"
+        )));
+        assert!(registry.contains(&format!("{prefix}.population_checksum=0x")));
+        assert!(registry.contains(&format!("{prefix}.mate_selection_id=0x")));
+        assert!(registry.contains(&format!(
+            "{prefix}.mate_selection_strategy=selector-mate-selection-route-v1"
+        )));
+        assert!(registry.contains(&format!("{prefix}.mate_selection_status=parent-pool-bound")));
+        assert!(registry.contains(&format!("{prefix}.mate_selection_parent_count=3")));
+        assert!(registry.contains(&format!("{prefix}.mate_selection_checksum=0x")));
+        assert!(registry.contains(&format!("{prefix}.phenotype_evidence_id=0x")));
+        assert!(registry.contains(&format!(
+            "{prefix}.phenotype_evidence_strategy=selector-phenotype-evidence-v1"
+        )));
+        assert!(registry.contains(&format!(
+            "{prefix}.phenotype_evidence_status=runtime-eval-bound"
+        )));
+        assert!(registry.contains(&format!("{prefix}.phenotype_evidence_checksum=0x")));
+        assert!(registry.contains(&format!("{prefix}.heritable_artifact_id=0x")));
+        assert!(registry.contains(&format!(
+            "{prefix}.heritable_artifact_strategy=selector-heritable-artifact-v1"
+        )));
+        assert!(registry.contains(&format!(
+            "{prefix}.heritable_artifact_status=served-artifact-bound"
+        )));
+        assert!(registry.contains(&format!("{prefix}.heritable_artifact_checksum=0x")));
+        assert!(registry.contains(&format!("{prefix}.fitness_vector_status=eval-bound")));
+        assert!(registry.contains(&format!("{prefix}.fitness_vector_checksum=0x")));
+    }
+
     #[test]
     fn writes_browser_multi_parent_bundle() {
         let root = unique_dir("bundle").join("tinyrustlm");
@@ -1442,6 +1770,7 @@ mod tests {
         assert!(registry.contains("evidence_text_byte_budget=131072"));
         assert!(registry.contains("entry.0.model_path=../models/multi-parent-sign-merge-f32.slm"));
         assert!(registry.contains("entry.0.eval_case_evidence_checksum=0x"));
+        assert_registry_breeding_fields(&registry, "entry.0");
         assert!(registry
             .contains("entry.0.adapter_path=../models/multi-parent-sign-merge-f32-self.adp1"));
         assert!(registry.contains("entry.0.adapter_label=Multi-parent sign-merge f32 self ADP1"));
@@ -1603,6 +1932,7 @@ mod tests {
             assert!(registry.contains(&format!("entry.0.quantization={quantization}")));
             assert!(registry.contains(&format!("entry.0.model_path=../models/{id}.slm")));
             assert!(registry.contains("entry.0.eval_case_evidence_checksum=0x"));
+            assert_registry_breeding_fields(&registry, "entry.0");
             assert!(registry.contains(&format!("entry.0.adapter_path=../models/{id}-self.adp1")));
             assert!(registry
                 .contains("entry.0.adapter_apply_status=runtime-q8-q4-compatible-or-fuse-to-slm"));
@@ -1701,6 +2031,7 @@ mod tests {
             assert!(registry.contains(&format!("entry.{index}.candidate_id={id}")));
             assert!(registry.contains(&format!("entry.{index}.quantization={quantization}")));
             assert!(registry.contains(&format!("entry.{index}.model_path=../models/{id}.slm")));
+            assert_registry_breeding_fields(&registry, &format!("entry.{index}"));
             assert!(registry.contains(&format!("entry.{index}.adapter_count=4")));
             assert!(registry.contains(&format!(
                 "entry.{index}.adapter.2.path=../models/{id}-sparse.asp1"

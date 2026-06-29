@@ -1,6 +1,6 @@
 # GGUF.MiRust.com Raw Evidence Manifest
 
-Reviewed: 2026-06-26
+Reviewed: 2026-06-28
 
 ## Report Intake 2026-06-25
 
@@ -84,3 +84,26 @@ Source-site removal or keep-active reason: source handoff copies may be removed 
 | The rise of on-device, tiny language models.md | report-intake-2026-06-26/The rise of on-device, tiny language models.md | BA9444DF20FD357747BF320B125613E657B3124A2436CA5E82ECC33F317E1CCC |
 | The terms 4Fs and code beading model breeding.md | report-intake-2026-06-26/The terms 4Fs and code beading model breeding.md | C9B395CF265EA6D4BA17BD7087A72AC6B18C5FA7896E03E443ABE6D1E3A83545 |
 | Tiny-LLM Adapters and LoRA.md | report-intake-2026-06-26/Tiny-LLM Adapters and LoRA.md | 7ECA22D6E00B6BBF0AE5A5CF99C0CC2BECAE3AEC6461D4DCA028C36FFF23889A |
+
+## Report Intake 2026-06-28
+
+Source site: `agent-file-handoff/Improvement/`
+
+Destination: `raw/gguf-mirust/report-intake-2026-06-28/`
+
+Disposition: preserved-to-durable-memory and synthesized into `wiki/gguf-mirust/research/modelbreeder-zero-dependency-reference-ideas-2026-06-28.md`.
+
+Review state: reviewed into research guidance memory.
+
+Promotion status: local durable memory, planned pending publication through `https://aiwikis.org/gguf-mirust/`.
+
+Source-site removal or keep-active reason: source handoff copies may be removed after the intake ledger is updated because exact originals are preserved here.
+
+| Source file | Destination file | SHA256 |
+| --- | --- | --- |
+| ModelBreeder site and theory emphasize controlled evolution.md | report-intake-2026-06-28/ModelBreeder site and theory emphasize controlled evolution.md | 18FE9E16D435D53892C8963E14212B7A3BEDFEE84E9FCD0AC87CB7BA322DA1E9 |
+| ModelBreeder Theory vs. Source Files.md | report-intake-2026-06-28/ModelBreeder Theory vs. Source Files.md | 8A57EAE46580251F3AB45F4170E82E7D2AAE6209CD1CF1642A4011875FF6A157 |
+| theory emphasize controlled evolution of AI models.md | report-intake-2026-06-28/theory emphasize controlled evolution of AI models.md | 18FE9E16D435D53892C8963E14212B7A3BEDFEE84E9FCD0AC87CB7BA322DA1E9 |
+| Zero-Dependency Rust LLM Improvements.md | report-intake-2026-06-28/Zero-Dependency Rust LLM Improvements.md | AFB87761528AD1060130E7CAAC0D8CF3D1CA2CA84E893DBAF737BFED48181589 |
+
+Duplicate content note: `ModelBreeder site and theory emphasize controlled evolution.md` and `theory emphasize controlled evolution of AI models.md` have identical SHA256 hashes and route as one ModelBreeder guidance body with two filenames.

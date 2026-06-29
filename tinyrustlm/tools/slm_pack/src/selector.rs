@@ -42,14 +42,46 @@ const MODULE_PLAN_PROFILE: &str = "browser-constrained-v1";
 const MODULE_PLAN_EXECUTION_PROFILE: &str = "single-threaded-wasm-local-v1";
 const MODULE_PLAN_FETCH_POLICY: &str = "local-no-store-v1";
 const MODULE_PLAN_ORIGIN_POLICY: &str = "same-origin-loopback-local-v1";
+const MODULE_PLAN_FETCH_COUNT_LIMIT: u64 = 32;
+const MODULE_PLAN_ASSEMBLY_EVIDENCE_FILE_COUNT: u64 = 9;
 const MODULE_PLAN_WASM_MEMORY_INITIAL_PAGES: u64 = 17;
+const MODULE_PLAN_WASM_EXPORT_SET: &str = "tinyrustlm-generate-v1";
+const MODULE_PLAN_WASM_TRANSFER_STRATEGY: &str = "copy-then-release-v1";
+const MODULE_PLAN_MODEL_RELEASE_STRATEGY: &str = "free-before-reassembly-v1";
+const MODULE_PLAN_RUNTIME_RESET_STRATEGY: &str = "reset-context-before-assembly-v1";
+const MODULE_PLAN_ADAPTER_VALIDATION_STRATEGY: &str = "rust-validate-before-apply-v1";
+const MODULE_PLAN_WASM_HEAP_MIN_BYTES: u64 = 64 * 1024;
+const MODULE_PLAN_CONTEXT_TOKEN_LIMIT_LIMIT: u64 = 4096;
+const MODULE_PLAN_SAMPLER_CANDIDATE_CAP: u64 = 1024;
+const MODULE_PLAN_PROMPT_BYTE_LIMIT: u64 = 4 * 1024;
 const MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET: u64 = 64 * 1024;
+const MODULE_PLAN_OUTPUT_BYTE_LIMIT: u64 = 64 * 1024;
+const MODULE_PLAN_KV_CACHE_BYTE_BUDGET_LIMIT: u64 = 8 * 1024 * 1024;
 const MODULE_PLAN_TOTAL_BYTE_BUDGET_LIMIT: u64 = SELECTOR_MODEL_BYTE_BUDGET
     + ADAPTER_AUTO_APPLY_BYTE_BUDGET
+    + MODULE_PLAN_KV_CACHE_BYTE_BUDGET_LIMIT
     + MANIFEST_TEXT_BYTE_BUDGET
     + RECEIPT_TEXT_BYTE_BUDGET
     + RECEIPT_TEXT_BYTE_BUDGET
-    + MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET;
+    + MODULE_PLAN_PROMPT_BYTE_LIMIT
+    + MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET
+    + MODULE_PLAN_OUTPUT_BYTE_LIMIT;
+const GENOME_STRATEGY: &str = "selector-admission-genome-v1";
+const GENOME_LINEAGE_STATUS: &str = "admission-bound";
+const SPECIES_STRATEGY: &str = "selector-speciation-fit-v1";
+const SPECIES_FIT_STATUS: &str = "browser-fit-bound";
+const NOVELTY_STRATEGY: &str = "selector-novelty-sketch-v1";
+const NOVELTY_STATUS: &str = "behavior-sketch-bound";
+const POPULATION_STRATEGY: &str = "selector-population-review-route-v1";
+const POPULATION_STATUS: &str = "population-review-bound";
+const MATE_SELECTION_STRATEGY: &str = "selector-mate-selection-route-v1";
+const MATE_SELECTION_PARENT_POOL_STATUS: &str = "parent-pool-bound";
+const MATE_SELECTION_ADMISSION_STATUS: &str = "admission-only";
+const PHENOTYPE_EVIDENCE_STRATEGY: &str = "selector-phenotype-evidence-v1";
+const PHENOTYPE_EVIDENCE_STATUS: &str = "runtime-eval-bound";
+const HERITABLE_ARTIFACT_STRATEGY: &str = "selector-heritable-artifact-v1";
+const HERITABLE_ARTIFACT_STATUS: &str = "served-artifact-bound";
+const FITNESS_VECTOR_STATUS: &str = "eval-bound";
 const ADAPTER_KEY_SUFFIXES: &[&str] = &[
     "adapter_path",
     "adapter_manifest_path",
@@ -92,11 +124,30 @@ const MODULE_PLAN_KEY_SUFFIXES: &[&str] = &[
     "module_plan_execution_profile",
     "module_plan_fetch_policy",
     "module_plan_origin_policy",
+    "module_plan_fetch_count_limit",
+    "module_plan_planned_fetch_count",
     "module_plan_wasm_memory_initial_pages",
+    "module_plan_wasm_export_set",
+    "module_plan_wasm_transfer_strategy",
+    "module_plan_model_release_strategy",
+    "module_plan_runtime_reset_strategy",
+    "module_plan_adapter_validation_strategy",
+    "module_plan_adapter_validation_count",
+    "module_plan_adapter_apply_count",
+    "module_plan_wasm_heap_min_bytes",
+    "module_plan_context_token_limit",
+    "module_plan_sampler_candidate_cap",
+    "module_plan_tokenizer_checksum",
+    "module_plan_prompt_byte_limit",
     "module_plan_model_byte_budget",
     "module_plan_adapter_byte_budget",
+    "module_plan_adapter_stack_byte_budget",
     "module_plan_runtime_scratch_byte_budget",
+    "module_plan_output_byte_limit",
+    "module_plan_kv_cache_byte_budget",
+    "module_plan_kv_cache_page_count",
     "module_plan_total_byte_budget",
+    "module_plan_total_byte_budget_limit",
     "module_plan_module_count",
 ];
 
@@ -109,11 +160,13 @@ struct RegistryEntry {
     max_tokens: String,
     model_bytes: String,
     slm_checksum: String,
+    tokenizer_checksum: String,
     model_shape: String,
     quantization: String,
     output_contract: String,
     admission_checksum: String,
     promotion_manifest_checksum: String,
+    provenance_manifest_checksum: String,
     runtime_smoke_manifest_checksum: String,
     eval_manifest_checksum: String,
     eval_case_evidence_checksum: String,
@@ -121,6 +174,13 @@ struct RegistryEntry {
     quality_boundary: String,
     eval_dataset: String,
     cases_passed: String,
+    admission_kind: String,
+    operator_receipt_checksum: Option<String>,
+    parent_pool_recipe_checksum: Option<String>,
+    population_review_checksum: Option<String>,
+    promotion_ledger_checksum: Option<String>,
+    admission_set_checksum: Option<String>,
+    parent_count: usize,
     adapters: Vec<RegistryAdapterRoute>,
     adapter_family: Option<RegistryAdapterFamilyRoute>,
     assembly: Option<RegistryAssemblyRoute>,
@@ -182,11 +242,30 @@ pub(crate) struct RegistryModulePlanRoute {
     pub(crate) execution_profile: String,
     pub(crate) fetch_policy: String,
     pub(crate) origin_policy: String,
+    pub(crate) fetch_count_limit: u64,
+    pub(crate) planned_fetch_count: u64,
     pub(crate) wasm_memory_initial_pages: u64,
+    pub(crate) wasm_export_set: String,
+    pub(crate) wasm_transfer_strategy: String,
+    pub(crate) model_release_strategy: String,
+    pub(crate) runtime_reset_strategy: String,
+    pub(crate) adapter_validation_strategy: String,
+    pub(crate) adapter_validation_count: u64,
+    pub(crate) adapter_apply_count: u64,
+    pub(crate) wasm_heap_min_bytes: u64,
+    pub(crate) context_token_limit: u64,
+    pub(crate) sampler_candidate_cap: u64,
+    pub(crate) tokenizer_checksum: String,
+    pub(crate) prompt_byte_limit: u64,
     pub(crate) model_byte_budget: u64,
     pub(crate) adapter_byte_budget: u64,
+    pub(crate) adapter_stack_byte_budget: u64,
     pub(crate) runtime_scratch_byte_budget: u64,
+    pub(crate) output_byte_limit: u64,
+    pub(crate) kv_cache_byte_budget: u64,
+    pub(crate) kv_cache_page_count: u64,
     pub(crate) total_byte_budget: u64,
+    pub(crate) total_byte_budget_limit: u64,
     pub(crate) receipt_checksum: String,
     pub(crate) module_count: usize,
 }
@@ -410,6 +489,11 @@ pub(crate) fn build_registry_text_with_module_plan_routes(
         );
         push_line(
             &mut text,
+            &format!("{prefix}.tokenizer_checksum"),
+            &entry.tokenizer_checksum,
+        );
+        push_line(
+            &mut text,
             &format!("{prefix}.model_shape"),
             &entry.model_shape,
         );
@@ -425,6 +509,151 @@ pub(crate) fn build_registry_text_with_module_plan_routes(
         );
         push_line(
             &mut text,
+            &format!("{prefix}.genome_id"),
+            &registry_entry_genome_id(entry),
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.genome_strategy"),
+            GENOME_STRATEGY,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.genome_lineage_status"),
+            GENOME_LINEAGE_STATUS,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.genome_lineage_checksum"),
+            &registry_entry_genome_lineage_checksum(entry),
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.species_id"),
+            &registry_entry_species_id(entry),
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.species_strategy"),
+            SPECIES_STRATEGY,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.species_fit_status"),
+            SPECIES_FIT_STATUS,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.species_fit_checksum"),
+            &registry_entry_species_fit_checksum(entry),
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.novelty_id"),
+            &registry_entry_novelty_id(entry),
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.novelty_strategy"),
+            NOVELTY_STRATEGY,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.novelty_status"),
+            NOVELTY_STATUS,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.novelty_checksum"),
+            &registry_entry_novelty_checksum(entry),
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.population_id"),
+            &registry_entry_population_id(entry),
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.population_strategy"),
+            POPULATION_STRATEGY,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.population_status"),
+            POPULATION_STATUS,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.population_checksum"),
+            &registry_entry_population_checksum(entry),
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.mate_selection_id"),
+            &registry_entry_mate_selection_id(entry),
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.mate_selection_strategy"),
+            MATE_SELECTION_STRATEGY,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.mate_selection_status"),
+            registry_entry_mate_selection_status(entry),
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.mate_selection_parent_count"),
+            &entry.parent_count.to_string(),
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.mate_selection_checksum"),
+            &registry_entry_mate_selection_checksum(entry),
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.phenotype_evidence_id"),
+            &registry_entry_phenotype_evidence_id(entry),
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.phenotype_evidence_strategy"),
+            PHENOTYPE_EVIDENCE_STRATEGY,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.phenotype_evidence_status"),
+            PHENOTYPE_EVIDENCE_STATUS,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.phenotype_evidence_checksum"),
+            &registry_entry_phenotype_evidence_checksum(entry),
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.heritable_artifact_id"),
+            &registry_entry_heritable_artifact_id(entry),
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.heritable_artifact_strategy"),
+            HERITABLE_ARTIFACT_STRATEGY,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.heritable_artifact_status"),
+            HERITABLE_ARTIFACT_STATUS,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.heritable_artifact_checksum"),
+            &registry_entry_heritable_artifact_checksum(entry),
+        );
+        push_line(
+            &mut text,
             &format!("{prefix}.admission_checksum"),
             &entry.admission_checksum,
         );
@@ -432,6 +661,11 @@ pub(crate) fn build_registry_text_with_module_plan_routes(
             &mut text,
             &format!("{prefix}.promotion_manifest_checksum"),
             &entry.promotion_manifest_checksum,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.provenance_manifest_checksum"),
+            &entry.provenance_manifest_checksum,
         );
         push_line(
             &mut text,
@@ -467,6 +701,16 @@ pub(crate) fn build_registry_text_with_module_plan_routes(
             &mut text,
             &format!("{prefix}.cases_passed"),
             &entry.cases_passed,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.fitness_vector_status"),
+            FITNESS_VECTOR_STATUS,
+        );
+        push_line(
+            &mut text,
+            &format!("{prefix}.fitness_vector_checksum"),
+            &registry_entry_fitness_vector_checksum(entry),
         );
         if let Some(adapter) = entry.adapters.first() {
             push_line(
@@ -687,8 +931,78 @@ pub(crate) fn build_registry_text_with_module_plan_routes(
             );
             push_line(
                 &mut text,
+                &format!("{prefix}.module_plan_fetch_count_limit"),
+                &module_plan.fetch_count_limit.to_string(),
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_planned_fetch_count"),
+                &module_plan.planned_fetch_count.to_string(),
+            );
+            push_line(
+                &mut text,
                 &format!("{prefix}.module_plan_wasm_memory_initial_pages"),
                 &module_plan.wasm_memory_initial_pages.to_string(),
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_wasm_export_set"),
+                &module_plan.wasm_export_set,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_wasm_transfer_strategy"),
+                &module_plan.wasm_transfer_strategy,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_model_release_strategy"),
+                &module_plan.model_release_strategy,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_runtime_reset_strategy"),
+                &module_plan.runtime_reset_strategy,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_adapter_validation_strategy"),
+                &module_plan.adapter_validation_strategy,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_adapter_validation_count"),
+                &module_plan.adapter_validation_count.to_string(),
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_adapter_apply_count"),
+                &module_plan.adapter_apply_count.to_string(),
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_wasm_heap_min_bytes"),
+                &module_plan.wasm_heap_min_bytes.to_string(),
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_context_token_limit"),
+                &module_plan.context_token_limit.to_string(),
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_sampler_candidate_cap"),
+                &module_plan.sampler_candidate_cap.to_string(),
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_tokenizer_checksum"),
+                &module_plan.tokenizer_checksum,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_prompt_byte_limit"),
+                &module_plan.prompt_byte_limit.to_string(),
             );
             push_line(
                 &mut text,
@@ -702,13 +1016,38 @@ pub(crate) fn build_registry_text_with_module_plan_routes(
             );
             push_line(
                 &mut text,
+                &format!("{prefix}.module_plan_adapter_stack_byte_budget"),
+                &module_plan.adapter_stack_byte_budget.to_string(),
+            );
+            push_line(
+                &mut text,
                 &format!("{prefix}.module_plan_runtime_scratch_byte_budget"),
                 &module_plan.runtime_scratch_byte_budget.to_string(),
             );
             push_line(
                 &mut text,
+                &format!("{prefix}.module_plan_output_byte_limit"),
+                &module_plan.output_byte_limit.to_string(),
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_kv_cache_byte_budget"),
+                &module_plan.kv_cache_byte_budget.to_string(),
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_kv_cache_page_count"),
+                &module_plan.kv_cache_page_count.to_string(),
+            );
+            push_line(
+                &mut text,
                 &format!("{prefix}.module_plan_total_byte_budget"),
                 &module_plan.total_byte_budget.to_string(),
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_total_byte_budget_limit"),
+                &module_plan.total_byte_budget_limit.to_string(),
             );
             push_line(
                 &mut text,
@@ -810,6 +1149,7 @@ fn quantization_default_rank(quantization: &str) -> u8 {
     }
 }
 
+// Pulls each reviewed admission into the browser selector entry shape.
 fn entries_from_admissions(admission_texts: &[String]) -> io::Result<Vec<RegistryEntry>> {
     if admission_texts.is_empty() {
         return Err(invalid(
@@ -845,6 +1185,7 @@ fn entries_from_admissions(admission_texts: &[String]) -> io::Result<Vec<Registr
         let manifest_path = format!("{model_path}.manifest");
         let model_shape = require_key(&fields, "candidate_model_shape")?.to_string();
         let model_bytes = selector_model_bytes(require_key(&fields, "candidate_artifact_bytes")?)?;
+        let tokenizer_checksum = require_key(&fields, "candidate_tokenizer_checksum")?.to_string();
         entries.push(RegistryEntry {
             candidate_id: candidate_id.clone(),
             display_name: display_name(
@@ -857,11 +1198,14 @@ fn entries_from_admissions(admission_texts: &[String]) -> io::Result<Vec<Registr
             max_tokens: default_max_tokens(&model_shape).to_string(),
             model_bytes: model_bytes.to_string(),
             slm_checksum,
+            tokenizer_checksum,
             model_shape,
             quantization: require_key(&fields, "candidate_quantization")?.to_string(),
             output_contract: require_key(&fields, "candidate_output_contract")?.to_string(),
             admission_checksum: hex64(provenance::text_checksum(admission_text.as_bytes())),
             promotion_manifest_checksum: require_key(&fields, "promotion_manifest_checksum")?
+                .to_string(),
+            provenance_manifest_checksum: require_key(&fields, "provenance_manifest_checksum")?
                 .to_string(),
             runtime_smoke_manifest_checksum: require_key(
                 &fields,
@@ -875,6 +1219,29 @@ fn entries_from_admissions(admission_texts: &[String]) -> io::Result<Vec<Registr
             quality_boundary: require_key(&fields, "quality_boundary")?.to_string(),
             eval_dataset: require_key(&fields, "eval_dataset")?.to_string(),
             cases_passed: require_key(&fields, "cases_passed")?.to_string(),
+            admission_kind: fields
+                .get("admission_kind")
+                .cloned()
+                .unwrap_or_else(|| "selector-admission".to_string()),
+            operator_receipt_checksum: fields.get("operator_receipt_checksum").cloned(),
+            parent_pool_recipe_checksum: fields.get("parent_pool_recipe_checksum").cloned(),
+            population_review_checksum: fields.get("population_review_checksum").cloned(),
+            promotion_ledger_checksum: fields.get("promotion_ledger_checksum").cloned(),
+            admission_set_checksum: fields.get("admission_set_checksum").cloned(),
+            parent_count: match fields.get("parent_count") {
+                Some(value) => {
+                    let count = value.parse::<usize>().map_err(|_| {
+                        invalid("selector registry admission parent_count is invalid")
+                    })?;
+                    if count == 0 {
+                        return Err(invalid(
+                            "selector registry admission parent_count is invalid",
+                        ));
+                    }
+                    count
+                }
+                None => 1,
+            },
             adapters: Vec::new(),
             adapter_family: None,
             assembly: None,
@@ -1028,6 +1395,22 @@ fn attach_module_plan_routes(
         if route.adapter_byte_budget != family.auto_apply_byte_budget {
             return Err(invalid(
                 "selector registry module plan adapter byte budget must match the adapter family budget",
+            ));
+        }
+        if route.adapter_stack_byte_budget > family.auto_apply_byte_budget {
+            return Err(invalid(
+                "selector registry module plan adapter stack byte budget must fit the adapter family budget",
+            ));
+        }
+        let expected_context_token_limit = model_shape_context_token_limit(&entry.model_shape)?;
+        if route.context_token_limit != expected_context_token_limit {
+            return Err(invalid(
+                "selector registry module plan context token limit must match admitted model shape",
+            ));
+        }
+        if route.tokenizer_checksum != entry.tokenizer_checksum {
+            return Err(invalid(
+                "selector registry module plan tokenizer checksum must match admitted tokenizer",
             ));
         }
         entries[index].module_plan = Some(route.clone());
@@ -1234,6 +1617,16 @@ fn module_plan_routes_from_registry(
                 .to_string(),
             origin_policy: require_key(fields, &format!("{prefix}.module_plan_origin_policy"))?
                 .to_string(),
+            fetch_count_limit: parse_module_plan_count(
+                fields,
+                &format!("{prefix}.module_plan_fetch_count_limit"),
+                "fetch count limit",
+            )?,
+            planned_fetch_count: parse_module_plan_count(
+                fields,
+                &format!("{prefix}.module_plan_planned_fetch_count"),
+                "planned fetch count",
+            )?,
             wasm_memory_initial_pages: {
                 let value = require_key(
                     fields,
@@ -1249,6 +1642,63 @@ fn module_plan_routes_from_registry(
                 }
                 pages
             },
+            wasm_export_set: require_key(fields, &format!("{prefix}.module_plan_wasm_export_set"))?
+                .to_string(),
+            wasm_transfer_strategy: require_key(
+                fields,
+                &format!("{prefix}.module_plan_wasm_transfer_strategy"),
+            )?
+            .to_string(),
+            model_release_strategy: require_key(
+                fields,
+                &format!("{prefix}.module_plan_model_release_strategy"),
+            )?
+            .to_string(),
+            runtime_reset_strategy: require_key(
+                fields,
+                &format!("{prefix}.module_plan_runtime_reset_strategy"),
+            )?
+            .to_string(),
+            adapter_validation_strategy: require_key(
+                fields,
+                &format!("{prefix}.module_plan_adapter_validation_strategy"),
+            )?
+            .to_string(),
+            adapter_validation_count: parse_module_plan_count(
+                fields,
+                &format!("{prefix}.module_plan_adapter_validation_count"),
+                "adapter validation count",
+            )?,
+            adapter_apply_count: parse_module_plan_count(
+                fields,
+                &format!("{prefix}.module_plan_adapter_apply_count"),
+                "adapter apply count",
+            )?,
+            wasm_heap_min_bytes: parse_module_plan_byte_budget(
+                fields,
+                &format!("{prefix}.module_plan_wasm_heap_min_bytes"),
+                "wasm heap",
+            )?,
+            context_token_limit: parse_module_plan_count(
+                fields,
+                &format!("{prefix}.module_plan_context_token_limit"),
+                "context token limit",
+            )?,
+            sampler_candidate_cap: parse_module_plan_count(
+                fields,
+                &format!("{prefix}.module_plan_sampler_candidate_cap"),
+                "sampler candidate cap",
+            )?,
+            tokenizer_checksum: require_key(
+                fields,
+                &format!("{prefix}.module_plan_tokenizer_checksum"),
+            )?
+            .to_string(),
+            prompt_byte_limit: parse_module_plan_byte_budget(
+                fields,
+                &format!("{prefix}.module_plan_prompt_byte_limit"),
+                "prompt",
+            )?,
             model_byte_budget: parse_module_plan_byte_budget(
                 fields,
                 &format!("{prefix}.module_plan_model_byte_budget"),
@@ -1259,15 +1709,39 @@ fn module_plan_routes_from_registry(
                 &format!("{prefix}.module_plan_adapter_byte_budget"),
                 "adapter",
             )?,
+            adapter_stack_byte_budget: parse_module_plan_byte_budget(
+                fields,
+                &format!("{prefix}.module_plan_adapter_stack_byte_budget"),
+                "adapter stack",
+            )?,
             runtime_scratch_byte_budget: parse_module_plan_byte_budget(
                 fields,
                 &format!("{prefix}.module_plan_runtime_scratch_byte_budget"),
                 "runtime scratch",
             )?,
+            output_byte_limit: parse_module_plan_byte_budget(
+                fields,
+                &format!("{prefix}.module_plan_output_byte_limit"),
+                "output",
+            )?,
+            kv_cache_byte_budget: parse_module_plan_byte_budget(
+                fields,
+                &format!("{prefix}.module_plan_kv_cache_byte_budget"),
+                "kv cache",
+            )?,
+            kv_cache_page_count: parse_module_plan_page_count(
+                fields,
+                &format!("{prefix}.module_plan_kv_cache_page_count"),
+            )?,
             total_byte_budget: parse_module_plan_byte_budget(
                 fields,
                 &format!("{prefix}.module_plan_total_byte_budget"),
                 "total",
+            )?,
+            total_byte_budget_limit: parse_module_plan_byte_budget(
+                fields,
+                &format!("{prefix}.module_plan_total_byte_budget_limit"),
+                "total limit",
             )?,
             module_count: require_key(fields, &format!("{prefix}.module_plan_module_count"))?
                 .parse::<usize>()
@@ -1523,9 +1997,93 @@ pub(crate) fn validate_registry_module_plan_route(
             "selector registry module plan origin policy is invalid",
         ));
     }
+    let module_count = u64::try_from(route.module_count)
+        .map_err(|_| invalid("selector registry module plan count is invalid"))?;
+    if route.fetch_count_limit != MODULE_PLAN_FETCH_COUNT_LIMIT
+        || module_count + 1 > route.fetch_count_limit
+    {
+        return Err(invalid(
+            "selector registry module plan fetch count limit is invalid",
+        ));
+    }
+    if route.planned_fetch_count
+        != module_plan_planned_fetch_count(route.module_count, route.adapter_apply_count)?
+        || route.planned_fetch_count > route.fetch_count_limit
+    {
+        return Err(invalid(
+            "selector registry module plan planned fetch count is invalid",
+        ));
+    }
     if route.wasm_memory_initial_pages != MODULE_PLAN_WASM_MEMORY_INITIAL_PAGES {
         return Err(invalid(
             "selector registry module plan wasm memory initial pages is invalid",
+        ));
+    }
+    if route.wasm_export_set != MODULE_PLAN_WASM_EXPORT_SET {
+        return Err(invalid(
+            "selector registry module plan wasm export set is invalid",
+        ));
+    }
+    if route.wasm_transfer_strategy != MODULE_PLAN_WASM_TRANSFER_STRATEGY {
+        return Err(invalid(
+            "selector registry module plan wasm transfer strategy is invalid",
+        ));
+    }
+    if route.model_release_strategy != MODULE_PLAN_MODEL_RELEASE_STRATEGY {
+        return Err(invalid(
+            "selector registry module plan model release strategy is invalid",
+        ));
+    }
+    if route.runtime_reset_strategy != MODULE_PLAN_RUNTIME_RESET_STRATEGY {
+        return Err(invalid(
+            "selector registry module plan runtime reset strategy is invalid",
+        ));
+    }
+    if route.adapter_validation_strategy != MODULE_PLAN_ADAPTER_VALIDATION_STRATEGY {
+        return Err(invalid(
+            "selector registry module plan adapter validation strategy is invalid",
+        ));
+    }
+    if route.adapter_apply_count == 0 || route.adapter_apply_count > module_count {
+        return Err(invalid(
+            "selector registry module plan adapter apply count is invalid",
+        ));
+    }
+    if route.adapter_validation_count == 0
+        || route.adapter_validation_count > module_count
+        || route.adapter_validation_count != route.adapter_apply_count
+    {
+        return Err(invalid(
+            "selector registry module plan adapter validation count is invalid",
+        ));
+    }
+    if route.wasm_heap_min_bytes
+        != module_plan_wasm_heap_min_bytes(
+            route.model_byte_budget,
+            route.adapter_stack_byte_budget,
+            route.prompt_byte_limit,
+        )?
+    {
+        return Err(invalid(
+            "selector registry module plan wasm heap min bytes is invalid",
+        ));
+    }
+    if route.context_token_limit == 0
+        || route.context_token_limit > MODULE_PLAN_CONTEXT_TOKEN_LIMIT_LIMIT
+    {
+        return Err(invalid(
+            "selector registry module plan context token limit is invalid",
+        ));
+    }
+    if route.sampler_candidate_cap != MODULE_PLAN_SAMPLER_CANDIDATE_CAP {
+        return Err(invalid(
+            "selector registry module plan sampler candidate cap is invalid",
+        ));
+    }
+    validate_hex64(&route.tokenizer_checksum, "module plan tokenizer checksum")?;
+    if route.prompt_byte_limit != MODULE_PLAN_PROMPT_BYTE_LIMIT {
+        return Err(invalid(
+            "selector registry module plan prompt byte limit is invalid",
         ));
     }
     if route.model_byte_budget == 0 || route.model_byte_budget > SELECTOR_MODEL_BYTE_BUDGET {
@@ -1539,18 +2097,51 @@ pub(crate) fn validate_registry_module_plan_route(
             "selector registry module plan adapter byte budget is invalid",
         ));
     }
+    if route.adapter_stack_byte_budget == 0
+        || route.adapter_stack_byte_budget > route.adapter_byte_budget
+    {
+        return Err(invalid(
+            "selector registry module plan adapter stack byte budget is invalid",
+        ));
+    }
     if route.runtime_scratch_byte_budget != MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET {
         return Err(invalid(
             "selector registry module plan runtime scratch byte budget is invalid",
         ));
     }
+    if route.output_byte_limit != MODULE_PLAN_OUTPUT_BYTE_LIMIT {
+        return Err(invalid(
+            "selector registry module plan output byte limit is invalid",
+        ));
+    }
+    if route.kv_cache_byte_budget == 0
+        || route.kv_cache_byte_budget > MODULE_PLAN_KV_CACHE_BYTE_BUDGET_LIMIT
+    {
+        return Err(invalid(
+            "selector registry module plan kv cache byte budget is invalid",
+        ));
+    }
+    if route.kv_cache_page_count != module_plan_page_count_for_bytes(route.kv_cache_byte_budget)? {
+        return Err(invalid(
+            "selector registry module plan kv cache page count is invalid",
+        ));
+    }
     let minimum_total_budget = route
         .model_byte_budget
-        .checked_add(route.runtime_scratch_byte_budget)
+        .checked_add(route.prompt_byte_limit)
+        .and_then(|value| value.checked_add(route.runtime_scratch_byte_budget))
+        .and_then(|value| value.checked_add(route.output_byte_limit))
+        .and_then(|value| value.checked_add(route.adapter_stack_byte_budget))
+        .and_then(|value| value.checked_add(route.kv_cache_byte_budget))
         .ok_or_else(|| invalid("selector registry module plan total byte budget is invalid"))?;
+    if route.total_byte_budget_limit != MODULE_PLAN_TOTAL_BYTE_BUDGET_LIMIT {
+        return Err(invalid(
+            "selector registry module plan total byte budget limit is invalid",
+        ));
+    }
     if route.total_byte_budget == 0
         || route.total_byte_budget < minimum_total_budget
-        || route.total_byte_budget > MODULE_PLAN_TOTAL_BYTE_BUDGET_LIMIT
+        || route.total_byte_budget > route.total_byte_budget_limit
     {
         return Err(invalid(
             "selector registry module plan total byte budget is invalid",
@@ -1568,6 +2159,7 @@ fn parse_module_plan_byte_budget(
     key: &str,
     label: &str,
 ) -> io::Result<u64> {
+    // Parses exact decimal byte budgets so selector receipts cannot hide rounded values.
     let value = require_key(fields, key)?;
     let bytes = value.parse::<u64>().map_err(|_| {
         invalid(&format!(
@@ -1580,6 +2172,103 @@ fn parse_module_plan_byte_budget(
         )));
     }
     Ok(bytes)
+}
+
+fn module_plan_wasm_heap_min_bytes(
+    model_byte_budget: u64,
+    adapter_stack_byte_budget: u64,
+    prompt_byte_limit: u64,
+) -> io::Result<u64> {
+    // Keeps the browser allocation probe large enough for each generated transfer path.
+    Ok(MODULE_PLAN_WASM_HEAP_MIN_BYTES
+        .max(model_byte_budget)
+        .max(adapter_stack_byte_budget)
+        .max(prompt_byte_limit))
+}
+
+fn module_plan_planned_fetch_count(
+    module_count: usize,
+    adapter_apply_count: u64,
+) -> io::Result<u64> {
+    // Counts model-owned generated assembly fetches across the receipt, modules,
+    // evidence files, adapter manifests, and self-adapter manifest.
+    let module_count = u64::try_from(module_count)
+        .map_err(|_| invalid("selector registry module plan planned fetch count is invalid"))?;
+    module_count
+        .checked_add(1)
+        .and_then(|value| value.checked_add(MODULE_PLAN_ASSEMBLY_EVIDENCE_FILE_COUNT))
+        .and_then(|value| value.checked_add(adapter_apply_count))
+        .and_then(|value| value.checked_add(1))
+        .ok_or_else(|| invalid("selector registry module plan planned fetch count is invalid"))
+}
+
+fn parse_module_plan_page_count(fields: &HashMap<String, String>, key: &str) -> io::Result<u64> {
+    // Parses the KV-cache page count as an exact selector-owned decimal field.
+    let value = require_key(fields, key)?;
+    let pages = value
+        .parse::<u64>()
+        .map_err(|_| invalid("selector registry module plan kv cache page count is invalid"))?;
+    if pages == 0 || pages.to_string() != value {
+        return Err(invalid(
+            "selector registry module plan kv cache page count is invalid",
+        ));
+    }
+    Ok(pages)
+}
+
+fn parse_module_plan_count(
+    fields: &HashMap<String, String>,
+    key: &str,
+    label: &str,
+) -> io::Result<u64> {
+    // Parses exact decimal count fields so resource limits stay selector-owned.
+    let value = require_key(fields, key)?;
+    let count = value
+        .parse::<u64>()
+        .map_err(|_| invalid(&format!("selector registry module plan {label} is invalid")))?;
+    if count == 0 || count.to_string() != value {
+        return Err(invalid(&format!(
+            "selector registry module plan {label} is invalid"
+        )));
+    }
+    Ok(count)
+}
+
+fn model_shape_context_token_limit(model_shape: &str) -> io::Result<u64> {
+    // Reads either compact fixture `ctx=` or validated manifest `context=` shape fields.
+    for part in model_shape.split(',') {
+        let part = part.trim();
+        let Some(value) = part
+            .strip_prefix("context=")
+            .or_else(|| part.strip_prefix("ctx="))
+        else {
+            continue;
+        };
+        let tokens = value
+            .parse::<u64>()
+            .map_err(|_| invalid("selector registry model shape context token limit is invalid"))?;
+        if tokens == 0
+            || tokens.to_string() != value
+            || tokens > MODULE_PLAN_CONTEXT_TOKEN_LIMIT_LIMIT
+        {
+            return Err(invalid(
+                "selector registry model shape context token limit is invalid",
+            ));
+        }
+        return Ok(tokens);
+    }
+    Err(invalid(
+        "selector registry model shape context token limit is missing",
+    ))
+}
+
+fn module_plan_page_count_for_bytes(bytes: u64) -> io::Result<u64> {
+    // Recomputes the expected WebAssembly page count from the selector byte budget.
+    let page_bytes = 64 * 1024u64;
+    bytes
+        .checked_add(page_bytes - 1)
+        .map(|value| value / page_bytes)
+        .ok_or_else(|| invalid("selector registry module plan kv cache page count is invalid"))
 }
 
 fn selector_id(admission_texts: &[String]) -> io::Result<String> {
@@ -1776,6 +2465,710 @@ fn display_name(candidate_id: &str, quantization: &str) -> String {
     format!("{candidate_id} {quantization}")
 }
 
+// Builds a stable browser-local genome id from the candidate's runtime-visible shape.
+fn registry_entry_genome_id(entry: &RegistryEntry) -> String {
+    let mut text = String::new();
+    push_line(&mut text, "candidate_id", &entry.candidate_id);
+    push_line(&mut text, "model_shape", &entry.model_shape);
+    push_line(&mut text, "quantization", &entry.quantization);
+    push_line(&mut text, "output_contract", &entry.output_contract);
+    push_line(&mut text, "tokenizer_checksum", &entry.tokenizer_checksum);
+    push_line(&mut text, "slm_checksum", &entry.slm_checksum);
+    hex64(provenance::text_checksum(text.as_bytes()))
+}
+
+// Summarizes the admission/eval chain used as the selector entry's lineage route.
+fn registry_entry_genome_lineage_checksum(entry: &RegistryEntry) -> String {
+    let mut text = String::new();
+    push_line(&mut text, "admission_checksum", &entry.admission_checksum);
+    push_line(
+        &mut text,
+        "promotion_manifest_checksum",
+        &entry.promotion_manifest_checksum,
+    );
+    push_line(
+        &mut text,
+        "runtime_smoke_manifest_checksum",
+        &entry.runtime_smoke_manifest_checksum,
+    );
+    push_line(
+        &mut text,
+        "eval_manifest_checksum",
+        &entry.eval_manifest_checksum,
+    );
+    hex64(provenance::text_checksum(text.as_bytes()))
+}
+
+// Groups candidates by the model family traits that matter to browser-local selection.
+fn registry_entry_species_id(entry: &RegistryEntry) -> String {
+    let mut text = String::new();
+    push_line(&mut text, "model_shape", &entry.model_shape);
+    push_line(&mut text, "quantization", &entry.quantization);
+    push_line(&mut text, "output_contract", &entry.output_contract);
+    push_line(&mut text, "tokenizer_checksum", &entry.tokenizer_checksum);
+    push_line(&mut text, "max_tokens", &entry.max_tokens);
+    hex64(provenance::text_checksum(text.as_bytes()))
+}
+
+// Binds a candidate species to the browser resource envelope it is expected to fit.
+fn registry_entry_species_fit_checksum(entry: &RegistryEntry) -> String {
+    let mut text = String::new();
+    push_line(
+        &mut text,
+        "selector_model_byte_budget",
+        &SELECTOR_MODEL_BYTE_BUDGET.to_string(),
+    );
+    push_line(
+        &mut text,
+        "selector_registry_text_byte_budget",
+        &SELECTOR_REGISTRY_TEXT_BYTE_BUDGET.to_string(),
+    );
+    push_line(
+        &mut text,
+        "manifest_text_byte_budget",
+        &MANIFEST_TEXT_BYTE_BUDGET.to_string(),
+    );
+    push_line(
+        &mut text,
+        "receipt_text_byte_budget",
+        &RECEIPT_TEXT_BYTE_BUDGET.to_string(),
+    );
+    push_line(
+        &mut text,
+        "evidence_text_byte_budget",
+        &EVIDENCE_TEXT_BYTE_BUDGET.to_string(),
+    );
+    push_line(&mut text, "model_bytes", &entry.model_bytes);
+    push_line(&mut text, "max_tokens", &entry.max_tokens);
+    push_line(&mut text, "quantization", &entry.quantization);
+    match &entry.module_plan {
+        Some(module_plan) => {
+            push_line(&mut text, "module_plan_status", "present");
+            push_line(
+                &mut text,
+                "module_plan_resource_class",
+                &module_plan.resource_class,
+            );
+            push_line(&mut text, "module_plan_profile", &module_plan.profile);
+            push_line(
+                &mut text,
+                "module_plan_execution_profile",
+                &module_plan.execution_profile,
+            );
+            push_line(
+                &mut text,
+                "module_plan_fetch_policy",
+                &module_plan.fetch_policy,
+            );
+            push_line(
+                &mut text,
+                "module_plan_origin_policy",
+                &module_plan.origin_policy,
+            );
+            push_line(
+                &mut text,
+                "module_plan_fetch_count_limit",
+                &module_plan.fetch_count_limit.to_string(),
+            );
+            push_line(
+                &mut text,
+                "module_plan_planned_fetch_count",
+                &module_plan.planned_fetch_count.to_string(),
+            );
+            push_line(
+                &mut text,
+                "module_plan_wasm_memory_initial_pages",
+                &module_plan.wasm_memory_initial_pages.to_string(),
+            );
+            push_line(
+                &mut text,
+                "module_plan_wasm_export_set",
+                &module_plan.wasm_export_set,
+            );
+            push_line(
+                &mut text,
+                "module_plan_wasm_transfer_strategy",
+                &module_plan.wasm_transfer_strategy,
+            );
+            push_line(
+                &mut text,
+                "module_plan_model_release_strategy",
+                &module_plan.model_release_strategy,
+            );
+            push_line(
+                &mut text,
+                "module_plan_runtime_reset_strategy",
+                &module_plan.runtime_reset_strategy,
+            );
+            push_line(
+                &mut text,
+                "module_plan_adapter_validation_strategy",
+                &module_plan.adapter_validation_strategy,
+            );
+            push_line(
+                &mut text,
+                "module_plan_adapter_validation_count",
+                &module_plan.adapter_validation_count.to_string(),
+            );
+            push_line(
+                &mut text,
+                "module_plan_adapter_apply_count",
+                &module_plan.adapter_apply_count.to_string(),
+            );
+            push_line(
+                &mut text,
+                "module_plan_wasm_heap_min_bytes",
+                &module_plan.wasm_heap_min_bytes.to_string(),
+            );
+            push_line(
+                &mut text,
+                "module_plan_context_token_limit",
+                &module_plan.context_token_limit.to_string(),
+            );
+            push_line(
+                &mut text,
+                "module_plan_sampler_candidate_cap",
+                &module_plan.sampler_candidate_cap.to_string(),
+            );
+            push_line(
+                &mut text,
+                "module_plan_tokenizer_checksum",
+                &module_plan.tokenizer_checksum,
+            );
+            push_line(
+                &mut text,
+                "module_plan_prompt_byte_limit",
+                &module_plan.prompt_byte_limit.to_string(),
+            );
+            push_line(
+                &mut text,
+                "module_plan_model_byte_budget",
+                &module_plan.model_byte_budget.to_string(),
+            );
+            push_line(
+                &mut text,
+                "module_plan_adapter_byte_budget",
+                &module_plan.adapter_byte_budget.to_string(),
+            );
+            push_line(
+                &mut text,
+                "module_plan_adapter_stack_byte_budget",
+                &module_plan.adapter_stack_byte_budget.to_string(),
+            );
+            push_line(
+                &mut text,
+                "module_plan_runtime_scratch_byte_budget",
+                &module_plan.runtime_scratch_byte_budget.to_string(),
+            );
+            push_line(
+                &mut text,
+                "module_plan_output_byte_limit",
+                &module_plan.output_byte_limit.to_string(),
+            );
+            push_line(
+                &mut text,
+                "module_plan_kv_cache_byte_budget",
+                &module_plan.kv_cache_byte_budget.to_string(),
+            );
+            push_line(
+                &mut text,
+                "module_plan_kv_cache_page_count",
+                &module_plan.kv_cache_page_count.to_string(),
+            );
+            push_line(
+                &mut text,
+                "module_plan_total_byte_budget",
+                &module_plan.total_byte_budget.to_string(),
+            );
+            push_line(
+                &mut text,
+                "module_plan_total_byte_budget_limit",
+                &module_plan.total_byte_budget_limit.to_string(),
+            );
+            push_line(
+                &mut text,
+                "module_plan_module_count",
+                &module_plan.module_count.to_string(),
+            );
+        }
+        None => push_line(&mut text, "module_plan_status", "absent"),
+    }
+    hex64(provenance::text_checksum(text.as_bytes()))
+}
+
+// Sketches behavior-relevant traits so selector populations can keep useful variety.
+fn registry_entry_novelty_id(entry: &RegistryEntry) -> String {
+    let mut text = String::new();
+    push_line(&mut text, "species_id", &registry_entry_species_id(entry));
+    push_line(&mut text, "quality_scope", &entry.quality_scope);
+    push_line(&mut text, "eval_dataset", &entry.eval_dataset);
+    push_line(&mut text, "output_contract", &entry.output_contract);
+    push_line(&mut text, "quantization", &entry.quantization);
+    push_line(&mut text, "max_tokens", &entry.max_tokens);
+    hex64(provenance::text_checksum(text.as_bytes()))
+}
+
+// Binds the novelty sketch to the concrete eval and assembly evidence behind it.
+fn registry_entry_novelty_checksum(entry: &RegistryEntry) -> String {
+    let mut text = String::new();
+    push_line(&mut text, "genome_id", &registry_entry_genome_id(entry));
+    push_line(&mut text, "species_id", &registry_entry_species_id(entry));
+    push_line(
+        &mut text,
+        "fitness_vector_checksum",
+        &registry_entry_fitness_vector_checksum(entry),
+    );
+    push_line(
+        &mut text,
+        "eval_case_evidence_checksum",
+        &entry.eval_case_evidence_checksum,
+    );
+    match &entry.assembly {
+        Some(assembly) => {
+            push_line(&mut text, "assembly_status", "present");
+            push_line(
+                &mut text,
+                "assembly_receipt_checksum",
+                &assembly.receipt_checksum,
+            );
+        }
+        None => push_line(&mut text, "assembly_status", "absent"),
+    }
+    match &entry.adapter_family {
+        Some(adapter_family) => {
+            push_line(&mut text, "adapter_family_status", "present");
+            push_line(
+                &mut text,
+                "adapter_family_receipt_checksum",
+                &adapter_family.receipt_checksum,
+            );
+            push_line(
+                &mut text,
+                "adapter_family_stack_count",
+                &adapter_family.auto_apply_stack_count.to_string(),
+            );
+        }
+        None => push_line(&mut text, "adapter_family_status", "absent"),
+    }
+    match &entry.module_plan {
+        Some(module_plan) => {
+            push_line(&mut text, "module_plan_status", "present");
+            push_line(
+                &mut text,
+                "module_plan_checksum",
+                &module_plan.receipt_checksum,
+            );
+            push_line(
+                &mut text,
+                "module_plan_resource_class",
+                &module_plan.resource_class,
+            );
+            push_line(
+                &mut text,
+                "module_plan_wasm_export_set",
+                &module_plan.wasm_export_set,
+            );
+            push_line(
+                &mut text,
+                "module_plan_wasm_transfer_strategy",
+                &module_plan.wasm_transfer_strategy,
+            );
+            push_line(
+                &mut text,
+                "module_plan_model_release_strategy",
+                &module_plan.model_release_strategy,
+            );
+            push_line(
+                &mut text,
+                "module_plan_runtime_reset_strategy",
+                &module_plan.runtime_reset_strategy,
+            );
+            push_line(
+                &mut text,
+                "module_plan_adapter_validation_strategy",
+                &module_plan.adapter_validation_strategy,
+            );
+            push_line(
+                &mut text,
+                "module_plan_adapter_validation_count",
+                &module_plan.adapter_validation_count.to_string(),
+            );
+            push_line(
+                &mut text,
+                "module_plan_adapter_apply_count",
+                &module_plan.adapter_apply_count.to_string(),
+            );
+            push_line(
+                &mut text,
+                "module_plan_module_count",
+                &module_plan.module_count.to_string(),
+            );
+        }
+        None => push_line(&mut text, "module_plan_status", "absent"),
+    }
+    hex64(provenance::text_checksum(text.as_bytes()))
+}
+
+// Names the selector population lane from species, novelty, and scoped fitness traits.
+fn registry_entry_population_id(entry: &RegistryEntry) -> String {
+    let mut text = String::new();
+    push_line(&mut text, "species_id", &registry_entry_species_id(entry));
+    push_line(&mut text, "novelty_id", &registry_entry_novelty_id(entry));
+    push_line(
+        &mut text,
+        "fitness_vector_checksum",
+        &registry_entry_fitness_vector_checksum(entry),
+    );
+    push_line(&mut text, "quality_scope", &entry.quality_scope);
+    push_line(&mut text, "eval_dataset", &entry.eval_dataset);
+    push_line(&mut text, "quantization", &entry.quantization);
+    hex64(provenance::text_checksum(text.as_bytes()))
+}
+
+// Binds population provenance to the reviewed assembly and browser route context.
+fn registry_entry_population_checksum(entry: &RegistryEntry) -> String {
+    let mut text = String::new();
+    push_line(
+        &mut text,
+        "population_id",
+        &registry_entry_population_id(entry),
+    );
+    push_line(&mut text, "genome_id", &registry_entry_genome_id(entry));
+    push_line(
+        &mut text,
+        "genome_lineage_checksum",
+        &registry_entry_genome_lineage_checksum(entry),
+    );
+    push_line(
+        &mut text,
+        "species_fit_checksum",
+        &registry_entry_species_fit_checksum(entry),
+    );
+    push_line(
+        &mut text,
+        "novelty_checksum",
+        &registry_entry_novelty_checksum(entry),
+    );
+    push_line(
+        &mut text,
+        "fitness_vector_checksum",
+        &registry_entry_fitness_vector_checksum(entry),
+    );
+    match &entry.assembly {
+        Some(assembly) => {
+            push_line(&mut text, "population_review_route", "assembly-bound");
+            push_line(
+                &mut text,
+                "assembly_receipt_checksum",
+                &assembly.receipt_checksum,
+            );
+        }
+        None => push_line(&mut text, "population_review_route", "admission-only"),
+    }
+    match &entry.module_plan {
+        Some(module_plan) => {
+            push_line(&mut text, "module_plan_status", "present");
+            push_line(
+                &mut text,
+                "module_plan_checksum",
+                &module_plan.receipt_checksum,
+            );
+            push_line(
+                &mut text,
+                "module_plan_module_count",
+                &module_plan.module_count.to_string(),
+            );
+        }
+        None => push_line(&mut text, "module_plan_status", "absent"),
+    }
+    hex64(provenance::text_checksum(text.as_bytes()))
+}
+
+// Names the mate-selection lane from the parent-pool route when the admission has one.
+fn registry_entry_mate_selection_id(entry: &RegistryEntry) -> String {
+    let mut text = String::new();
+    push_line(&mut text, "candidate_id", &entry.candidate_id);
+    push_line(&mut text, "admission_kind", &entry.admission_kind);
+    push_line(
+        &mut text,
+        "population_id",
+        &registry_entry_population_id(entry),
+    );
+    push_line(
+        &mut text,
+        "parent_pool_recipe_checksum",
+        option_or_marker(&entry.parent_pool_recipe_checksum, "admission-only"),
+    );
+    push_line(&mut text, "parent_count", &entry.parent_count.to_string());
+    hex64(provenance::text_checksum(text.as_bytes()))
+}
+
+// Marks whether a selector entry is backed by reviewed parent-pool mate selection.
+fn registry_entry_mate_selection_status(entry: &RegistryEntry) -> &'static str {
+    if entry.parent_pool_recipe_checksum.is_some() {
+        MATE_SELECTION_PARENT_POOL_STATUS
+    } else {
+        MATE_SELECTION_ADMISSION_STATUS
+    }
+}
+
+// Binds the parent-pool recipe and sign-merge route into browser-visible provenance.
+fn registry_entry_mate_selection_checksum(entry: &RegistryEntry) -> String {
+    let mut text = String::new();
+    push_line(
+        &mut text,
+        "mate_selection_id",
+        &registry_entry_mate_selection_id(entry),
+    );
+    push_line(
+        &mut text,
+        "mate_selection_status",
+        registry_entry_mate_selection_status(entry),
+    );
+    push_line(
+        &mut text,
+        "population_checksum",
+        &registry_entry_population_checksum(entry),
+    );
+    push_line(&mut text, "parent_count", &entry.parent_count.to_string());
+    push_line(
+        &mut text,
+        "parent_pool_recipe_checksum",
+        option_or_marker(&entry.parent_pool_recipe_checksum, "admission-only"),
+    );
+    push_line(
+        &mut text,
+        "operator_receipt_checksum",
+        option_or_marker(&entry.operator_receipt_checksum, "admission-only"),
+    );
+    push_line(
+        &mut text,
+        "population_review_checksum",
+        option_or_marker(&entry.population_review_checksum, "admission-only"),
+    );
+    push_line(
+        &mut text,
+        "promotion_ledger_checksum",
+        option_or_marker(&entry.promotion_ledger_checksum, "admission-only"),
+    );
+    push_line(
+        &mut text,
+        "admission_set_checksum",
+        option_or_marker(&entry.admission_set_checksum, "admission-only"),
+    );
+    push_line(&mut text, "admission_checksum", &entry.admission_checksum);
+    hex64(provenance::text_checksum(text.as_bytes()))
+}
+
+// Names the observed behavior lane from runtime, eval, and selected-parent context.
+fn registry_entry_phenotype_evidence_id(entry: &RegistryEntry) -> String {
+    let mut text = String::new();
+    push_line(&mut text, "candidate_id", &entry.candidate_id);
+    push_line(
+        &mut text,
+        "mate_selection_id",
+        &registry_entry_mate_selection_id(entry),
+    );
+    push_line(&mut text, "quality_scope", &entry.quality_scope);
+    push_line(&mut text, "eval_dataset", &entry.eval_dataset);
+    push_line(&mut text, "cases_passed", &entry.cases_passed);
+    push_line(
+        &mut text,
+        "eval_case_evidence_checksum",
+        &entry.eval_case_evidence_checksum,
+    );
+    hex64(provenance::text_checksum(text.as_bytes()))
+}
+
+// Binds phenotype evidence to the manifests and assembly receipt that produced it.
+fn registry_entry_phenotype_evidence_checksum(entry: &RegistryEntry) -> String {
+    let mut text = String::new();
+    push_line(
+        &mut text,
+        "phenotype_evidence_id",
+        &registry_entry_phenotype_evidence_id(entry),
+    );
+    push_line(
+        &mut text,
+        "phenotype_evidence_status",
+        PHENOTYPE_EVIDENCE_STATUS,
+    );
+    push_line(
+        &mut text,
+        "provenance_manifest_checksum",
+        &entry.provenance_manifest_checksum,
+    );
+    push_line(
+        &mut text,
+        "runtime_smoke_manifest_checksum",
+        &entry.runtime_smoke_manifest_checksum,
+    );
+    push_line(
+        &mut text,
+        "eval_manifest_checksum",
+        &entry.eval_manifest_checksum,
+    );
+    push_line(
+        &mut text,
+        "eval_case_evidence_checksum",
+        &entry.eval_case_evidence_checksum,
+    );
+    push_line(&mut text, "quality_boundary", &entry.quality_boundary);
+    push_line(
+        &mut text,
+        "fitness_vector_checksum",
+        &registry_entry_fitness_vector_checksum(entry),
+    );
+    push_line(
+        &mut text,
+        "mate_selection_checksum",
+        &registry_entry_mate_selection_checksum(entry),
+    );
+    match &entry.assembly {
+        Some(assembly) => {
+            push_line(&mut text, "assembly_status", "present");
+            push_line(
+                &mut text,
+                "assembly_receipt_checksum",
+                &assembly.receipt_checksum,
+            );
+        }
+        None => push_line(&mut text, "assembly_status", "admission-only"),
+    }
+    hex64(provenance::text_checksum(text.as_bytes()))
+}
+
+// Names the served artifact identity that later selector work can inherit or compare.
+fn registry_entry_heritable_artifact_id(entry: &RegistryEntry) -> String {
+    let mut text = String::new();
+    push_line(&mut text, "candidate_id", &entry.candidate_id);
+    push_line(&mut text, "artifact_path", &entry.artifact_path);
+    push_line(&mut text, "model_path", &entry.model_path);
+    push_line(&mut text, "manifest_path", &entry.manifest_path);
+    push_line(&mut text, "model_bytes", &entry.model_bytes);
+    push_line(&mut text, "slm_checksum", &entry.slm_checksum);
+    push_line(&mut text, "model_shape", &entry.model_shape);
+    push_line(&mut text, "quantization", &entry.quantization);
+    push_line(&mut text, "output_contract", &entry.output_contract);
+    push_line(&mut text, "genome_id", &registry_entry_genome_id(entry));
+    hex64(provenance::text_checksum(text.as_bytes()))
+}
+
+// Binds the heritable artifact id to lineage, eval evidence, and browser route receipts.
+fn registry_entry_heritable_artifact_checksum(entry: &RegistryEntry) -> String {
+    let mut text = String::new();
+    push_line(
+        &mut text,
+        "heritable_artifact_id",
+        &registry_entry_heritable_artifact_id(entry),
+    );
+    push_line(
+        &mut text,
+        "heritable_artifact_status",
+        HERITABLE_ARTIFACT_STATUS,
+    );
+    push_line(&mut text, "genome_id", &registry_entry_genome_id(entry));
+    push_line(
+        &mut text,
+        "genome_lineage_checksum",
+        &registry_entry_genome_lineage_checksum(entry),
+    );
+    push_line(
+        &mut text,
+        "phenotype_evidence_checksum",
+        &registry_entry_phenotype_evidence_checksum(entry),
+    );
+    push_line(
+        &mut text,
+        "fitness_vector_checksum",
+        &registry_entry_fitness_vector_checksum(entry),
+    );
+    push_line(
+        &mut text,
+        "provenance_manifest_checksum",
+        &entry.provenance_manifest_checksum,
+    );
+    push_line(
+        &mut text,
+        "runtime_smoke_manifest_checksum",
+        &entry.runtime_smoke_manifest_checksum,
+    );
+    match &entry.adapter_family {
+        Some(adapter_family) => {
+            push_line(&mut text, "adapter_family_status", "present");
+            push_line(
+                &mut text,
+                "adapter_family_receipt_checksum",
+                &adapter_family.receipt_checksum,
+            );
+            push_line(
+                &mut text,
+                "adapter_family_stack_count",
+                &adapter_family.auto_apply_stack_count.to_string(),
+            );
+        }
+        None => push_line(&mut text, "adapter_family_status", "absent"),
+    }
+    match &entry.assembly {
+        Some(assembly) => {
+            push_line(&mut text, "assembly_status", "present");
+            push_line(
+                &mut text,
+                "assembly_receipt_checksum",
+                &assembly.receipt_checksum,
+            );
+        }
+        None => push_line(&mut text, "assembly_status", "admission-only"),
+    }
+    match &entry.module_plan {
+        Some(module_plan) => {
+            push_line(&mut text, "module_plan_status", "present");
+            push_line(
+                &mut text,
+                "module_plan_checksum",
+                &module_plan.receipt_checksum,
+            );
+            push_line(
+                &mut text,
+                "module_plan_total_byte_budget",
+                &module_plan.total_byte_budget.to_string(),
+            );
+            push_line(
+                &mut text,
+                "module_plan_total_byte_budget_limit",
+                &module_plan.total_byte_budget_limit.to_string(),
+            );
+            push_line(
+                &mut text,
+                "module_plan_output_byte_limit",
+                &module_plan.output_byte_limit.to_string(),
+            );
+        }
+        None => push_line(&mut text, "module_plan_status", "absent"),
+    }
+    hex64(provenance::text_checksum(text.as_bytes()))
+}
+
+// Keeps checksum text deterministic for admission-only entries without parent-pool fields.
+fn option_or_marker<'a>(value: &'a Option<String>, marker: &'a str) -> &'a str {
+    value.as_deref().unwrap_or(marker)
+}
+
+// Condenses the scoped eval facts into a selector fitness vector checksum.
+fn registry_entry_fitness_vector_checksum(entry: &RegistryEntry) -> String {
+    let mut text = String::new();
+    push_line(&mut text, "quality_scope", &entry.quality_scope);
+    push_line(&mut text, "quality_boundary", &entry.quality_boundary);
+    push_line(&mut text, "eval_dataset", &entry.eval_dataset);
+    push_line(&mut text, "cases_passed", &entry.cases_passed);
+    push_line(
+        &mut text,
+        "eval_case_evidence_checksum",
+        &entry.eval_case_evidence_checksum,
+    );
+    hex64(provenance::text_checksum(text.as_bytes()))
+}
+
 fn admission_set_checksum(admission_texts: &[String]) -> String {
     let mut source = String::new();
     for admission_text in admission_texts {
@@ -1897,11 +3290,27 @@ mod tests {
         let admission =
             fixture_multi_parent_admission("tiny-sign-merge", "tinyrustlm/models/sign-merge.slm");
         let registry = build_registry_text(&[admission.clone()]).unwrap();
+        let fields = parse_manifest(&registry, "selector registry").unwrap();
+        let entries = entries_from_admissions(&[admission.clone()]).unwrap();
+        let entry = &entries[0];
 
         validate_registry_text(&registry, &[admission]).unwrap();
         assert!(registry.contains("entry.0.candidate_id=tiny-sign-merge"));
         assert!(registry.contains("entry.0.model_path=../models/sign-merge.slm"));
         assert!(registry.contains("entry.0.selector_status=admitted"));
+        assert_eq!(
+            fields["entry.0.mate_selection_id"],
+            registry_entry_mate_selection_id(entry)
+        );
+        assert_eq!(
+            fields["entry.0.mate_selection_status"],
+            MATE_SELECTION_PARENT_POOL_STATUS
+        );
+        assert_eq!(fields["entry.0.mate_selection_parent_count"], "3");
+        assert_eq!(
+            fields["entry.0.mate_selection_checksum"],
+            registry_entry_mate_selection_checksum(entry)
+        );
     }
 
     #[test]
@@ -2194,6 +3603,7 @@ mod tests {
         let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let tokenizer_checksum = module_plan.tokenizer_checksum.clone();
 
         let registry = build_registry_text_with_module_plan_routes(
             &[admission.clone()],
@@ -2220,18 +3630,51 @@ mod tests {
         assert!(
             registry.contains("entry.0.module_plan_origin_policy=same-origin-loopback-local-v1")
         );
+        assert!(registry.contains("entry.0.module_plan_fetch_count_limit=32"));
+        assert!(registry.contains("entry.0.module_plan_planned_fetch_count=19"));
         assert!(registry.contains("entry.0.module_plan_wasm_memory_initial_pages=17"));
+        assert!(registry.contains("entry.0.module_plan_wasm_export_set=tinyrustlm-generate-v1"));
+        assert!(
+            registry.contains("entry.0.module_plan_wasm_transfer_strategy=copy-then-release-v1")
+        );
+        assert!(registry
+            .contains("entry.0.module_plan_model_release_strategy=free-before-reassembly-v1"));
+        assert!(registry.contains(
+            "entry.0.module_plan_runtime_reset_strategy=reset-context-before-assembly-v1"
+        ));
+        assert!(registry.contains(
+            "entry.0.module_plan_adapter_validation_strategy=rust-validate-before-apply-v1"
+        ));
+        assert!(registry.contains("entry.0.module_plan_adapter_validation_count=2"));
+        assert!(registry.contains("entry.0.module_plan_adapter_apply_count=2"));
+        assert!(registry.contains("entry.0.module_plan_wasm_heap_min_bytes=65536"));
+        assert!(registry.contains("entry.0.module_plan_context_token_limit=16"));
+        assert!(registry.contains("entry.0.module_plan_sampler_candidate_cap=1024"));
+        assert!(registry.contains(&format!(
+            "entry.0.module_plan_tokenizer_checksum={tokenizer_checksum}"
+        )));
+        assert!(registry.contains("entry.0.module_plan_prompt_byte_limit=4096"));
         assert!(registry.contains(&format!(
             "entry.0.module_plan_model_byte_budget={}",
             tiny_fixture_f32_bytes().len()
         )));
         assert!(registry.contains("entry.0.module_plan_adapter_byte_budget=1048576"));
+        assert!(registry.contains("entry.0.module_plan_adapter_stack_byte_budget=2048"));
         assert!(registry.contains("entry.0.module_plan_runtime_scratch_byte_budget=65536"));
+        assert!(registry.contains("entry.0.module_plan_output_byte_limit=65536"));
+        assert!(registry.contains("entry.0.module_plan_kv_cache_byte_budget=1024"));
+        assert!(registry.contains("entry.0.module_plan_kv_cache_page_count=1"));
         assert!(registry.contains(&format!(
             "entry.0.module_plan_total_byte_budget={}",
             tiny_fixture_f32_bytes().len() as u64
-                + ADAPTER_AUTO_APPLY_BYTE_BUDGET
+                + 2048
+                + 1024
+                + MODULE_PLAN_PROMPT_BYTE_LIMIT
                 + MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET
+                + MODULE_PLAN_OUTPUT_BYTE_LIMIT
+        )));
+        assert!(registry.contains(&format!(
+            "entry.0.module_plan_total_byte_budget_limit={MODULE_PLAN_TOTAL_BYTE_BUDGET_LIMIT}"
         )));
         assert!(registry.contains("entry.0.module_plan_module_count=6"));
     }
@@ -2304,6 +3747,147 @@ mod tests {
 
         assert_eq!(error.kind(), io::ErrorKind::InvalidData);
         assert!(error.to_string().contains("adapter byte budget"));
+    }
+
+    #[test]
+    fn rejects_module_plan_adapter_stack_byte_budget_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_adapter_stack_byte_budget=2048",
+            "entry.0.module_plan_adapter_stack_byte_budget=0",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("adapter stack byte budget"));
+    }
+
+    #[test]
+    fn rejects_module_plan_context_token_limit_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_context_token_limit=16",
+            "entry.0.module_plan_context_token_limit=15",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("context token limit"));
+    }
+
+    #[test]
+    fn rejects_module_plan_sampler_candidate_cap_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_sampler_candidate_cap=1024",
+            "entry.0.module_plan_sampler_candidate_cap=1025",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("sampler candidate cap"));
+    }
+
+    #[test]
+    fn rejects_module_plan_tokenizer_checksum_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let tokenizer_checksum = module_plan.tokenizer_checksum.clone();
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            &format!("entry.0.module_plan_tokenizer_checksum={tokenizer_checksum}"),
+            "entry.0.module_plan_tokenizer_checksum=0x000000000000001d",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("tokenizer checksum"));
     }
 
     #[test]
@@ -2482,6 +4066,346 @@ mod tests {
     }
 
     #[test]
+    fn rejects_module_plan_kv_cache_byte_budget_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_kv_cache_byte_budget=1024",
+            "entry.0.module_plan_kv_cache_byte_budget=0",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("kv cache byte budget"));
+    }
+
+    #[test]
+    fn rejects_module_plan_output_byte_limit_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_output_byte_limit=65536",
+            "entry.0.module_plan_output_byte_limit=65535",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("output byte limit"));
+    }
+
+    #[test]
+    fn rejects_module_plan_prompt_byte_limit_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_prompt_byte_limit=4096",
+            "entry.0.module_plan_prompt_byte_limit=4095",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("prompt byte limit"));
+    }
+
+    #[test]
+    fn rejects_module_plan_fetch_count_limit_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_fetch_count_limit=32",
+            "entry.0.module_plan_fetch_count_limit=31",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("fetch count limit"));
+    }
+
+    #[test]
+    fn rejects_module_plan_planned_fetch_count_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_planned_fetch_count=19",
+            "entry.0.module_plan_planned_fetch_count=18",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("planned fetch count"));
+    }
+
+    #[test]
+    fn rejects_module_plan_missing_prompt_byte_limit() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace("entry.0.module_plan_prompt_byte_limit=4096\n", "");
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("module_plan_prompt_byte_limit"));
+    }
+
+    #[test]
+    fn rejects_module_plan_missing_fetch_count_limit() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace("entry.0.module_plan_fetch_count_limit=32\n", "");
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("module_plan_fetch_count_limit"));
+    }
+
+    #[test]
+    fn rejects_module_plan_missing_planned_fetch_count() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace("entry.0.module_plan_planned_fetch_count=19\n", "");
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error
+            .to_string()
+            .contains("module_plan_planned_fetch_count"));
+    }
+
+    #[test]
+    fn rejects_module_plan_missing_output_byte_limit() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace("entry.0.module_plan_output_byte_limit=65536\n", "");
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("module_plan_output_byte_limit"));
+    }
+
+    #[test]
+    fn rejects_module_plan_kv_cache_page_count_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_kv_cache_page_count=1",
+            "entry.0.module_plan_kv_cache_page_count=2",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("kv cache page count"));
+    }
+
+    #[test]
     fn rejects_module_plan_wasm_memory_initial_pages_drift() {
         let admission =
             fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
@@ -2517,6 +4441,272 @@ mod tests {
     }
 
     #[test]
+    fn rejects_module_plan_wasm_export_set_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_wasm_export_set=tinyrustlm-generate-v1",
+            "entry.0.module_plan_wasm_export_set=tinyrustlm-extra-v1",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+        assert!(error.to_string().contains("module plan wasm export set"));
+    }
+
+    #[test]
+    fn rejects_module_plan_wasm_transfer_strategy_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_wasm_transfer_strategy=copy-then-release-v1",
+            "entry.0.module_plan_wasm_transfer_strategy=copy-keep-v1",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+        assert!(error.to_string().contains("wasm transfer strategy"));
+    }
+
+    #[test]
+    fn rejects_module_plan_model_release_strategy_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_model_release_strategy=free-before-reassembly-v1",
+            "entry.0.module_plan_model_release_strategy=keep-resident-v1",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+        assert!(error.to_string().contains("model release strategy"));
+    }
+
+    #[test]
+    fn rejects_module_plan_runtime_reset_strategy_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_runtime_reset_strategy=reset-context-before-assembly-v1",
+            "entry.0.module_plan_runtime_reset_strategy=skip-reset-v1",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+        assert!(error.to_string().contains("runtime reset strategy"));
+    }
+
+    #[test]
+    fn rejects_module_plan_adapter_validation_strategy_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_adapter_validation_strategy=rust-validate-before-apply-v1",
+            "entry.0.module_plan_adapter_validation_strategy=apply-without-rust-validate-v1",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+        assert!(error.to_string().contains("adapter validation strategy"));
+    }
+
+    #[test]
+    fn rejects_module_plan_adapter_validation_count_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_adapter_validation_count=2",
+            "entry.0.module_plan_adapter_validation_count=1",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+        assert!(error.to_string().contains("adapter validation count"));
+    }
+
+    #[test]
+    fn rejects_module_plan_adapter_apply_count_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_adapter_apply_count=2",
+            "entry.0.module_plan_adapter_apply_count=0",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+        assert!(error.to_string().contains("adapter apply count"));
+    }
+
+    #[test]
+    fn rejects_module_plan_wasm_heap_min_bytes_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_wasm_heap_min_bytes=65536",
+            "entry.0.module_plan_wasm_heap_min_bytes=65535",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("wasm heap min bytes"));
+    }
+
+    #[test]
     fn rejects_module_plan_total_budget_drift() {
         let admission =
             fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
@@ -2544,8 +4734,11 @@ mod tests {
             &format!(
                 "entry.0.module_plan_total_byte_budget={}",
                 tiny_fixture_f32_bytes().len() as u64
-                    + ADAPTER_AUTO_APPLY_BYTE_BUDGET
+                    + 2048
+                    + 1024
+                    + MODULE_PLAN_PROMPT_BYTE_LIMIT
                     + MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET
+                    + MODULE_PLAN_OUTPUT_BYTE_LIMIT
             ),
             "entry.0.module_plan_total_byte_budget=1",
         );
@@ -2554,6 +4747,43 @@ mod tests {
 
         assert_eq!(error.kind(), io::ErrorKind::InvalidData);
         assert!(error.to_string().contains("total byte budget"));
+    }
+
+    #[test]
+    fn rejects_module_plan_total_budget_limit_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            &format!(
+                "entry.0.module_plan_total_byte_budget_limit={MODULE_PLAN_TOTAL_BYTE_BUDGET_LIMIT}"
+            ),
+            "entry.0.module_plan_total_byte_budget_limit=1",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("total byte budget limit"));
     }
 
     #[test]
@@ -2594,6 +4824,40 @@ mod tests {
     }
 
     #[test]
+    fn rejects_module_plan_missing_wasm_heap_min_bytes() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace("entry.0.module_plan_wasm_heap_min_bytes=65536\n", "");
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error
+            .to_string()
+            .contains("module_plan_wasm_heap_min_bytes"));
+    }
+
+    #[test]
     fn rejects_module_plan_malformed_runtime_scratch_budget() {
         let admission =
             fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
@@ -2626,6 +4890,366 @@ mod tests {
 
         assert_eq!(error.kind(), io::ErrorKind::InvalidData);
         assert!(error.to_string().contains("runtime scratch byte budget"));
+    }
+
+    #[test]
+    fn rejects_module_plan_malformed_wasm_heap_min_bytes() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_wasm_heap_min_bytes=65536",
+            "entry.0.module_plan_wasm_heap_min_bytes=065536",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("wasm heap byte budget"));
+    }
+
+    #[test]
+    fn writes_selector_registry_genome_species_novelty_population_phenotype_and_fitness_metadata() {
+        let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
+        let registry = build_registry_text(&[admission.clone()]).unwrap();
+        let fields = parse_manifest(&registry, "selector registry").unwrap();
+        let entries = entries_from_admissions(&[admission.clone()]).unwrap();
+        let entry = &entries[0];
+
+        validate_registry_text(&registry, &[admission]).unwrap();
+        assert_eq!(fields["entry.0.genome_id"], registry_entry_genome_id(entry));
+        assert_eq!(fields["entry.0.genome_strategy"], GENOME_STRATEGY);
+        assert_eq!(
+            fields["entry.0.genome_lineage_status"],
+            GENOME_LINEAGE_STATUS
+        );
+        assert_eq!(
+            fields["entry.0.genome_lineage_checksum"],
+            registry_entry_genome_lineage_checksum(entry)
+        );
+        assert_eq!(
+            fields["entry.0.species_id"],
+            registry_entry_species_id(entry)
+        );
+        assert_eq!(fields["entry.0.species_strategy"], SPECIES_STRATEGY);
+        assert_eq!(fields["entry.0.species_fit_status"], SPECIES_FIT_STATUS);
+        assert_eq!(
+            fields["entry.0.species_fit_checksum"],
+            registry_entry_species_fit_checksum(entry)
+        );
+        assert_eq!(
+            fields["entry.0.novelty_id"],
+            registry_entry_novelty_id(entry)
+        );
+        assert_eq!(fields["entry.0.novelty_strategy"], NOVELTY_STRATEGY);
+        assert_eq!(fields["entry.0.novelty_status"], NOVELTY_STATUS);
+        assert_eq!(
+            fields["entry.0.novelty_checksum"],
+            registry_entry_novelty_checksum(entry)
+        );
+        assert_eq!(
+            fields["entry.0.population_id"],
+            registry_entry_population_id(entry)
+        );
+        assert_eq!(fields["entry.0.population_strategy"], POPULATION_STRATEGY);
+        assert_eq!(fields["entry.0.population_status"], POPULATION_STATUS);
+        assert_eq!(
+            fields["entry.0.population_checksum"],
+            registry_entry_population_checksum(entry)
+        );
+        assert_eq!(
+            fields["entry.0.mate_selection_id"],
+            registry_entry_mate_selection_id(entry)
+        );
+        assert_eq!(
+            fields["entry.0.mate_selection_strategy"],
+            MATE_SELECTION_STRATEGY
+        );
+        assert_eq!(
+            fields["entry.0.mate_selection_status"],
+            MATE_SELECTION_ADMISSION_STATUS
+        );
+        assert_eq!(fields["entry.0.mate_selection_parent_count"], "1");
+        assert_eq!(
+            fields["entry.0.mate_selection_checksum"],
+            registry_entry_mate_selection_checksum(entry)
+        );
+        assert_eq!(
+            fields["entry.0.phenotype_evidence_id"],
+            registry_entry_phenotype_evidence_id(entry)
+        );
+        assert_eq!(
+            fields["entry.0.phenotype_evidence_strategy"],
+            PHENOTYPE_EVIDENCE_STRATEGY
+        );
+        assert_eq!(
+            fields["entry.0.phenotype_evidence_status"],
+            PHENOTYPE_EVIDENCE_STATUS
+        );
+        assert_eq!(
+            fields["entry.0.phenotype_evidence_checksum"],
+            registry_entry_phenotype_evidence_checksum(entry)
+        );
+        assert_eq!(
+            fields["entry.0.heritable_artifact_id"],
+            registry_entry_heritable_artifact_id(entry)
+        );
+        assert_eq!(
+            fields["entry.0.heritable_artifact_strategy"],
+            HERITABLE_ARTIFACT_STRATEGY
+        );
+        assert_eq!(
+            fields["entry.0.heritable_artifact_status"],
+            HERITABLE_ARTIFACT_STATUS
+        );
+        assert_eq!(
+            fields["entry.0.heritable_artifact_checksum"],
+            registry_entry_heritable_artifact_checksum(entry)
+        );
+        assert_eq!(
+            fields["entry.0.provenance_manifest_checksum"],
+            entry.provenance_manifest_checksum
+        );
+        assert_eq!(
+            fields["entry.0.fitness_vector_status"],
+            FITNESS_VECTOR_STATUS
+        );
+        assert_eq!(
+            fields["entry.0.fitness_vector_checksum"],
+            registry_entry_fitness_vector_checksum(entry)
+        );
+    }
+
+    #[test]
+    fn writes_selector_registry_module_plan_species_fit_novelty_and_population_metadata() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap();
+        let fields = parse_manifest(&registry, "selector registry").unwrap();
+        let actual_adapter_routes = adapter_routes_from_registry(&fields).unwrap();
+        let actual_family_routes = adapter_family_routes_from_registry(&fields).unwrap();
+        let actual_assembly_routes = assembly_routes_from_registry(&fields).unwrap();
+        let actual_module_plan_routes = module_plan_routes_from_registry(&fields).unwrap();
+        let mut entries = entries_from_admissions(&[admission.clone()]).unwrap();
+        attach_adapter_routes(&mut entries, &actual_adapter_routes).unwrap();
+        attach_adapter_family_routes(&mut entries, &actual_family_routes).unwrap();
+        attach_assembly_routes(&mut entries, &actual_assembly_routes).unwrap();
+        attach_module_plan_routes(&mut entries, &actual_module_plan_routes).unwrap();
+        let entry = &entries[0];
+
+        validate_registry_text(&registry, &[admission]).unwrap();
+        assert_eq!(
+            fields["entry.0.species_id"],
+            registry_entry_species_id(entry)
+        );
+        assert_eq!(
+            fields["entry.0.species_fit_checksum"],
+            registry_entry_species_fit_checksum(entry)
+        );
+        assert_eq!(
+            fields["entry.0.novelty_id"],
+            registry_entry_novelty_id(entry)
+        );
+        assert_eq!(
+            fields["entry.0.novelty_checksum"],
+            registry_entry_novelty_checksum(entry)
+        );
+        assert_eq!(
+            fields["entry.0.population_id"],
+            registry_entry_population_id(entry)
+        );
+        assert_eq!(
+            fields["entry.0.population_checksum"],
+            registry_entry_population_checksum(entry)
+        );
+        assert_eq!(
+            fields["entry.0.mate_selection_id"],
+            registry_entry_mate_selection_id(entry)
+        );
+        assert_eq!(
+            fields["entry.0.mate_selection_checksum"],
+            registry_entry_mate_selection_checksum(entry)
+        );
+        assert_eq!(
+            fields["entry.0.phenotype_evidence_id"],
+            registry_entry_phenotype_evidence_id(entry)
+        );
+        assert_eq!(
+            fields["entry.0.phenotype_evidence_checksum"],
+            registry_entry_phenotype_evidence_checksum(entry)
+        );
+        assert_eq!(
+            fields["entry.0.heritable_artifact_id"],
+            registry_entry_heritable_artifact_id(entry)
+        );
+        assert_eq!(
+            fields["entry.0.heritable_artifact_checksum"],
+            registry_entry_heritable_artifact_checksum(entry)
+        );
+    }
+
+    #[test]
+    fn rejects_selector_registry_genome_drift() {
+        let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
+        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
+            "entry.0.genome_strategy=selector-admission-genome-v1",
+            "entry.0.genome_strategy=selector-admission-genome-v2",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("genome_strategy"));
+    }
+
+    #[test]
+    fn rejects_selector_registry_species_drift() {
+        let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
+        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
+            "entry.0.species_fit_status=browser-fit-bound",
+            "entry.0.species_fit_status=desktop-fit-bound",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("species_fit_status"));
+    }
+
+    #[test]
+    fn rejects_selector_registry_novelty_drift() {
+        let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
+        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
+            "entry.0.novelty_status=behavior-sketch-bound",
+            "entry.0.novelty_status=unreviewed",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("novelty_status"));
+    }
+
+    #[test]
+    fn rejects_selector_registry_population_drift() {
+        let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
+        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
+            "entry.0.population_status=population-review-bound",
+            "entry.0.population_status=unreviewed",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("population_status"));
+    }
+
+    #[test]
+    fn rejects_selector_registry_mate_selection_drift() {
+        let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
+        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
+            "entry.0.mate_selection_status=admission-only",
+            "entry.0.mate_selection_status=unbound",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("mate_selection_status"));
+    }
+
+    #[test]
+    fn rejects_selector_registry_mate_selection_parent_count_drift() {
+        let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
+        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
+            "entry.0.mate_selection_parent_count=1",
+            "entry.0.mate_selection_parent_count=2",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("mate_selection_parent_count"));
+    }
+
+    #[test]
+    fn rejects_selector_registry_phenotype_evidence_drift() {
+        let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
+        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
+            "entry.0.phenotype_evidence_status=runtime-eval-bound",
+            "entry.0.phenotype_evidence_status=unbound",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("phenotype_evidence_status"));
+    }
+
+    #[test]
+    fn rejects_selector_registry_heritable_artifact_drift() {
+        let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
+        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
+            "entry.0.heritable_artifact_status=served-artifact-bound",
+            "entry.0.heritable_artifact_status=detached",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("heritable_artifact_status"));
+    }
+
+    #[test]
+    fn rejects_selector_registry_fitness_drift() {
+        let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
+        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
+            "entry.0.fitness_vector_status=eval-bound",
+            "entry.0.fitness_vector_status=unreviewed",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("fitness_vector_status"));
     }
 
     #[test]
@@ -2915,6 +5539,8 @@ mod tests {
         candidate_id: &str,
         module_count: usize,
     ) -> RegistryModulePlanRoute {
+        let tokenizer_report =
+            slm_validate::validate_bytes(&tiny_fixture_f32_bytes(), "tiny-f32.slm").unwrap();
         RegistryModulePlanRoute {
             candidate_id: candidate_id.to_string(),
             receipt_path: "../models/tiny-f32.module-plan.receipt".to_string(),
@@ -2927,13 +5553,35 @@ mod tests {
             execution_profile: MODULE_PLAN_EXECUTION_PROFILE.to_string(),
             fetch_policy: MODULE_PLAN_FETCH_POLICY.to_string(),
             origin_policy: MODULE_PLAN_ORIGIN_POLICY.to_string(),
+            fetch_count_limit: MODULE_PLAN_FETCH_COUNT_LIMIT,
+            planned_fetch_count: module_plan_planned_fetch_count(module_count, 2).unwrap(),
             wasm_memory_initial_pages: MODULE_PLAN_WASM_MEMORY_INITIAL_PAGES,
+            wasm_export_set: MODULE_PLAN_WASM_EXPORT_SET.to_string(),
+            wasm_transfer_strategy: MODULE_PLAN_WASM_TRANSFER_STRATEGY.to_string(),
+            model_release_strategy: MODULE_PLAN_MODEL_RELEASE_STRATEGY.to_string(),
+            runtime_reset_strategy: MODULE_PLAN_RUNTIME_RESET_STRATEGY.to_string(),
+            adapter_validation_strategy: MODULE_PLAN_ADAPTER_VALIDATION_STRATEGY.to_string(),
+            adapter_validation_count: 2,
+            adapter_apply_count: 2,
+            wasm_heap_min_bytes: MODULE_PLAN_WASM_HEAP_MIN_BYTES,
+            context_token_limit: 16,
+            sampler_candidate_cap: MODULE_PLAN_SAMPLER_CANDIDATE_CAP,
+            tokenizer_checksum: hex64(tokenizer_report.tokenizer_checksum()),
+            prompt_byte_limit: MODULE_PLAN_PROMPT_BYTE_LIMIT,
             model_byte_budget: tiny_fixture_f32_bytes().len() as u64,
             adapter_byte_budget: ADAPTER_AUTO_APPLY_BYTE_BUDGET,
+            adapter_stack_byte_budget: 2048,
             runtime_scratch_byte_budget: MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET,
+            output_byte_limit: MODULE_PLAN_OUTPUT_BYTE_LIMIT,
+            kv_cache_byte_budget: 1024,
+            kv_cache_page_count: 1,
             total_byte_budget: tiny_fixture_f32_bytes().len() as u64
-                + ADAPTER_AUTO_APPLY_BYTE_BUDGET
-                + MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET,
+                + 2048
+                + 1024
+                + MODULE_PLAN_PROMPT_BYTE_LIMIT
+                + MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET
+                + MODULE_PLAN_OUTPUT_BYTE_LIMIT,
+            total_byte_budget_limit: MODULE_PLAN_TOTAL_BYTE_BUDGET_LIMIT,
             receipt_checksum: "0x00000000000000f0".to_string(),
             module_count,
         }

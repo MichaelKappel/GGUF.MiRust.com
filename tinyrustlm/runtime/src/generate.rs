@@ -70,6 +70,7 @@ impl Runtime {
                         self.clear_model_state();
                         self.diagnostics.model_loaded = false;
                         self.diagnostics.reset_runtime_assembly();
+                        self.diagnostics.reset_kv_cache_allocation();
                         self.set_result(error.message());
                         return self.finish(error);
                     }
@@ -80,10 +81,13 @@ impl Runtime {
                         self.clear_model_state();
                         self.diagnostics.model_loaded = false;
                         self.diagnostics.reset_runtime_assembly();
+                        self.diagnostics.reset_kv_cache_allocation();
                         self.set_result(error.message());
                         return self.finish(error);
                     }
                 };
+                let kv_cache_byte_budget = cache.byte_budget();
+                let kv_cache_page_count = cache.page_count();
                 self.tokens.clear();
                 self.generated_tokens.clear();
                 self.tokenizer = model.tokenizer().clone();
@@ -92,6 +96,8 @@ impl Runtime {
                 self.scratch = Some(scratch);
                 self.logits = vec![0.0; vocab_size];
                 self.diagnostics.reset_generation();
+                self.diagnostics
+                    .record_kv_cache_allocation(kv_cache_byte_budget, kv_cache_page_count);
                 self.diagnostics.model_loaded = true;
                 self.diagnostics.active_quantization_mode = quantization_mode;
                 self.diagnostics
@@ -103,6 +109,7 @@ impl Runtime {
                 self.clear_model_state();
                 self.diagnostics.model_loaded = false;
                 self.diagnostics.reset_runtime_assembly();
+                self.diagnostics.reset_kv_cache_allocation();
                 self.set_result(error.message());
                 self.finish(error)
             }
@@ -292,6 +299,7 @@ impl Runtime {
     pub fn free_model(&mut self) -> ErrorCode {
         self.clear_model_state();
         self.diagnostics.reset_generation();
+        self.diagnostics.reset_kv_cache_allocation();
         self.diagnostics.model_loaded = false;
         self.diagnostics.active_quantization_mode = "none";
         self.diagnostics.reset_runtime_assembly();
@@ -1049,6 +1057,8 @@ mod tests {
         assert!(diagnostics.contains("\"last_error\": \"ok\""));
         assert!(diagnostics.contains("\"generated_token_count\": 2"));
         assert!(diagnostics.contains("\"kv_cache_length\": 5"));
+        assert!(diagnostics.contains("\"kv_cache_byte_budget\": 1024"));
+        assert!(diagnostics.contains("\"kv_cache_page_count\": 1"));
         assert!(diagnostics.contains("\"selected_next_token\": 101"));
         assert!(diagnostics.contains("\"active_quantization_mode\": \"q8_0\""));
         assert!(diagnostics.contains("\"adapter_apply_count\": 0"));
@@ -1084,6 +1094,8 @@ mod tests {
         assert!(diagnostics.contains("\"prompt_token_count\": 0"));
         assert!(diagnostics.contains("\"generated_token_count\": 0"));
         assert!(diagnostics.contains("\"kv_cache_length\": 0"));
+        assert!(diagnostics.contains("\"kv_cache_byte_budget\": 1024"));
+        assert!(diagnostics.contains("\"kv_cache_page_count\": 1"));
         assert!(diagnostics.contains("\"selected_next_token\": 0"));
         assert!(diagnostics.contains("\"adapter_apply_count\": 1"));
         assert!(!diagnostics.contains("\"last_adapter_checksum\": \"0x0000000000000000\""));
@@ -1218,6 +1230,8 @@ mod tests {
         assert!(diagnostics.contains("\"last_error\": \"ok\""));
         assert!(diagnostics.contains("\"model_loaded\": false"));
         assert!(diagnostics.contains("\"active_quantization_mode\": \"none\""));
+        assert!(diagnostics.contains("\"kv_cache_byte_budget\": 0"));
+        assert!(diagnostics.contains("\"kv_cache_page_count\": 0"));
         assert!(diagnostics.contains("\"adapter_apply_count\": 0"));
         assert!(diagnostics.contains("\"last_adapter_checksum\": \"0x0000000000000000\""));
         assert!(diagnostics.contains("\"assembly_state_checksum\": \"0x0000000000000000\""));
