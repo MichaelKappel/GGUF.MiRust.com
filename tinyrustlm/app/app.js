@@ -108,6 +108,8 @@
   const registryModulePlanOriginPolicy = "same-origin-loopback-local-v1";
   const registryModulePlanFetchCountLimit = 32;
   const registryModulePlanPlannedFetchCount = 21;
+  const registryModulePlanRouteSetVersion = "1";
+  const registryModulePlanRouteSetChecksumAlgorithm = "tinyrustlm-text-checksum-v1";
   const registryModulePlanWasmMemoryInitialPages = 17;
   const registryModulePlanWasmExportSet = "tinyrustlm-generate-v1";
   const registryModulePlanWasmTransferStrategy = "copy-then-release-v1";
@@ -156,6 +158,7 @@
   const registryMateSelectionStrategy = "selector-mate-selection-route-v1";
   const registryMateSelectionParentPoolStatus = "parent-pool-bound";
   const registryMateSelectionAdmissionStatus = "admission-only";
+  const registryOperatorReceiptStatus = "receipt-bound";
   const registryPhenotypeEvidenceStrategy = "selector-phenotype-evidence-v1";
   const registryPhenotypeEvidenceStatus = "runtime-eval-bound";
   const registryHeritableArtifactStrategy = "selector-heritable-artifact-v1";
@@ -234,15 +237,15 @@
     "adapter_base_contract"
   ];
   const assemblyEvidenceRoutes = [
-    ["promotion_ledger_path", "promotion_ledger_checksum"],
-    ["population_review_path", "population_review_checksum"],
-    ["parent_pool_recipe_path", "parent_pool_recipe_checksum"],
-    ["operator_receipt_path", "operator_receipt_checksum"],
-    ["candidate_manifest_path", "candidate_manifest_checksum"],
-    ["promotion_manifest_path", "promotion_manifest_checksum"],
-    ["runtime_smoke_path", "runtime_smoke_manifest_checksum"],
-    ["eval_path", "eval_manifest_checksum"],
-    ["admission_path", "admission_checksum"]
+    ["promotion_ledger_path", "promotion_ledger_checksum", "population.ledger"],
+    ["population_review_path", "population_review_checksum", "population.review"],
+    ["parent_pool_recipe_path", "parent_pool_recipe_checksum", "parent-pool.recipe"],
+    ["operator_receipt_path", "operator_receipt_checksum", "sign-merge.operator"],
+    ["candidate_manifest_path", "candidate_manifest_checksum", "sign-merge.candidate"],
+    ["promotion_manifest_path", "promotion_manifest_checksum", "sign-merge.promotion"],
+    ["runtime_smoke_path", "runtime_smoke_manifest_checksum", "sign-merge.runtime"],
+    ["eval_path", "eval_manifest_checksum", "sign-merge.eval"],
+    ["admission_path", "admission_checksum", "sign-merge.multi.admission"]
   ];
 
   const state = {
@@ -259,6 +262,12 @@
     modelLoaded: false,
     modelManifest: null,
     modulePlanReceipt: null,
+    modulePlanActualFetchCount: null,
+    modulePlanActualRoutes: null,
+    modulePlanActualRouteSetChecksum: null,
+    modulePlanActualModuleBytes: null,
+    modulePlanActualModuleByteIndexes: null,
+    modulePlanActualModuleChecksums: null,
     assemblyReceipt: null,
     modulePlanTrace: [],
     selectorRegistry: null,
@@ -307,6 +316,7 @@
     provenanceNovelty: document.getElementById("provenanceNovelty"),
     provenancePopulation: document.getElementById("provenancePopulation"),
     provenanceMateSelection: document.getElementById("provenanceMateSelection"),
+    provenanceOperator: document.getElementById("provenanceOperator"),
     provenancePhenotype: document.getElementById("provenancePhenotype"),
     provenanceArtifact: document.getElementById("provenanceArtifact"),
     provenanceFitness: document.getElementById("provenanceFitness"),
@@ -328,6 +338,11 @@
     modulePlanOrigin: document.getElementById("modulePlanOrigin"),
     modulePlanFetchLimit: document.getElementById("modulePlanFetchLimit"),
     modulePlanPlannedFetchCount: document.getElementById("modulePlanPlannedFetchCount"),
+    modulePlanActualFetchCount: document.getElementById("modulePlanActualFetchCount"),
+    modulePlanRouteSetChecksumAlgorithm: document.getElementById("modulePlanRouteSetChecksumAlgorithm"),
+    modulePlanRouteSetVersion: document.getElementById("modulePlanRouteSetVersion"),
+    modulePlanRouteSetChecksum: document.getElementById("modulePlanRouteSetChecksum"),
+    modulePlanActualRouteSetChecksum: document.getElementById("modulePlanActualRouteSetChecksum"),
     modulePlanWasmPages: document.getElementById("modulePlanWasmPages"),
     modulePlanWasmExportSet: document.getElementById("modulePlanWasmExportSet"),
     modulePlanWasmTransferStrategy: document.getElementById("modulePlanWasmTransferStrategy"),
@@ -352,7 +367,9 @@
     modulePlanTotalBudget: document.getElementById("modulePlanTotalBudget"),
     modulePlanTotalLimit: document.getElementById("modulePlanTotalLimit"),
     modulePlanBytes: document.getElementById("modulePlanBytes"),
+    modulePlanActualModuleBytes: document.getElementById("modulePlanActualModuleBytes"),
     modulePlanChecksums: document.getElementById("modulePlanChecksums"),
+    modulePlanActualModuleChecksums: document.getElementById("modulePlanActualModuleChecksums"),
     modulePlanSlots: document.getElementById("modulePlanSlots"),
     modulePlanRoles: document.getElementById("modulePlanRoles"),
     modulePlanPhases: document.getElementById("modulePlanPhases"),
@@ -595,6 +612,90 @@
       throw new Error(`${label} byte budget exceeded`);
     }
     return state.decoder.decode(bytes);
+  }
+
+  // Clears generated self-assembly route observations for a new model load.
+  function resetModulePlanActualFetchCount(model) {
+    const hasModulePlan = Boolean(model && model.modulePlan);
+    state.modulePlanActualFetchCount = hasModulePlan ? 0 : null;
+    state.modulePlanActualRoutes = hasModulePlan ? [] : null;
+    state.modulePlanActualRouteSetChecksum = null;
+    state.modulePlanActualModuleBytes = hasModulePlan ? 0 : null;
+    state.modulePlanActualModuleByteIndexes = hasModulePlan ? [] : null;
+    state.modulePlanActualModuleChecksums = hasModulePlan ? [] : null;
+    const fields = model && model.modulePlanReceipt;
+    updateModulePlanActualFetchCount(fields);
+    updateModulePlanActualRouteSetChecksum(fields);
+    updateModulePlanActualModuleBytes(fields);
+    updateModulePlanActualModuleChecksums(fields);
+  }
+
+  // Records one accepted generated self-assembly route fetch and its route-set entry.
+  function recordModulePlanFetch(model, kind, route) {
+    if (!model || !model.modulePlan) {
+      return;
+    }
+    if (!kind || !route) {
+      throw new Error("Module plan actual route metadata missing");
+    }
+    if (!Number.isInteger(state.modulePlanActualFetchCount)) {
+      state.modulePlanActualFetchCount = 0;
+    }
+    if (!Array.isArray(state.modulePlanActualRoutes)) {
+      state.modulePlanActualRoutes = [];
+    }
+    state.modulePlanActualFetchCount += 1;
+    state.modulePlanActualRoutes.push({ kind, path: route });
+    state.modulePlanActualRouteSetChecksum = modulePlanRouteSetChecksum(state.modulePlanActualRoutes);
+    const fields = model.modulePlanReceipt || state.modulePlanReceipt;
+    updateModulePlanActualFetchCount(fields);
+    updateModulePlanActualRouteSetChecksum(fields);
+  }
+
+  // Fetches receipt/manifest/evidence text while counting generated module-plan routes.
+  async function fetchModulePlanTextWithinBudget(model, route, byteBudget, label, kind) {
+    const text = await fetchTextWithinBudget(route, byteBudget, label);
+    recordModulePlanFetch(model, kind, route);
+    return text;
+  }
+
+  // Fetches binary generated model or adapter artifacts while counting module-plan routes.
+  async function fetchModulePlanBytes(model, route, label, kind) {
+    const response = await fetch(route, localFetchOptions);
+    if (!response.ok) {
+      throw new Error(`Unable to fetch local ${label} (${response.status})`);
+    }
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    recordModulePlanFetch(model, kind, route);
+    return bytes;
+  }
+
+  // Updates only the Actual Fetches row during an in-flight generated assembly.
+  function updateModulePlanActualFetchCount(fields) {
+    if (el.modulePlanActualFetchCount) {
+      el.modulePlanActualFetchCount.textContent = modulePlanActualFetchSummary(fields);
+    }
+  }
+
+  // Updates only the Actual Route Set row while the observed route list grows.
+  function updateModulePlanActualRouteSetChecksum(fields) {
+    if (el.modulePlanActualRouteSetChecksum) {
+      el.modulePlanActualRouteSetChecksum.textContent = modulePlanActualRouteSetSummary(fields);
+    }
+  }
+
+  // Updates the observed module-byte total without disturbing receipt-owned byte rows.
+  function updateModulePlanActualModuleBytes(fields) {
+    if (el.modulePlanActualModuleBytes) {
+      el.modulePlanActualModuleBytes.textContent = modulePlanActualModuleByteSummary(fields);
+    }
+  }
+
+  // Updates the observed module-checksum row as each verified module payload arrives.
+  function updateModulePlanActualModuleChecksums(fields) {
+    if (el.modulePlanActualModuleChecksums) {
+      el.modulePlanActualModuleChecksums.textContent = modulePlanActualModuleChecksumSummary(fields);
+    }
   }
 
   function manifestValue(fields, key) {
@@ -1103,6 +1204,52 @@
     };
   }
 
+  // Reads copied two-parent operator receipt metadata when selector admission supplies it.
+  function registryOperatorReceiptEntry(fields, prefix, modelBytes, slmChecksum) {
+    const suffixes = [
+      "operator_receipt_status",
+      "operator_receipt_path",
+      "operator_receipt_checksum",
+      "operator_receipt_operator_id",
+      "operator_receipt_operator_kind",
+      "operator_receipt_candidate_slm_checksum",
+      "operator_receipt_candidate_artifact_bytes"
+    ];
+    const hasReceiptField = suffixes.some((suffix) => fields[`${prefix}.${suffix}`] !== undefined);
+    if (!hasReceiptField) {
+      return undefined;
+    }
+    const status = fields[`${prefix}.operator_receipt_status`];
+    const path = fields[`${prefix}.operator_receipt_path`];
+    const checksum = fields[`${prefix}.operator_receipt_checksum`];
+    const operatorId = fields[`${prefix}.operator_receipt_operator_id`];
+    const operatorKind = fields[`${prefix}.operator_receipt_operator_kind`];
+    const candidateSlmChecksum = fields[`${prefix}.operator_receipt_candidate_slm_checksum`];
+    const candidateArtifactBytes = registryDecimalByteCount(
+      fields[`${prefix}.operator_receipt_candidate_artifact_bytes`]
+    );
+    if (
+      status !== registryOperatorReceiptStatus ||
+      !path ||
+      !isRegistryHex64(checksum) ||
+      !operatorId ||
+      !operatorKind ||
+      candidateSlmChecksum !== slmChecksum ||
+      candidateArtifactBytes !== modelBytes
+    ) {
+      return null;
+    }
+    return {
+      status,
+      path,
+      checksum,
+      operatorId,
+      operatorKind,
+      candidateSlmChecksum,
+      candidateArtifactBytes
+    };
+  }
+
   // Reads selector phenotype evidence that binds runtime and eval observations to provenance.
   function registryPhenotypeEvidenceEntry(fields, prefix) {
     const phenotypeEvidenceId = fields[`${prefix}.phenotype_evidence_id`];
@@ -1175,6 +1322,9 @@
   function registryModulePlanEntry(
     fields,
     prefix,
+    candidateId,
+    modelPath,
+    adapters,
     adapterFamily,
     assembly,
     modelBytes,
@@ -1196,6 +1346,11 @@
       "module_plan_origin_policy",
       "module_plan_fetch_count_limit",
       "module_plan_planned_fetch_count",
+      "module_plan_route_set_version",
+      "module_plan_route_set_checksum_algorithm",
+      "module_plan_route_set_checksum",
+      "module_plan_operator_receipt_path",
+      "module_plan_operator_receipt_checksum",
       "module_plan_wasm_memory_initial_pages",
       "module_plan_wasm_export_set",
       "module_plan_wasm_transfer_strategy",
@@ -1237,6 +1392,12 @@
     const plannedFetchCount = registryDecimalCount(
       fields[`${prefix}.module_plan_planned_fetch_count`]
     );
+    const routeSetVersion = fields[`${prefix}.module_plan_route_set_version`] || "";
+    const routeSetChecksumAlgorithm = fields[`${prefix}.module_plan_route_set_checksum_algorithm`] || "";
+    const routeSetChecksum = fields[`${prefix}.module_plan_route_set_checksum`] || "";
+    const operatorReceiptPath = fields[`${prefix}.module_plan_operator_receipt_path`] || "";
+    const operatorReceiptChecksum =
+      fields[`${prefix}.module_plan_operator_receipt_checksum`] || "";
     const wasmExportSet = fields[`${prefix}.module_plan_wasm_export_set`] || "";
     const wasmHeapMinBytes = registryDecimalByteCount(
       fields[`${prefix}.module_plan_wasm_heap_min_bytes`]
@@ -1447,6 +1608,38 @@
     ) {
       return null;
     }
+    if (routeSetVersion !== registryModulePlanRouteSetVersion) {
+      return null;
+    }
+    if (routeSetChecksumAlgorithm !== registryModulePlanRouteSetChecksumAlgorithm) {
+      return null;
+    }
+    const routeSetRoutes = modulePlanRouteSetRoutes(
+      candidateId,
+      receiptPath,
+      modelPath,
+      `${modelPath}.manifest`,
+      assembly.path,
+      adapterFamily.path,
+      adapters,
+      adapterFamily.autoApplyStackCount
+    );
+    const expectedRouteSetChecksum = routeSetRoutes
+      ? modulePlanRouteSetChecksum(routeSetRoutes)
+      : "";
+    if (
+      !isRegistryHex64(routeSetChecksum) ||
+      routeSetChecksum !== expectedRouteSetChecksum
+    ) {
+      return null;
+    }
+    if (
+      !isSafeAssemblyEvidencePath(operatorReceiptPath) ||
+      operatorReceiptPath !== modulePlanEvidenceRoute(candidateId, "sign-merge.operator") ||
+      !isRegistryHex64(operatorReceiptChecksum)
+    ) {
+      return null;
+    }
     return {
       label: fields[`${prefix}.module_plan_label`] || "Module plan",
       path: receiptPath,
@@ -1461,6 +1654,11 @@
       originPolicy: fields[`${prefix}.module_plan_origin_policy`],
       fetchCountLimit,
       plannedFetchCount,
+      routeSetVersion,
+      routeSetChecksumAlgorithm,
+      routeSetChecksum,
+      operatorReceiptPath,
+      operatorReceiptChecksum,
       wasmMemoryInitialPages,
       wasmExportSet,
       wasmTransferStrategy: fields[`${prefix}.module_plan_wasm_transfer_strategy`],
@@ -1497,6 +1695,102 @@
       fetchCount += adapterFamily.count;
     }
     return fetchCount;
+  }
+
+  // Builds the ordered route set fetched by generated browser self-assembly.
+  function modulePlanRouteSetRoutes(
+    candidateId,
+    modulePlanPath,
+    modelPath,
+    manifestPath,
+    assemblyPath,
+    adapterFamilyPath,
+    adapters,
+    stackCount
+  ) {
+    if (
+      !candidateId ||
+      !modulePlanPath ||
+      !modelPath ||
+      !manifestPath ||
+      !assemblyPath ||
+      !adapterFamilyPath ||
+      !Array.isArray(adapters)
+    ) {
+      return null;
+    }
+    const stackIndexes = modulePlanAutoApplyStackIndexes(adapters.length, stackCount);
+    if (!stackIndexes) {
+      return null;
+    }
+    const routes = [];
+    modulePlanPushRoute(routes, "module-plan-receipt", modulePlanPath);
+    modulePlanPushRoute(routes, "model", modelPath);
+    modulePlanPushRoute(routes, "model-manifest", manifestPath);
+    modulePlanPushRoute(routes, "assembly-receipt", assemblyPath);
+    for (const route of assemblyEvidenceRoutes) {
+      modulePlanPushRoute(routes, "assembly-evidence", modulePlanEvidenceRoute(candidateId, route[2]));
+    }
+    modulePlanPushRoute(routes, "adapter-family-receipt", adapterFamilyPath);
+    for (const adapter of adapters) {
+      if (!adapter || !adapter.manifestPath) {
+        return null;
+      }
+      modulePlanPushRoute(routes, "adapter-manifest", adapter.manifestPath);
+    }
+    for (const adapterIndex of stackIndexes) {
+      const adapter = adapters[adapterIndex];
+      if (!adapter || !adapter.path) {
+        return null;
+      }
+      modulePlanPushRoute(routes, "adapter-stack-artifact", adapter.path);
+    }
+    return routes;
+  }
+
+  function modulePlanAutoApplyStackIndexes(adapterCount, stackCount) {
+    // Mirrors the generated adapter-family policy before the family receipt is loaded.
+    if (
+      !Number.isInteger(adapterCount) ||
+      !Number.isInteger(stackCount) ||
+      adapterCount < 1 ||
+      stackCount < 1 ||
+      stackCount > adapterCount
+    ) {
+      return null;
+    }
+    const expectedStackCount = adapterCount >= 3 ? adapterCount - 1 : adapterCount;
+    if (stackCount !== expectedStackCount) {
+      return null;
+    }
+    const indexes = [];
+    for (let index = adapterCount - stackCount; index < adapterCount; index += 1) {
+      indexes.push(index);
+    }
+    return indexes;
+  }
+
+  function modulePlanPushRoute(routes, kind, path) {
+    // Keeps route hashing keyed by both route class and route path.
+    routes.push({ kind, path });
+  }
+
+  function modulePlanEvidenceRoute(candidateId, fileName) {
+    return `../evidence/${candidateId}/${fileName}`;
+  }
+
+  function modulePlanRouteSetChecksum(routes) {
+    // Hashes the same route-list text emitted by the Rust bundle writer.
+    const lines = [
+      `route_set_version=${registryModulePlanRouteSetVersion}`,
+      `route_set_checksum_algorithm=${registryModulePlanRouteSetChecksumAlgorithm}`,
+      `route_count=${routes.length}`
+    ];
+    for (let index = 0; index < routes.length; index += 1) {
+      lines.push(`route.${index}.kind=${routes[index].kind}`);
+      lines.push(`route.${index}.path=${routes[index].path}`);
+    }
+    return textChecksumHex(`${lines.join("\n")}\n`);
   }
 
   function modulePlanWasmHeapMinBytes(modelByteBudget, adapterStackByteBudget, promptByteLimit) {
@@ -1557,6 +1851,10 @@
       if (tokenizerChecksum && !isRegistryHex64(tokenizerChecksum)) {
         return null;
       }
+      const slmChecksum = fields[`${prefix}.slm_checksum`] || "";
+      if (!isRegistryHex64(slmChecksum)) {
+        return null;
+      }
       const quantization = fields[`${prefix}.quantization`] || "";
       const adapters = registryAdapterEntries(fields, prefix, quantization);
       if (!adapters) {
@@ -1590,6 +1888,10 @@
       if (!mateSelection) {
         return null;
       }
+      const operatorReceipt = registryOperatorReceiptEntry(fields, prefix, modelBytes, slmChecksum);
+      if (operatorReceipt === null) {
+        return null;
+      }
       const phenotypeEvidence = registryPhenotypeEvidenceEntry(fields, prefix);
       if (!phenotypeEvidence) {
         return null;
@@ -1605,6 +1907,9 @@
       const modulePlan = registryModulePlanEntry(
         fields,
         prefix,
+        candidateId,
+        modelPath,
+        adapters,
         adapterFamily,
         assembly,
         modelBytes,
@@ -1616,6 +1921,7 @@
         return null;
       }
       models[candidateId] = {
+        candidateId,
         label: fields[`${prefix}.display_name`] || candidateId,
         path: modelPath,
         modelBytes,
@@ -1631,6 +1937,7 @@
         novelty,
         population,
         mateSelection,
+        operatorReceipt: operatorReceipt || null,
         phenotypeEvidence,
         heritableArtifact,
         evalEvidence,
@@ -1808,7 +2115,7 @@
     return bytes;
   }
 
-  // Renders manifest provenance together with selector genome, species, novelty, population, mate-selection, phenotype, artifact, and fitness evidence.
+  // Renders manifest provenance together with selector genome, species, novelty, population, operator, phenotype, artifact, and fitness evidence.
   function renderProvenance(status, fields, isError) {
     setText(el.provenanceState, status, isError);
     const model = paths.models[state.activeModelKey] || null;
@@ -1817,6 +2124,7 @@
     const novelty = model && model.novelty ? model.novelty : null;
     const population = model && model.population ? model.population : null;
     const mateSelection = model && model.mateSelection ? model.mateSelection : null;
+    const operatorReceipt = model && model.operatorReceipt ? model.operatorReceipt : null;
     const phenotypeEvidence = model && model.phenotypeEvidence ? model.phenotypeEvidence : null;
     const heritableArtifact = model && model.heritableArtifact ? model.heritableArtifact : null;
     const evalEvidence = model && model.evalEvidence ? model.evalEvidence : null;
@@ -1836,6 +2144,9 @@
       : "unavailable";
     el.provenanceMateSelection.textContent = mateSelection
       ? `${mateSelection.status} / ${mateSelection.parentCount} parents / ${mateSelection.id} / ${mateSelection.checksum}`
+      : "unavailable";
+    el.provenanceOperator.textContent = operatorReceipt
+      ? `${operatorReceipt.status} / ${operatorReceipt.operatorKind} / ${operatorReceipt.checksum}`
       : "unavailable";
     el.provenancePhenotype.textContent = phenotypeEvidence
       ? `${phenotypeEvidence.status} / ${phenotypeEvidence.id} / ${phenotypeEvidence.checksum}`
@@ -1924,6 +2235,113 @@
     }
     const fetches = registryDecimalCount(fields.module_plan_planned_fetch_count);
     return fetches === null ? "unavailable" : `${fetches} fetches`;
+  }
+
+  // Formats the browser-observed generated self-assembly route count.
+  function modulePlanActualFetchSummary(fields) {
+    if (!fields || !Number.isInteger(state.modulePlanActualFetchCount)) {
+      return "unavailable";
+    }
+    return `${state.modulePlanActualFetchCount} fetches`;
+  }
+
+  // Formats the browser-observed route set checksum once all planned routes are seen.
+  function modulePlanActualRouteSetSummary(fields) {
+    if (!fields || !Array.isArray(state.modulePlanActualRoutes)) {
+      return "unavailable";
+    }
+    const plannedFetchCount = registryDecimalCount(fields.module_plan_planned_fetch_count);
+    if (plannedFetchCount === null) {
+      return "unavailable";
+    }
+    if (state.modulePlanActualRoutes.length !== plannedFetchCount) {
+      return `${state.modulePlanActualRoutes.length}/${plannedFetchCount} routes`;
+    }
+    return isRegistryHex64(state.modulePlanActualRouteSetChecksum)
+      ? state.modulePlanActualRouteSetChecksum
+      : "unavailable";
+  }
+
+  // Formats the browser-observed byte total for receipt-declared modules.
+  function modulePlanActualModuleByteSummary(fields) {
+    if (
+      !fields ||
+      !Number.isSafeInteger(state.modulePlanActualModuleBytes) ||
+      !Array.isArray(state.modulePlanActualModuleByteIndexes)
+    ) {
+      return "unavailable";
+    }
+    const declared = modulePlanModuleByteTotal(fields);
+    if (!declared) {
+      return "unavailable";
+    }
+    if (state.modulePlanActualModuleByteIndexes.length !== declared.count) {
+      return `${state.modulePlanActualModuleBytes}/${declared.total} bytes`;
+    }
+    return `${state.modulePlanActualModuleBytes} bytes`;
+  }
+
+  // Formats checksums recomputed from the module payloads accepted by this browser load.
+  function modulePlanActualModuleChecksumSummary(fields) {
+    if (!fields || !Array.isArray(state.modulePlanActualModuleChecksums)) {
+      return "unavailable";
+    }
+    const declared = modulePlanModuleChecksumList(fields);
+    if (!declared) {
+      return "unavailable";
+    }
+    let seen = 0;
+    for (const checksum of state.modulePlanActualModuleChecksums) {
+      if (checksum) {
+        seen += 1;
+      }
+    }
+    if (seen !== declared.length) {
+      return `${seen}/${declared.length} checksums`;
+    }
+    const checksums = [];
+    for (let index = 0; index < declared.length; index += 1) {
+      const checksum = state.modulePlanActualModuleChecksums[index];
+      if (!checksum) {
+        return `${seen}/${declared.length} checksums`;
+      }
+      checksums.push(`${index}: ${checksum}`);
+    }
+    return checksums.join(", ");
+  }
+
+  function modulePlanModuleByteTotal(fields) {
+    const countValue = fields && fields.module_count;
+    const count = Number.parseInt(countValue || "0", 10);
+    if (!Number.isInteger(count) || String(count) !== countValue || count < 1) {
+      return null;
+    }
+    let total = 0;
+    for (let index = 0; index < count; index += 1) {
+      const bytes = registryDecimalByteCount(fields[`module.${index}.byte_count`]);
+      if (bytes === null) {
+        return null;
+      }
+      total += bytes;
+    }
+    return { count, total };
+  }
+
+  function modulePlanModuleChecksumList(fields) {
+    const countValue = fields && fields.module_count;
+    const count = Number.parseInt(countValue || "0", 10);
+    if (!Number.isInteger(count) || String(count) !== countValue || count < 1) {
+      return null;
+    }
+    const checksums = [];
+    for (let index = 0; index < count; index += 1) {
+      const checksum = fields[`module.${index}.checksum`];
+      if (!isRegistryHex64(checksum)) {
+        return null;
+      }
+      checksums.push(checksum);
+    }
+    return checksums;
   }
 
   function modulePlanModuleByteSummary(fields) {
@@ -2055,6 +2473,20 @@
     el.modulePlanOrigin.textContent = manifestValue(fields, "module_plan_origin_policy");
     el.modulePlanFetchLimit.textContent = modulePlanFetchCountSummary(fields);
     el.modulePlanPlannedFetchCount.textContent = modulePlanPlannedFetchSummary(fields);
+    updateModulePlanActualFetchCount(fields);
+    el.modulePlanRouteSetVersion.textContent = manifestValue(
+      fields,
+      "module_plan_route_set_version"
+    );
+    el.modulePlanRouteSetChecksumAlgorithm.textContent = manifestValue(
+      fields,
+      "module_plan_route_set_checksum_algorithm"
+    );
+    el.modulePlanRouteSetChecksum.textContent = manifestValue(
+      fields,
+      "module_plan_route_set_checksum"
+    );
+    updateModulePlanActualRouteSetChecksum(fields);
     el.modulePlanWasmPages.textContent = manifestValue(fields, "module_plan_wasm_memory_initial_pages");
     el.modulePlanWasmExportSet.textContent = manifestValue(fields, "module_plan_wasm_export_set");
     el.modulePlanWasmTransferStrategy.textContent = manifestValue(
@@ -2121,7 +2553,9 @@
       "module_plan_total_byte_budget_limit"
     );
     el.modulePlanBytes.textContent = modulePlanModuleByteSummary(fields);
+    updateModulePlanActualModuleBytes(fields);
     el.modulePlanChecksums.textContent = modulePlanChecksumSummary(fields);
+    updateModulePlanActualModuleChecksums(fields);
     el.modulePlanSlots.textContent = modulePlanSlotSummary(fields);
     el.modulePlanRoles.textContent = modulePlanRoleSummary(fields);
     el.modulePlanPhases.textContent = modulePlanPhaseSummary(fields);
@@ -2423,10 +2857,12 @@
     model.adapterFamilyManifests = null;
     model.adapterFamilyPreferredIndex = null;
     model.adapterFamilyAutoApplyIndexes = null;
-    const text = await fetchTextWithinBudget(
+    const text = await fetchModulePlanTextWithinBudget(
+      model,
       model.adapterFamily.path,
       receiptTextByteBudget,
-      "adapter-family receipt"
+      "adapter-family receipt",
+      "adapter-family-receipt"
     );
     requireModulePlanTextByteCount(model, 3, text);
     const receiptFields = validateAdapterFamilyReceipt(model, text);
@@ -2435,10 +2871,12 @@
     const manifestFields = [];
     for (let index = 0; index < model.adapters.length; index += 1) {
       const adapter = model.adapters[index];
-      const manifestText = await fetchTextWithinBudget(
+      const manifestText = await fetchModulePlanTextWithinBudget(
+        model,
         adapter.manifestPath,
         manifestTextByteBudget,
-        "Adapter manifest"
+        "Adapter manifest",
+        "adapter-manifest"
       );
       const fields = validateAdapterManifest(adapter, manifestText, receiptFields, index);
       const moduleIndex = modulePlanStackModuleIndexForAdapter(model.modulePlanReceipt, index);
@@ -2514,6 +2952,62 @@
     ) {
       throw new Error("Module plan planned fetch count mismatch");
     }
+    if (!model.assembly || !model.adapterFamily) {
+      throw new Error("Module plan route set checksum mismatch");
+    }
+    const routeSetVersion = requireManifestField(
+      fields,
+      "module_plan_route_set_version",
+      source
+    );
+    if (
+      routeSetVersion !== plan.routeSetVersion ||
+      routeSetVersion !== registryModulePlanRouteSetVersion
+    ) {
+      throw new Error("Module plan route set version mismatch");
+    }
+    const routeSetChecksumAlgorithm = requireManifestField(
+      fields,
+      "module_plan_route_set_checksum_algorithm",
+      source
+    );
+    if (
+      routeSetChecksumAlgorithm !== plan.routeSetChecksumAlgorithm ||
+      routeSetChecksumAlgorithm !== registryModulePlanRouteSetChecksumAlgorithm
+    ) {
+      throw new Error("Module plan route set checksum algorithm mismatch");
+    }
+    const routeSetChecksum = requireManifestField(
+      fields,
+      "module_plan_route_set_checksum",
+      source
+    );
+    const routeSetRoutes = modulePlanRouteSetRoutes(
+      model.candidateId || state.activeModelKey,
+      plan.path,
+      model.path,
+      `${model.path}.manifest`,
+      model.assembly.path,
+      model.adapterFamily.path,
+      model.adapters,
+      model.adapterFamily.autoApplyStackCount
+    );
+    const expectedRouteSetChecksum = routeSetRoutes
+      ? modulePlanRouteSetChecksum(routeSetRoutes)
+      : "";
+    if (
+      !isRegistryHex64(routeSetChecksum) ||
+      routeSetChecksum !== plan.routeSetChecksum ||
+      routeSetChecksum !== expectedRouteSetChecksum
+    ) {
+      throw new Error("Module plan route set checksum mismatch");
+    }
+    requireManifestEqual(fields, "operator_receipt_path", plan.operatorReceiptPath, source);
+    requireChecksumEqual(
+      requireManifestField(fields, "operator_receipt_checksum", source),
+      plan.operatorReceiptChecksum,
+      "module plan operator receipt"
+    );
     const wasmMemoryInitialPages = requireManifestField(
       fields,
       "module_plan_wasm_memory_initial_pages",
@@ -2973,6 +3467,71 @@
     return fetchCount;
   }
 
+  // Requires the browser-observed generated fetch count to match the verified receipt.
+  function requireModulePlanActualFetchCount(model) {
+    if (!model || !model.modulePlan) {
+      return;
+    }
+    if (state.modulePlanActualFetchCount !== model.modulePlan.plannedFetchCount) {
+      throw new Error("Module plan actual fetch count mismatch");
+    }
+    updateModulePlanActualFetchCount(model.modulePlanReceipt);
+  }
+
+  // Requires the browser-observed generated route set to match the declared route-set checksum.
+  function requireModulePlanActualRouteSet(model) {
+    if (!model || !model.modulePlan) {
+      return;
+    }
+    if (
+      !Array.isArray(state.modulePlanActualRoutes) ||
+      state.modulePlanActualRoutes.length !== model.modulePlan.plannedFetchCount ||
+      state.modulePlanActualRoutes.length !== state.modulePlanActualFetchCount
+    ) {
+      throw new Error("Module plan actual route set mismatch");
+    }
+    const actualChecksum = modulePlanRouteSetChecksum(state.modulePlanActualRoutes);
+    state.modulePlanActualRouteSetChecksum = actualChecksum;
+    if (actualChecksum !== model.modulePlan.routeSetChecksum) {
+      throw new Error("Module plan actual route set mismatch");
+    }
+    updateModulePlanActualRouteSetChecksum(model.modulePlanReceipt);
+  }
+
+  // Requires observed module bytes to match the checksum-verified module byte rows.
+  function requireModulePlanActualModuleBytes(model) {
+    if (!model || !model.modulePlan) {
+      return;
+    }
+    const declared = modulePlanModuleByteTotal(model.modulePlanReceipt);
+    if (
+      !declared ||
+      !Array.isArray(state.modulePlanActualModuleByteIndexes) ||
+      state.modulePlanActualModuleByteIndexes.length !== declared.count ||
+      state.modulePlanActualModuleBytes !== declared.total
+    ) {
+      throw new Error("Module plan actual module bytes mismatch");
+    }
+    updateModulePlanActualModuleBytes(model.modulePlanReceipt);
+  }
+
+  // Requires observed module checksums to match every checksum-verified module row.
+  function requireModulePlanActualModuleChecksums(model) {
+    if (!model || !model.modulePlan) {
+      return;
+    }
+    const declared = modulePlanModuleChecksumList(model.modulePlanReceipt);
+    if (!declared || !Array.isArray(state.modulePlanActualModuleChecksums)) {
+      throw new Error("Module plan actual module checksum mismatch");
+    }
+    for (let index = 0; index < declared.length; index += 1) {
+      if (state.modulePlanActualModuleChecksums[index] !== declared[index]) {
+        throw new Error("Module plan actual module checksum mismatch");
+      }
+    }
+    updateModulePlanActualModuleChecksums(model.modulePlanReceipt);
+  }
+
   // Recomputes the receipt-declared self-assembly total before generated bytes are used.
   function modulePlanDeclaredByteTotal(
     fields,
@@ -3012,10 +3571,58 @@
     requireModulePlanByteCount(fields, `module.${index}`, actualBytes, null, "Module plan");
   }
 
+  // Records one browser-observed module byte count after the module payload is fetched.
+  function recordModulePlanActualModuleBytes(model, index, actualBytes) {
+    if (!model || !model.modulePlan || !model.modulePlanReceipt) {
+      return;
+    }
+    if (
+      !Number.isInteger(index) ||
+      !Number.isSafeInteger(actualBytes) ||
+      actualBytes < 0 ||
+      !Array.isArray(state.modulePlanActualModuleByteIndexes)
+    ) {
+      throw new Error("Module plan actual module byte metadata mismatch");
+    }
+    if (state.modulePlanActualModuleByteIndexes.includes(index)) {
+      throw new Error("Module plan actual module byte duplicate");
+    }
+    requireModulePlanActualByteCount(model.modulePlanReceipt, index, actualBytes);
+    state.modulePlanActualModuleByteIndexes.push(index);
+    state.modulePlanActualModuleBytes += actualBytes;
+    updateModulePlanActualModuleBytes(model.modulePlanReceipt);
+  }
+
+  // Records both the byte count and checksum for a fetched generated text module.
   function requireModulePlanTextByteCount(model, index, text) {
     if (model.modulePlanReceipt) {
-      requireModulePlanActualByteCount(model.modulePlanReceipt, index, state.encoder.encode(text).length);
+      recordModulePlanActualModuleBytes(model, index, state.encoder.encode(text).length);
+      recordModulePlanActualModuleChecksum(model, index, textChecksumHex(text));
     }
+  }
+
+  // Records one browser-observed module checksum after the module payload is accepted.
+  function recordModulePlanActualModuleChecksum(model, index, actualChecksum) {
+    if (!model || !model.modulePlan || !model.modulePlanReceipt) {
+      return;
+    }
+    if (
+      !Number.isInteger(index) ||
+      !isRegistryHex64(actualChecksum) ||
+      !Array.isArray(state.modulePlanActualModuleChecksums)
+    ) {
+      throw new Error("Module plan actual module checksum metadata mismatch");
+    }
+    if (state.modulePlanActualModuleChecksums[index]) {
+      throw new Error("Module plan actual module checksum duplicate");
+    }
+    requireChecksumEqual(
+      actualChecksum,
+      requireManifestField(model.modulePlanReceipt, `module.${index}.checksum`, "Module plan"),
+      "module plan actual module"
+    );
+    state.modulePlanActualModuleChecksums[index] = actualChecksum;
+    updateModulePlanActualModuleChecksums(model.modulePlanReceipt);
   }
 
   function modulePlanStackModuleIndexForAdapter(fields, adapterIndex) {
@@ -3072,10 +3679,12 @@
     model.modulePlanVerified = false;
     model.modulePlanReceipt = null;
     state.modulePlanReceipt = null;
-    const text = await fetchTextWithinBudget(
+    const text = await fetchModulePlanTextWithinBudget(
+      model,
       model.modulePlan.path,
       receiptTextByteBudget,
-      "module plan"
+      "module plan",
+      "module-plan-receipt"
     );
     const fields = validateModulePlanReceipt(model, text);
     model.modulePlanReceipt = fields;
@@ -3140,6 +3749,19 @@
         throw new Error(`Assembly receipt field ${pathKey} is invalid`);
       }
     }
+    if (model.modulePlan) {
+      requireManifestEqual(
+        fields,
+        "operator_receipt_path",
+        model.modulePlan.operatorReceiptPath,
+        source
+      );
+      requireChecksumEqual(
+        requireManifestField(fields, "operator_receipt_checksum", "assembly receipt"),
+        model.modulePlan.operatorReceiptChecksum,
+        "assembly operator receipt"
+      );
+    }
     if (model.adapterFamily) {
       requireManifestEqual(fields, "adapter_family_receipt_path", model.adapterFamily.path, source);
       requireChecksumEqual(
@@ -3159,12 +3781,18 @@
     return fields;
   }
 
-  async function verifyAssemblyEvidenceFiles(fields) {
+  async function verifyAssemblyEvidenceFiles(model, fields) {
     const evidence = [];
     for (const [pathKey, checksumKey] of assemblyEvidenceRoutes) {
       const route = requireManifestField(fields, pathKey, "assembly receipt");
       const expectedChecksum = requireManifestField(fields, checksumKey, "assembly receipt");
-      const text = await fetchTextWithinBudget(route, evidenceTextByteBudget, "assembly evidence");
+      const text = await fetchModulePlanTextWithinBudget(
+        model,
+        route,
+        evidenceTextByteBudget,
+        "assembly evidence",
+        "assembly-evidence"
+      );
       requireChecksumEqual(textChecksumHex(text), expectedChecksum, `assembly evidence ${pathKey}`);
       evidence.push({
         pathKey,
@@ -3185,14 +3813,16 @@
     model.assemblyVerified = false;
     model.assemblyReceipt = null;
     model.assemblyEvidence = null;
-    const text = await fetchTextWithinBudget(
+    const text = await fetchModulePlanTextWithinBudget(
+      model,
       model.assembly.path,
       receiptTextByteBudget,
-      "assembly receipt"
+      "assembly receipt",
+      "assembly-receipt"
     );
     requireModulePlanTextByteCount(model, 2, text);
     const fields = validateAssemblyReceipt(model, text);
-    const evidence = await verifyAssemblyEvidenceFiles(fields);
+    const evidence = await verifyAssemblyEvidenceFiles(model, fields);
     model.assemblyReceipt = fields;
     model.assemblyEvidence = evidence;
     model.assemblyVerified = true;
@@ -3210,13 +3840,22 @@
   async function loadModelManifest(model) {
     const manifestPath = `${model.path}.manifest`;
     try {
-      const text = await fetchTextWithinBudget(
+      const text = await fetchModulePlanTextWithinBudget(
+        model,
         manifestPath,
         manifestTextByteBudget,
-        ".slm manifest"
+        ".slm manifest",
+        "model-manifest"
       );
       requireModulePlanTextByteCount(model, 1, text);
       const fields = parseManifest(text);
+      if (model.modulePlanReceipt) {
+        recordModulePlanActualModuleChecksum(
+          model,
+          0,
+          requireManifestField(fields, "slm_checksum", "model manifest")
+        );
+      }
       state.modelManifest = fields;
       renderProvenance("loaded", fields, false);
     } catch (error) {
@@ -3305,6 +3944,7 @@
       model.modulePlanVerified = false;
       model.modulePlanReceipt = null;
     }
+    resetModulePlanActualFetchCount(model);
     renderAdapterOptions(model, "waiting");
     setInteractive(false);
     el.response.textContent = "";
@@ -3325,14 +3965,11 @@
     let modelBytes = null;
     try {
       await loadModulePlanReceipt(model);
-      const response = await fetch(modelPath, localFetchOptions);
-      if (!response.ok) {
-        throw new Error(`Unable to fetch local .slm model (${response.status})`);
-      }
-      modelBytes = new Uint8Array(await response.arrayBuffer());
+      modelBytes = await fetchModulePlanBytes(model, modelPath, ".slm model", "model");
       if (Number.isSafeInteger(model.modelBytes) && modelBytes.length !== model.modelBytes) {
         throw new Error("Selector model byte count mismatch");
       }
+      recordModulePlanActualModuleBytes(model, 0, modelBytes.length);
     } catch (error) {
       if (loadId !== state.modelLoadSequence) {
         return false;
@@ -3484,6 +4121,25 @@
         (!model.adapterFamily || model.adapterFamilyVerified) &&
         (!model.autoApplyPreferredAdapter || model.autoAssemblyApplied)
       ) {
+        try {
+          requireModulePlanActualFetchCount(model);
+          requireModulePlanActualRouteSet(model);
+          requireModulePlanActualModuleBytes(model);
+          requireModulePlanActualModuleChecksums(model);
+        } catch (error) {
+          const text = errorMessage(error);
+          state.modelLoaded = false;
+          state.hasContext = false;
+          state.lastMeasuredTokens = 0;
+          setText(el.modelState, "module plan rejected", true);
+          setText(el.runtimeStatus, "Model load failed", true);
+          setText(el.errorState, text, true);
+          renderModulePlan(text, model.modulePlanReceipt, true);
+          renderAdapterOptions(model, text, true);
+          setControls(false, true);
+          renderDiagnostics();
+          return false;
+        }
         recordModulePlanTrace("ready");
       }
     } else {
@@ -3604,7 +4260,10 @@
     return applied > 0;
   }
 
-  async function fetchAdapterBytes(adapter) {
+  async function fetchAdapterBytes(adapter, model) {
+    if (model && model.modulePlan) {
+      return fetchModulePlanBytes(model, adapter.path, "adapter", "adapter-stack-artifact");
+    }
     const response = await fetch(adapter.path, localFetchOptions);
     if (!response.ok) {
       throw new Error(`Unable to fetch local adapter (${response.status})`);
@@ -3640,8 +4299,16 @@
 
   async function fetchVerifiedAdapterBytes(model, selectedIndex, isAutoAssembly, autoAssemblyBytes) {
     const adapter = modelAdapters(model)[selectedIndex];
-    const adapterBytes = await fetchAdapterBytes(adapter);
+    const adapterBytes = await fetchAdapterBytes(adapter, model);
     verifyAdapterBytes(model, selectedIndex, adapter, adapterBytes, isAutoAssembly, autoAssemblyBytes);
+    if (isAutoAssembly && model.modulePlan) {
+      const moduleIndex = modulePlanStackModuleIndexForAdapter(model.modulePlanReceipt, selectedIndex);
+      if (moduleIndex === null) {
+        throw new Error("Module plan adapter index mismatch");
+      }
+      recordModulePlanActualModuleBytes(model, moduleIndex, adapterBytes.length);
+      recordModulePlanActualModuleChecksum(model, moduleIndex, adapterArtifactChecksumHex(adapterBytes));
+    }
     return adapterBytes;
   }
 
@@ -3679,7 +4346,7 @@
     setText(el.adapterState, "loading");
     let adapterBytes = null;
     try {
-      adapterBytes = verifiedAdapterBytes || await fetchAdapterBytes(adapter);
+      adapterBytes = verifiedAdapterBytes || await fetchAdapterBytes(adapter, isAutoAssembly ? model : null);
       verifyAdapterBytes(model, selectedIndex, adapter, adapterBytes, isAutoAssembly, autoAssemblyBytes);
     } catch (error) {
       const text = errorMessage(error);

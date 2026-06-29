@@ -1,5 +1,5 @@
-profile: gguf-mirust.report-synthesis.v45
-updated_utc: 2026-06-29T03:34:05Z
+profile: gguf-mirust.report-synthesis.v60
+updated_utc: 2026-06-29T13:45:00Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/gguf-mirust/report-intake-2026-06-25/
@@ -24,6 +24,12 @@ source_authority:
     - wiki/gguf-mirust/reports/browser-low-rank-adapter-route-memory-2026-06-28.md
     - wiki/gguf-mirust/reports/browser-source-backed-alr1-route-memory-2026-06-28.md
     - wiki/gguf-mirust/reports/browser-source-backed-alr1-contract-memory-2026-06-28.md
+    - wiki/gguf-mirust/reports/mutation-operator-memory-2026-06-29.md
+    - wiki/gguf-mirust/reports/federated-operator-memory-2026-06-29.md
+    - wiki/gguf-mirust/reports/candidate-operator-receipt-binding-memory-2026-06-29.md
+    - wiki/gguf-mirust/reports/promotion-operator-receipt-binding-memory-2026-06-29.md
+    - wiki/gguf-mirust/reports/admission-operator-receipt-binding-memory-2026-06-29.md
+    - wiki/gguf-mirust/reports/selector-operator-receipt-binding-memory-2026-06-29.md
     - wiki/gguf-mirust/reports/browser-adapter-sidecar-memory-2026-06-27.md
     - wiki/gguf-mirust/reports/registry-adapter-sidecar-memory-2026-06-27.md
     - wiki/gguf-mirust/reports/registry-adapter-family-memory-2026-06-27.md
@@ -96,6 +102,13 @@ source_authority:
     - wiki/gguf-mirust/reports/browser-module-plan-adapter-validation-count-memory-2026-06-29.md
     - wiki/gguf-mirust/reports/browser-module-plan-adapter-apply-count-memory-2026-06-29.md
     - wiki/gguf-mirust/reports/browser-module-plan-planned-fetch-count-memory-2026-06-29.md
+    - wiki/gguf-mirust/reports/browser-module-plan-actual-fetch-count-memory-2026-06-29.md
+    - wiki/gguf-mirust/reports/browser-module-plan-observed-route-set-memory-2026-06-29.md
+    - wiki/gguf-mirust/reports/browser-module-plan-actual-module-checksums-memory-2026-06-29.md
+    - wiki/gguf-mirust/reports/browser-module-plan-route-set-memory-2026-06-29.md
+    - wiki/gguf-mirust/reports/browser-module-plan-route-set-version-memory-2026-06-29.md
+    - wiki/gguf-mirust/reports/browser-module-plan-route-set-algorithm-memory-2026-06-29.md
+    - wiki/gguf-mirust/reports/browser-module-plan-operator-receipt-memory-2026-06-29.md
     - wiki/gguf-mirust/reports/browser-module-plan-kv-cache-memory-2026-06-28.md
     - wiki/gguf-mirust/reports/browser-module-plan-adapter-stack-budget-memory-2026-06-28.md
     - wiki/gguf-mirust/reports/browser-module-plan-context-token-memory-2026-06-28.md
@@ -125,6 +138,21 @@ research_intake_2026_06_28:
   intake_index: wiki/gguf-mirust/reports/report-intake-index-2026-06-28.md
   raw_evidence: raw/gguf-mirust/report-intake-2026-06-28/
   synthesis: Four Improvement research files route ModelBreeder genome/fitness/novelty/speciation guidance plus zero-dependency browser-runtime lanes for Wasm SIMD, hierarchical quantization, tokenizer/sampler determinism, KV-cache planning, allocator proof, multimodal fixtures, and telemetry.
+latest_federated_operator:
+  route: wiki/gguf-mirust/reports/federated-operator-memory-2026-06-29.md
+  synthesis: Federated/local-update candidates can now be written and validated from compatibility-bound base plus local-update parents with `local_update_weight_ppm`, local-update counts, raw delta checksum, weighted delta checksum, q8 proof, and CLI write/validate evidence.
+latest_candidate_operator_receipt_binding:
+  route: wiki/gguf-mirust/reports/candidate-operator-receipt-binding-memory-2026-06-29.md
+  synthesis: Candidate artifact manifests can optionally bind the exact operator receipt by path, text checksum, operator id/kind, candidate bytes, and candidate checksum; validation rejects receipt drift, missing receipt input for bound manifests, and candidate checksum disagreement.
+latest_promotion_operator_receipt_binding:
+  route: wiki/gguf-mirust/reports/promotion-operator-receipt-binding-memory-2026-06-29.md
+  synthesis: Two-parent promotion templates can optionally carry candidate receipt bindings forward; validation recomputes the receipt-bound candidate manifest, rejects missing receipt input, and rejects promotion receipt field drift before runtime smoke/eval gates.
+latest_admission_operator_receipt_binding:
+  route: wiki/gguf-mirust/reports/admission-operator-receipt-binding-memory-2026-06-29.md
+  synthesis: Two-parent selector admissions can optionally carry promotion receipt bindings forward; validation recomputes candidate and promotion receipt evidence, rejects missing receipt input, rejects admission receipt drift, and checks receipt fields in admission summaries.
+latest_selector_operator_receipt_binding:
+  route: wiki/gguf-mirust/reports/selector-operator-receipt-binding-memory-2026-06-29.md
+  synthesis: Selector registries now copy receipt-bound admission fields into entry.N.operator_receipt metadata, bind those fields into mate-selection checksums, and expose a browser Model Provenance Operator row.
 latest_browser_selector_genome_fitness:
   route: wiki/gguf-mirust/reports/browser-selector-genome-fitness-memory-2026-06-28.md
   synthesis: Generated selector registries now bind deterministic genome ids, admission lineage checksums, and eval-bound fitness-vector checksums; browser provenance renders Genome and Fitness rows for q4_0/q8_0/f32 generated entries.
@@ -173,6 +201,33 @@ latest_browser_module_plan_adapter_validation_count:
 latest_browser_module_plan_adapter_apply_count:
   route: wiki/gguf-mirust/reports/browser-module-plan-adapter-apply-count-memory-2026-06-29.md
   synthesis: Selector entries and receipts bind `module_plan_adapter_apply_count=3`, browser renders `Apply Count`, source roots keep `unavailable`, adapter-family stack count and runtime `adapter_apply_count` diagnostics must agree, and apply-count drift stops before generated routes.
+latest_browser_module_plan_planned_fetch_count:
+  route: wiki/gguf-mirust/reports/browser-module-plan-planned-fetch-count-memory-2026-06-29.md
+  synthesis: Selector entries and receipts bind `module_plan_planned_fetch_count=21`, browser renders `Plan Fetches`, source roots keep `unavailable`, generated-route cardinality must agree, and planned-fetch-count drift stops before generated routes.
+latest_browser_module_plan_actual_fetch_count:
+  route: wiki/gguf-mirust/reports/browser-module-plan-actual-fetch-count-memory-2026-06-29.md
+  synthesis: Browser app state counts accepted generated self-assembly route fetches, renders `Actual Fetches`, source roots keep `unavailable`, Ready requires actual count to equal planned count, and combined-selector-assembly proves q4_0/q8_0/f32 each show `21 fetches`.
+latest_browser_module_plan_observed_route_set:
+  route: wiki/gguf-mirust/reports/browser-module-plan-observed-route-set-memory-2026-06-29.md
+  synthesis: Browser app state records observed generated route `{kind,path}` entries, renders `Actual Route Set`, source roots keep `unavailable`, Ready requires observed checksum to equal declared route-set checksum, and combined-selector-assembly proves q4_0/q8_0/f32 equality.
+latest_browser_module_plan_actual_module_bytes:
+  route: wiki/gguf-mirust/reports/browser-module-plan-actual-module-bytes-memory-2026-06-29.md
+  synthesis: Browser app state records accepted generated module byte lengths, renders `Actual Module Bytes`, source roots keep `unavailable`, Ready requires observed module bytes to equal receipt module byte rows, and combined-selector-assembly proves q4_0/q8_0/f32 totals.
+latest_browser_module_plan_actual_module_checksums:
+  route: wiki/gguf-mirust/reports/browser-module-plan-actual-module-checksums-memory-2026-06-29.md
+  synthesis: Browser app state records accepted generated module checksums, renders `Actual Module Checksums`, source roots keep `unavailable`, Ready requires observed checksums to equal receipt module checksum rows, combined-selector-assembly proves q4_0/q8_0/f32 equality, and module-plan-payload-checksum-drift proves coherent payload checksum rewrites stop at the stale module-plan checksum row before generated model routes.
+latest_browser_module_plan_route_set:
+  route: wiki/gguf-mirust/reports/browser-module-plan-route-set-memory-2026-06-29.md
+  synthesis: Selector entries and receipts bind `module_plan_route_set_checksum`, browser renders `Route Set`, source roots keep `unavailable`, ordered generated self-assembly routes must agree, and route-set drift stops before generated routes.
+latest_browser_module_plan_route_set_version:
+  route: wiki/gguf-mirust/reports/browser-module-plan-route-set-version-memory-2026-06-29.md
+  synthesis: Selector entries and receipts bind `module_plan_route_set_version=1`, browser renders `Route Version`, source roots keep `unavailable`, route-set checksum preimages use the version constant, and route-set-version drift stops before generated routes.
+latest_browser_module_plan_route_set_algorithm:
+  route: wiki/gguf-mirust/reports/browser-module-plan-route-set-algorithm-memory-2026-06-29.md
+  synthesis: Selector entries and receipts bind `module_plan_route_set_checksum_algorithm=tinyrustlm-text-checksum-v1`, browser renders `Route Hash`, source roots keep `unavailable`, route-set checksum preimages include the algorithm label, and route-set-algorithm drift stops before generated routes.
+latest_browser_module_plan_operator_receipt:
+  route: wiki/gguf-mirust/reports/browser-module-plan-operator-receipt-memory-2026-06-29.md
+  synthesis: Selector entries, module-plan receipts, assembly receipts, and fetched `sign-merge.operator` evidence now agree on operator receipt route/checksum before generated model bytes; `module-plan-operator-receipt-drift` stops after selector registry plus module-plan receipt, and fresh `combined-selector-assembly` proves q4_0/q8_0/f32 self-assembly with ADP1/ASP1/ALR1 stack apply before generation.
 latest_browser_module_plan_total_limit:
   route: wiki/gguf-mirust/reports/browser-module-plan-total-limit-memory-2026-06-28.md
   synthesis: Generated selector entries and module-plan receipts now bind current prompt-aware `module_plan_total_byte_budget_limit=43454464`, render `Total Limit`, and prove cap drift stops at the module-plan receipt before generated model or stack bytes.
@@ -277,6 +332,8 @@ report_clusters:
       - Keep browser inference stable; breeding operators belong in offline tooling until artifacts pass normal .slm admission and manifest gates.
       - Require exact base-family, tokenizer, tensor-shape, quantization, and output-head compatibility before any parameter-level merge.
       - Use sparse-delta-candidate for lineage-bound sparse task-vector .slm candidates before candidate-manifest.
+      - Use crossover-candidate for lineage-bound deterministic direct-parameter crossover when candidate values should be selected element-wise from two compatible parents by seed and parent0 keep rate; validate-crossover-candidate before candidate-manifest so candidate bytes, parent checksums, selection counts, density fields, and mask checksum recompute from the receipt.
+      - Use mutation-candidate for lineage-bound deterministic bounded perturbation when a base parent should keep the output contract while a compatible reference parent supplies scale context; validate-mutation-candidate before candidate-manifest so seed, rate, magnitude, selection checksum, delta checksum, candidate bytes, and parent checksums recompute from the receipt.
       - Use population-review for ledger-backed fitness ranking, weighted quality/frugality/quantization objective-vector metadata, frontier selection, and parent-pool routing after promotion-ledger.
       - Use parent-pool-recipe after validate-population-review to require shared direct-parameter contracts and record fitness-normalized seed weights plus relatedness metric, scope, pair count, status, checksum, and per-parent groups.
       - Use sign-merge-candidate after validate-parent-pool-recipe to turn reviewed compatible parent pools into seed-weighted sign-consensus .slm candidates with recomputable receipts that echo relatedness fields.
@@ -352,6 +409,13 @@ report_clusters:
       - Use the Browser Module Plan Adapter Validation report when `module_plan_adapter_validation_strategy`, the Module Plan Validate row, or `module-plan-adapter-validation-drift` assertions change.
       - Use the Browser Module Plan Adapter Validation Count report when `module_plan_adapter_validation_count`, the Module Plan Validate Count row, actual Rust validation loop count, or `module-plan-adapter-validation-count-drift` assertions change.
       - Use the Browser Module Plan Adapter Apply Count report when `module_plan_adapter_apply_count`, the Module Plan Apply Count row, runtime `adapter_apply_count`, or `module-plan-adapter-apply-count-drift` assertions change.
+      - Use the Browser Module Plan Planned Fetch Count report when `module_plan_planned_fetch_count`, the Module Plan Plan Fetches row, generated route cardinality, or `module-plan-planned-fetch-count-drift` assertions change.
+      - Use the Browser Module Plan Actual Fetch Count report when browser-owned generated fetch accounting, the Module Plan Actual Fetches row, counted fetch wrappers, or planned-versus-actual Ready gating changes.
+      - Use the Browser Module Plan Observed Route Set report when browser-owned route-set recording, the Module Plan Actual Route Set row, route kind labels, route ordering, or observed-versus-declared Ready gating changes.
+      - Use the Browser Module Plan Route Set report when `module_plan_route_set_checksum`, the Module Plan Route Set row, generated route ordering, or `module-plan-route-set-drift` assertions change.
+      - Use the Browser Module Plan Route Set Version report when `module_plan_route_set_version`, the Module Plan Route Version row, route-set checksum preimage versioning, or `module-plan-route-set-version-drift` assertions change.
+      - Use the Browser Module Plan Route Set Algorithm report when `module_plan_route_set_checksum_algorithm`, the Module Plan Route Hash row, route-set checksum preimage algorithm labels, or `module-plan-route-set-algorithm-drift` assertions change.
+      - Use the Browser Module Plan Operator Receipt report when `module_plan_operator_receipt_*`, `.module-plan.receipt` `operator_receipt_*`, assembly receipt operator agreement, fetched `sign-merge.operator` checksum agreement, or `module-plan-operator-receipt-drift` assertions change.
       - Use registry-carried assembly receipt fields for generated f32/q8_0/q4_0 multi-parent selector entries when the browser must verify a served receipt and then fetch/checksum the receipt-referenced ledger, review, recipe, operator, candidate, promotion, runtime, eval, admission, and adapter-family evidence.
       - Use the Assembly Evidence panel and adapter-sidecar-registry-file browser smoke after generated f32/q8_0/q4_0 bundle evidence staging, app.js assembly receipt parsing, or evidence-file fetch changes.
       - Use browser-smoke multi-parent-registry after selector-registry route changes and multi-parent-registry-file after browser-multi-parent-bundle staging to prove both fixture and generated served selector routes; browser-multi-parent-bundle should emit a runnable app root, not models-only staging.
@@ -365,6 +429,8 @@ report_clusters:
       - Follow .uai/taboo.uai for public website copy about model breeding, mutualism, and tiny model ecology.
     future_reference_lanes:
       - model soups and task vectors for compatible weight-space edits.
+      - Deterministic crossover for compatible weight-space exploration is now implemented as crossover-candidate plus validate-crossover-candidate with receipt-bound seed, parent0 keep rate, per-parent selection density, and mask checksum evidence.
+      - Deterministic bounded mutation for compatible weight-space exploration is now implemented as mutation-candidate plus validate-mutation-candidate with receipt-bound seed, rate, magnitude, reference scaling, selection checksum, and delta checksum evidence.
       - TIES and DARE for sparse/sign-aware delta composition; sparse task-delta receipts now include density, nonzero-delta retention, and implicit top-k mask checksums, and parent-pool recipes, sign-merge candidate receipts, multi-parent candidate manifests, multi-parent promotion templates, multi-parent admission records, selector route binding, browser-served registry smoke, generated f32/q8_0/q4_0 browser bundle routing, one q4-defaulted combined f32/q8_0/q4_0 selector root, combined-selector assembly proof across all three generated entries, browser selector byte-budget intake with registry-level model and text-sidecar budget contracts, registry-controlled receipt-preferred auto assembly, browser runtime WASM manifests, browser-verified assembly receipts with fetched evidence-file checksum checks, browser module-plan resource and fetch-policy envelopes before generated model fetch, checksum-consistent module-plan fetch-policy, resource, graph, stack, role, slot, dependency, byte-count, and checksum drift smokes, and Module Plan panel display including fetch, budget rows, byte summaries, checksum summaries, slot summaries, role summaries, dependency summaries, and browser-owned trace checkpoints from verified receipt fields and load steps are implemented.
       - Module Plan phase fields now give generated browser roots a lifecycle route from model bytes through manifest, assembly, adapter-family, and ordered stack apply, with phase display and checksum-consistent phase-drift smoke evidence.
       - Module Plan byte-count fields now bind each generated browser root's model, manifest, assembly receipt, adapter-family receipt, and ordered stack artifacts to explicit fetched-byte evidence, with byte display and checksum-consistent byte-drift smoke evidence.
@@ -380,7 +446,7 @@ report_clusters:
       - Heritable-artifact now has selector registry fields, browser Model Provenance Artifact rows, and combined-selector-assembly proof; mate-selection, phenotype-evidence, and speciation-and-fit should continue becoming typed fields, receipt or manifest fields, eval/provenance fields, or browser-smoke assertions before implementation claims.
       - Model Breadcrumbs and model kinship for richer sparse-mask lineage, retention-aware eval sidecars, and parent-pool relatedness fields now first implemented before recipe consumers write candidates.
       - Evolutionary merge recipes, Mergenetic-style adaptive search, and multi-objective evolutionary merging for planner-layer proposals, resource budgets, population objective vectors, and replayable receipt chains.
-      - LoRA and adapters for compact skill deltas; trained low-rank adapter source intake, source-backed factor-to-ALR1 conversion and validation, source-backed ALR1 kind/dtype pairing, receipt source echoes, manifest-vs-receipt provenance checks, adapter-delta, sparse-adapter-delta, low-rank-adapter-delta, adapter-fuse for raw ADP1, f32/q8_0/q4_0 ADP1/ASP1/ALR1 runtime apply, checked browser f32/q8_0/q4_0 ADP1 sidecar routes, registry-carried generated f32/q8_0/q4_0 ADP1/ASP1/source-backed ALR1 adapter routes, generated f32/q8_0/q4_0 browser bundle roots, served ASP1 and source-backed ALR1 browser smokes, browser-verified adapter-family receipts plus manifests, receipt-bound preferred sparse ASP1 selection, and receipt-verified generated auto assembly are implemented for the current typed lane while real trained factor bundles and broader offline operators remain future work.
+      - LoRA and adapters for compact skill deltas; trained low-rank adapter source intake, source-backed factor-to-ALR1 conversion and validation, source-backed ALR1 kind/dtype pairing, receipt source echoes, manifest-vs-receipt provenance checks, adapter-delta, sparse-adapter-delta, low-rank-adapter-delta, adapter-fuse for raw ADP1, f32/q8_0/q4_0 ADP1/ASP1/ALR1 runtime apply, checked browser f32/q8_0/q4_0 ADP1 sidecar routes, registry-carried generated f32/q8_0/q4_0 ADP1/ASP1/source-backed ALR1 adapter routes, generated f32/q8_0/q4_0 browser bundle roots, served ASP1 and source-backed ALR1 browser smokes, browser-verified adapter-family receipts plus manifests, receipt-bound preferred sparse ASP1 selection, and receipt-verified generated auto assembly are implemented for the current typed lane while real trained factor bundles and additional offline operators beyond blend, delta, sparse-delta, crossover, mutation, and sign-merge remain future work.
       - population-based training for candidate registries, objective vectors, fitness scores, staged promotion, implemented population-review records, and implemented parent-pool recipes.
       - federated averaging, evolution strategies, adapter families, quantized adapter training, pruning, lottery tickets, and retention metrics for future recipe metadata, eval sidecars, and compact candidate artifacts.
     keep_separate:

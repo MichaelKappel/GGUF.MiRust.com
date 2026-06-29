@@ -43,7 +43,20 @@ const MODULE_PLAN_EXECUTION_PROFILE: &str = "single-threaded-wasm-local-v1";
 const MODULE_PLAN_FETCH_POLICY: &str = "local-no-store-v1";
 const MODULE_PLAN_ORIGIN_POLICY: &str = "same-origin-loopback-local-v1";
 const MODULE_PLAN_FETCH_COUNT_LIMIT: u64 = 32;
+const MODULE_PLAN_ROUTE_SET_VERSION: &str = "1";
+const MODULE_PLAN_ROUTE_SET_CHECKSUM_ALGORITHM: &str = "tinyrustlm-text-checksum-v1";
 const MODULE_PLAN_ASSEMBLY_EVIDENCE_FILE_COUNT: u64 = 9;
+const MODULE_PLAN_ASSEMBLY_EVIDENCE_FILES: &[&str] = &[
+    "population.ledger",
+    "population.review",
+    "parent-pool.recipe",
+    "sign-merge.operator",
+    "sign-merge.candidate",
+    "sign-merge.promotion",
+    "sign-merge.runtime",
+    "sign-merge.eval",
+    "sign-merge.multi.admission",
+];
 const MODULE_PLAN_WASM_MEMORY_INITIAL_PAGES: u64 = 17;
 const MODULE_PLAN_WASM_EXPORT_SET: &str = "tinyrustlm-generate-v1";
 const MODULE_PLAN_WASM_TRANSFER_STRATEGY: &str = "copy-then-release-v1";
@@ -126,6 +139,11 @@ const MODULE_PLAN_KEY_SUFFIXES: &[&str] = &[
     "module_plan_origin_policy",
     "module_plan_fetch_count_limit",
     "module_plan_planned_fetch_count",
+    "module_plan_route_set_version",
+    "module_plan_route_set_checksum_algorithm",
+    "module_plan_route_set_checksum",
+    "module_plan_operator_receipt_path",
+    "module_plan_operator_receipt_checksum",
     "module_plan_wasm_memory_initial_pages",
     "module_plan_wasm_export_set",
     "module_plan_wasm_transfer_strategy",
@@ -175,6 +193,7 @@ struct RegistryEntry {
     eval_dataset: String,
     cases_passed: String,
     admission_kind: String,
+    operator_receipt: Option<RegistryOperatorReceipt>,
     operator_receipt_checksum: Option<String>,
     parent_pool_recipe_checksum: Option<String>,
     population_review_checksum: Option<String>,
@@ -185,6 +204,17 @@ struct RegistryEntry {
     adapter_family: Option<RegistryAdapterFamilyRoute>,
     assembly: Option<RegistryAssemblyRoute>,
     module_plan: Option<RegistryModulePlanRoute>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct RegistryOperatorReceipt {
+    status: String,
+    path: String,
+    checksum: String,
+    operator_id: String,
+    operator_kind: String,
+    candidate_slm_checksum: String,
+    candidate_artifact_bytes: String,
 }
 
 /// Optional browser-local adapter sidecar metadata for a selector registry entry.
@@ -244,6 +274,11 @@ pub(crate) struct RegistryModulePlanRoute {
     pub(crate) origin_policy: String,
     pub(crate) fetch_count_limit: u64,
     pub(crate) planned_fetch_count: u64,
+    pub(crate) route_set_version: String,
+    pub(crate) route_set_checksum_algorithm: String,
+    pub(crate) route_set_checksum: String,
+    pub(crate) operator_receipt_path: String,
+    pub(crate) operator_receipt_checksum: String,
     pub(crate) wasm_memory_initial_pages: u64,
     pub(crate) wasm_export_set: String,
     pub(crate) wasm_transfer_strategy: String,
@@ -612,6 +647,7 @@ pub(crate) fn build_registry_text_with_module_plan_routes(
             &format!("{prefix}.mate_selection_checksum"),
             &registry_entry_mate_selection_checksum(entry),
         );
+        push_registry_operator_receipt_lines(&mut text, &prefix, entry);
         push_line(
             &mut text,
             &format!("{prefix}.phenotype_evidence_id"),
@@ -941,6 +977,31 @@ pub(crate) fn build_registry_text_with_module_plan_routes(
             );
             push_line(
                 &mut text,
+                &format!("{prefix}.module_plan_route_set_version"),
+                &module_plan.route_set_version,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_route_set_checksum_algorithm"),
+                &module_plan.route_set_checksum_algorithm,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_route_set_checksum"),
+                &module_plan.route_set_checksum,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_operator_receipt_path"),
+                &module_plan.operator_receipt_path,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.module_plan_operator_receipt_checksum"),
+                &module_plan.operator_receipt_checksum,
+            );
+            push_line(
+                &mut text,
                 &format!("{prefix}.module_plan_wasm_memory_initial_pages"),
                 &module_plan.wasm_memory_initial_pages.to_string(),
             );
@@ -1223,6 +1284,7 @@ fn entries_from_admissions(admission_texts: &[String]) -> io::Result<Vec<Registr
                 .get("admission_kind")
                 .cloned()
                 .unwrap_or_else(|| "selector-admission".to_string()),
+            operator_receipt: registry_operator_receipt_from_fields(&fields)?,
             operator_receipt_checksum: fields.get("operator_receipt_checksum").cloned(),
             parent_pool_recipe_checksum: fields.get("parent_pool_recipe_checksum").cloned(),
             population_review_checksum: fields.get("population_review_checksum").cloned(),
@@ -1249,6 +1311,50 @@ fn entries_from_admissions(admission_texts: &[String]) -> io::Result<Vec<Registr
         });
     }
     Ok(entries)
+}
+
+// Copies the full two-parent operator receipt family when an admission exposes it.
+fn registry_operator_receipt_from_fields(
+    fields: &HashMap<String, String>,
+) -> io::Result<Option<RegistryOperatorReceipt>> {
+    if !fields.contains_key("operator_receipt_status") {
+        return Ok(None);
+    }
+    require_equal(fields, "operator_receipt_status", "receipt-bound")?;
+    let checksum = require_key(fields, "operator_receipt_checksum")?.to_string();
+    let candidate_slm_checksum =
+        require_key(fields, "operator_receipt_candidate_slm_checksum")?.to_string();
+    validate_hex64(&checksum, "operator_receipt_checksum")?;
+    validate_hex64(
+        &candidate_slm_checksum,
+        "operator_receipt_candidate_slm_checksum",
+    )?;
+    require_equal(
+        fields,
+        "operator_receipt_candidate_slm_checksum",
+        require_key(fields, "candidate_slm_checksum")?,
+    )?;
+    require_equal(
+        fields,
+        "operator_receipt_candidate_artifact_bytes",
+        require_key(fields, "candidate_artifact_bytes")?,
+    )?;
+    let candidate_artifact_bytes =
+        require_key(fields, "operator_receipt_candidate_artifact_bytes")?.to_string();
+    if candidate_artifact_bytes.parse::<usize>().is_err() || candidate_artifact_bytes == "0" {
+        return Err(invalid(
+            "selector registry operator_receipt_candidate_artifact_bytes is invalid",
+        ));
+    }
+    Ok(Some(RegistryOperatorReceipt {
+        status: "receipt-bound".to_string(),
+        path: require_key(fields, "operator_receipt_path")?.to_string(),
+        checksum,
+        operator_id: require_key(fields, "operator_receipt_operator_id")?.to_string(),
+        operator_kind: require_key(fields, "operator_receipt_operator_kind")?.to_string(),
+        candidate_slm_checksum,
+        candidate_artifact_bytes,
+    }))
 }
 
 fn attach_adapter_routes(
@@ -1375,6 +1481,7 @@ fn attach_module_plan_routes(
                 "selector registry module plan requires an assembly route",
             ));
         }
+        let assembly = entry.assembly.as_ref().expect("checked assembly route");
         let expected_module_count = 4usize
             .checked_add(family.auto_apply_stack_count)
             .ok_or_else(|| invalid("selector registry module plan count overflow"))?;
@@ -1412,6 +1519,20 @@ fn attach_module_plan_routes(
             return Err(invalid(
                 "selector registry module plan tokenizer checksum must match admitted tokenizer",
             ));
+        }
+        if route.route_set_checksum
+            != module_plan_route_set_checksum(entry, route, family, assembly)?
+        {
+            return Err(invalid(
+                "selector registry module plan route set checksum must match generated assembly routes",
+            ));
+        }
+        if let Some(operator_receipt_checksum) = &entry.operator_receipt_checksum {
+            if route.operator_receipt_checksum != *operator_receipt_checksum {
+                return Err(invalid(
+                    "selector registry module plan operator receipt checksum must match admitted operator receipt",
+                ));
+            }
         }
         entries[index].module_plan = Some(route.clone());
     }
@@ -1627,6 +1748,31 @@ fn module_plan_routes_from_registry(
                 &format!("{prefix}.module_plan_planned_fetch_count"),
                 "planned fetch count",
             )?,
+            route_set_version: require_key(
+                fields,
+                &format!("{prefix}.module_plan_route_set_version"),
+            )?
+            .to_string(),
+            route_set_checksum_algorithm: require_key(
+                fields,
+                &format!("{prefix}.module_plan_route_set_checksum_algorithm"),
+            )?
+            .to_string(),
+            route_set_checksum: require_key(
+                fields,
+                &format!("{prefix}.module_plan_route_set_checksum"),
+            )?
+            .to_string(),
+            operator_receipt_path: require_key(
+                fields,
+                &format!("{prefix}.module_plan_operator_receipt_path"),
+            )?
+            .to_string(),
+            operator_receipt_checksum: require_key(
+                fields,
+                &format!("{prefix}.module_plan_operator_receipt_checksum"),
+            )?
+            .to_string(),
             wasm_memory_initial_pages: {
                 let value = require_key(
                     fields,
@@ -2014,6 +2160,28 @@ pub(crate) fn validate_registry_module_plan_route(
             "selector registry module plan planned fetch count is invalid",
         ));
     }
+    if route.route_set_version != MODULE_PLAN_ROUTE_SET_VERSION {
+        return Err(invalid(
+            "selector registry module plan route set version is invalid",
+        ));
+    }
+    if route.route_set_checksum_algorithm != MODULE_PLAN_ROUTE_SET_CHECKSUM_ALGORITHM {
+        return Err(invalid(
+            "selector registry module plan route set checksum algorithm is invalid",
+        ));
+    }
+    validate_hex64(&route.route_set_checksum, "module plan route set checksum")?;
+    if route.operator_receipt_path
+        != module_plan_evidence_route(&route.candidate_id, "sign-merge.operator")
+    {
+        return Err(invalid(
+            "selector registry module plan operator receipt path is invalid",
+        ));
+    }
+    validate_hex64(
+        &route.operator_receipt_checksum,
+        "module plan operator receipt checksum",
+    )?;
     if route.wasm_memory_initial_pages != MODULE_PLAN_WASM_MEMORY_INITIAL_PAGES {
         return Err(invalid(
             "selector registry module plan wasm memory initial pages is invalid",
@@ -2200,6 +2368,124 @@ fn module_plan_planned_fetch_count(
         .and_then(|value| value.checked_add(adapter_apply_count))
         .and_then(|value| value.checked_add(1))
         .ok_or_else(|| invalid("selector registry module plan planned fetch count is invalid"))
+}
+
+fn module_plan_route_set_checksum(
+    entry: &RegistryEntry,
+    route: &RegistryModulePlanRoute,
+    family: &RegistryAdapterFamilyRoute,
+    assembly: &RegistryAssemblyRoute,
+) -> io::Result<String> {
+    // Recomputes the generated browser route envelope before selector metadata is accepted.
+    module_plan_route_set_checksum_from_parts(
+        &entry.candidate_id,
+        &route.receipt_path,
+        &entry.model_path,
+        &entry.manifest_path,
+        &assembly.receipt_path,
+        &family.receipt_path,
+        &entry.adapters,
+        family.auto_apply_stack_count,
+    )
+}
+
+fn module_plan_route_set_checksum_from_parts(
+    candidate_id: &str,
+    module_plan_path: &str,
+    model_path: &str,
+    manifest_path: &str,
+    assembly_path: &str,
+    adapter_family_path: &str,
+    adapters: &[RegistryAdapterRoute],
+    stack_count: usize,
+) -> io::Result<String> {
+    // Builds the same route classes the browser fetches during generated self-assembly.
+    let evidence_count = u64::try_from(MODULE_PLAN_ASSEMBLY_EVIDENCE_FILES.len())
+        .map_err(|_| invalid("selector registry module plan route set is invalid"))?;
+    if evidence_count != MODULE_PLAN_ASSEMBLY_EVIDENCE_FILE_COUNT {
+        return Err(invalid(
+            "selector registry module plan route set evidence count is invalid",
+        ));
+    }
+    let stack_indexes = module_plan_route_set_stack_indexes(adapters.len(), stack_count)?;
+    let mut routes = Vec::new();
+    module_plan_push_route(&mut routes, "module-plan-receipt", module_plan_path);
+    module_plan_push_route(&mut routes, "model", model_path);
+    module_plan_push_route(&mut routes, "model-manifest", manifest_path);
+    module_plan_push_route(&mut routes, "assembly-receipt", assembly_path);
+    for file_name in MODULE_PLAN_ASSEMBLY_EVIDENCE_FILES {
+        module_plan_push_route(
+            &mut routes,
+            "assembly-evidence",
+            &module_plan_evidence_route(candidate_id, file_name),
+        );
+    }
+    module_plan_push_route(&mut routes, "adapter-family-receipt", adapter_family_path);
+    for adapter in adapters {
+        module_plan_push_route(&mut routes, "adapter-manifest", &adapter.manifest_path);
+    }
+    for adapter_index in stack_indexes {
+        module_plan_push_route(
+            &mut routes,
+            "adapter-stack-artifact",
+            &adapters[adapter_index].adapter_path,
+        );
+    }
+    Ok(module_plan_checksum_for_routes(&routes))
+}
+
+fn module_plan_route_set_stack_indexes(
+    adapter_count: usize,
+    stack_count: usize,
+) -> io::Result<Vec<usize>> {
+    // Mirrors the generated adapter-family policy: self first, then the remaining stack members.
+    if adapter_count == 0 || stack_count == 0 || stack_count > adapter_count {
+        return Err(invalid(
+            "selector registry module plan route set adapter stack is invalid",
+        ));
+    }
+    let expected_stack_count = if adapter_count >= 3 {
+        adapter_count - 1
+    } else {
+        adapter_count
+    };
+    if stack_count != expected_stack_count {
+        return Err(invalid(
+            "selector registry module plan route set adapter stack is invalid",
+        ));
+    }
+    Ok((adapter_count - stack_count..adapter_count).collect())
+}
+
+fn module_plan_push_route(routes: &mut Vec<(String, String)>, kind: &str, path: &str) {
+    // Stores route metadata without borrowing temporary evidence path strings.
+    routes.push((kind.to_string(), path.to_string()));
+}
+
+fn module_plan_evidence_route(candidate_id: &str, file_name: &str) -> String {
+    // Canonicalizes generated evidence routes from the admitted selector candidate id.
+    format!("../evidence/{candidate_id}/{file_name}")
+}
+
+fn module_plan_checksum_for_routes(routes: &[(String, String)]) -> String {
+    // Hashes the ordered route-kind and route-path list with the project text checksum.
+    let mut text = String::new();
+    push_line(
+        &mut text,
+        "route_set_version",
+        MODULE_PLAN_ROUTE_SET_VERSION,
+    );
+    push_line(
+        &mut text,
+        "route_set_checksum_algorithm",
+        MODULE_PLAN_ROUTE_SET_CHECKSUM_ALGORITHM,
+    );
+    push_line(&mut text, "route_count", &routes.len().to_string());
+    for (index, (kind, path)) in routes.iter().enumerate() {
+        push_line(&mut text, &format!("route.{index}.kind"), kind);
+        push_line(&mut text, &format!("route.{index}.path"), path);
+    }
+    hex64(provenance::text_checksum(text.as_bytes()))
 }
 
 fn parse_module_plan_page_count(fields: &HashMap<String, String>, key: &str) -> io::Result<u64> {
@@ -2577,6 +2863,21 @@ fn registry_entry_species_fit_checksum(entry: &RegistryEntry) -> String {
             );
             push_line(
                 &mut text,
+                "module_plan_route_set_version",
+                &module_plan.route_set_version,
+            );
+            push_line(
+                &mut text,
+                "module_plan_route_set_checksum_algorithm",
+                &module_plan.route_set_checksum_algorithm,
+            );
+            push_line(
+                &mut text,
+                "module_plan_route_set_checksum",
+                &module_plan.route_set_checksum,
+            );
+            push_line(
+                &mut text,
                 "module_plan_wasm_memory_initial_pages",
                 &module_plan.wasm_memory_initial_pages.to_string(),
             );
@@ -2941,6 +3242,7 @@ fn registry_entry_mate_selection_checksum(entry: &RegistryEntry) -> String {
         "operator_receipt_checksum",
         option_or_marker(&entry.operator_receipt_checksum, "admission-only"),
     );
+    push_operator_receipt_checksum_inputs(&mut text, entry);
     push_line(
         &mut text,
         "population_review_checksum",
@@ -2958,6 +3260,86 @@ fn registry_entry_mate_selection_checksum(entry: &RegistryEntry) -> String {
     );
     push_line(&mut text, "admission_checksum", &entry.admission_checksum);
     hex64(provenance::text_checksum(text.as_bytes()))
+}
+
+// Emits selector entry fields for the optional two-parent operator receipt route.
+fn push_registry_operator_receipt_lines(text: &mut String, prefix: &str, entry: &RegistryEntry) {
+    if let Some(receipt) = &entry.operator_receipt {
+        push_line(
+            text,
+            &format!("{prefix}.operator_receipt_status"),
+            &receipt.status,
+        );
+        push_line(
+            text,
+            &format!("{prefix}.operator_receipt_path"),
+            &receipt.path,
+        );
+        push_line(
+            text,
+            &format!("{prefix}.operator_receipt_checksum"),
+            &receipt.checksum,
+        );
+        push_line(
+            text,
+            &format!("{prefix}.operator_receipt_operator_id"),
+            &receipt.operator_id,
+        );
+        push_line(
+            text,
+            &format!("{prefix}.operator_receipt_operator_kind"),
+            &receipt.operator_kind,
+        );
+        push_line(
+            text,
+            &format!("{prefix}.operator_receipt_candidate_slm_checksum"),
+            &receipt.candidate_slm_checksum,
+        );
+        push_line(
+            text,
+            &format!("{prefix}.operator_receipt_candidate_artifact_bytes"),
+            &receipt.candidate_artifact_bytes,
+        );
+    }
+}
+
+// Includes every copied operator receipt field in the mate-selection proof digest.
+fn push_operator_receipt_checksum_inputs(text: &mut String, entry: &RegistryEntry) {
+    if let Some(receipt) = &entry.operator_receipt {
+        push_line(text, "operator_receipt_status", &receipt.status);
+        push_line(text, "operator_receipt_path", &receipt.path);
+        push_line(text, "operator_receipt_operator_id", &receipt.operator_id);
+        push_line(
+            text,
+            "operator_receipt_operator_kind",
+            &receipt.operator_kind,
+        );
+        push_line(
+            text,
+            "operator_receipt_candidate_slm_checksum",
+            &receipt.candidate_slm_checksum,
+        );
+        push_line(
+            text,
+            "operator_receipt_candidate_artifact_bytes",
+            &receipt.candidate_artifact_bytes,
+        );
+    } else {
+        push_line(text, "operator_receipt_status", "admission-only");
+        push_line(text, "operator_receipt_path", "admission-only");
+        push_line(text, "operator_receipt_operator_id", "admission-only");
+        push_line(text, "operator_receipt_operator_kind", "admission-only");
+        push_line(
+            text,
+            "operator_receipt_candidate_slm_checksum",
+            "admission-only",
+        );
+        push_line(
+            text,
+            "operator_receipt_candidate_artifact_bytes",
+            "admission-only",
+        );
+    }
 }
 
 // Names the observed behavior lane from runtime, eval, and selected-parent context.
@@ -3283,6 +3665,39 @@ mod tests {
         assert!(registry.contains("selector_default_quantization=q8_0"));
         assert!(registry.contains("entry.0.model_path=../models/tiny-q8.slm"));
         assert!(registry.contains("entry.0.selector_status=admitted"));
+    }
+
+    #[test]
+    fn writes_and_validates_selector_registry_from_operator_receipt_bound_admission() {
+        let admission = fixture_operator_receipt_bound_admission(
+            "tiny-q8-candidate",
+            "tinyrustlm/models/tiny-q8.slm",
+        );
+        let registry = build_registry_text(&[admission.clone()]).unwrap();
+        let admission_fields = parse_manifest(&admission, "admission").unwrap();
+        let registry_fields = parse_manifest(&registry, "selector registry").unwrap();
+
+        validate_registry_text(&registry, &[admission]).unwrap();
+        assert_eq!(
+            registry_fields["entry.0.operator_receipt_status"],
+            "receipt-bound"
+        );
+        assert_eq!(
+            registry_fields["entry.0.operator_receipt_checksum"],
+            admission_fields["operator_receipt_checksum"]
+        );
+        assert_eq!(
+            registry_fields["entry.0.operator_receipt_operator_kind"],
+            "deterministic-bounded-parameter-mutation"
+        );
+        assert_eq!(
+            registry_fields["entry.0.operator_receipt_candidate_slm_checksum"],
+            registry_fields["entry.0.slm_checksum"]
+        );
+        assert_eq!(
+            registry_fields["entry.0.operator_receipt_candidate_artifact_bytes"],
+            registry_fields["entry.0.model_bytes"]
+        );
     }
 
     #[test]
@@ -3632,6 +4047,11 @@ mod tests {
         );
         assert!(registry.contains("entry.0.module_plan_fetch_count_limit=32"));
         assert!(registry.contains("entry.0.module_plan_planned_fetch_count=19"));
+        assert!(registry.contains("entry.0.module_plan_route_set_version=1"));
+        assert!(registry.contains(
+            "entry.0.module_plan_route_set_checksum_algorithm=tinyrustlm-text-checksum-v1"
+        ));
+        assert!(registry.contains("entry.0.module_plan_route_set_checksum=0x"));
         assert!(registry.contains("entry.0.module_plan_wasm_memory_initial_pages=17"));
         assert!(registry.contains("entry.0.module_plan_wasm_export_set=tinyrustlm-generate-v1"));
         assert!(
@@ -4245,6 +4665,188 @@ mod tests {
     }
 
     #[test]
+    fn rejects_module_plan_route_set_checksum_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let route_set_checksum = module_plan.route_set_checksum.clone();
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            &format!("entry.0.module_plan_route_set_checksum={route_set_checksum}"),
+            "entry.0.module_plan_route_set_checksum=0x000000000000001d",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("route set checksum"));
+    }
+
+    #[test]
+    fn rejects_module_plan_operator_receipt_path_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_operator_receipt_path=../evidence/tiny-f32-candidate/sign-merge.operator",
+            "entry.0.module_plan_operator_receipt_path=../evidence/tiny-f32-candidate/other.operator",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("operator receipt path"));
+    }
+
+    #[test]
+    fn rejects_module_plan_operator_receipt_checksum_drift() {
+        let admission = fixture_operator_receipt_bound_f32_admission(
+            "tiny-f32-candidate",
+            "tinyrustlm/models/tiny-f32.slm",
+        );
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let admission_fields = parse_manifest(&admission, "admission").unwrap();
+        let mut module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        module_plan.operator_receipt_checksum =
+            admission_fields["operator_receipt_checksum"].clone();
+        let operator_receipt_checksum = module_plan.operator_receipt_checksum.clone();
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            &format!("entry.0.module_plan_operator_receipt_checksum={operator_receipt_checksum}"),
+            "entry.0.module_plan_operator_receipt_checksum=0x0000000000000002",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("operator receipt checksum"));
+    }
+
+    #[test]
+    fn rejects_module_plan_route_set_version_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_route_set_version=1",
+            "entry.0.module_plan_route_set_version=2",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("route set version"));
+    }
+
+    #[test]
+    fn rejects_module_plan_route_set_checksum_algorithm_drift() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_route_set_checksum_algorithm=tinyrustlm-text-checksum-v1",
+            "entry.0.module_plan_route_set_checksum_algorithm=legacy-text-checksum-v0",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("route set checksum algorithm"));
+    }
+
+    #[test]
     fn rejects_module_plan_missing_prompt_byte_limit() {
         let admission =
             fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
@@ -4340,6 +4942,111 @@ mod tests {
         assert!(error
             .to_string()
             .contains("module_plan_planned_fetch_count"));
+    }
+
+    #[test]
+    fn rejects_module_plan_missing_route_set_checksum() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let route_set_checksum = module_plan.route_set_checksum.clone();
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            &format!("entry.0.module_plan_route_set_checksum={route_set_checksum}\n"),
+            "",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("module_plan_route_set_checksum"));
+    }
+
+    #[test]
+    fn rejects_module_plan_missing_route_set_version() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace("entry.0.module_plan_route_set_version=1\n", "");
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("module_plan_route_set_version"));
+    }
+
+    #[test]
+    fn rejects_module_plan_missing_route_set_checksum_algorithm() {
+        let admission =
+            fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
+        let first = fixture_adapter_route("tiny-f32-candidate");
+        let second = RegistryAdapterRoute {
+            adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+            manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+            label: "Tiny f32 family ADP1".to_string(),
+            artifact_checksum: "0x00000000000000cc".to_string(),
+            manifest_checksum: "0x00000000000000dd".to_string(),
+            ..fixture_adapter_route("tiny-f32-candidate")
+        };
+        let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
+        let assembly = fixture_assembly_route("tiny-f32-candidate");
+        let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
+        let registry = build_registry_text_with_module_plan_routes(
+            &[admission.clone()],
+            &[first, second],
+            &[family],
+            &[assembly],
+            &[module_plan],
+        )
+        .unwrap()
+        .replace(
+            "entry.0.module_plan_route_set_checksum_algorithm=tinyrustlm-text-checksum-v1\n",
+            "",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error
+            .to_string()
+            .contains("module_plan_route_set_checksum_algorithm"));
     }
 
     #[test]
@@ -5215,6 +5922,23 @@ mod tests {
     }
 
     #[test]
+    fn rejects_selector_registry_operator_receipt_field_drift() {
+        let admission = fixture_operator_receipt_bound_admission(
+            "tiny-q8-candidate",
+            "tinyrustlm/models/tiny-q8.slm",
+        );
+        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
+            "entry.0.operator_receipt_operator_kind=deterministic-bounded-parameter-mutation",
+            "entry.0.operator_receipt_operator_kind=unbound",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("operator_receipt_operator_kind"));
+    }
+
+    #[test]
     fn rejects_selector_registry_phenotype_evidence_drift() {
         let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
         let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
@@ -5444,6 +6168,87 @@ mod tests {
         fixture_admission_for_bytes(candidate_id, candidate_path, tiny_fixture_q4_bytes())
     }
 
+    fn fixture_operator_receipt_bound_admission(
+        candidate_id: &str,
+        candidate_path: &str,
+    ) -> String {
+        fixture_operator_receipt_bound_admission_for_bytes(
+            candidate_id,
+            candidate_path,
+            tiny_fixture_q8_bytes(),
+        )
+    }
+
+    fn fixture_operator_receipt_bound_f32_admission(
+        candidate_id: &str,
+        candidate_path: &str,
+    ) -> String {
+        fixture_operator_receipt_bound_admission_for_bytes(
+            candidate_id,
+            candidate_path,
+            tiny_fixture_f32_bytes(),
+        )
+    }
+
+    fn fixture_operator_receipt_bound_admission_for_bytes(
+        candidate_id: &str,
+        candidate_path: &str,
+        candidate: Vec<u8>,
+    ) -> String {
+        let compatibility = compatibility::compatibility_text_for_bytes(
+            &candidate,
+            "left.slm",
+            &candidate,
+            "right.slm",
+        )
+        .unwrap();
+        let lineage =
+            lineage::build_template_text(&compatibility, candidate_id, "operator-a", "fit")
+                .unwrap();
+        let receipt = operator_receipt_text(&lineage, &candidate, candidate_path);
+        let candidate_manifest = candidate::build_manifest_text_with_operator_receipt_text(
+            &compatibility,
+            &lineage,
+            &candidate,
+            candidate_path,
+            Some(("candidate.operator", &receipt)),
+        )
+        .unwrap();
+        let promotion = promotion::build_template_text_with_operator_receipt_text(
+            &compatibility,
+            &lineage,
+            &candidate,
+            candidate_path,
+            &candidate_manifest,
+            "local-smoke-runner",
+            promotion::DEFAULT_PROMOTION_SCOPE,
+            Some(("candidate.operator", &receipt)),
+        )
+        .unwrap();
+        let report = slm_validate::validate_bytes(&candidate, candidate_path).unwrap();
+        let provenance_manifest =
+            provenance::build_manifest_text(&report, "converted-trained").unwrap();
+        let manifest_fields = provenance::parse_manifest(&provenance_manifest).unwrap();
+        let runtime_smoke =
+            provenance::build_runtime_smoke_text(&report, &provenance_manifest, &manifest_fields)
+                .unwrap();
+        let eval = passing_eval_text(&report, &provenance_manifest);
+        admission::build_record_text_with_operator_receipt_text(
+            &compatibility,
+            &lineage,
+            &candidate,
+            candidate_path,
+            &candidate_manifest,
+            &promotion,
+            &provenance_manifest,
+            &runtime_smoke,
+            &eval,
+            admission::DEFAULT_ADMISSION_SELECTOR_ID,
+            Some(("candidate.operator", &receipt)),
+        )
+        .unwrap()
+    }
+
     fn fixture_admission_for_bytes(
         candidate_id: &str,
         candidate_path: &str,
@@ -5493,6 +6298,44 @@ mod tests {
             admission::DEFAULT_ADMISSION_SELECTOR_ID,
         )
         .unwrap()
+    }
+
+    fn operator_receipt_text(lineage_text: &str, candidate: &[u8], candidate_path: &str) -> String {
+        let lineage_fields = parse_manifest(lineage_text, "lineage").unwrap();
+        let report = slm_validate::validate_bytes(candidate, candidate_path).unwrap();
+        let mut text = String::new();
+        push_line(
+            &mut text,
+            "operator_kind",
+            "deterministic-bounded-parameter-mutation",
+        );
+        push_line(
+            &mut text,
+            "candidate_id",
+            require_key(&lineage_fields, "candidate_id").unwrap(),
+        );
+        push_line(
+            &mut text,
+            "operator_id",
+            require_key(&lineage_fields, "operator_id").unwrap(),
+        );
+        push_line(&mut text, "candidate_artifact_path", report.path());
+        push_line(
+            &mut text,
+            "candidate_artifact_bytes",
+            &report.file_bytes().to_string(),
+        );
+        push_line(
+            &mut text,
+            "candidate_slm_checksum",
+            &hex64(report.checksum()),
+        );
+        push_line(
+            &mut text,
+            "required_next_gate",
+            "candidate-manifest-plus-runtime-smoke-plus-eval",
+        );
+        text
     }
 
     fn fixture_adapter_route(candidate_id: &str) -> RegistryAdapterRoute {
@@ -5545,6 +6388,28 @@ mod tests {
     ) -> RegistryModulePlanRoute {
         let tokenizer_report =
             slm_validate::validate_bytes(&tiny_fixture_f32_bytes(), "tiny-f32.slm").unwrap();
+        let adapters = vec![
+            fixture_adapter_route(candidate_id),
+            RegistryAdapterRoute {
+                adapter_path: "../models/tiny-f32-family.adp1".to_string(),
+                manifest_path: "../models/tiny-f32-family.adp1.manifest".to_string(),
+                label: "Tiny f32 family ADP1".to_string(),
+                artifact_checksum: "0x00000000000000cc".to_string(),
+                manifest_checksum: "0x00000000000000dd".to_string(),
+                ..fixture_adapter_route(candidate_id)
+            },
+        ];
+        let route_set_checksum = module_plan_route_set_checksum_from_parts(
+            candidate_id,
+            "../models/tiny-f32.module-plan.receipt",
+            "../models/tiny-f32.slm",
+            "../models/tiny-f32.slm.manifest",
+            "../models/tiny-f32.assembly.receipt",
+            "../models/tiny-f32.adapter-family.receipt",
+            &adapters,
+            2,
+        )
+        .unwrap();
         RegistryModulePlanRoute {
             candidate_id: candidate_id.to_string(),
             receipt_path: "../models/tiny-f32.module-plan.receipt".to_string(),
@@ -5559,6 +6424,11 @@ mod tests {
             origin_policy: MODULE_PLAN_ORIGIN_POLICY.to_string(),
             fetch_count_limit: MODULE_PLAN_FETCH_COUNT_LIMIT,
             planned_fetch_count: module_plan_planned_fetch_count(module_count, 2).unwrap(),
+            route_set_version: MODULE_PLAN_ROUTE_SET_VERSION.to_string(),
+            route_set_checksum_algorithm: MODULE_PLAN_ROUTE_SET_CHECKSUM_ALGORITHM.to_string(),
+            route_set_checksum,
+            operator_receipt_path: format!("../evidence/{candidate_id}/sign-merge.operator"),
+            operator_receipt_checksum: "0x0000000000000001".to_string(),
             wasm_memory_initial_pages: MODULE_PLAN_WASM_MEMORY_INITIAL_PAGES,
             wasm_export_set: MODULE_PLAN_WASM_EXPORT_SET.to_string(),
             wasm_transfer_strategy: MODULE_PLAN_WASM_TRANSFER_STRATEGY.to_string(),

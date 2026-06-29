@@ -12,7 +12,61 @@ const appUrl = process.argv[2] || "http://127.0.0.1:8080/app/";
 const port = Number(process.argv[3] || 9223);
 const smokeMode = process.argv[5] || "single";
 const combinedSelectorRouteSoakMode = smokeMode === "combined-selector-route-soak" || smokeMode === "combined-selector-route-extended-soak" || smokeMode === "combined-selector-route-stress-soak";
-const expectedModel = process.argv[4] || (smokeMode === "multi-parent-registry" ? "multi-parent-sign-merge-q8" : smokeMode === "adapter-sidecar-registry-q8" ? "tinyq8" : smokeMode === "adapter-manifest-budget" || smokeMode === "adapter-family-receipt-drift" || smokeMode === "adapter-manifest-drift" || smokeMode === "source-backed-alr1-manifest-drift" || smokeMode === "adapter-artifact-drift" || smokeMode === "adapter-stack-prefetch-drift" || smokeMode === "adapter-stack-rust-validate-drift" || smokeMode === "module-plan-profile-drift" || smokeMode === "module-plan-execution-profile-drift" || smokeMode === "module-plan-fetch-policy-drift" || smokeMode === "module-plan-origin-policy-drift" || smokeMode === "module-plan-wasm-memory-drift" || smokeMode === "module-plan-wasm-export-set-drift" || smokeMode === "module-plan-wasm-transfer-drift" || smokeMode === "module-plan-model-release-drift" || smokeMode === "module-plan-runtime-reset-drift" || smokeMode === "module-plan-adapter-validation-drift" || smokeMode === "module-plan-adapter-validation-count-drift" || smokeMode === "module-plan-adapter-apply-count-drift" || smokeMode === "module-plan-wasm-heap-drift" || smokeMode === "module-plan-context-token-drift" || smokeMode === "module-plan-sampler-cap-drift" || smokeMode === "module-plan-tokenizer-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-runtime-scratch-drift" || smokeMode === "module-plan-output-limit-drift" || smokeMode === "module-plan-prompt-limit-drift" || smokeMode === "module-plan-fetch-count-drift" || smokeMode === "module-plan-planned-fetch-count-drift" || smokeMode === "module-plan-kv-cache-drift" || smokeMode === "module-plan-adapter-stack-budget-drift" || smokeMode === "module-plan-total-budget-drift" || smokeMode === "module-plan-total-limit-drift" || smokeMode === "module-plan-count-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift" || smokeMode === "assembly-eval-case-drift" || smokeMode === "assembly-evidence-file-drift" || smokeMode === "combined-selector-assembly" || smokeMode === "combined-selector-cycle" || combinedSelectorRouteSoakMode || smokeMode === "combined-selector-reload-soak" ? "multi-parent-sign-merge-q4" : smokeMode === "multi-parent-registry-file" || smokeMode === "adapter-sidecar-registry-file" ? "multi-parent-sign-merge-f32" : smokeMode === "adapter-sidecar" || smokeMode === "adapter-sidecar-checksum-mismatch" ? "tinyf32" : "tinylm16q8");
+const q4DefaultSmokeModes = new Set([
+  "adapter-manifest-budget",
+  "adapter-family-receipt-drift",
+  "adapter-manifest-drift",
+  "source-backed-alr1-manifest-drift",
+  "adapter-artifact-drift",
+  "module-plan-payload-checksum-drift",
+  "adapter-stack-prefetch-drift",
+  "adapter-stack-rust-validate-drift",
+  "module-plan-profile-drift",
+  "module-plan-execution-profile-drift",
+  "module-plan-fetch-policy-drift",
+  "module-plan-origin-policy-drift",
+  "module-plan-wasm-memory-drift",
+  "module-plan-wasm-export-set-drift",
+  "module-plan-wasm-transfer-drift",
+  "module-plan-model-release-drift",
+  "module-plan-runtime-reset-drift",
+  "module-plan-adapter-validation-drift",
+  "module-plan-adapter-validation-count-drift",
+  "module-plan-adapter-apply-count-drift",
+  "module-plan-wasm-heap-drift",
+  "module-plan-context-token-drift",
+  "module-plan-sampler-cap-drift",
+  "module-plan-tokenizer-drift",
+  "module-plan-resource-drift",
+  "module-plan-runtime-scratch-drift",
+  "module-plan-output-limit-drift",
+  "module-plan-prompt-limit-drift",
+  "module-plan-fetch-count-drift",
+  "module-plan-planned-fetch-count-drift",
+  "module-plan-route-set-algorithm-drift",
+  "module-plan-route-set-version-drift",
+  "module-plan-route-set-drift",
+  "module-plan-operator-receipt-drift",
+  "module-plan-kv-cache-drift",
+  "module-plan-adapter-stack-budget-drift",
+  "module-plan-total-budget-drift",
+  "module-plan-total-limit-drift",
+  "module-plan-count-drift",
+  "module-plan-graph-drift",
+  "module-plan-stack-drift",
+  "module-plan-role-drift",
+  "module-plan-slot-drift",
+  "module-plan-phase-drift",
+  "module-plan-byte-drift",
+  "module-plan-checksum-drift",
+  "module-plan-dependency-drift",
+  "assembly-eval-case-drift",
+  "assembly-evidence-file-drift",
+  "combined-selector-assembly",
+  "combined-selector-cycle",
+  "combined-selector-reload-soak"
+]);
+const expectedModel = process.argv[4] || (smokeMode === "multi-parent-registry" ? "multi-parent-sign-merge-q8" : smokeMode === "adapter-sidecar-registry-q8" ? "tinyq8" : q4DefaultSmokeModes.has(smokeMode) || combinedSelectorRouteSoakMode ? "multi-parent-sign-merge-q4" : smokeMode === "multi-parent-registry-file" || smokeMode === "adapter-sidecar-registry-file" ? "multi-parent-sign-merge-f32" : smokeMode === "adapter-sidecar" || smokeMode === "adapter-sidecar-checksum-mismatch" ? "tinyf32" : "tinylm16q8");
 const enduranceCycles = Math.max(2, Math.min(20, Number.parseInt(process.argv[6] || "4", 10) || 4));
 const performanceTokens = Math.max(2, Math.min(8, Number.parseInt(process.argv[6] || "4", 10) || 4));
 const performanceSoakCycles = Math.max(2, Math.min(10, Number.parseInt(process.argv[6] || "3", 10) || 3));
@@ -134,6 +188,8 @@ const expectedModulePlanFetchLimit = "32 fetches";
 const expectedModulePlanFetchLimitCount = 32;
 const expectedModulePlanPlannedFetches = "21 fetches";
 const expectedModulePlanActualFetches = 21;
+const expectedModulePlanRouteSetVersion = "1";
+const expectedModulePlanRouteSetChecksumAlgorithm = "tinyrustlm-text-checksum-v1";
 const expectedModulePlanWasmMemoryInitialPages = "17";
 const expectedModulePlanWasmExportSet = "tinyrustlm-generate-v1";
 const expectedModulePlanWasmTransferStrategy = "copy-then-release-v1";
@@ -160,9 +216,9 @@ const expectedModulePlanModelBudgets = {
 };
 
 const expectedModulePlanTotalBudgets = {
-  "multi-parent-sign-merge-q8": "175657 bytes",
-  "multi-parent-sign-merge-q4": "173417 bytes",
-  "multi-parent-sign-merge-f32": "187191 bytes"
+  "multi-parent-sign-merge-q8": "175670 bytes",
+  "multi-parent-sign-merge-q4": "173430 bytes",
+  "multi-parent-sign-merge-f32": "187204 bytes"
 };
 
 const expectedModulePlanTotalLimits = {
@@ -172,15 +228,15 @@ const expectedModulePlanTotalLimits = {
 };
 
 const expectedModulePlanBytes = {
-  "multi-parent-sign-merge-q8": "0: 8832 bytes, 1: 594 bytes, 2: 1896 bytes, 3: 5999 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 1088 bytes",
-  "multi-parent-sign-merge-q4": "0: 6592 bytes, 1: 594 bytes, 2: 1896 bytes, 3: 5999 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 1088 bytes",
-  "multi-parent-sign-merge-f32": "0: 20352 bytes, 1: 595 bytes, 2: 1909 bytes, 3: 5999 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 1088 bytes"
+  "multi-parent-sign-merge-q8": "0: 8832 bytes, 1: 607 bytes, 2: 1896 bytes, 3: 5999 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 1088 bytes",
+  "multi-parent-sign-merge-q4": "0: 6592 bytes, 1: 607 bytes, 2: 1896 bytes, 3: 5999 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 1088 bytes",
+  "multi-parent-sign-merge-f32": "0: 20352 bytes, 1: 608 bytes, 2: 1909 bytes, 3: 5999 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 1088 bytes"
 };
 
 const expectedModulePlanChecksums = {
-  "multi-parent-sign-merge-q8": "0: 0x0132bc82d5a0d7d6, 1: 0x3d14ef7fa1b3ae05, 2: 0xad66de0b203ffca1, 3: 0x59268023ad4e3c0f, 4: 0x8194a8a671285019, 5: 0x6fa5d29bee9b7cfb, 6: 0x1ed9d08142edfda9",
-  "multi-parent-sign-merge-q4": "0: 0x1a6808e3098d1ce0, 1: 0x6d74e9f101d2b990, 2: 0x90860d865bb402e5, 3: 0xc5c8992662a5788e, 4: 0x0bd71e0020bc6ebf, 5: 0x69638218a1dd1eb6, 6: 0xcaf46ccfc262fad2",
-  "multi-parent-sign-merge-f32": "0: 0x8a0e6c4c01998199, 1: 0x1fe27dc9a8b25956, 2: 0x10214fcc0189495e, 3: 0x3822d9dae682fcd3, 4: 0xe9669ade4571fd42, 5: 0x34008cedc028ed5c, 6: 0x1c64143141c223b5"
+  "multi-parent-sign-merge-q8": "0: 0x0132bc82d5a0d7d6, 1: 0x855c8c30e39227c5, 2: 0x88f5f52063d8d332, 3: 0x0988468dc4daf944, 4: 0x8194a8a671285019, 5: 0x6fa5d29bee9b7cfb, 6: 0x1ed9d08142edfda9",
+  "multi-parent-sign-merge-q4": "0: 0x1a6808e3098d1ce0, 1: 0xfa5ea1108910598f, 2: 0xec65527ba6a0a24d, 3: 0x6c3f07949496907d, 4: 0x0bd71e0020bc6ebf, 5: 0x69638218a1dd1eb6, 6: 0xcaf46ccfc262fad2",
+  "multi-parent-sign-merge-f32": "0: 0x8a0e6c4c01998199, 1: 0xc2b257b1f036bfcb, 2: 0xd6d39c383538e5c3, 3: 0xe958c9dabb3565f0, 4: 0xe9669ade4571fd42, 5: 0x34008cedc028ed5c, 6: 0x1c64143141c223b5"
 };
 
 const expectedModulePlanRoles =
@@ -197,6 +253,18 @@ const expectedModulePlanDependencies =
 
 const expectedModulePlanTrace =
   "0: plan verified, 1: model accepted, 2: manifest verified, 3: assembly evidence verified, 4: adapter family verified, 5: adapter stack applied, 6: ready";
+
+function modulePlanByteSummaryTotal(summary) {
+  // Computes the receipt-declared module byte total from the rendered Module Plan row.
+  const matches = String(summary || "").matchAll(/\b\d+: (\d+) bytes\b/g);
+  let total = 0;
+  let count = 0;
+  for (const match of matches) {
+    total += Number.parseInt(match[1], 10);
+    count += 1;
+  }
+  return count > 0 ? `${total} bytes` : null;
+}
 
 const expectedAssemblyEvidenceRoutes = {
   "multi-parent-sign-merge-q8": multiParentEvidenceRoutes("multi-parent-sign-merge-q8"),
@@ -529,6 +597,52 @@ function driftModulePlanPlannedFetchCount(receiptText) {
     throw new Error("module plan planned fetch count field was not found");
   }
   return receiptText.replace(original, drifted);
+}
+
+function driftModulePlanRouteSetVersion(receiptText) {
+  // Mutates the route-set recipe version so route-list validation is version-bound.
+  const original = `module_plan_route_set_version=${expectedModulePlanRouteSetVersion}`;
+  const drifted = "module_plan_route_set_version=2";
+  if (!receiptText.includes(original)) {
+    throw new Error("module plan route set version field was not found");
+  }
+  return receiptText.replace(original, drifted);
+}
+
+function driftModulePlanRouteSetChecksumAlgorithm(receiptText) {
+  // Mutates the route-set hash label so checksum validation is algorithm-bound.
+  const original = `module_plan_route_set_checksum_algorithm=${expectedModulePlanRouteSetChecksumAlgorithm}`;
+  const drifted = "module_plan_route_set_checksum_algorithm=legacy-text-checksum-v0";
+  if (!receiptText.includes(original)) {
+    throw new Error("module plan route set checksum algorithm field was not found");
+  }
+  return receiptText.replace(original, drifted);
+}
+
+function driftModulePlanRouteSetChecksum(receiptText) {
+  // Mutates the route-set checksum so route-list validation is receipt-bound.
+  const match = receiptText.match(/^module_plan_route_set_checksum=(0x[0-9a-fA-F]{16})$/m);
+  if (!match) {
+    throw new Error("module plan route set checksum field was not found");
+  }
+  const drifted =
+    match[1].toLowerCase() === "0x000000000000001d"
+      ? "module_plan_route_set_checksum=0x000000000000001e"
+      : "module_plan_route_set_checksum=0x000000000000001d";
+  return receiptText.replace(match[0], drifted);
+}
+
+function driftModulePlanOperatorReceiptChecksum(receiptText) {
+  // Mutates the operator receipt checksum while preserving the receipt route.
+  const match = receiptText.match(/^operator_receipt_checksum=(0x[0-9a-fA-F]{16})$/m);
+  if (!match) {
+    throw new Error("module plan operator receipt checksum field was not found");
+  }
+  const drifted =
+    match[1].toLowerCase() === "0x000000000000001d"
+      ? "operator_receipt_checksum=0x000000000000001e"
+      : "operator_receipt_checksum=0x000000000000001d";
+  return receiptText.replace(match[0], drifted);
 }
 
 function driftModulePlanKvCachePageCount(receiptText) {
@@ -1358,6 +1472,11 @@ async function runPageAdapterSidecarSmoke(client, modelKey, expectAutoAssembly) 
         modulePlanOrigin: byId("modulePlanOrigin").textContent,
         modulePlanFetchLimit: byId("modulePlanFetchLimit").textContent,
         modulePlanPlannedFetchCount: byId("modulePlanPlannedFetchCount").textContent,
+        modulePlanActualFetchCount: byId("modulePlanActualFetchCount").textContent,
+        modulePlanRouteSetChecksumAlgorithm: byId("modulePlanRouteSetChecksumAlgorithm").textContent,
+        modulePlanRouteSetVersion: byId("modulePlanRouteSetVersion").textContent,
+        modulePlanRouteSetChecksum: byId("modulePlanRouteSetChecksum").textContent,
+        modulePlanActualRouteSetChecksum: byId("modulePlanActualRouteSetChecksum").textContent,
         modulePlanWasmPages: byId("modulePlanWasmPages").textContent,
         modulePlanWasmExportSet: byId("modulePlanWasmExportSet").textContent,
         modulePlanWasmTransferStrategy: byId("modulePlanWasmTransferStrategy").textContent,
@@ -1382,7 +1501,9 @@ async function runPageAdapterSidecarSmoke(client, modelKey, expectAutoAssembly) 
         modulePlanTotalBudget: byId("modulePlanTotalBudget").textContent,
         modulePlanTotalLimit: byId("modulePlanTotalLimit").textContent,
         modulePlanBytes: byId("modulePlanBytes").textContent,
+        modulePlanActualModuleBytes: byId("modulePlanActualModuleBytes").textContent,
         modulePlanChecksums: byId("modulePlanChecksums").textContent,
+        modulePlanActualModuleChecksums: byId("modulePlanActualModuleChecksums").textContent,
         modulePlanSlots: byId("modulePlanSlots").textContent,
         modulePlanRoles: byId("modulePlanRoles").textContent,
         modulePlanPhases: byId("modulePlanPhases").textContent,
@@ -1567,6 +1688,11 @@ async function runPageCombinedSelectorAssemblySmoke(client, cycles) {
           modulePlanOrigin: byId("modulePlanOrigin").textContent,
           modulePlanFetchLimit: byId("modulePlanFetchLimit").textContent,
           modulePlanPlannedFetchCount: byId("modulePlanPlannedFetchCount").textContent,
+          modulePlanActualFetchCount: byId("modulePlanActualFetchCount").textContent,
+          modulePlanRouteSetChecksumAlgorithm: byId("modulePlanRouteSetChecksumAlgorithm").textContent,
+          modulePlanRouteSetVersion: byId("modulePlanRouteSetVersion").textContent,
+          modulePlanRouteSetChecksum: byId("modulePlanRouteSetChecksum").textContent,
+          modulePlanActualRouteSetChecksum: byId("modulePlanActualRouteSetChecksum").textContent,
           modulePlanWasmPages: byId("modulePlanWasmPages").textContent,
           modulePlanWasmExportSet: byId("modulePlanWasmExportSet").textContent,
           modulePlanWasmTransferStrategy: byId("modulePlanWasmTransferStrategy").textContent,
@@ -1591,7 +1717,9 @@ async function runPageCombinedSelectorAssemblySmoke(client, cycles) {
           modulePlanTotalBudget: byId("modulePlanTotalBudget").textContent,
           modulePlanTotalLimit: byId("modulePlanTotalLimit").textContent,
           modulePlanBytes: byId("modulePlanBytes").textContent,
+          modulePlanActualModuleBytes: byId("modulePlanActualModuleBytes").textContent,
           modulePlanChecksums: byId("modulePlanChecksums").textContent,
+          modulePlanActualModuleChecksums: byId("modulePlanActualModuleChecksums").textContent,
           modulePlanSlots: byId("modulePlanSlots").textContent,
           modulePlanRoles: byId("modulePlanRoles").textContent,
           modulePlanPhases: byId("modulePlanPhases").textContent,
@@ -1899,6 +2027,11 @@ async function runPageModelErrorSmoke(client, modelKey) {
         modulePlanOrigin: byId("modulePlanOrigin").textContent,
         modulePlanFetchLimit: byId("modulePlanFetchLimit").textContent,
         modulePlanPlannedFetchCount: byId("modulePlanPlannedFetchCount").textContent,
+        modulePlanActualFetchCount: byId("modulePlanActualFetchCount").textContent,
+        modulePlanRouteSetChecksumAlgorithm: byId("modulePlanRouteSetChecksumAlgorithm").textContent,
+        modulePlanRouteSetVersion: byId("modulePlanRouteSetVersion").textContent,
+        modulePlanRouteSetChecksum: byId("modulePlanRouteSetChecksum").textContent,
+        modulePlanActualRouteSetChecksum: byId("modulePlanActualRouteSetChecksum").textContent,
         modulePlanWasmPages: byId("modulePlanWasmPages").textContent,
         modulePlanWasmExportSet: byId("modulePlanWasmExportSet").textContent,
         modulePlanWasmTransferStrategy: byId("modulePlanWasmTransferStrategy").textContent,
@@ -2472,6 +2605,11 @@ async function runPageUiAudit(client) {
           modulePlanOrigin: byId("modulePlanOrigin").textContent,
           modulePlanFetchLimit: byId("modulePlanFetchLimit").textContent,
           modulePlanPlannedFetchCount: byId("modulePlanPlannedFetchCount").textContent,
+          modulePlanActualFetchCount: byId("modulePlanActualFetchCount").textContent,
+          modulePlanRouteSetChecksumAlgorithm: byId("modulePlanRouteSetChecksumAlgorithm").textContent,
+          modulePlanRouteSetVersion: byId("modulePlanRouteSetVersion").textContent,
+          modulePlanRouteSetChecksum: byId("modulePlanRouteSetChecksum").textContent,
+          modulePlanActualRouteSetChecksum: byId("modulePlanActualRouteSetChecksum").textContent,
           modulePlanWasmPages: byId("modulePlanWasmPages").textContent,
           modulePlanWasmExportSet: byId("modulePlanWasmExportSet").textContent,
           modulePlanWasmTransferStrategy: byId("modulePlanWasmTransferStrategy").textContent,
@@ -2496,7 +2634,9 @@ async function runPageUiAudit(client) {
           modulePlanTotalBudget: byId("modulePlanTotalBudget").textContent,
           modulePlanTotalLimit: byId("modulePlanTotalLimit").textContent,
           modulePlanBytes: byId("modulePlanBytes").textContent,
+          modulePlanActualModuleBytes: byId("modulePlanActualModuleBytes").textContent,
           modulePlanChecksums: byId("modulePlanChecksums").textContent,
+          modulePlanActualModuleChecksums: byId("modulePlanActualModuleChecksums").textContent,
           modulePlanSlots: byId("modulePlanSlots").textContent,
           modulePlanRoles: byId("modulePlanRoles").textContent,
           modulePlanPhases: byId("modulePlanPhases").textContent,
@@ -2899,6 +3039,50 @@ function assertModulePlanPlannedFetchCountDriftSmoke(result, modelKey, networkRe
     networkRequests,
     "module plan planned fetch count drift",
     "Module plan module plan planned fetch count mismatch"
+  );
+}
+
+function assertModulePlanRouteSetVersionDriftSmoke(result, modelKey, networkRequests) {
+  // Checks that route-set version drift stops before generated route assembly begins.
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan route set version drift",
+    "Module plan route set version mismatch"
+  );
+}
+
+function assertModulePlanRouteSetAlgorithmDriftSmoke(result, modelKey, networkRequests) {
+  // Checks that route-set algorithm drift stops before generated route assembly begins.
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan route set checksum algorithm drift",
+    "Module plan route set checksum algorithm mismatch"
+  );
+}
+
+function assertModulePlanRouteSetDriftSmoke(result, modelKey, networkRequests) {
+  // Checks that route-set drift stops before generated route assembly begins.
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan route set drift",
+    "Module plan route set checksum mismatch"
+  );
+}
+
+function assertModulePlanOperatorReceiptDriftSmoke(result, modelKey, networkRequests) {
+  // Checks that module-plan/operator-receipt checksum drift stops before model fetches.
+  assertModulePlanDriftSmoke(
+    result,
+    modelKey,
+    networkRequests,
+    "module plan operator receipt drift",
+    "module plan operator receipt checksum mismatch"
   );
 }
 
@@ -4220,6 +4404,103 @@ function assertAdapterStackArtifactDriftSmoke(result, modelKey, networkRequests,
   }
 }
 
+function assertModulePlanPayloadChecksumDriftSmoke(result, modelKey, networkRequests) {
+  // Verifies coherent payload checksum drift remains bound by the module-plan checksum row.
+  const failures = [];
+  if (result.selectedModel !== modelKey) {
+    failures.push(`selected model was ${result.selectedModel}`);
+  }
+  if (result.runtimeStatus !== "Model load failed") {
+    failures.push(`runtime status was ${result.runtimeStatus}`);
+  }
+  if (result.modelState !== "fetch error") {
+    failures.push(`model state was ${result.modelState}`);
+  }
+  if (!String(result.errorState || "").includes("module plan adapter module checksum mismatch")) {
+    failures.push(`error state was ${result.errorState}`);
+  }
+  if (result.adapterState !== "model not loaded") {
+    failures.push(`adapter state was ${result.adapterState}`);
+  }
+  if (result.assemblyState !== "model not loaded") {
+    failures.push(`assembly state was ${result.assemblyState}`);
+  }
+  if (result.assemblyKind !== "unavailable") {
+    failures.push(`assembly kind was ${result.assemblyKind}`);
+  }
+  if (String(result.modulePlanTrace || "") !== "module plan adapter module checksum mismatch") {
+    failures.push(`module plan trace was ${result.modulePlanTrace}`);
+  }
+  if (!result.generateDisabled || !result.resetDisabled || !result.stepTokenDisabled) {
+    failures.push("runtime controls were enabled after payload checksum drift");
+  }
+  if (result.modelSelectDisabled) {
+    failures.push("model selector was disabled after payload checksum drift");
+  }
+  if (!result.adapterSelectDisabled || !result.applyDisabled) {
+    failures.push("adapter controls were enabled after payload checksum drift");
+  }
+  if (!result.diagnostics || result.diagnostics.model_loaded !== false) {
+    failures.push(`diagnostics model_loaded was ${JSON.stringify(result.diagnostics)}`);
+  }
+  const consoleText = String(result.console || "");
+  if (consoleText.includes("apply_adapter_delta")) {
+    failures.push("console included apply_adapter_delta");
+  }
+  if (!networkIncludesPath(networkRequests, "/models/selector.registry")) {
+    failures.push("selector registry route was not requested");
+  }
+  const expectedModulePlanRoute = expectedModulePlanRoutes[modelKey];
+  if (!expectedModulePlanRoute || !networkIncludesPath(networkRequests, expectedModulePlanRoute)) {
+    failures.push(`module plan route was not requested: ${expectedModulePlanRoute}`);
+  }
+  const expectedModelRoute = expectedRouteForModel(modelKey);
+  if (expectedModelRoute && networkIncludesPath(networkRequests, expectedModelRoute)) {
+    failures.push(`generated model route was requested after payload checksum drift: ${expectedModelRoute}`);
+  }
+  const expectedManifestRoute = expectedModelRoute ? `${expectedModelRoute}.manifest` : "";
+  if (expectedManifestRoute && networkIncludesPath(networkRequests, expectedManifestRoute)) {
+    failures.push(`model manifest route was requested after payload checksum drift: ${expectedManifestRoute}`);
+  }
+  const expectedAssemblyReceiptRoute = expectedAssemblyReceiptRoutes[modelKey];
+  if (expectedAssemblyReceiptRoute && networkIncludesPath(networkRequests, expectedAssemblyReceiptRoute)) {
+    failures.push(`assembly receipt route was requested after payload checksum drift: ${expectedAssemblyReceiptRoute}`);
+  }
+  for (const evidenceRoute of expectedAssemblyEvidenceRoutes[modelKey] || []) {
+    if (networkIncludesPath(networkRequests, evidenceRoute)) {
+      failures.push(`assembly evidence route was requested after payload checksum drift: ${evidenceRoute}`);
+    }
+  }
+  const adapterFamilyRoute = expectedAdapterFamilyReceiptRoutes[modelKey];
+  if (adapterFamilyRoute && networkIncludesPath(networkRequests, adapterFamilyRoute)) {
+    failures.push(`adapter family receipt route was requested after payload checksum drift: ${adapterFamilyRoute}`);
+  }
+  for (const manifestRoute of expectedAdapterManifestRoutes[modelKey] || []) {
+    if (networkIncludesPath(networkRequests, manifestRoute)) {
+      failures.push(`adapter manifest route was requested after payload checksum drift: ${manifestRoute}`);
+    }
+  }
+  const stackRoutes = expectedAdapterStackRoutes[modelKey] || [];
+  for (const stackRoute of stackRoutes) {
+    if (networkIncludesPath(networkRequests, stackRoute)) {
+      failures.push(`adapter stack route was requested after payload checksum drift: ${stackRoute}`);
+    }
+  }
+  const allowedOrigin = new URL(appUrl).origin;
+  for (const requestUrl of networkRequests) {
+    if (!requestUrl.startsWith("http://") && !requestUrl.startsWith("https://")) {
+      continue;
+    }
+    const origin = new URL(requestUrl).origin;
+    if (origin !== allowedOrigin) {
+      failures.push(`remote request observed: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
 function assertRuntimeAssemblyDiagnostics(diagnostics, expectedApplyCount, label, failures) {
   const source = diagnostics || {};
   if (source.adapter_apply_count !== expectedApplyCount) {
@@ -4540,6 +4821,21 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
     if (result.modulePlanPlannedFetchCount !== expectedModulePlanPlannedFetches) {
       failures.push(`module plan planned fetch count was ${result.modulePlanPlannedFetchCount}`);
     }
+    if (result.modulePlanActualFetchCount !== expectedModulePlanPlannedFetches) {
+      failures.push(`module plan actual fetch count was ${result.modulePlanActualFetchCount}`);
+    }
+    if (result.modulePlanRouteSetVersion !== expectedModulePlanRouteSetVersion) {
+      failures.push(`module plan route set version was ${result.modulePlanRouteSetVersion}`);
+    }
+    if (result.modulePlanRouteSetChecksumAlgorithm !== expectedModulePlanRouteSetChecksumAlgorithm) {
+      failures.push(`module plan route set checksum algorithm was ${result.modulePlanRouteSetChecksumAlgorithm}`);
+    }
+    if (!isNonZeroHex64(result.modulePlanRouteSetChecksum)) {
+      failures.push(`module plan route set checksum was ${result.modulePlanRouteSetChecksum}`);
+    }
+    if (result.modulePlanActualRouteSetChecksum !== result.modulePlanRouteSetChecksum) {
+      failures.push(`module plan actual route set checksum was ${result.modulePlanActualRouteSetChecksum}`);
+    }
     if (result.modulePlanWasmPages !== expectedModulePlanWasmMemoryInitialPages) {
       failures.push(`module plan WASM pages was ${result.modulePlanWasmPages}`);
     }
@@ -4636,6 +4932,15 @@ function assertAdapterSidecarSmoke(result, modelKey, networkRequests, expectAuto
       if (!/^0: 0x[0-9a-fA-F]{16}, 1: 0x[0-9a-fA-F]{16}, 2: 0x[0-9a-fA-F]{16}, 3: 0x[0-9a-fA-F]{16}, 4: 0x[0-9a-fA-F]{16}, 5: 0x[0-9a-fA-F]{16}, 6: 0x[0-9a-fA-F]{16}$/.test(String(result.modulePlanChecksums || ""))) {
         failures.push(`module plan checksums were ${result.modulePlanChecksums}`);
       }
+    }
+    const expectedActualModuleBytes = modulePlanByteSummaryTotal(result.modulePlanBytes);
+    if (!expectedActualModuleBytes) {
+      failures.push(`module plan actual module bytes could not be derived from ${result.modulePlanBytes}`);
+    } else if (result.modulePlanActualModuleBytes !== expectedActualModuleBytes) {
+      failures.push(`module plan actual module bytes were ${result.modulePlanActualModuleBytes}`);
+    }
+    if (result.modulePlanActualModuleChecksums !== result.modulePlanChecksums) {
+      failures.push(`module plan actual module checksums were ${result.modulePlanActualModuleChecksums}`);
     }
     if (result.modulePlanSlots !== expectedModulePlanSlots) {
       failures.push(`module plan slots were ${result.modulePlanSlots}`);
@@ -4765,8 +5070,11 @@ function assertCombinedSelectorSequenceSmoke(result, networkRequests, expectedSe
 }
 
 function assertCombinedSelectorAssemblySmoke(result, networkRequests) {
+  // Fresh all-root bundles regenerate receipt and evidence checksums, so prove the self-assembly shape.
   const failures = [];
-  assertCombinedSelectorSequenceSmoke(result, networkRequests, combinedSelectorSequence(1), failures);
+  assertCombinedSelectorSequenceSmoke(result, networkRequests, combinedSelectorSequence(1), failures, {
+    checkExactModulePlanSummaries: false
+  });
   if (failures.length > 0) {
     throw new Error(failures.join("; "));
   }
@@ -5919,6 +6227,21 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
   if (snapshot.modulePlanPlannedFetchCount !== "unavailable") {
     failures.push(`${prefix} module plan planned fetch count was ${snapshot.modulePlanPlannedFetchCount}`);
   }
+  if (snapshot.modulePlanActualFetchCount !== "unavailable") {
+    failures.push(`${prefix} module plan actual fetch count was ${snapshot.modulePlanActualFetchCount}`);
+  }
+  if (snapshot.modulePlanRouteSetVersion !== "unavailable") {
+    failures.push(`${prefix} module plan route set version was ${snapshot.modulePlanRouteSetVersion}`);
+  }
+  if (snapshot.modulePlanRouteSetChecksumAlgorithm !== "unavailable") {
+    failures.push(`${prefix} module plan route set checksum algorithm was ${snapshot.modulePlanRouteSetChecksumAlgorithm}`);
+  }
+  if (snapshot.modulePlanRouteSetChecksum !== "unavailable") {
+    failures.push(`${prefix} module plan route set checksum was ${snapshot.modulePlanRouteSetChecksum}`);
+  }
+  if (snapshot.modulePlanActualRouteSetChecksum !== "unavailable") {
+    failures.push(`${prefix} module plan actual route set checksum was ${snapshot.modulePlanActualRouteSetChecksum}`);
+  }
   if (snapshot.modulePlanWasmPages !== "unavailable") {
     failures.push(`${prefix} module plan WASM pages was ${snapshot.modulePlanWasmPages}`);
   }
@@ -5958,8 +6281,14 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
   if (snapshot.modulePlanBytes !== "unavailable") {
     failures.push(`${prefix} module plan bytes were ${snapshot.modulePlanBytes}`);
   }
+  if (snapshot.modulePlanActualModuleBytes !== "unavailable") {
+    failures.push(`${prefix} module plan actual module bytes were ${snapshot.modulePlanActualModuleBytes}`);
+  }
   if (snapshot.modulePlanChecksums !== "unavailable") {
     failures.push(`${prefix} module plan checksums were ${snapshot.modulePlanChecksums}`);
+  }
+  if (snapshot.modulePlanActualModuleChecksums !== "unavailable") {
+    failures.push(`${prefix} module plan actual module checksums were ${snapshot.modulePlanActualModuleChecksums}`);
   }
   if (snapshot.modulePlanSlots !== "unavailable") {
     failures.push(`${prefix} module plan slots were ${snapshot.modulePlanSlots}`);
@@ -6544,6 +6873,26 @@ function installModulePlanPlannedFetchCountDriftInterceptor(client, modelKey) {
   installModulePlanDriftInterceptor(client, modelKey, driftModulePlanPlannedFetchCount);
 }
 
+function installModulePlanRouteSetVersionDriftInterceptor(client, modelKey) {
+  // Routes route-set version drift through the shared module-plan receipt interceptor.
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanRouteSetVersion);
+}
+
+function installModulePlanRouteSetAlgorithmDriftInterceptor(client, modelKey) {
+  // Routes route-set algorithm drift through the shared module-plan receipt interceptor.
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanRouteSetChecksumAlgorithm);
+}
+
+function installModulePlanRouteSetDriftInterceptor(client, modelKey) {
+  // Routes route-set drift through the shared module-plan receipt interceptor.
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanRouteSetChecksum);
+}
+
+function installModulePlanOperatorReceiptDriftInterceptor(client, modelKey) {
+  // Routes operator-receipt drift through checksum-consistent module-plan interception.
+  installModulePlanDriftInterceptor(client, modelKey, driftModulePlanOperatorReceiptChecksum);
+}
+
 function installModulePlanKvCacheDriftInterceptor(client, modelKey) {
   // Wires the KV drift mutation into the shared module-plan interception path.
   installModulePlanDriftInterceptor(client, modelKey, driftModulePlanKvCachePageCount);
@@ -7023,6 +7372,123 @@ function installAdapterStackRustValidateDriftInterceptor(client, modelKey) {
   });
 }
 
+function installModulePlanPayloadChecksumDriftInterceptor(client, modelKey) {
+  const adapterIndex = 1;
+  const stackIndex = 0;
+  const moduleIndex = 4;
+  const adapterStackRoutes = expectedAdapterStackRoutes[modelKey] || [];
+  const adapterManifestRoutes = expectedAdapterManifestRoutes[modelKey] || [];
+  const adapterStackRoute = adapterStackRoutes[stackIndex];
+  const adapterManifestRoute = adapterManifestRoutes[adapterIndex];
+  const adapterFamilyRoute = expectedAdapterFamilyReceiptRoutes[modelKey];
+  const assemblyReceiptRoute = expectedAssemblyReceiptRoutes[modelKey];
+  const modulePlanRoute = expectedModulePlanRoutes[modelKey];
+  if (!adapterStackRoute || !adapterManifestRoute || !adapterFamilyRoute || !assemblyReceiptRoute || !modulePlanRoute) {
+    throw new Error(`generated payload checksum drift routes were incomplete for ${modelKey}`);
+  }
+  let driftPromise = null;
+  // Builds a coherent payload drift while leaving module.N.checksum as the stale plan value.
+  async function buildDrift(requestUrl) {
+    const artifactBytes = Buffer.from(await getBuffer(new URL(adapterStackRoute, requestUrl).toString()));
+    artifactBytes[artifactBytes.length - 1] ^= 0xff;
+    const artifactChecksum = adapterArtifactChecksumHex(artifactBytes);
+    const manifestText = updateAdapterManifestArtifactChecksum(
+      await getText(new URL(adapterManifestRoute, requestUrl).toString()),
+      artifactChecksum
+    );
+    const manifestChecksum = textChecksumHex(manifestText);
+    const adapterFamilyText = updateAdapterFamilyMemberChecksums(
+      await getText(new URL(adapterFamilyRoute, requestUrl).toString()),
+      adapterIndex,
+      artifactChecksum,
+      manifestChecksum
+    );
+    const adapterFamilyChecksum = textChecksumHex(adapterFamilyText);
+    const assemblyReceiptText = updateAssemblyAdapterFamilyReceiptChecksum(
+      await getText(new URL(assemblyReceiptRoute, requestUrl).toString()),
+      adapterFamilyChecksum
+    );
+    const assemblyReceiptChecksum = textChecksumHex(assemblyReceiptText);
+    let modulePlanText = await getText(new URL(modulePlanRoute, requestUrl).toString());
+    modulePlanText = updateModulePlanAssemblyReceiptChecksum(modulePlanText, assemblyReceiptChecksum);
+    modulePlanText = updateModulePlanAdapterFamilyReceiptChecksum(modulePlanText, adapterFamilyChecksum);
+    modulePlanText = updateModulePlanAdapterManifestChecksum(modulePlanText, moduleIndex, manifestChecksum);
+    const modulePlanChecksum = textChecksumHex(modulePlanText);
+    let registryText = await getText(new URL("/models/selector.registry", requestUrl).toString());
+    registryText = updateRegistryAdapterChecksums(
+      registryText,
+      modelKey,
+      adapterIndex,
+      artifactChecksum,
+      manifestChecksum
+    );
+    registryText = updateRegistryAdapterFamilyReceiptChecksum(
+      registryText,
+      modelKey,
+      adapterFamilyChecksum
+    );
+    registryText = updateRegistryAssemblyReceiptChecksum(
+      registryText,
+      modelKey,
+      assemblyReceiptChecksum
+    );
+    registryText = updateRegistryModulePlanChecksum(
+      registryText,
+      modelKey,
+      modulePlanChecksum
+    );
+    return {
+      artifactBytes,
+      manifestText,
+      adapterFamilyText,
+      assemblyReceiptText,
+      modulePlanText,
+      registryText
+    };
+  }
+  function driftFor(requestUrl) {
+    if (!driftPromise) {
+      driftPromise = buildDrift(requestUrl);
+    }
+    return driftPromise;
+  }
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    (async () => {
+      if (requestUrlPathEquals(requestUrl, "/models/selector.registry")) {
+        await fulfillTextRequest(client, params.requestId, (await driftFor(requestUrl)).registryText);
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, modulePlanRoute)) {
+        await fulfillTextRequest(client, params.requestId, (await driftFor(requestUrl)).modulePlanText);
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, assemblyReceiptRoute)) {
+        await fulfillTextRequest(client, params.requestId, (await driftFor(requestUrl)).assemblyReceiptText);
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, adapterFamilyRoute)) {
+        await fulfillTextRequest(client, params.requestId, (await driftFor(requestUrl)).adapterFamilyText);
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, adapterManifestRoute)) {
+        await fulfillTextRequest(client, params.requestId, (await driftFor(requestUrl)).manifestText);
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, adapterStackRoute)) {
+        await fulfillBinaryRequest(client, params.requestId, (await driftFor(requestUrl)).artifactBytes);
+        return;
+      }
+      await continuePausedRequest(client, params.requestId);
+    })().catch((error) => {
+      console.error(error);
+      continuePausedRequest(client, params.requestId).catch((continueError) => {
+        console.error(continueError);
+      });
+    });
+  });
+}
+
 function installAdapterStackArtifactDriftInterceptor(client, modelKey, stackIndex) {
   const adapterStackRoutes = expectedAdapterStackRoutes[modelKey] || [];
   const adapterStackRoute = adapterStackRoutes[stackIndex];
@@ -7184,7 +7650,7 @@ async function main() {
     await client.send("Page.enable", {});
     await client.send("Runtime.enable", {});
     await client.send("Network.enable", {});
-    if (smokeMode === "model-error" || smokeMode === "missing-model" || smokeMode === "multi-parent-registry" || smokeMode === "selector-budget" || smokeMode === "sidecar-budget-contract" || smokeMode === "runtime-manifest-drift" || smokeMode === "module-plan-profile-drift" || smokeMode === "module-plan-execution-profile-drift" || smokeMode === "module-plan-fetch-policy-drift" || smokeMode === "module-plan-origin-policy-drift" || smokeMode === "module-plan-wasm-memory-drift" || smokeMode === "module-plan-wasm-export-set-drift" || smokeMode === "module-plan-wasm-heap-drift" || smokeMode === "module-plan-context-token-drift" || smokeMode === "module-plan-sampler-cap-drift" || smokeMode === "module-plan-tokenizer-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-runtime-scratch-drift" || smokeMode === "module-plan-output-limit-drift" || smokeMode === "module-plan-prompt-limit-drift" || smokeMode === "module-plan-fetch-count-drift" || smokeMode === "module-plan-planned-fetch-count-drift" || smokeMode === "module-plan-kv-cache-drift" || smokeMode === "module-plan-adapter-stack-budget-drift" || smokeMode === "module-plan-total-budget-drift" || smokeMode === "module-plan-total-limit-drift" || smokeMode === "module-plan-count-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift" || smokeMode === "assembly-eval-case-drift" || smokeMode === "assembly-evidence-file-drift" || smokeMode === "adapter-family-receipt-drift" || smokeMode === "adapter-manifest-drift" || smokeMode === "source-backed-alr1-manifest-drift" || smokeMode === "adapter-artifact-drift" || smokeMode === "adapter-stack-prefetch-drift" || smokeMode === "adapter-stack-rust-validate-drift" || smokeMode === "adapter-sidecar-registry-q8" || smokeMode === "adapter-sidecar-checksum-mismatch" || smokeMode === "adapter-manifest-budget") {
+    if (smokeMode === "model-error" || smokeMode === "missing-model" || smokeMode === "multi-parent-registry" || smokeMode === "selector-budget" || smokeMode === "sidecar-budget-contract" || smokeMode === "runtime-manifest-drift" || smokeMode === "module-plan-profile-drift" || smokeMode === "module-plan-execution-profile-drift" || smokeMode === "module-plan-fetch-policy-drift" || smokeMode === "module-plan-origin-policy-drift" || smokeMode === "module-plan-wasm-memory-drift" || smokeMode === "module-plan-wasm-export-set-drift" || smokeMode === "module-plan-wasm-heap-drift" || smokeMode === "module-plan-context-token-drift" || smokeMode === "module-plan-sampler-cap-drift" || smokeMode === "module-plan-tokenizer-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-runtime-scratch-drift" || smokeMode === "module-plan-output-limit-drift" || smokeMode === "module-plan-prompt-limit-drift" || smokeMode === "module-plan-fetch-count-drift" || smokeMode === "module-plan-planned-fetch-count-drift" || smokeMode === "module-plan-route-set-algorithm-drift" || smokeMode === "module-plan-route-set-version-drift" || smokeMode === "module-plan-route-set-drift" || smokeMode === "module-plan-operator-receipt-drift" || smokeMode === "module-plan-kv-cache-drift" || smokeMode === "module-plan-adapter-stack-budget-drift" || smokeMode === "module-plan-total-budget-drift" || smokeMode === "module-plan-total-limit-drift" || smokeMode === "module-plan-count-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift" || smokeMode === "assembly-eval-case-drift" || smokeMode === "assembly-evidence-file-drift" || smokeMode === "adapter-family-receipt-drift" || smokeMode === "adapter-manifest-drift" || smokeMode === "source-backed-alr1-manifest-drift" || smokeMode === "adapter-artifact-drift" || smokeMode === "module-plan-payload-checksum-drift" || smokeMode === "adapter-stack-prefetch-drift" || smokeMode === "adapter-stack-rust-validate-drift" || smokeMode === "adapter-sidecar-registry-q8" || smokeMode === "adapter-sidecar-checksum-mismatch" || smokeMode === "adapter-manifest-budget") {
       if (smokeMode === "model-error") {
         installMalformedModelInterceptor(client);
       } else if (smokeMode === "missing-model") {
@@ -7223,6 +7689,14 @@ async function main() {
         installModulePlanFetchCountDriftInterceptor(client, expectedModel);
       } else if (smokeMode === "module-plan-planned-fetch-count-drift") {
         installModulePlanPlannedFetchCountDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-route-set-algorithm-drift") {
+        installModulePlanRouteSetAlgorithmDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-route-set-version-drift") {
+        installModulePlanRouteSetVersionDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-route-set-drift") {
+        installModulePlanRouteSetDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-operator-receipt-drift") {
+        installModulePlanOperatorReceiptDriftInterceptor(client, expectedModel);
       } else if (smokeMode === "module-plan-kv-cache-drift") {
         installModulePlanKvCacheDriftInterceptor(client, expectedModel);
       } else if (smokeMode === "module-plan-adapter-stack-budget-drift") {
@@ -7261,6 +7735,8 @@ async function main() {
         installSourceBackedAlr1ManifestDriftInterceptor(client, expectedModel);
       } else if (smokeMode === "adapter-artifact-drift") {
         installAdapterArtifactDriftInterceptor(client, expectedModel);
+      } else if (smokeMode === "module-plan-payload-checksum-drift") {
+        installModulePlanPayloadChecksumDriftInterceptor(client, expectedModel);
       } else if (smokeMode === "adapter-stack-prefetch-drift") {
         installAdapterStackPrefetchDriftInterceptor(client, expectedModel);
       } else if (smokeMode === "adapter-stack-rust-validate-drift") {
@@ -7551,7 +8027,7 @@ async function main() {
       }
       assertAdapterManifestBudgetSmoke(result, expectedModel, networkRequests);
       result.networkRequests = networkRequests;
-    } else if (smokeMode === "adapter-family-receipt-drift" || smokeMode === "adapter-manifest-drift" || smokeMode === "source-backed-alr1-manifest-drift" || smokeMode === "adapter-artifact-drift" || smokeMode === "adapter-stack-prefetch-drift" || smokeMode === "adapter-stack-rust-validate-drift") {
+    } else if (smokeMode === "adapter-family-receipt-drift" || smokeMode === "adapter-manifest-drift" || smokeMode === "source-backed-alr1-manifest-drift" || smokeMode === "adapter-artifact-drift" || smokeMode === "module-plan-payload-checksum-drift" || smokeMode === "adapter-stack-prefetch-drift" || smokeMode === "adapter-stack-rust-validate-drift") {
       await client.send("Page.reload", { ignoreCache: true });
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
@@ -7574,6 +8050,8 @@ async function main() {
         assertAdapterStackPrefetchDriftSmoke(result, expectedModel, networkRequests);
       } else if (smokeMode === "adapter-stack-rust-validate-drift") {
         assertAdapterStackRustValidateDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-payload-checksum-drift") {
+        assertModulePlanPayloadChecksumDriftSmoke(result, expectedModel, networkRequests);
       } else {
         assertAdapterArtifactDriftSmoke(result, expectedModel, networkRequests);
       }
@@ -7753,7 +8231,7 @@ async function main() {
       }
       assertModulePlanAdapterApplyCountDriftSmoke(result, expectedModel, networkRequests);
       result.networkRequests = networkRequests;
-    } else if (smokeMode === "module-plan-profile-drift" || smokeMode === "module-plan-execution-profile-drift" || smokeMode === "module-plan-fetch-policy-drift" || smokeMode === "module-plan-origin-policy-drift" || smokeMode === "module-plan-wasm-memory-drift" || smokeMode === "module-plan-wasm-export-set-drift" || smokeMode === "module-plan-wasm-heap-drift" || smokeMode === "module-plan-context-token-drift" || smokeMode === "module-plan-sampler-cap-drift" || smokeMode === "module-plan-tokenizer-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-runtime-scratch-drift" || smokeMode === "module-plan-output-limit-drift" || smokeMode === "module-plan-prompt-limit-drift" || smokeMode === "module-plan-fetch-count-drift" || smokeMode === "module-plan-planned-fetch-count-drift" || smokeMode === "module-plan-kv-cache-drift" || smokeMode === "module-plan-adapter-stack-budget-drift" || smokeMode === "module-plan-total-budget-drift" || smokeMode === "module-plan-total-limit-drift" || smokeMode === "module-plan-count-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift") {
+    } else if (smokeMode === "module-plan-profile-drift" || smokeMode === "module-plan-execution-profile-drift" || smokeMode === "module-plan-fetch-policy-drift" || smokeMode === "module-plan-origin-policy-drift" || smokeMode === "module-plan-wasm-memory-drift" || smokeMode === "module-plan-wasm-export-set-drift" || smokeMode === "module-plan-wasm-heap-drift" || smokeMode === "module-plan-context-token-drift" || smokeMode === "module-plan-sampler-cap-drift" || smokeMode === "module-plan-tokenizer-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-runtime-scratch-drift" || smokeMode === "module-plan-output-limit-drift" || smokeMode === "module-plan-prompt-limit-drift" || smokeMode === "module-plan-fetch-count-drift" || smokeMode === "module-plan-planned-fetch-count-drift" || smokeMode === "module-plan-route-set-algorithm-drift" || smokeMode === "module-plan-route-set-version-drift" || smokeMode === "module-plan-route-set-drift" || smokeMode === "module-plan-operator-receipt-drift" || smokeMode === "module-plan-kv-cache-drift" || smokeMode === "module-plan-adapter-stack-budget-drift" || smokeMode === "module-plan-total-budget-drift" || smokeMode === "module-plan-total-limit-drift" || smokeMode === "module-plan-count-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift") {
       networkRequests.length = 0;
       await client.send("Page.reload", { ignoreCache: true });
       for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -7799,6 +8277,14 @@ async function main() {
         assertModulePlanFetchCountDriftSmoke(result, expectedModel, networkRequests);
       } else if (smokeMode === "module-plan-planned-fetch-count-drift") {
         assertModulePlanPlannedFetchCountDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-route-set-algorithm-drift") {
+        assertModulePlanRouteSetAlgorithmDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-route-set-version-drift") {
+        assertModulePlanRouteSetVersionDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-route-set-drift") {
+        assertModulePlanRouteSetDriftSmoke(result, expectedModel, networkRequests);
+      } else if (smokeMode === "module-plan-operator-receipt-drift") {
+        assertModulePlanOperatorReceiptDriftSmoke(result, expectedModel, networkRequests);
       } else if (smokeMode === "module-plan-kv-cache-drift") {
         assertModulePlanKvCacheDriftSmoke(result, expectedModel, networkRequests);
       } else if (smokeMode === "module-plan-adapter-stack-budget-drift") {

@@ -3,7 +3,7 @@ title: GGUF.MiRust.com LLM Wiki Index
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/
 status: planned_pending_publication
-reviewed_utc: 2026-06-29T03:34:05Z
+reviewed_utc: 2026-06-29T13:45:00Z
 ---
 
 # GGUF.MiRust.com
@@ -27,6 +27,13 @@ This local LLM Wiki namespace routes durable memory for the GGUF.MiRust.com Rust
 - [Teleodynamic Resource Bounded Memory](reports/teleodynamic-resource-bounded-memory-2026-06-25.md)
 - [Brand Product Positioning Memory](reports/brand-product-positioning-memory-2026-06-25.md)
 - [Model Breeding Ecology Memory](reports/model-breeding-ecology-memory-2026-06-26.md)
+- [Crossover Operator Memory](reports/crossover-operator-memory-2026-06-29.md)
+- [Mutation Operator Memory](reports/mutation-operator-memory-2026-06-29.md)
+- [Federated Operator Memory](reports/federated-operator-memory-2026-06-29.md)
+- [Candidate Operator Receipt Binding Memory](reports/candidate-operator-receipt-binding-memory-2026-06-29.md)
+- [Promotion Operator Receipt Binding Memory](reports/promotion-operator-receipt-binding-memory-2026-06-29.md)
+- [Admission Operator Receipt Binding Memory](reports/admission-operator-receipt-binding-memory-2026-06-29.md)
+- [Selector Operator Receipt Binding Memory](reports/selector-operator-receipt-binding-memory-2026-06-29.md)
 - [Runtime Adapter Apply Memory](reports/runtime-adapter-apply-memory-2026-06-27.md)
 - [Sparse Adapter Package Memory](reports/sparse-adapter-package-memory-2026-06-27.md)
 - [Low-Rank Adapter Package Memory](reports/low-rank-adapter-package-memory-2026-06-28.md)
@@ -85,6 +92,14 @@ This local LLM Wiki namespace routes durable memory for the GGUF.MiRust.com Rust
 - [Browser Module Plan Adapter Validation Count Memory](reports/browser-module-plan-adapter-validation-count-memory-2026-06-29.md)
 - [Browser Module Plan Adapter Apply Count Memory](reports/browser-module-plan-adapter-apply-count-memory-2026-06-29.md)
 - [Browser Module Plan Planned Fetch Count Memory](reports/browser-module-plan-planned-fetch-count-memory-2026-06-29.md)
+- [Browser Module Plan Actual Fetch Count Memory](reports/browser-module-plan-actual-fetch-count-memory-2026-06-29.md)
+- [Browser Module Plan Observed Route Set Memory](reports/browser-module-plan-observed-route-set-memory-2026-06-29.md)
+- [Browser Module Plan Actual Module Bytes Memory](reports/browser-module-plan-actual-module-bytes-memory-2026-06-29.md)
+- [Browser Module Plan Actual Module Checksums Memory](reports/browser-module-plan-actual-module-checksums-memory-2026-06-29.md)
+- [Browser Module Plan Route Set Memory](reports/browser-module-plan-route-set-memory-2026-06-29.md)
+- [Browser Module Plan Route Set Version Memory](reports/browser-module-plan-route-set-version-memory-2026-06-29.md)
+- [Browser Module Plan Route Set Algorithm Memory](reports/browser-module-plan-route-set-algorithm-memory-2026-06-29.md)
+- [Browser Module Plan Operator Receipt Memory](reports/browser-module-plan-operator-receipt-memory-2026-06-29.md)
 - [Browser Module Plan KV Cache Memory](reports/browser-module-plan-kv-cache-memory-2026-06-28.md)
 - [Browser Module Plan Adapter Stack Budget Memory](reports/browser-module-plan-adapter-stack-budget-memory-2026-06-28.md)
 - [Browser Module Plan Context Token Memory](reports/browser-module-plan-context-token-memory-2026-06-28.md)
@@ -124,4 +139,4 @@ This local LLM Wiki namespace routes durable memory for the GGUF.MiRust.com Rust
 
 This namespace is a source memory plan for TinyRustLM. Current implementation claims must still be verified through `workspace.uai`, `.uai/test-plan.uai`, source files, and local test output before being repeated publicly.
 
-Latest route: Browser Module Plan Adapter Validation Count Memory implements selector-to-receipt `module_plan_adapter_validation_count=3` binding plus per-step Rust validation-call agreement for generated self-assembly; load `.uai/short-term-memory.uai`, `.uai/long-term-memory.uai`, the 2026-06-28 report intake index, the Browser Selector reports, the Browser Combined Selector reports, the Browser Module Plan reports including adapter validation count, adapter apply count, adapter validation, runtime reset, model release, WASM transfer, WASM heap, WASM export set, KV cache, adapter stack budget, context token limit, tokenizer identity, sampler cap, prompt limit, and fetch count, the Model Breeding reference pages, and the UAIX dogfood note for the current memory map.
+Latest route: Federated Operator Memory records the browser-constrained local-update lane for `federated-candidate` and `validate-federated-candidate`; load `.uai/short-term-memory.uai`, `.uai/long-term-memory.uai`, the Federated, Mutation, and Crossover Operator reports, the Selector, Admission, Promotion, and Candidate Operator Receipt Binding reports, the 2026-06-28 report intake index, the Model Breeding reference pages, the Browser Selector reports, the Browser Combined Selector reports, the Browser Module Plan reports including actual module checksums, actual module bytes, observed route set, actual fetch count, operator receipt, route-set algorithm, route-set version, route set, planned fetch count, adapter validation count, adapter apply count, adapter validation, runtime reset, model release, WASM transfer, WASM heap, WASM export set, KV cache, adapter stack budget, context token limit, tokenizer identity, sampler cap, prompt limit, and fetch count, and the UAIX dogfood note for the current memory map.

@@ -43,7 +43,20 @@ const MODULE_PLAN_EXECUTION_PROFILE: &str = "single-threaded-wasm-local-v1";
 const MODULE_PLAN_FETCH_POLICY: &str = "local-no-store-v1";
 const MODULE_PLAN_ORIGIN_POLICY: &str = "same-origin-loopback-local-v1";
 const MODULE_PLAN_FETCH_COUNT_LIMIT: u64 = 32;
+const MODULE_PLAN_ROUTE_SET_VERSION: &str = "1";
+const MODULE_PLAN_ROUTE_SET_CHECKSUM_ALGORITHM: &str = "tinyrustlm-text-checksum-v1";
 const MODULE_PLAN_ASSEMBLY_EVIDENCE_FILE_COUNT: u64 = 9;
+const MODULE_PLAN_ASSEMBLY_EVIDENCE_FILES: &[&str] = &[
+    "population.ledger",
+    "population.review",
+    "parent-pool.recipe",
+    "sign-merge.operator",
+    "sign-merge.candidate",
+    "sign-merge.promotion",
+    "sign-merge.runtime",
+    "sign-merge.eval",
+    "sign-merge.multi.admission",
+];
 const MODULE_PLAN_WASM_MEMORY_INITIAL_PAGES: u64 = 17;
 const MODULE_PLAN_WASM_EXPORT_SET: &str = "tinyrustlm-generate-v1";
 const MODULE_PLAN_WASM_TRANSFER_STRATEGY: &str = "copy-then-release-v1";
@@ -401,6 +414,7 @@ fn write_bundle_module(
         &module_plan_receipt_path,
         &report,
         &provenance_path,
+        &receipt_path,
         &assembly_receipt_path,
         &adapter_family_receipt_path,
         &bundle_adapter_routes,
@@ -423,6 +437,7 @@ fn write_bundle_module_plan_receipt(
     receipt_path: &Path,
     report: &ValidationReport,
     provenance_manifest_path: &Path,
+    operator_receipt_path: &Path,
     assembly_receipt_path: &Path,
     adapter_family_receipt_path: &Path,
     bundle_adapter_routes: &[BundleAdapterRoute],
@@ -447,6 +462,8 @@ fn write_bundle_module_plan_receipt(
     let assembly_receipt_byte_count = file_byte_count(assembly_receipt_path)?;
     let adapter_family_receipt_byte_count = file_byte_count(adapter_family_receipt_path)?;
     let manifest_checksum = text_file_checksum(provenance_manifest_path)?;
+    let operator_receipt_route = evidence_route(spec, "sign-merge.operator");
+    let operator_receipt_checksum = text_file_checksum(operator_receipt_path)?;
     let stack_indexes = bundle_auto_apply_stack_indexes(bundle_adapter_routes.len());
     let adapter_validation_count = u64::try_from(stack_indexes.len())
         .map_err(|_| invalid("module plan adapter validation count overflow"))?;
@@ -485,6 +502,16 @@ fn write_bundle_module_plan_receipt(
     )?;
     let planned_fetch_count =
         module_plan_planned_fetch_count(module_count, adapter_manifest_fetch_count)?;
+    let route_set_checksum = module_plan_route_set_checksum(
+        spec,
+        &route,
+        &model_path,
+        &manifest_path,
+        &assembly_route.receipt_path,
+        &adapter_family_route.receipt_path,
+        bundle_adapter_routes,
+        &stack_indexes,
+    )?;
 
     let mut text = String::new();
     push_line(&mut text, "tinyrustlm_module_plan_version", "1");
@@ -524,6 +551,27 @@ fn write_bundle_module_plan_receipt(
         &mut text,
         "module_plan_planned_fetch_count",
         &planned_fetch_count.to_string(),
+    );
+    push_line(
+        &mut text,
+        "module_plan_route_set_version",
+        MODULE_PLAN_ROUTE_SET_VERSION,
+    );
+    push_line(
+        &mut text,
+        "module_plan_route_set_checksum_algorithm",
+        MODULE_PLAN_ROUTE_SET_CHECKSUM_ALGORITHM,
+    );
+    push_line(
+        &mut text,
+        "module_plan_route_set_checksum",
+        &route_set_checksum,
+    );
+    push_line(&mut text, "operator_receipt_path", &operator_receipt_route);
+    push_line(
+        &mut text,
+        "operator_receipt_checksum",
+        &operator_receipt_checksum,
     );
     // The page count mirrors the runtime's exported linear-memory size before init.
     push_line(
@@ -794,6 +842,11 @@ fn write_bundle_module_plan_receipt(
         origin_policy: MODULE_PLAN_ORIGIN_POLICY.to_string(),
         fetch_count_limit: MODULE_PLAN_FETCH_COUNT_LIMIT,
         planned_fetch_count,
+        route_set_version: MODULE_PLAN_ROUTE_SET_VERSION.to_string(),
+        route_set_checksum_algorithm: MODULE_PLAN_ROUTE_SET_CHECKSUM_ALGORITHM.to_string(),
+        route_set_checksum,
+        operator_receipt_path: operator_receipt_route,
+        operator_receipt_checksum,
         wasm_memory_initial_pages: MODULE_PLAN_WASM_MEMORY_INITIAL_PAGES,
         wasm_export_set: MODULE_PLAN_WASM_EXPORT_SET.to_string(),
         wasm_transfer_strategy: MODULE_PLAN_WASM_TRANSFER_STRATEGY.to_string(),
@@ -860,6 +913,81 @@ fn module_plan_planned_fetch_count(
         .and_then(|value| value.checked_add(MODULE_PLAN_ASSEMBLY_EVIDENCE_FILE_COUNT))
         .and_then(|value| value.checked_add(adapter_manifest_fetch_count))
         .ok_or_else(|| invalid("module plan planned fetch count overflow"))
+}
+
+fn module_plan_route_set_checksum(
+    spec: &BundleSpec,
+    module_plan_path: &str,
+    model_path: &str,
+    manifest_path: &str,
+    assembly_path: &str,
+    adapter_family_path: &str,
+    bundle_adapter_routes: &[BundleAdapterRoute],
+    stack_indexes: &[usize],
+) -> io::Result<String> {
+    // Mirrors the browser's generated self-assembly fetch classes in route order.
+    let evidence_count = u64::try_from(MODULE_PLAN_ASSEMBLY_EVIDENCE_FILES.len())
+        .map_err(|_| invalid("module plan route set evidence count overflow"))?;
+    if evidence_count != MODULE_PLAN_ASSEMBLY_EVIDENCE_FILE_COUNT {
+        return Err(invalid("module plan route set evidence count mismatch"));
+    }
+    let mut routes = Vec::new();
+    module_plan_push_route(&mut routes, "module-plan-receipt", module_plan_path);
+    module_plan_push_route(&mut routes, "model", model_path);
+    module_plan_push_route(&mut routes, "model-manifest", manifest_path);
+    module_plan_push_route(&mut routes, "assembly-receipt", assembly_path);
+    for file_name in MODULE_PLAN_ASSEMBLY_EVIDENCE_FILES {
+        module_plan_push_route(
+            &mut routes,
+            "assembly-evidence",
+            &evidence_route(spec, file_name),
+        );
+    }
+    module_plan_push_route(&mut routes, "adapter-family-receipt", adapter_family_path);
+    for bundle_route in bundle_adapter_routes {
+        module_plan_push_route(
+            &mut routes,
+            "adapter-manifest",
+            &bundle_route.route.manifest_path,
+        );
+    }
+    for adapter_index in stack_indexes {
+        let Some(bundle_route) = bundle_adapter_routes.get(*adapter_index) else {
+            return Err(invalid("module plan route set adapter index is invalid"));
+        };
+        module_plan_push_route(
+            &mut routes,
+            "adapter-stack-artifact",
+            &bundle_route.route.adapter_path,
+        );
+    }
+    Ok(module_plan_checksum_for_routes(&routes))
+}
+
+fn module_plan_push_route(routes: &mut Vec<(String, String)>, kind: &str, path: &str) {
+    // Stores route metadata as owned text so generated evidence paths remain stable.
+    routes.push((kind.to_string(), path.to_string()));
+}
+
+fn module_plan_checksum_for_routes(routes: &[(String, String)]) -> String {
+    // Hashes the canonical route-list text used by selector and browser validation.
+    let mut text = String::new();
+    push_line(
+        &mut text,
+        "route_set_version",
+        MODULE_PLAN_ROUTE_SET_VERSION,
+    );
+    push_line(
+        &mut text,
+        "route_set_checksum_algorithm",
+        MODULE_PLAN_ROUTE_SET_CHECKSUM_ALGORITHM,
+    );
+    push_line(&mut text, "route_count", &routes.len().to_string());
+    for (index, (kind, path)) in routes.iter().enumerate() {
+        push_line(&mut text, &format!("route.{index}.kind"), kind);
+        push_line(&mut text, &format!("route.{index}.path"), path);
+    }
+    hex64(provenance::text_checksum(text.as_bytes()))
 }
 
 // Builds the browser-local assembly envelope from exact staged modules plus runtime scratch.
@@ -1507,6 +1635,9 @@ mod tests {
         )
         .unwrap()
         .len();
+        let operator_receipt_checksum =
+            text_file_checksum(&root.join("evidence").join(id).join("sign-merge.operator"))
+                .unwrap();
         let family_adapter_bytes =
             fs::metadata(root.join("models").join(format!("{id}-family.adp1")))
                 .unwrap()
@@ -1543,6 +1674,16 @@ mod tests {
         assert!(registry.contains("module_plan_origin_policy=same-origin-loopback-local-v1"));
         assert!(registry.contains("module_plan_fetch_count_limit=32"));
         assert!(registry.contains("module_plan_planned_fetch_count=21"));
+        assert!(registry.contains("module_plan_route_set_version=1"));
+        assert!(registry
+            .contains("module_plan_route_set_checksum_algorithm=tinyrustlm-text-checksum-v1"));
+        assert!(registry.contains("module_plan_route_set_checksum=0x"));
+        assert!(registry.contains(&format!(
+            "module_plan_operator_receipt_path=../evidence/{id}/sign-merge.operator"
+        )));
+        assert!(registry.contains(&format!(
+            "module_plan_operator_receipt_checksum={operator_receipt_checksum}"
+        )));
         assert!(registry.contains("module_plan_wasm_memory_initial_pages=17"));
         assert!(registry.contains("module_plan_wasm_export_set=tinyrustlm-generate-v1"));
         assert!(registry.contains("module_plan_wasm_transfer_strategy=copy-then-release-v1"));
@@ -1591,6 +1732,16 @@ mod tests {
         assert!(module_plan.contains("module_plan_origin_policy=same-origin-loopback-local-v1"));
         assert!(module_plan.contains("module_plan_fetch_count_limit=32"));
         assert!(module_plan.contains("module_plan_planned_fetch_count=21"));
+        assert!(module_plan.contains("module_plan_route_set_version=1"));
+        assert!(module_plan
+            .contains("module_plan_route_set_checksum_algorithm=tinyrustlm-text-checksum-v1"));
+        assert!(module_plan.contains("module_plan_route_set_checksum=0x"));
+        assert!(module_plan.contains(&format!(
+            "operator_receipt_path=../evidence/{id}/sign-merge.operator"
+        )));
+        assert!(module_plan.contains(&format!(
+            "operator_receipt_checksum={operator_receipt_checksum}"
+        )));
         assert!(module_plan.contains("module_plan_wasm_memory_initial_pages=17"));
         assert!(module_plan.contains("module_plan_wasm_export_set=tinyrustlm-generate-v1"));
         assert!(module_plan.contains("module_plan_wasm_transfer_strategy=copy-then-release-v1"));

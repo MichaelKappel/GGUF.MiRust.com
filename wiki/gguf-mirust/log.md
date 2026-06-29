@@ -3,7 +3,7 @@ title: GGUF.MiRust.com LLM Wiki Log
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/log/
 status: planned_pending_publication
-reviewed_utc: 2026-06-29T03:34:05Z
+reviewed_utc: 2026-06-29T13:45:00Z
 ---
 
 # LLM Wiki Log
@@ -41,6 +41,17 @@ reviewed_utc: 2026-06-29T03:34:05Z
 
 ## 2026-06-29
 
+- Added browser Module Plan Actual Module Checksums proof so generated q4_0/q8_0/f32 self-assembly records accepted module checksums, renders Actual Module Checksums, and gates Ready on observed checksums matching receipt module checksum rows.
+- Added offline federated/local-update operator receipts so `federated-candidate` writes compatibility-bound base/local-update `.slm` candidates with `local_update_weight_ppm`, local-update counts, raw and weighted delta checksums, while `validate-federated-candidate` recomputes candidate bytes and receipt text before downstream manifests.
+- Added `module-plan-payload-checksum-drift` so a coherent family ADP1 payload checksum rewrite stops at the stale module-plan checksum row before generated model or adapter routes.
+- Added browser Module Plan Actual Module Bytes proof so generated q4_0/q8_0/f32 self-assembly records accepted module byte lengths, renders Actual Module Bytes, and gates Ready on observed totals matching receipt module byte rows.
+- Added browser Module Plan operator receipt binding so generated selector entries, `.module-plan.receipt` files, assembly receipts, and fetched `sign-merge.operator` evidence agree before generated model bytes or adapter routes proceed.
+- Added selector operator receipt binding so receipt-bound selector admissions emit `entry.N.operator_receipt_*` fields in `selector-registry`, validation rejects copied-field drift, and browser Model Provenance renders an Operator row.
+- Added admission operator receipt carry-forward so two-parent `admission-record` and `validate-admission` can preserve and recompute promotion receipt fields before selector registry intake.
+- Added promotion operator receipt carry-forward so two-parent `promotion-template` and `validate-promotion` can preserve and recompute receipt-bound candidate fields before runtime smoke and eval gates.
+- Added offline deterministic direct-parameter crossover so `crossover-candidate` writes seed-plus-keep `.slm` candidates with receipt-bound selection counts, densities, and mask checksum, while `validate-crossover-candidate` recomputes candidate bytes and receipt text before downstream manifests.
+- Added offline deterministic bounded mutation so `mutation-candidate` writes seed/rate/magnitude `.slm` candidates with receipt-bound reference scaling, selection checksum, and delta checksum, while `validate-mutation-candidate` recomputes candidate bytes and receipt text before downstream manifests.
+- Added browser Module Plan route-set checksum algorithm proof so generated selector registries and `.module-plan.receipt` files carry `module_plan_route_set_checksum_algorithm=tinyrustlm-text-checksum-v1`, the UI renders Route Hash, and generated smokes prove algorithm drift stops before generated model bytes.
 - Added browser Module Plan adapter validation-count proof so generated selector registries and `.module-plan.receipt` files carry `module_plan_adapter_validation_count=3`, the UI renders Validate Count, and generated smokes prove exactly three Rust validation calls before the three adapter applies.
 - Added browser adapter-stack self assembly so generated adapter-family receipts declare ordered stack members, selector registries carry stack fields, and browser smoke proves family ADP1 plus sparse ASP1 apply before generation.
 - Added browser text-sidecar budget contract fields to selector registries so generated registries declare selector, manifest, receipt, and evidence text envelopes, Rust validates them, and browser intake requires exact local matches before accepting entries.
@@ -125,6 +136,11 @@ reviewed_utc: 2026-06-29T03:34:05Z
 
 ## 2026-06-29
 
+- Added candidate operator receipt binding so `candidate-manifest` and `validate-candidate` can optionally bind a supplied operator receipt by path, checksum, operator id/kind, candidate bytes, and candidate checksum; focused tests, CLI proof, full slm_pack tests, and workspace tests passed.
+- Added browser module-plan route-set version proof so generated selector entries and `.module-plan.receipt` files carry `module_plan_route_set_version=1`, the Module Plan panel renders `Route Version`, and `module-plan-route-set-version-drift` stops before generated model bytes.
 - Added browser module-plan adapter-validation proof so generated selector entries and `.module-plan.receipt` files carry `module_plan_adapter_validation_strategy=rust-validate-before-apply-v1`, the Module Plan panel renders `Validate`, `module-plan-adapter-validation-drift` stops before generated model bytes, and `combined-selector-assembly` proves `validate_adapter_delta` before q4_0/q8_0/f32 adapter apply.
 - Added browser module-plan adapter apply-count proof so generated selector entries and `.module-plan.receipt` files carry `module_plan_adapter_apply_count=3`, the Module Plan panel renders `Apply Count`, app.js checks runtime `adapter_apply_count`, and `module-plan-adapter-apply-count-drift` stops before generated model bytes.
 - Added browser module-plan planned-fetch-count proof so generated selector entries and `.module-plan.receipt` files carry `module_plan_planned_fetch_count=21`, the Module Plan panel renders `Plan Fetches`, and `module-plan-planned-fetch-count-drift` stops before generated model bytes.
+- Added browser-owned module-plan actual fetch-count proof so the app counts accepted generated self-assembly route fetches, the Module Plan panel renders `Actual Fetches`, and generated Ready requires the observed count to match the planned count.
+- Added browser-observed module-plan route-set proof so the app records accepted generated route `{kind,path}` entries, the Module Plan panel renders `Actual Route Set`, and generated Ready requires the observed checksum to match the declared Route Set.
+- Added browser module-plan route-set proof so generated selector entries and `.module-plan.receipt` files carry `module_plan_route_set_checksum`, the Module Plan panel renders `Route Set`, and `module-plan-route-set-drift` stops before generated model bytes.

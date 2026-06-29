@@ -22,6 +22,7 @@ const PROMOTION_DECISION: &str = "accepted-for-browser-selector";
 const BROWSER_SELECTOR_STATUS: &str = "admitted";
 const PUBLIC_CLAIM_STATUS: &str = "bound-to-eval-scope";
 const REQUIRED_NEXT_GATE: &str = "browser-selector-loads-only-admission-record-artifacts";
+const OPERATOR_RECEIPT_PREFIX: &str = "operator_receipt_";
 
 const PROMOTION_KEYS: [&str; 8] = [
     "candidate_id",
@@ -48,6 +49,16 @@ const CANDIDATE_KEYS: [&str; 11] = [
     "candidate_tensor_layout_checksum",
 ];
 
+const OPERATOR_RECEIPT_KEYS: [&str; 7] = [
+    "operator_receipt_status",
+    "operator_receipt_path",
+    "operator_receipt_checksum",
+    "operator_receipt_operator_id",
+    "operator_receipt_operator_kind",
+    "operator_receipt_candidate_slm_checksum",
+    "operator_receipt_candidate_artifact_bytes",
+];
+
 /// Default selector id used when the admission CLI caller omits one.
 pub(crate) const DEFAULT_ADMISSION_SELECTOR_ID: &str = DEFAULT_SELECTOR_ID;
 
@@ -68,6 +79,7 @@ pub(crate) fn write_record_path(
     eval_manifest: &Path,
     output: &Path,
     selector_id: &str,
+    operator_receipt: Option<&Path>,
 ) -> io::Result<()> {
     let compatibility_text = fs::read_to_string(compatibility)?;
     let lineage_text = fs::read_to_string(lineage_manifest)?;
@@ -77,7 +89,11 @@ pub(crate) fn write_record_path(
     let provenance_text = fs::read_to_string(provenance_manifest)?;
     let runtime_smoke_text = fs::read_to_string(runtime_smoke)?;
     let eval_text = fs::read_to_string(eval_manifest)?;
-    let admission = build_record_text(
+    let operator_receipt_text = read_operator_receipt_binding(operator_receipt)?;
+    let operator_receipt_binding = operator_receipt_text
+        .as_ref()
+        .map(|(path, text)| (path.as_str(), text.as_str()));
+    let admission = build_record_text_with_operator_receipt_text(
         &compatibility_text,
         &lineage_text,
         &candidate_bytes,
@@ -88,6 +104,7 @@ pub(crate) fn write_record_path(
         &runtime_smoke_text,
         &eval_text,
         selector_id,
+        operator_receipt_binding,
     )?;
     if let Some(parent) = output.parent() {
         fs::create_dir_all(parent)?;
@@ -111,6 +128,7 @@ pub(crate) fn validate_record_path(
     runtime_smoke: &Path,
     eval_manifest: &Path,
     admission: &Path,
+    operator_receipt: Option<&Path>,
 ) -> io::Result<()> {
     let compatibility_text = fs::read_to_string(compatibility)?;
     let lineage_text = fs::read_to_string(lineage_manifest)?;
@@ -121,7 +139,11 @@ pub(crate) fn validate_record_path(
     let runtime_smoke_text = fs::read_to_string(runtime_smoke)?;
     let eval_text = fs::read_to_string(eval_manifest)?;
     let admission_text = fs::read_to_string(admission)?;
-    validate_record_text(
+    let operator_receipt_text = read_operator_receipt_binding(operator_receipt)?;
+    let operator_receipt_binding = operator_receipt_text
+        .as_ref()
+        .map(|(path, text)| (path.as_str(), text.as_str()));
+    validate_record_text_with_operator_receipt_text(
         &compatibility_text,
         &lineage_text,
         &candidate_bytes,
@@ -132,6 +154,7 @@ pub(crate) fn validate_record_path(
         &runtime_smoke_text,
         &eval_text,
         &admission_text,
+        operator_receipt_binding,
     )?;
     println!("SLM selector admission validation: PASS");
     println!("candidate: {}", candidate_slm.display());
@@ -151,8 +174,7 @@ pub(crate) fn build_record_text(
     eval_text: &str,
     selector_id: &str,
 ) -> io::Result<String> {
-    validate_slug(selector_id, "selector_id")?;
-    let evidence = validate_evidence(
+    build_record_text_with_operator_receipt_text(
         compatibility_text,
         lineage_text,
         candidate_bytes,
@@ -162,6 +184,37 @@ pub(crate) fn build_record_text(
         provenance_text,
         runtime_smoke_text,
         eval_text,
+        selector_id,
+        None,
+    )
+}
+
+/// Builds selector admission text while optionally preserving two-parent producer receipt provenance.
+pub(crate) fn build_record_text_with_operator_receipt_text(
+    compatibility_text: &str,
+    lineage_text: &str,
+    candidate_bytes: &[u8],
+    candidate_path: &str,
+    candidate_manifest_text: &str,
+    promotion_text: &str,
+    provenance_text: &str,
+    runtime_smoke_text: &str,
+    eval_text: &str,
+    selector_id: &str,
+    operator_receipt: Option<(&str, &str)>,
+) -> io::Result<String> {
+    validate_slug(selector_id, "selector_id")?;
+    let evidence = validate_evidence_with_operator_receipt_text(
+        compatibility_text,
+        lineage_text,
+        candidate_bytes,
+        candidate_path,
+        candidate_manifest_text,
+        promotion_text,
+        provenance_text,
+        runtime_smoke_text,
+        eval_text,
+        operator_receipt,
     )?;
 
     let mut text = String::new();
@@ -186,6 +239,7 @@ pub(crate) fn build_record_text(
         "promotion_manifest_checksum",
         &hex64(lineage::text_checksum(promotion_text.as_bytes())),
     );
+    push_operator_receipt_lines(&mut text, &evidence.promotion)?;
     push_line(
         &mut text,
         "provenance_manifest_checksum",
@@ -253,6 +307,7 @@ pub(crate) fn build_record_text(
     Ok(text)
 }
 
+#[allow(dead_code)]
 fn validate_record_text(
     compatibility_text: &str,
     lineage_text: &str,
@@ -265,7 +320,7 @@ fn validate_record_text(
     eval_text: &str,
     admission_text: &str,
 ) -> io::Result<()> {
-    let evidence = validate_evidence(
+    validate_record_text_with_operator_receipt_text(
         compatibility_text,
         lineage_text,
         candidate_bytes,
@@ -275,6 +330,36 @@ fn validate_record_text(
         provenance_text,
         runtime_smoke_text,
         eval_text,
+        admission_text,
+        None,
+    )
+}
+
+/// Validates selector admission text while recomputing optional producer receipt provenance.
+pub(crate) fn validate_record_text_with_operator_receipt_text(
+    compatibility_text: &str,
+    lineage_text: &str,
+    candidate_bytes: &[u8],
+    candidate_path: &str,
+    candidate_manifest_text: &str,
+    promotion_text: &str,
+    provenance_text: &str,
+    runtime_smoke_text: &str,
+    eval_text: &str,
+    admission_text: &str,
+    operator_receipt: Option<(&str, &str)>,
+) -> io::Result<()> {
+    let evidence = validate_evidence_with_operator_receipt_text(
+        compatibility_text,
+        lineage_text,
+        candidate_bytes,
+        candidate_path,
+        candidate_manifest_text,
+        promotion_text,
+        provenance_text,
+        runtime_smoke_text,
+        eval_text,
+        operator_receipt,
     )?;
     let admission = parse_manifest(admission_text, "admission")?;
     require_equal(
@@ -298,6 +383,7 @@ fn validate_record_text(
         "promotion_manifest_checksum",
         &hex64(lineage::text_checksum(promotion_text.as_bytes())),
     )?;
+    require_operator_receipt_lines(&evidence.promotion, &admission)?;
     require_equal(
         &admission,
         "provenance_manifest_checksum",
@@ -394,6 +480,7 @@ pub(crate) fn validate_record_summary_text(
     for key in CANDIDATE_KEYS {
         require_key(&admission, key)?;
     }
+    validate_operator_receipt_summary(&admission)?;
     require_positive_usize(&admission, "candidate_artifact_bytes")?;
     require_positive_usize(&admission, "candidate_slm_version")?;
     require_hex64(&admission, "candidate_slm_checksum")?;
@@ -426,7 +513,8 @@ pub(crate) fn validate_record_summary_text(
     Ok(admission)
 }
 
-fn validate_evidence(
+// Recomputes every upstream admission prerequisite, including optional operator receipt binding.
+fn validate_evidence_with_operator_receipt_text(
     compatibility_text: &str,
     lineage_text: &str,
     candidate_bytes: &[u8],
@@ -436,21 +524,24 @@ fn validate_evidence(
     provenance_text: &str,
     runtime_smoke_text: &str,
     eval_text: &str,
+    operator_receipt: Option<(&str, &str)>,
 ) -> io::Result<Evidence> {
-    candidate::validate_manifest_text(
+    candidate::validate_manifest_text_with_operator_receipt_text(
         compatibility_text,
         lineage_text,
         candidate_bytes,
         candidate_path,
         candidate_manifest_text,
+        operator_receipt,
     )?;
-    promotion::validate_text(
+    promotion::validate_text_with_operator_receipt_text(
         compatibility_text,
         lineage_text,
         candidate_bytes,
         candidate_path,
         candidate_manifest_text,
         promotion_text,
+        operator_receipt,
     )?;
     let report = slm_validate::validate_bytes(candidate_bytes, candidate_path)?;
     let runtime_smoke =
@@ -463,6 +554,69 @@ fn validate_evidence(
     require_equal(&eval, "task_eval_status", EVAL_STATUS)?;
     require_equal(&eval, "cases_failed", "0")?;
     Ok(Evidence { promotion, eval })
+}
+
+// Reads an optional operator receipt once while preserving its display path for validation.
+fn read_operator_receipt_binding(
+    operator_receipt: Option<&Path>,
+) -> io::Result<Option<(String, String)>> {
+    operator_receipt
+        .map(|path| {
+            let text = fs::read_to_string(path)?;
+            Ok((path.display().to_string(), text))
+        })
+        .transpose()
+}
+
+fn push_operator_receipt_lines(
+    text: &mut String,
+    promotion: &HashMap<String, String>,
+) -> io::Result<()> {
+    if promotion.contains_key("operator_receipt_status") {
+        for key in OPERATOR_RECEIPT_KEYS {
+            push_line(text, key, require_key(promotion, key)?);
+        }
+    }
+    Ok(())
+}
+
+fn require_operator_receipt_lines(
+    promotion: &HashMap<String, String>,
+    admission: &HashMap<String, String>,
+) -> io::Result<()> {
+    if promotion.contains_key("operator_receipt_status") {
+        for key in OPERATOR_RECEIPT_KEYS {
+            require_equal(admission, key, require_key(promotion, key)?)?;
+        }
+        return Ok(());
+    }
+    reject_unbound_operator_receipt_fields(admission)
+}
+
+fn validate_operator_receipt_summary(admission: &HashMap<String, String>) -> io::Result<()> {
+    if admission.contains_key("operator_receipt_status") {
+        require_equal(admission, "operator_receipt_status", "receipt-bound")?;
+        require_key(admission, "operator_receipt_path")?;
+        require_hex64(admission, "operator_receipt_checksum")?;
+        require_key(admission, "operator_receipt_operator_id")?;
+        require_key(admission, "operator_receipt_operator_kind")?;
+        require_hex64(admission, "operator_receipt_candidate_slm_checksum")?;
+        require_positive_usize(admission, "operator_receipt_candidate_artifact_bytes")?;
+        return Ok(());
+    }
+    reject_unbound_operator_receipt_fields(admission)
+}
+
+fn reject_unbound_operator_receipt_fields(fields: &HashMap<String, String>) -> io::Result<()> {
+    if let Some(key) = fields
+        .keys()
+        .find(|key| key.starts_with(OPERATOR_RECEIPT_PREFIX))
+    {
+        return Err(invalid(&format!(
+            "admission has operator receipt field {key} without a bound promotion receipt"
+        )));
+    }
+    Ok(())
 }
 
 fn parse_manifest(text: &str, label: &str) -> io::Result<HashMap<String, String>> {
@@ -592,6 +746,9 @@ mod tests {
     use crate::compatibility;
     use crate::tensor_writer::{tiny_fixture_tensors_with_dtype, ModelShape, DTYPE_Q8_0};
     use crate::tokenizer_writer::ByteTokenizerSection;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
     fn writes_and_validates_selector_admission_record() {
@@ -615,6 +772,154 @@ mod tests {
         assert!(admission.contains("eval_case_evidence_checksum=0x"));
         assert!(admission.contains("browser_selector_status=admitted"));
         assert!(admission.contains("public_claim_status=bound-to-eval-scope"));
+    }
+
+    #[test]
+    fn writes_and_validates_operator_receipt_bound_admission_record() {
+        let fixture = AdmissionFixture::new();
+        let receipt = operator_receipt_text(&fixture.lineage, &fixture.candidate, "candidate.slm");
+        let (candidate_manifest, promotion) = receipt_bound_candidate_and_promotion(
+            &fixture,
+            "candidate.slm",
+            "candidate.operator",
+            &receipt,
+        );
+
+        let admission = build_record_text_with_operator_receipt_text(
+            &fixture.compatibility,
+            &fixture.lineage,
+            &fixture.candidate,
+            "candidate.slm",
+            &candidate_manifest,
+            &promotion,
+            &fixture.provenance_manifest,
+            &fixture.runtime_smoke,
+            &fixture.eval,
+            DEFAULT_SELECTOR_ID,
+            Some(("candidate.operator", &receipt)),
+        )
+        .unwrap();
+
+        validate_record_text_with_operator_receipt_text(
+            &fixture.compatibility,
+            &fixture.lineage,
+            &fixture.candidate,
+            "candidate.slm",
+            &candidate_manifest,
+            &promotion,
+            &fixture.provenance_manifest,
+            &fixture.runtime_smoke,
+            &fixture.eval,
+            &admission,
+            Some(("candidate.operator", &receipt)),
+        )
+        .unwrap();
+        validate_record_summary_text(&admission).unwrap();
+        assert!(admission.contains("operator_receipt_status=receipt-bound"));
+        assert!(admission.contains(&format!(
+            "operator_receipt_checksum={}",
+            hex64(lineage::text_checksum(receipt.as_bytes()))
+        )));
+        assert!(admission
+            .contains("operator_receipt_operator_kind=deterministic-bounded-parameter-mutation"));
+    }
+
+    #[test]
+    fn path_functions_accept_bound_operator_receipt_input() {
+        let dir = unique_temp_dir("admission-operator-receipt");
+        fs::create_dir_all(&dir).unwrap();
+        let candidate = tiny_fixture_q8_bytes();
+        let compatibility_path = dir.join("parents.compat");
+        let lineage_path = dir.join("candidate.lineage");
+        let candidate_path = dir.join("candidate.slm");
+        let receipt_path = dir.join("candidate.operator");
+        let candidate_manifest_path = dir.join("candidate.candidate");
+        let promotion_path = dir.join("candidate.promotion");
+        let provenance_path = dir.join("candidate.manifest");
+        let runtime_path = dir.join("candidate.runtime");
+        let eval_path = dir.join("candidate.eval");
+        let admission_path = dir.join("candidate.admission");
+
+        let compatibility = compatibility::compatibility_text_for_bytes(
+            &candidate,
+            "left.slm",
+            &candidate,
+            "right.slm",
+        )
+        .unwrap();
+        let lineage =
+            lineage::build_template_text(&compatibility, "tiny-q8-candidate", "operator-a", "fit")
+                .unwrap();
+        let receipt =
+            operator_receipt_text(&lineage, &candidate, &candidate_path.display().to_string());
+        fs::write(&compatibility_path, compatibility).unwrap();
+        fs::write(&lineage_path, lineage).unwrap();
+        fs::write(&candidate_path, &candidate).unwrap();
+        fs::write(&receipt_path, receipt).unwrap();
+        candidate::write_manifest_path(
+            &compatibility_path,
+            &lineage_path,
+            &candidate_path,
+            &candidate_manifest_path,
+            Some(&receipt_path),
+        )
+        .unwrap();
+        promotion::write_template_path(
+            &compatibility_path,
+            &lineage_path,
+            &candidate_path,
+            &candidate_manifest_path,
+            &promotion_path,
+            "local-smoke-runner",
+            promotion::DEFAULT_PROMOTION_SCOPE,
+            Some(&receipt_path),
+        )
+        .unwrap();
+
+        let report =
+            slm_validate::validate_bytes(&candidate, &candidate_path.display().to_string())
+                .unwrap();
+        let provenance_manifest =
+            provenance::build_manifest_text(&report, "converted-trained").unwrap();
+        let manifest_fields = provenance::parse_manifest(&provenance_manifest).unwrap();
+        let runtime_smoke =
+            provenance::build_runtime_smoke_text(&report, &provenance_manifest, &manifest_fields)
+                .unwrap();
+        let eval = passing_eval_text(&report, &provenance_manifest);
+        fs::write(&provenance_path, provenance_manifest).unwrap();
+        fs::write(&runtime_path, runtime_smoke).unwrap();
+        fs::write(&eval_path, eval).unwrap();
+
+        write_record_path(
+            &compatibility_path,
+            &lineage_path,
+            &candidate_path,
+            &candidate_manifest_path,
+            &promotion_path,
+            &provenance_path,
+            &runtime_path,
+            &eval_path,
+            &admission_path,
+            DEFAULT_SELECTOR_ID,
+            Some(&receipt_path),
+        )
+        .unwrap();
+        validate_record_path(
+            &compatibility_path,
+            &lineage_path,
+            &candidate_path,
+            &candidate_manifest_path,
+            &promotion_path,
+            &provenance_path,
+            &runtime_path,
+            &eval_path,
+            &admission_path,
+            Some(&receipt_path),
+        )
+        .unwrap();
+        let admission = fs::read_to_string(&admission_path).unwrap();
+        assert!(admission.contains(&format!("operator_receipt_path={}", receipt_path.display())));
+        fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
@@ -642,6 +947,98 @@ mod tests {
 
         assert_eq!(error.kind(), io::ErrorKind::InvalidData);
         assert!(error.to_string().contains("runtime_smoke_decision"));
+    }
+
+    #[test]
+    fn validation_rejects_bound_admission_without_operator_receipt_input() {
+        let fixture = AdmissionFixture::new();
+        let receipt = operator_receipt_text(&fixture.lineage, &fixture.candidate, "candidate.slm");
+        let (candidate_manifest, promotion) = receipt_bound_candidate_and_promotion(
+            &fixture,
+            "candidate.slm",
+            "candidate.operator",
+            &receipt,
+        );
+        let admission = build_record_text_with_operator_receipt_text(
+            &fixture.compatibility,
+            &fixture.lineage,
+            &fixture.candidate,
+            "candidate.slm",
+            &candidate_manifest,
+            &promotion,
+            &fixture.provenance_manifest,
+            &fixture.runtime_smoke,
+            &fixture.eval,
+            DEFAULT_SELECTOR_ID,
+            Some(("candidate.operator", &receipt)),
+        )
+        .unwrap();
+
+        let error = validate_record_text(
+            &fixture.compatibility,
+            &fixture.lineage,
+            &fixture.candidate,
+            "candidate.slm",
+            &candidate_manifest,
+            &promotion,
+            &fixture.provenance_manifest,
+            &fixture.runtime_smoke,
+            &fixture.eval,
+            &admission,
+        )
+        .unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("operator receipt binding"));
+    }
+
+    #[test]
+    fn validation_rejects_operator_receipt_admission_checksum_drift() {
+        let fixture = AdmissionFixture::new();
+        let receipt = operator_receipt_text(&fixture.lineage, &fixture.candidate, "candidate.slm");
+        let expected_checksum = hex64(lineage::text_checksum(receipt.as_bytes()));
+        let (candidate_manifest, promotion) = receipt_bound_candidate_and_promotion(
+            &fixture,
+            "candidate.slm",
+            "candidate.operator",
+            &receipt,
+        );
+        let admission = build_record_text_with_operator_receipt_text(
+            &fixture.compatibility,
+            &fixture.lineage,
+            &fixture.candidate,
+            "candidate.slm",
+            &candidate_manifest,
+            &promotion,
+            &fixture.provenance_manifest,
+            &fixture.runtime_smoke,
+            &fixture.eval,
+            DEFAULT_SELECTOR_ID,
+            Some(("candidate.operator", &receipt)),
+        )
+        .unwrap();
+        let drifted_admission = admission.replace(
+            &format!("operator_receipt_checksum={expected_checksum}"),
+            "operator_receipt_checksum=0x0000000000000000",
+        );
+
+        let error = validate_record_text_with_operator_receipt_text(
+            &fixture.compatibility,
+            &fixture.lineage,
+            &fixture.candidate,
+            "candidate.slm",
+            &candidate_manifest,
+            &promotion,
+            &fixture.provenance_manifest,
+            &fixture.runtime_smoke,
+            &fixture.eval,
+            &drifted_admission,
+            Some(("candidate.operator", &receipt)),
+        )
+        .unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("operator_receipt_checksum"));
     }
 
     #[test]
@@ -861,6 +1258,82 @@ mod tests {
         push_line(&mut text, "case.0.actual", "e");
         push_line(&mut text, "case.0.error", "ok");
         text
+    }
+
+    fn receipt_bound_candidate_and_promotion(
+        fixture: &AdmissionFixture,
+        candidate_path: &str,
+        receipt_path: &str,
+        receipt: &str,
+    ) -> (String, String) {
+        let candidate_manifest = candidate::build_manifest_text_with_operator_receipt_text(
+            &fixture.compatibility,
+            &fixture.lineage,
+            &fixture.candidate,
+            candidate_path,
+            Some((receipt_path, receipt)),
+        )
+        .unwrap();
+        let promotion = promotion::build_template_text_with_operator_receipt_text(
+            &fixture.compatibility,
+            &fixture.lineage,
+            &fixture.candidate,
+            candidate_path,
+            &candidate_manifest,
+            "local-smoke-runner",
+            promotion::DEFAULT_PROMOTION_SCOPE,
+            Some((receipt_path, receipt)),
+        )
+        .unwrap();
+        (candidate_manifest, promotion)
+    }
+
+    fn operator_receipt_text(lineage_text: &str, candidate: &[u8], candidate_path: &str) -> String {
+        let lineage_fields = parse_manifest(lineage_text, "lineage").unwrap();
+        let report = slm_validate::validate_bytes(candidate, candidate_path).unwrap();
+        let mut text = String::new();
+        push_line(&mut text, "tinyrustlm_operator_receipt_version", "1");
+        push_line(
+            &mut text,
+            "operator_kind",
+            "deterministic-bounded-parameter-mutation",
+        );
+        push_line(&mut text, "operator_status", "operator-output-written");
+        push_line(
+            &mut text,
+            "candidate_id",
+            require_key(&lineage_fields, "candidate_id").unwrap(),
+        );
+        push_line(
+            &mut text,
+            "operator_id",
+            require_key(&lineage_fields, "operator_id").unwrap(),
+        );
+        push_line(&mut text, "candidate_artifact_path", report.path());
+        push_line(
+            &mut text,
+            "candidate_artifact_bytes",
+            &report.file_bytes().to_string(),
+        );
+        push_line(
+            &mut text,
+            "candidate_slm_checksum",
+            &hex64(report.checksum()),
+        );
+        push_line(
+            &mut text,
+            "required_next_gate",
+            "candidate-manifest-plus-promotion-plus-admission",
+        );
+        text
+    }
+
+    fn unique_temp_dir(label: &str) -> PathBuf {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!("tinyrustlm-admission-{label}-{nonce}"))
     }
 
     fn tiny_fixture_q8_bytes() -> Vec<u8> {

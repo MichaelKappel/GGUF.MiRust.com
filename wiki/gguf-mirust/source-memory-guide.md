@@ -3,7 +3,7 @@ title: GGUF.MiRust.com Source Memory Guide
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/source-memory-guide/
 status: planned_pending_publication
-reviewed_utc: 2026-06-29T03:34:05Z
+reviewed_utc: 2026-06-29T13:45:00Z
 ---
 
 # GGUF.MiRust.com Source Memory Guide
@@ -23,6 +23,20 @@ Report-derived long-term memory lives under `wiki/gguf-mirust/reports/`. Start w
 UAIX File Handoff strategy is recorded in `docs/dogfood/uaix-file-handoff-memory-strategy-2026-06-26.md`. Current report pages are represented in `.uai/long-term-memory.uai`; `.uai/short-term-memory.uai` tells agents which report, research, dogfood, and pointer-ledger routes to open now.
 
 For browser-served model-breeding evidence, load `reports/assembly-receipt-memory-2026-06-27.md` when selector assembly receipt fields, generated bundle evidence staging, evidence-file fetches, or browser Assembly Evidence rendering are in scope.
+
+For offline direct-parameter crossover, load `reports/crossover-operator-memory-2026-06-29.md` when `crossover-candidate`, `validate-crossover-candidate`, seed/keep selection, mask checksums, q8 crossover proof, or downstream candidate handoff is in scope.
+
+For offline bounded mutation, load `reports/mutation-operator-memory-2026-06-29.md` when `mutation-candidate`, `validate-mutation-candidate`, seed/rate/magnitude parameters, reference scaling, selection and delta checksums, q8 mutation proof, or downstream candidate handoff is in scope.
+
+For offline federated/local-update candidates, load `reports/federated-operator-memory-2026-06-29.md` when `federated-candidate`, `validate-federated-candidate`, base/local-update parent roles, `local_update_weight_ppm`, local-update counts, delta checksums, q8 proof, or downstream candidate handoff is in scope.
+
+For candidate operator receipt binding, load `reports/candidate-operator-receipt-binding-memory-2026-06-29.md` when `candidate-manifest`, `validate-candidate`, optional `[input.operator]`, receipt checksum fields, operator identity, candidate bytes, or candidate checksum equality are in scope.
+
+For promotion operator receipt binding, load `reports/promotion-operator-receipt-binding-memory-2026-06-29.md` when `promotion-template`, `validate-promotion`, optional `[input.operator]`, receipt carry-forward, promotion receipt fields, missing receipt input, or receipt checksum drift are in scope.
+
+For admission operator receipt binding, load `reports/admission-operator-receipt-binding-memory-2026-06-29.md` when `admission-record`, `validate-admission`, optional `[input.operator]`, receipt carry-forward, admission receipt fields, missing receipt input, summary validation, or receipt checksum drift are in scope.
+
+For selector operator receipt binding, load `reports/selector-operator-receipt-binding-memory-2026-06-29.md` when `selector-registry`, `validate-selector-registry`, `entry.N.operator_receipt_*`, mate-selection checksums, Model Provenance Operator rendering, or receipt-bound admission-to-registry handoff is in scope.
 
 For compact adapter package work, load `reports/sparse-adapter-package-memory-2026-06-27.md` when `ASP1`, `sparse-adapter-delta`, `validate-sparse-adapter-delta`, or runtime sparse adapter apply is in scope.
 
@@ -91,6 +105,22 @@ For browser module-plan adapter validation-count proof, load `reports/browser-mo
 For browser module-plan adapter apply-count proof, load `reports/browser-module-plan-adapter-apply-count-memory-2026-06-29.md` when `module_plan_adapter_apply_count`, Module Plan `Apply Count`, runtime `adapter_apply_count`, generated adapter stack cardinality, or `module-plan-adapter-apply-count-drift` is in scope.
 
 For browser module-plan planned-fetch-count proof, load `reports/browser-module-plan-planned-fetch-count-memory-2026-06-29.md` when `module_plan_planned_fetch_count`, Module Plan `Plan Fetches`, generated self-assembly route cardinality, or `module-plan-planned-fetch-count-drift` is in scope.
+
+For browser module-plan actual-fetch-count proof, load `reports/browser-module-plan-actual-fetch-count-memory-2026-06-29.md` when browser-owned generated route accounting, Module Plan `Actual Fetches`, counted fetch wrappers, source fallback, or planned-versus-actual Ready gating is in scope.
+
+For browser module-plan observed-route-set proof, load `reports/browser-module-plan-observed-route-set-memory-2026-06-29.md` when browser-owned route-set observations, Module Plan `Actual Route Set`, route kind labels, source fallback, or observed-versus-declared Ready gating is in scope.
+
+For browser module-plan actual-module-bytes proof, load `reports/browser-module-plan-actual-module-bytes-memory-2026-06-29.md` when browser-owned generated module-byte accounting, Module Plan `Actual Module Bytes`, stack artifact byte recording, source fallback, or observed-versus-receipt Ready gating is in scope.
+
+For browser module-plan actual-module-checksums proof, load `reports/browser-module-plan-actual-module-checksums-memory-2026-06-29.md` when browser-owned generated module-checksum accounting, Module Plan `Actual Module Checksums`, text/module checksum recording, stack artifact checksum recording, source fallback, module-plan-payload-checksum-drift, or observed-versus-receipt Ready gating is in scope.
+
+For browser module-plan route-set proof, load `reports/browser-module-plan-route-set-memory-2026-06-29.md` when `module_plan_route_set_checksum`, Module Plan `Route Set`, generated self-assembly route ordering, or `module-plan-route-set-drift` is in scope.
+
+For browser module-plan route-set version proof, load `reports/browser-module-plan-route-set-version-memory-2026-06-29.md` when `module_plan_route_set_version`, Module Plan `Route Version`, route-set checksum preimage versioning, or `module-plan-route-set-version-drift` is in scope.
+
+For browser module-plan route-set algorithm proof, load `reports/browser-module-plan-route-set-algorithm-memory-2026-06-29.md` when `module_plan_route_set_checksum_algorithm`, Module Plan `Route Hash`, route-set checksum preimage algorithm labels, or `module-plan-route-set-algorithm-drift` is in scope.
+
+For browser module-plan operator receipt proof, load `reports/browser-module-plan-operator-receipt-memory-2026-06-29.md` when `module_plan_operator_receipt_path`, `module_plan_operator_receipt_checksum`, `.module-plan.receipt` `operator_receipt_*` fields, assembly receipt/operator receipt agreement, or `module-plan-operator-receipt-drift` is in scope.
 
 For browser module-plan KV-cache proof, load `reports/browser-module-plan-kv-cache-memory-2026-06-28.md` when `module_plan_kv_cache_byte_budget`, `module_plan_kv_cache_page_count`, Module Plan `KV Budget` or `KV Pages`, runtime KV diagnostics, or `module-plan-kv-cache-drift` is in scope.
 
