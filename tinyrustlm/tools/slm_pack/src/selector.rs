@@ -3706,6 +3706,10 @@ mod tests {
         .replace(
             "entry.0.module_plan_module_count=6",
             "entry.0.module_plan_module_count=5",
+        )
+        .replace(
+            "entry.0.module_plan_planned_fetch_count=19",
+            "entry.0.module_plan_planned_fetch_count=18",
         );
 
         let error = validate_registry_text(&registry, &[admission]).unwrap_err();

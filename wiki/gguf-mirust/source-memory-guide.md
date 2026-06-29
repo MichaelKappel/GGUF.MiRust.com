@@ -3,7 +3,7 @@ title: GGUF.MiRust.com Source Memory Guide
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/source-memory-guide/
 status: planned_pending_publication
-reviewed_utc: 2026-06-29T02:53:13Z
+reviewed_utc: 2026-06-29T03:34:05Z
 ---
 
 # GGUF.MiRust.com Source Memory Guide
@@ -89,6 +89,8 @@ For browser module-plan adapter-validation proof, load `reports/browser-module-p
 For browser module-plan adapter validation-count proof, load `reports/browser-module-plan-adapter-validation-count-memory-2026-06-29.md` when `module_plan_adapter_validation_count`, Module Plan `Validate Count`, actual Rust validation-call cardinality, adapter-family stack count agreement, or `module-plan-adapter-validation-count-drift` is in scope.
 
 For browser module-plan adapter apply-count proof, load `reports/browser-module-plan-adapter-apply-count-memory-2026-06-29.md` when `module_plan_adapter_apply_count`, Module Plan `Apply Count`, runtime `adapter_apply_count`, generated adapter stack cardinality, or `module-plan-adapter-apply-count-drift` is in scope.
+
+For browser module-plan planned-fetch-count proof, load `reports/browser-module-plan-planned-fetch-count-memory-2026-06-29.md` when `module_plan_planned_fetch_count`, Module Plan `Plan Fetches`, generated self-assembly route cardinality, or `module-plan-planned-fetch-count-drift` is in scope.
 
 For browser module-plan KV-cache proof, load `reports/browser-module-plan-kv-cache-memory-2026-06-28.md` when `module_plan_kv_cache_byte_budget`, `module_plan_kv_cache_page_count`, Module Plan `KV Budget` or `KV Pages`, runtime KV diagnostics, or `module-plan-kv-cache-drift` is in scope.
 

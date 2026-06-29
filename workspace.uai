@@ -1,7 +1,7 @@
-profile: gguf-mirust.workspace.v36
+profile: gguf-mirust.workspace.v37
 project_name: GGUF.MiRust.com
 canonical_root: E:\Source\Rust\GGUF.MiRust.com
-updated_utc: 2026-06-29T02:53:13Z
+updated_utc: 2026-06-29T03:34:05Z
 version_authority:
   current_version: 0.1.0
   next_version: 0.1.0
@@ -41,6 +41,7 @@ memory_authority:
   browser_module_plan_adapter_validation_2026_06_29: wiki/gguf-mirust/reports/browser-module-plan-adapter-validation-memory-2026-06-29.md routes rust-validate-before-apply fields, Module Plan Validate rows, source fallback, adapter-validation drift proof, and combined-selector-assembly validation-before-apply proof.
   browser_module_plan_adapter_validation_count_2026_06_29: wiki/gguf-mirust/reports/browser-module-plan-adapter-validation-count-memory-2026-06-29.md routes validation-count fields, Module Plan Validate Count rows, selector/receipt/adapter-family agreement, source fallback, per-step Rust validation-call counting, and adapter-validation-count drift proof.
   browser_module_plan_adapter_apply_count_2026_06_29: wiki/gguf-mirust/reports/browser-module-plan-adapter-apply-count-memory-2026-06-29.md routes apply-count fields, Module Plan Apply Count rows, runtime adapter_apply_count diagnostics checks, source fallback, and adapter-apply-count drift proof.
+  browser_module_plan_planned_fetch_count_2026_06_29: wiki/gguf-mirust/reports/browser-module-plan-planned-fetch-count-memory-2026-06-29.md routes planned-fetch-count fields, Module Plan Plan Fetches rows, selector/receipt/generated-route agreement, source fallback, and planned-fetch-count drift proof.
   browser_module_plan_prompt_limit_2026_06_28: wiki/gguf-mirust/reports/browser-module-plan-prompt-limit-memory-2026-06-28.md routes prompt byte limit fields, Module Plan Prompt Limit rows, source prompt-copy boundary proof, and module-plan-prompt-limit-drift proof.
   browser_module_plan_fetch_count_2026_06_28: wiki/gguf-mirust/reports/browser-module-plan-fetch-count-memory-2026-06-28.md routes fetch-count limit fields, Module Plan Fetch Limit rows, generated route-count computation, actual governed request counting, and fetch-count proof.
   short_term_report_route_strategy: .uai/short-term-memory.uai keeps the current report indexes, research route, active bucket disposition, UAIX strategy source, dogfood route, report pointer audit, and long-term pointer ledger route in one cold-start block.
@@ -48,7 +49,7 @@ memory_authority:
   setup_file_handoff_strategy_2026_06_28: active buckets are intake, durable bodies live in raw/wiki Markdown, hot .uai files carry routing and synthesis, short-term memory names current report/research routes, and long-term memory keeps checksum pointers.
   site_voice_strategy: .uai/taboo.uai keeps GGUF.MiRust.com public copy centered on proof, craft, lineage, fit, local agency, routes, and implementation evidence.
 support_boundary:
-  status: milestone_144_browser_module_plan_adapter_validation_count
+  status: milestone_146_browser_module_plan_planned_fetch_count
   static_browser_shell: implemented_source
   wasm_exports: implemented_source_with_explicit_error_code_generate_next_token_free_model_validate_adapter_delta_and_apply_adapter_delta
   byte_tokenizer: implemented_source

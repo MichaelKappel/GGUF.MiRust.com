@@ -1,5 +1,5 @@
-profile: gguf-mirust.report-synthesis.v44
-updated_utc: 2026-06-29T02:53:13Z
+profile: gguf-mirust.report-synthesis.v45
+updated_utc: 2026-06-29T03:34:05Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/gguf-mirust/report-intake-2026-06-25/
@@ -95,6 +95,7 @@ source_authority:
     - wiki/gguf-mirust/reports/browser-module-plan-adapter-validation-memory-2026-06-29.md
     - wiki/gguf-mirust/reports/browser-module-plan-adapter-validation-count-memory-2026-06-29.md
     - wiki/gguf-mirust/reports/browser-module-plan-adapter-apply-count-memory-2026-06-29.md
+    - wiki/gguf-mirust/reports/browser-module-plan-planned-fetch-count-memory-2026-06-29.md
     - wiki/gguf-mirust/reports/browser-module-plan-kv-cache-memory-2026-06-28.md
     - wiki/gguf-mirust/reports/browser-module-plan-adapter-stack-budget-memory-2026-06-28.md
     - wiki/gguf-mirust/reports/browser-module-plan-context-token-memory-2026-06-28.md

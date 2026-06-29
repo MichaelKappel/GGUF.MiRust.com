@@ -3,7 +3,7 @@ title: GGUF.MiRust.com LLM Wiki Index
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/
 status: planned_pending_publication
-reviewed_utc: 2026-06-29T02:53:13Z
+reviewed_utc: 2026-06-29T03:34:05Z
 ---
 
 # GGUF.MiRust.com
@@ -84,6 +84,7 @@ This local LLM Wiki namespace routes durable memory for the GGUF.MiRust.com Rust
 - [Browser Module Plan Adapter Validation Memory](reports/browser-module-plan-adapter-validation-memory-2026-06-29.md)
 - [Browser Module Plan Adapter Validation Count Memory](reports/browser-module-plan-adapter-validation-count-memory-2026-06-29.md)
 - [Browser Module Plan Adapter Apply Count Memory](reports/browser-module-plan-adapter-apply-count-memory-2026-06-29.md)
+- [Browser Module Plan Planned Fetch Count Memory](reports/browser-module-plan-planned-fetch-count-memory-2026-06-29.md)
 - [Browser Module Plan KV Cache Memory](reports/browser-module-plan-kv-cache-memory-2026-06-28.md)
 - [Browser Module Plan Adapter Stack Budget Memory](reports/browser-module-plan-adapter-stack-budget-memory-2026-06-28.md)
 - [Browser Module Plan Context Token Memory](reports/browser-module-plan-context-token-memory-2026-06-28.md)

@@ -3,7 +3,7 @@ title: GGUF.MiRust.com LLM Wiki Log
 source_site: GGUF.MiRust.com
 public_route: /gguf-mirust/log/
 status: planned_pending_publication
-reviewed_utc: 2026-06-29T02:53:13Z
+reviewed_utc: 2026-06-29T03:34:05Z
 ---
 
 # LLM Wiki Log
@@ -127,3 +127,4 @@ reviewed_utc: 2026-06-29T02:53:13Z
 
 - Added browser module-plan adapter-validation proof so generated selector entries and `.module-plan.receipt` files carry `module_plan_adapter_validation_strategy=rust-validate-before-apply-v1`, the Module Plan panel renders `Validate`, `module-plan-adapter-validation-drift` stops before generated model bytes, and `combined-selector-assembly` proves `validate_adapter_delta` before q4_0/q8_0/f32 adapter apply.
 - Added browser module-plan adapter apply-count proof so generated selector entries and `.module-plan.receipt` files carry `module_plan_adapter_apply_count=3`, the Module Plan panel renders `Apply Count`, app.js checks runtime `adapter_apply_count`, and `module-plan-adapter-apply-count-drift` stops before generated model bytes.
+- Added browser module-plan planned-fetch-count proof so generated selector entries and `.module-plan.receipt` files carry `module_plan_planned_fetch_count=21`, the Module Plan panel renders `Plan Fetches`, and `module-plan-planned-fetch-count-drift` stops before generated model bytes.
