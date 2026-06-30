@@ -1,11 +1,11 @@
-profile: gguf-mirust.system-profile.v1
-project_name: GGUF.MiRust.com
+profile: runtime-mirust.system-profile.v1
+project_name: Runtime.MiRust.com
 created_utc: 2026-06-24T00:00:00Z
-canonical_root: E:\Source\Rust\GGUF.MiRust.com
+canonical_root: E:\Source\Rust\Runtime.MiRust.com
 project_type: enterprise_rust_browser_ai_harness
-public_host: https://gguf.mirust.com/
-aiwikis_namespace: https://aiwikis.org/gguf-mirust/
-llm_wiki_source_namespace: wiki/gguf-mirust/
+public_host: https://Runtime.MiRust.com/
+aiwikis_namespace: https://aiwikis.org/runtime-mirust/
+llm_wiki_source_namespace: wiki/runtime-mirust/
 runtime_status:
   rust_workspace: tinyrustlm_zero_dependency_workspace_verified
   mini_browser: no_crate_rust_static_contract_and_loopback_route_harness_implemented

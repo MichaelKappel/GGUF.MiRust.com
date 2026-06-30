@@ -6,7 +6,7 @@ The tokenizer layer proves prompt transfer and generation plumbing without exter
 
 ## Constraints
 
-No tokenizers crate, SentencePiece, Hugging Face tokenizer JSON, or external vocabulary files are used. Tokenizer metadata must live inside the `.slm` tokenizer section and be validated before runtime use.
+No tokenizers crate, SentencePiece runtime, or external vocabulary files are used in the browser runtime. Tokenizer metadata must live inside the `.slm` tokenizer section and be validated before runtime use. The packer can consume reviewed local tokenizer JSON only as source evidence, then emits project-compatible BPE rows into the raw source manifest and final `BPE1` section.
 
 ## Data Structures
 
@@ -30,12 +30,12 @@ Encoding adds BOS and EOS. Decoding ignores BOS, EOS, and PAD, emits `?` for UNK
 
 The native `.slm` admission validator accepts both `BTOK` and `BPE1`. For BPE, the tokenizer vocab must match the model header, every token id must be unique and inside the vocabulary, and every merge output must reference a token table entry.
 
-The trained-source validator also accepts `tokenizer=bpe-v1` for BPE source shapes. Source manifests must declare BPE token and merge counts, token ids, token bytes as hex, merge ids, and ranks; conversion serializes that metadata into the `.slm` `BPE1` section before native admission validation runs.
+The trained-source validator also accepts `tokenizer=bpe-v1` for BPE source shapes. Source manifests must declare BPE token and merge counts, token ids, token bytes as hex, merge ids, and ranks; conversion serializes that metadata into the `.slm` `BPE1` section before native admission validation runs. BPE safetensors candidate review requires a checksum-matched compatible local tokenizer JSON artifact before making exact byte estimates, and review-bound extraction carries those rows into the source manifest.
 
 ## Current Runtime Proof
 
-The checked-in `tiny-test-model-bpe.slm` fixture uses the `BPE1` section with a two-step merge table: `t` + `h` becomes token `260`, then token `260` + `e` becomes token `261`. Runtime generation for prompt `the` records tokenizer output `256,261`, proving the loaded `.slm` selected the custom BPE path and merged the body token before generation. The trained-source tests also generate and convert a `tiny-fixture-bpe` source bundle into a q8_0 `.slm`, proving source tokenizer metadata survives conversion into the binary artifact.
+The checked-in `tiny-test-model-bpe.slm` fixture uses the `BPE1` section with a two-step merge table: `t` + `h` becomes token `260`, then token `260` + `e` becomes token `261`. Runtime generation for prompt `the` records tokenizer output `256,261`, proving the loaded `.slm` selected the custom BPE path and merged the body token before generation. The trained-source tests also generate and convert a `tiny-fixture-bpe` source bundle into a q8_0 `.slm`, proving source tokenizer metadata survives conversion into the binary artifact. Safetensors review tests now use a different local BPE tokenizer JSON (`t` + `o` becomes `to`) and prove the review's exact q8_0 byte estimate matches the converted `.slm` bytes after extraction writes those reviewed tokenizer rows. The source-planning lane includes `tinylm16-bpe`, which keeps the TinyLM-16M tensor layout while selecting manifest-native `BPE1` tokenizer metadata for safetensors planning.
 
 ## Future Expansion Path
 
-Current BPE support is end-to-end for a deterministic tiny fixture and for a converted source fixture. Future trained models can provide larger token and merge tables in the same `BPE1` layout, then add tests for real tokenizer corpora, normalization policy, and compatibility with trained model quality gates.
+Current BPE support is end-to-end for a deterministic tiny fixture, a converted source fixture, review-bound import of project-compatible local BPE tokenizer JSON, and TinyLM-16M BPE source-planning expectations. Byte-level BPE remapping and richer normalizer/pre-tokenizer semantics are intentionally rejected until the runtime implements them, so trained candidates should provide simple byte-fallback-compatible token and merge tables or stay behind the tokenizer conversion gate.

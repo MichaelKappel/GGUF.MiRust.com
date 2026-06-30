@@ -1,5 +1,5 @@
-profile: gguf-mirust.coding-standards.v48
-updated_utc: 2026-06-29T18:46:12Z
+profile: runtime-mirust.coding-standards.v50
+updated_utc: 2026-06-30T06:45:00Z
 rust:
   edition: 2021
   dependency_policy: No third-party Rust crates in TinyRustLM runtime or packer.
@@ -78,9 +78,9 @@ memory:
   report_synthesis_rule: Do store compact report-derived operating memory in typed .uai files so cold-start agents can route and reason without bulk-loading every report.
   report_reference_rule: Short-term memory must point to durable report indexes after each processed batch; long-term memory remains pointer-only with checksums.
   uaix_file_handoff_rule: Follow the UAIX file-handoff setup shape; active drops are transient, hot .uai files carry current routing and synthesis, and report bodies live in wiki/raw evidence targets.
-  research_reference_rule: Keep diverse model-breeding research in wiki/gguf-mirust/research/ and route it through hot .uai synthesis; do not inline research bodies into the long-term pointer ledger.
-  modelbreeder_zero_dependency_rule: Route ModelBreeder genome/fitness/novelty/population/mate-selection/phenotype-evidence/heritable-artifact/speciation guidance and zero-dependency Wasm runtime ideas through wiki/gguf-mirust/research/modelbreeder-zero-dependency-reference-ideas-2026-06-28.md before turning them into schema fields, receipts, diagnostics, or browser-smoke assertions.
-  report_pointer_audit_rule: After adding or changing report/research durable pages, refresh short-term routes and long-term checksum pointers, then audit wiki/gguf-mirust/reports/*.md and wiki/gguf-mirust/research/*.md against .uai/long-term-memory.uai.
+  research_reference_rule: Keep diverse model-breeding research in wiki/runtime-mirust/research/ and route it through hot .uai synthesis; do not inline research bodies into the long-term pointer ledger.
+  modelbreeder_zero_dependency_rule: Route ModelBreeder genome/fitness/novelty/population/mate-selection/phenotype-evidence/heritable-artifact/speciation guidance and zero-dependency Wasm runtime ideas through wiki/runtime-mirust/research/modelbreeder-zero-dependency-reference-ideas-2026-06-28.md before turning them into schema fields, receipts, diagnostics, or browser-smoke assertions.
+  report_pointer_audit_rule: After adding or changing report/research durable pages, refresh short-term routes and long-term checksum pointers, then audit wiki/runtime-mirust/reports/*.md and wiki/runtime-mirust/research/*.md against .uai/long-term-memory.uai.
   site_voice_rule: Read .uai/taboo.uai before public copy or product-positioning edits.
   setup_file_handoff_2026_06_28: Treat active buckets as intake, raw/wiki Markdown as durable bodies, .uai files as routing/synthesis, short-term memory as the current route index, and long-term memory as checksum pointers.
 file_handoff:
@@ -120,6 +120,8 @@ model_breeding:
   combined_selector_cycle: Preserve same-page generated all-root cycle evidence: q4_0 remains the default, q4_0/q8_0/f32 switching can repeat, every post-initial pass calls free_model before new stack validation/apply/completion, and diagnostics reset before one-token generation.
   combined_selector_route_soak: Preserve same-page generated all-root route-count evidence: local fetches use no-store cache behavior, three q4_0/q8_0/f32 cycles run in one page, the extended mode runs five cycles, and every module-plan, model, manifest, assembly, evidence, adapter-family, adapter-manifest, and stack-artifact route is requested once per pass.
   combined_selector_reload_soak: Preserve fresh page-lifetime generated all-root evidence: every reload pass starts from the q4_0 registry default, rebuilds q4_0/q8_0/f32 self-assembly, and requests the runtime manifest, selector registry, module-plan, model, manifest, evidence, adapter, and stack routes again.
+  converted_trained_source_identity: Preserve `source_manifest_source_kind`, `source_manifest_source_id`, and `source_manifest_model_shape` from converted-trained admissions through selector registries, browser source-manifest verification, safetensors bundle identity assertions, and heritable artifact ids; run focused selector, browser_bundle, and safetensors tests, JS syntax checks, `converted-trained-registry`, and `converted-trained-source-identity-drift` after changing source identity routing.
+  safetensors_candidate_review: Preserve every `review-safetensors-candidate` CLI parameter in automated tests, keep report values line-safe, recompute `.slm` byte estimates from writer layout constants, and route source/config/tokenizer/license/reference/eval evidence before extraction.
   eval_case_evidence_checksum: Preserve `eval_case_evidence_checksum` across admission records, multi-parent admission records, promotion-ledger entries, selector registry entries, generated assembly receipts, and Model Provenance display; run slm_pack tests plus generated-root combined-selector-assembly and assembly-eval-case-drift after eval evidence routing changes.
   assembly_evidence_files: Preserve receipt-declared evidence paths and checksums, fetch and checksum each evidence file before adapter-family verification, release accepted model state on mismatch, and run assembly-evidence-file-drift plus one normal generated-root adapter-sidecar-registry-file smoke after evidence-file verification changes.
   adapter_manifest_drift: Preserve adapter-family receipt verification before manifest fetches, checksum each adapter manifest before later manifests or stack artifacts, and run adapter-manifest-drift plus one normal generated-root adapter-sidecar-registry-file smoke after generated manifest verification changes.

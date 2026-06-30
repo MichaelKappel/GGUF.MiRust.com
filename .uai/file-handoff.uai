@@ -1,5 +1,5 @@
-profile: gguf-mirust.file-handoff.v14
-updated_utc: 2026-06-29T02:39:17Z
+profile: runtime-mirust.file-handoff.v16
+updated_utc: 2026-06-29T23:33:20Z
 handoff_root: agent-file-handoff/
 active_buckets:
   content: agent-file-handoff/Content/
@@ -24,22 +24,24 @@ completion_gate:
     - blockers
     - source_site_removal_or_keep_active_reason
 durable_preservation:
-  target: raw/gguf-mirust/
-  public_target: https://aiwikis.org/gguf-mirust/files/
-  manifest: raw/gguf-mirust/MANIFEST.md
+  target: raw/runtime-mirust/
+  public_target: https://aiwikis.org/runtime-mirust/files/
+  manifest: raw/runtime-mirust/MANIFEST.md
   checksum_required: true
 strategy_refresh_2026_06_28:
   source: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
   applied_shape: Active Content and Improvement buckets are transient intake; every reviewed file needs disposition, proof-of-use, durable raw/wiki preservation, hot routing, pointer-ledger refresh, report/research pointer audit, and a remove-or-keep-active decision.
   startup_loop: Open project root, scan active buckets, preserve durable bodies, refresh `.uai` routing, refresh long-term checksums, expose current routes from short-term memory, then continue implementation work.
   report_memory_rule: Reports stay as durable raw evidence plus wiki/report synthesis bodies; .uai files keep current routing, synthesis, proof pointers, and checksums.
-  research_memory_rule: Research/reference bodies stay under wiki/gguf-mirust/research/; hot .uai files carry routing, implementation boundaries, and next-step prompts; long-term memory carries checksum pointers.
+  research_memory_rule: Research/reference bodies stay under wiki/runtime-mirust/research/; hot .uai files carry routing, implementation boundaries, and next-step prompts; long-term memory carries checksum pointers.
   short_term_reference_rule: .uai/short-term-memory.uai records current report indexes, research reference routes, active bucket disposition, and the long-term ledger route after each intake or strategy refresh.
-  report_pointer_audit_rule: After report or research memory changes, audit wiki/gguf-mirust/reports/*.md and wiki/gguf-mirust/research/*.md against .uai/long-term-memory.uai before calling the handoff complete.
+  report_pointer_audit_rule: After report or research memory changes, audit wiki/runtime-mirust/reports/*.md and wiki/runtime-mirust/research/*.md against .uai/long-term-memory.uai before calling the handoff complete.
   diverse_model_breeding_reference_rule: Model Breeding ideas route through durable research lanes for compatible merges, sparse lineage, adapter ecology, population search, federated/local updates, browser-constrained assembly, UAIX memory strategy, heritable artifacts, mate selection, phenotype evidence, fit boundaries, genome/fitness/novelty/speciation metadata, and zero-dependency browser-runtime guidance.
+  tiny_model_runtime_memory_reference_rule_2026_06_29: Tiny-model and Rust/WASM runtime research routes through raw/runtime-mirust/report-intake-2026-06-29/, wiki/runtime-mirust/reports/report-intake-index-2026-06-29.md, and wiki/runtime-mirust/research/tiny-model-runtime-memory-reference-ideas-2026-06-29.md before model-conversion, browser-runtime, or memory-strategy work.
+  safetensors_tokenizer_budget_reference_rule_2026_06_29: Follow-up safetensors, tokenizer, browser byte-budget, WASM hot-loop, model-breeding metadata, and reference-output fixture research routes through raw/runtime-mirust/report-intake-2026-06-29-followup/, wiki/runtime-mirust/reports/report-intake-index-2026-06-29-followup.md, and wiki/runtime-mirust/research/safetensors-tokenizer-budget-reference-ideas-2026-06-29.md before conversion, tokenizer, budget, or fixture work.
   voice_memory_rule: Public-copy voice routes through .uai/taboo.uai before model-breeding, mutualist, tiny-ecology, or UAIX strategy copy is published; use proof, craft, lineage, fit, local agency, routes, and implementation evidence.
 current_scan:
-  scanned_utc: 2026-06-29T02:39:17Z
+  scanned_utc: 2026-06-29T23:33:20Z
   content_bucket_non_placeholder_files: 0
   improvement_bucket_non_placeholder_files: 0
   misplaced_root_files: 0
@@ -47,6 +49,6 @@ current_scan:
   ide_adjacent_non_placeholder_files: 0
   attachment_reference_checked: C:\Users\AI\.codex\attachments\pasted-text-attachments.json and recent pasted-text files
   attachment_reference_found: no_current_gguf_handoff_research_latest_attachment_material_is_2026_06_27_or_older_and_not_new_gguf_research
-  e_drive_free_bytes_at_scan: 66609135616
-  status: no_new_active_intake
-  action: Live scan found no new active Content or Improvement files in the canonical GGUF handoff buckets; the visible IDE-adjacent handoff path only contained placeholder README files; the active IDE attachment path was absent, recent attachments were not new GGUF research, and the preserved 2026-06-28 research route remains the current ModelBreeder and zero-dependency guidance body.
+  e_drive_free_bytes_at_scan: not_rescanned_this_update
+  status: active_buckets_placeholder_only_after_2026_06_29_followup_research_batch_cleanup
+  action: Live scan found no remaining non-placeholder Content or Improvement files after 6 follow-up Improvement research files were preserved under raw/runtime-mirust/report-intake-2026-06-29-followup/, synthesized into report-intake-index-2026-06-29-followup.md and safetensors-tokenizer-budget-reference-ideas-2026-06-29.md, routed through hot memory, and removed from the active source bucket.

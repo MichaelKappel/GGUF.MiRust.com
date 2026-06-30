@@ -78,6 +78,7 @@
       }
     }
   };
+  const staticModels = paths.models;
 
   const registryAdapterApplyStatus = "runtime-f32-compatible-or-fuse-to-slm";
   const registryQuantizedAdapterApplyStatus = "runtime-q8-q4-compatible-or-fuse-to-slm";
@@ -161,14 +162,20 @@
   const registryOperatorReceiptStatus = "receipt-bound";
   const registryEvolutionRecipeVersion = "1";
   const registryEvolutionRecipeStrategy = "population-based-parent-pool-replay-v1";
-  const registryEvolutionRecipeStatus = "planned";
-  const registryEvolutionSelectionSource = "population-review-frontier-v1";
+  const registryEvolutionRecipeStatus = "operator-family-planned";
+  const registryEvolutionSelectionSource = "population-fitness-normalized-seed-weights";
   const registryEvolutionScheduleChecksumAlgorithm = "tinyrustlm-text-checksum-v1";
   const registryPhenotypeEvidenceStrategy = "selector-phenotype-evidence-v1";
   const registryPhenotypeEvidenceStatus = "runtime-eval-bound";
   const registryHeritableArtifactStrategy = "selector-heritable-artifact-v1";
   const registryHeritableArtifactStatus = "served-artifact-bound";
   const registryFitnessVectorStatus = "eval-bound";
+  const registrySourceManifestKind = "trained-source-manifest";
+  const registrySourceManifestStatus = "reviewed-source-snapshot";
+  const registrySourceManifestLayout = "raw-f32-tensor-files-v1";
+  const registrySourceReviewKind = "safetensors-candidate-review";
+  const registrySourceReviewStatus = "validated-before-extraction";
+  const registrySourceReviewRequiredNextGate = "extract-raw-f32-tensors";
   const selectorModelByteBudget = 32 * 1024 * 1024;
   const selectorRegistryTextByteBudget = 256 * 1024;
   const manifestTextByteBudget = 64 * 1024;
@@ -318,6 +325,10 @@
     benchScratch: document.getElementById("benchScratch"),
     provenanceState: document.getElementById("provenanceState"),
     provenanceSourceKind: document.getElementById("provenanceSourceKind"),
+    provenanceSourceSnapshot: document.getElementById("provenanceSourceSnapshot"),
+    provenanceSourceId: document.getElementById("provenanceSourceId"),
+    provenanceSourceShape: document.getElementById("provenanceSourceShape"),
+    provenanceSourceReview: document.getElementById("provenanceSourceReview"),
     provenanceAdmission: document.getElementById("provenanceAdmission"),
     provenanceQualityClaim: document.getElementById("provenanceQualityClaim"),
     provenanceTrainedClaim: document.getElementById("provenanceTrainedClaim"),
@@ -731,6 +742,14 @@
     el.modelSelect.value = models[selected] ? selected : (models[defaultKey] ? defaultKey : firstKey);
   }
 
+  // Restores the built-in model menu when optional selector registry intake finds no accepted entries.
+  function restoreStaticModelOptions() {
+    paths.models = staticModels;
+    state.selectorRegistry = null;
+    state.selectorDefaultModelKey = "";
+    renderModelOptions(paths.models, false);
+  }
+
   function isSafeRegistryModelPath(value) {
     if (!value || !value.startsWith("../models/") || !value.endsWith(".slm")) {
       return false;
@@ -804,6 +823,28 @@
     return rest.split("/").every((part) => part && part !== "." && part !== "..");
   }
 
+  function isSafeRegistrySourceManifestPath(candidateId, value) {
+    if (!isRegistrySlug(candidateId)) {
+      return false;
+    }
+    const expected = `../evidence/${candidateId}/converted-trained.source.manifest`;
+    if (value !== expected) {
+      return false;
+    }
+    return isSafeAssemblyEvidencePath(value);
+  }
+
+  function isSafeRegistryEvalEvidencePath(candidateId, value) {
+    if (!isRegistrySlug(candidateId)) {
+      return false;
+    }
+    const expected = `../evidence/${candidateId}/converted-trained.eval`;
+    if (value !== expected) {
+      return false;
+    }
+    return isSafeAssemblyEvidencePath(value);
+  }
+
   function isRegistryHex64(value) {
     return /^0x[0-9a-fA-F]{16}$/.test(value || "");
   }
@@ -819,6 +860,26 @@
   function textChecksumHex(text) {
     const bytes = state.encoder.encode(text);
     return bytesChecksumHex(bytes);
+  }
+
+  function evalCaseEvidenceChecksum(fields) {
+    // Replays the Rust eval-case evidence digest over fetched sidecar case rows.
+    const caseCount = registryDecimalCount(fields.case_count);
+    if (caseCount === null) {
+      throw new Error("eval evidence case_count mismatch");
+    }
+    const lines = [];
+    for (const key of ["case_count", "cases_passed", "cases_failed"]) {
+      lines.push(`${key}=${requireManifestField(fields, key, "eval evidence")}`);
+    }
+    for (let index = 0; index < caseCount; index += 1) {
+      const prefix = `case.${index}`;
+      for (const suffix of ["status", "expected", "actual", "error"]) {
+        const key = `${prefix}.${suffix}`;
+        lines.push(`${key}=${requireManifestField(fields, key, "eval evidence")}`);
+      }
+    }
+    return textChecksumHex(`${lines.join("\n")}\n`);
   }
 
   function bytesChecksumHex(bytes) {
@@ -1112,6 +1173,27 @@
     return "";
   }
 
+  // Maps a receipt operator kind to the exact schedule family fields the browser accepts.
+  function expectedEvolutionScheduleFamily(operatorKind) {
+    if (operatorKind === "seed-weighted-parent-pool-soup") {
+      return {
+        familyIndex: 1,
+        familyCommand: "soup-candidate",
+        familySelectionRule: "seed-weighted-direct-parameter-average",
+        familyOutputGate: "multi-parent-candidate-manifest-plus-runtime-smoke-plus-eval"
+      };
+    }
+    if (operatorKind === "sign-aware-parent-pool-merge") {
+      return {
+        familyIndex: 0,
+        familyCommand: "sign-merge-candidate",
+        familySelectionRule: "seed-weighted-delta-sign-consensus",
+        familyOutputGate: "multi-parent-candidate-manifest-plus-runtime-smoke-plus-eval"
+      };
+    }
+    return null;
+  }
+
   // Reads selector genome routing fields before a registry entry can become selectable.
   function registryGenomeEntry(fields, prefix) {
     const genomeId = fields[`${prefix}.genome_id`];
@@ -1312,11 +1394,12 @@
     const relatednessContractChecksum = fields[`${prefix}.evolution_relatedness_contract_checksum`];
     const scheduleChecksumAlgorithm = fields[`${prefix}.evolution_schedule_checksum_algorithm`];
     const scheduleChecksum = fields[`${prefix}.evolution_schedule_checksum`];
-    const familyIndex = registryDecimalCount(fields[`${prefix}.scheduled_operator_family_index`]);
+    const familyIndex = registryDecimalIndex(fields[`${prefix}.scheduled_operator_family_index`]);
     const familyKind = fields[`${prefix}.scheduled_operator_family_kind`];
     const familyCommand = fields[`${prefix}.scheduled_operator_family_command`];
     const familySelectionRule = fields[`${prefix}.scheduled_operator_family_selection_rule`];
     const familyOutputGate = fields[`${prefix}.scheduled_operator_family_output_gate`];
+    const expectedFamily = expectedEvolutionScheduleFamily(operatorReceipt.operatorKind);
     if (
       recipeVersion !== registryEvolutionRecipeVersion ||
       recipeStrategy !== registryEvolutionRecipeStrategy ||
@@ -1330,7 +1413,12 @@
       !isRegistrySlug(familyCommand) ||
       !isRegistrySlug(familySelectionRule) ||
       !isRegistrySlug(familyOutputGate) ||
-      familyKind !== operatorReceipt.operatorKind
+      familyKind !== operatorReceipt.operatorKind ||
+      !expectedFamily ||
+      familyIndex !== expectedFamily.familyIndex ||
+      familyCommand !== expectedFamily.familyCommand ||
+      familySelectionRule !== expectedFamily.familySelectionRule ||
+      familyOutputGate !== expectedFamily.familyOutputGate
     ) {
       return null;
     }
@@ -1395,13 +1483,17 @@
   }
 
   // Reads scoped eval facts as a compact fitness vector for selector provenance.
-  function registryEvalEvidenceEntry(fields, prefix) {
+  function registryEvalEvidenceEntry(fields, prefix, candidateId) {
+    const path = fields[`${prefix}.eval_path`] || "";
     const checksum = fields[`${prefix}.eval_case_evidence_checksum`];
+    const manifestChecksum = fields[`${prefix}.eval_manifest_checksum`];
     const casesPassed = registryDecimalByteCount(fields[`${prefix}.cases_passed`]);
     const fitnessVectorStatus = fields[`${prefix}.fitness_vector_status`];
     const fitnessVectorChecksum = fields[`${prefix}.fitness_vector_checksum`];
     if (
+      (path && !isSafeRegistryEvalEvidencePath(candidateId, path)) ||
       !isRegistryHex64(checksum) ||
+      !isRegistryHex64(manifestChecksum) ||
       casesPassed === null ||
       fitnessVectorStatus !== registryFitnessVectorStatus ||
       !isRegistryHex64(fitnessVectorChecksum)
@@ -1409,7 +1501,9 @@
       return null;
     }
     return {
+      path,
       checksum,
+      manifestChecksum,
       casesPassed,
       fitnessVectorStatus,
       fitnessVectorChecksum,
@@ -1417,6 +1511,75 @@
       qualityBoundary: fields[`${prefix}.quality_boundary`] || "",
       evalDataset: fields[`${prefix}.eval_dataset`] || ""
     };
+  }
+
+  function registrySourceManifestEntry(fields, prefix, candidateId) {
+    // Reads selector-carried source snapshot identity so browser fetches can bind to it.
+    const keys = [
+      "source_manifest_path",
+      "source_manifest_checksum",
+      "source_manifest_kind",
+      "source_manifest_status",
+      "source_manifest_source_kind",
+      "source_manifest_source_id",
+      "source_manifest_model_shape",
+      "source_review_kind",
+      "source_review_status",
+      "source_review_checksum",
+      "source_review_required_next_gate"
+    ];
+    const hasSourceManifest = keys.some((key) => fields[`${prefix}.${key}`]);
+    if (!hasSourceManifest) {
+      return undefined;
+    }
+    const path = fields[`${prefix}.source_manifest_path`] || "";
+    const checksum = fields[`${prefix}.source_manifest_checksum`] || "";
+    const kind = fields[`${prefix}.source_manifest_kind`] || "";
+    const status = fields[`${prefix}.source_manifest_status`] || "";
+    const sourceKind = fields[`${prefix}.source_manifest_source_kind`] || "";
+    const sourceId = fields[`${prefix}.source_manifest_source_id`] || "";
+    const modelShape = fields[`${prefix}.source_manifest_model_shape`] || "";
+    const reviewKeys = [
+      "source_review_kind",
+      "source_review_status",
+      "source_review_checksum",
+      "source_review_required_next_gate"
+    ];
+    const hasSourceReview = reviewKeys.some((key) => fields[`${prefix}.${key}`]);
+    let sourceReview = null;
+    if (hasSourceReview) {
+      const reviewKind = fields[`${prefix}.source_review_kind`] || "";
+      const reviewStatus = fields[`${prefix}.source_review_status`] || "";
+      const reviewChecksum = fields[`${prefix}.source_review_checksum`] || "";
+      const reviewRequiredNextGate =
+        fields[`${prefix}.source_review_required_next_gate`] || "";
+      if (
+        reviewKind !== registrySourceReviewKind ||
+        reviewStatus !== registrySourceReviewStatus ||
+        !isRegistryHex64(reviewChecksum) ||
+        reviewRequiredNextGate !== registrySourceReviewRequiredNextGate
+      ) {
+        return null;
+      }
+      sourceReview = {
+        kind: reviewKind,
+        status: reviewStatus,
+        checksum: reviewChecksum,
+        requiredNextGate: reviewRequiredNextGate
+      };
+    }
+    if (
+      !isSafeRegistrySourceManifestPath(candidateId, path) ||
+      !isRegistryHex64(checksum) ||
+      kind !== registrySourceManifestKind ||
+      status !== registrySourceManifestStatus ||
+      !["trained-source-fixture", "trained-export"].includes(sourceKind) ||
+      !isRegistrySlug(sourceId) ||
+      !isRegistrySlug(modelShape)
+    ) {
+      return null;
+    }
+    return { path, checksum, kind, status, sourceKind, sourceId, modelShape, sourceReview };
   }
 
   function registryModulePlanEntry(
@@ -1995,6 +2158,10 @@
       if (!isRegistryHex64(slmChecksum)) {
         return null;
       }
+      const sourceManifest = registrySourceManifestEntry(fields, prefix, candidateId);
+      if (sourceManifest === null) {
+        return null;
+      }
       const quantization = fields[`${prefix}.quantization`] || "";
       const adapters = registryAdapterEntries(fields, prefix, quantization);
       if (!adapters) {
@@ -2051,7 +2218,7 @@
       if (!heritableArtifact) {
         return null;
       }
-      const evalEvidence = registryEvalEvidenceEntry(fields, prefix);
+      const evalEvidence = registryEvalEvidenceEntry(fields, prefix, candidateId);
       if (!evalEvidence) {
         return null;
       }
@@ -2093,6 +2260,7 @@
         phenotypeEvidence,
         heritableArtifact,
         evalEvidence,
+        sourceManifest: sourceManifest || null,
         assembly: assembly || null,
         modulePlan: modulePlan || null
       };
@@ -2167,6 +2335,22 @@
     return count;
   }
 
+  function registryDecimalIndex(value) {
+    // Accepts exact zero-based decimal indices for ordered schedule families.
+    if (!value) {
+      return null;
+    }
+    const index = Number.parseInt(value, 10);
+    if (
+      !Number.isSafeInteger(index) ||
+      String(index) !== value ||
+      index < 0
+    ) {
+      return null;
+    }
+    return index;
+  }
+
   function registryDecimalByteCount(value) {
     return registryDecimalCount(value);
   }
@@ -2224,6 +2408,7 @@
       const fields = parseManifest(text);
       const registry = registryModelEntries(fields);
       if (!registry) {
+        restoreStaticModelOptions();
         return;
       }
       paths.models = registry.models;
@@ -2231,8 +2416,7 @@
       state.selectorDefaultModelKey = registry.defaultModelKey || "";
       renderModelOptions(paths.models, Boolean(state.selectorDefaultModelKey));
     } catch (_error) {
-      state.selectorRegistry = null;
-      state.selectorDefaultModelKey = "";
+      restoreStaticModelOptions();
     }
   }
 
@@ -2267,10 +2451,12 @@
     return bytes;
   }
 
-  // Renders manifest provenance together with selector genome, species, novelty, population, operator, phenotype, artifact, and fitness evidence.
+  // Renders manifest provenance and the selector evidence that was validated before model bytes.
   function renderProvenance(status, fields, isError) {
     setText(el.provenanceState, status, isError);
     const model = paths.models[state.activeModelKey] || null;
+    const sourceManifest = model && model.sourceManifest ? model.sourceManifest : null;
+    const sourceReview = sourceManifest && sourceManifest.sourceReview ? sourceManifest.sourceReview : null;
     const genome = model && model.genome ? model.genome : null;
     const species = model && model.species ? model.species : null;
     const novelty = model && model.novelty ? model.novelty : null;
@@ -2282,6 +2468,12 @@
     const heritableArtifact = model && model.heritableArtifact ? model.heritableArtifact : null;
     const evalEvidence = model && model.evalEvidence ? model.evalEvidence : null;
     el.provenanceSourceKind.textContent = manifestValue(fields, "source_kind");
+    el.provenanceSourceSnapshot.textContent = sourceManifest ? sourceManifest.sourceKind : "unavailable";
+    el.provenanceSourceId.textContent = sourceManifest ? sourceManifest.sourceId : "unavailable";
+    el.provenanceSourceShape.textContent = sourceManifest ? sourceManifest.modelShape : "unavailable";
+    el.provenanceSourceReview.textContent = sourceReview
+      ? `${sourceReview.status} / ${sourceReview.requiredNextGate} / ${sourceReview.checksum}`
+      : "unavailable";
     el.provenanceAdmission.textContent = manifestValue(fields, "admission_status");
     el.provenanceQualityClaim.textContent = manifestValue(fields, "quality_claim");
     el.provenanceTrainedClaim.textContent = manifestValue(fields, "trained_quality_claim");
@@ -2302,7 +2494,7 @@
       ? `${operatorReceipt.status} / ${operatorReceipt.operatorKind} / ${operatorReceipt.checksum}`
       : "unavailable";
     el.provenanceSchedule.textContent = evolutionSchedule
-      ? `${evolutionSchedule.recipeStatus} / family ${evolutionSchedule.familyIndex} / ${evolutionSchedule.familyCommand} / ${evolutionSchedule.scheduleChecksum}`
+      ? `${evolutionSchedule.recipeStatus} / family ${evolutionSchedule.familyIndex} / ${evolutionSchedule.familyCommand} / ${evolutionSchedule.familySelectionRule} / ${evolutionSchedule.familyOutputGate} / ${evolutionSchedule.scheduleChecksum}`
       : "unavailable";
     el.provenancePhenotype.textContent = phenotypeEvidence
       ? `${phenotypeEvidence.status} / ${phenotypeEvidence.id} / ${phenotypeEvidence.checksum}`
@@ -4054,6 +4246,124 @@
     }
   }
 
+  async function loadSourceManifest(model) {
+    // Verifies reviewed trained-source evidence before converted model bytes are fetched.
+    if (!model.sourceManifest) {
+      return "source manifest unavailable";
+    }
+    model.sourceManifestVerified = false;
+    model.sourceManifestFields = null;
+    const text = await fetchTextWithinBudget(
+      model.sourceManifest.path,
+      evidenceTextByteBudget,
+      "source manifest"
+    );
+    requireChecksumEqual(textChecksumHex(text), model.sourceManifest.checksum, "source manifest");
+    const fields = parseManifest(text);
+    requireManifestEqual(fields, "tinyrustlm_trained_source_version", "1", "source manifest");
+    requireManifestEqual(fields, "model_family", "tinyrustlm", "source manifest");
+    requireManifestEqual(fields, "layout", registrySourceManifestLayout, "source manifest");
+    requireManifestEqual(fields, "source_dtype", "f32", "source manifest");
+    requireManifestField(fields, "source_kind", "source manifest");
+    requireManifestField(fields, "source_id", "source manifest");
+    requireManifestEqual(
+      fields,
+      "source_kind",
+      model.sourceManifest.sourceKind,
+      "source manifest identity"
+    );
+    requireManifestEqual(
+      fields,
+      "source_id",
+      model.sourceManifest.sourceId,
+      "source manifest identity"
+    );
+    requireManifestEqual(
+      fields,
+      "model_shape",
+      model.sourceManifest.modelShape,
+      "source manifest identity"
+    );
+    const sourceReviewKeys = [
+      "source_review_kind",
+      "source_review_status",
+      "source_review_checksum",
+      "source_review_required_next_gate"
+    ];
+    const manifestHasSourceReview = sourceReviewKeys.some((key) => fields[key]);
+    if (manifestHasSourceReview && !model.sourceManifest.sourceReview) {
+      throw new Error("source review identity missing from selector");
+    }
+    if (model.sourceManifest.sourceReview) {
+      requireManifestEqual(
+        fields,
+        "source_review_kind",
+        model.sourceManifest.sourceReview.kind,
+        "source review identity"
+      );
+      requireManifestEqual(
+        fields,
+        "source_review_status",
+        model.sourceManifest.sourceReview.status,
+        "source review identity"
+      );
+      requireManifestEqual(
+        fields,
+        "source_review_checksum",
+        model.sourceManifest.sourceReview.checksum,
+        "source review identity"
+      );
+      requireManifestEqual(
+        fields,
+        "source_review_required_next_gate",
+        model.sourceManifest.sourceReview.requiredNextGate,
+        "source review identity"
+      );
+    }
+    const tensorCount = registryDecimalCount(
+      requireManifestField(fields, "tensor_count", "source manifest")
+    );
+    if (tensorCount === null) {
+      throw new Error("source manifest tensor count mismatch");
+    }
+    model.sourceManifestFields = fields;
+    model.sourceManifestVerified = true;
+    return "source manifest verified";
+  }
+
+  async function loadEvalEvidence(model) {
+    // Binds converted-trained provenance rows to the eval sidecar fetched by this browser load.
+    if (!model.sourceManifest) {
+      return "eval evidence unavailable";
+    }
+    const evalEvidence = model.evalEvidence;
+    if (!evalEvidence || !evalEvidence.path) {
+      throw new Error("converted-trained eval evidence route missing");
+    }
+    evalEvidence.verified = false;
+    evalEvidence.fields = null;
+    const text = await fetchTextWithinBudget(
+      evalEvidence.path,
+      evidenceTextByteBudget,
+      "eval evidence"
+    );
+    requireChecksumEqual(textChecksumHex(text), evalEvidence.manifestChecksum, "eval evidence");
+    const fields = parseManifest(text);
+    requireManifestEqual(fields, "tinyrustlm_eval_manifest_version", "1", "eval evidence");
+    requireManifestEqual(fields, "gate", "assistant-quality", "eval evidence");
+    requireManifestEqual(fields, "eval_status", "pass", "eval evidence");
+    requireManifestEqual(fields, "task_eval_status", "pass", "eval evidence");
+    requireManifestEqual(fields, "cases_failed", "0", "eval evidence");
+    requireManifestEqual(fields, "cases_passed", String(evalEvidence.casesPassed), "eval evidence");
+    requireManifestEqual(fields, "quality_scope", evalEvidence.qualityScope, "eval evidence");
+    requireManifestEqual(fields, "quality_boundary", evalEvidence.qualityBoundary, "eval evidence");
+    requireManifestEqual(fields, "eval_dataset", evalEvidence.evalDataset, "eval evidence");
+    requireChecksumEqual(evalCaseEvidenceChecksum(fields), evalEvidence.checksum, "eval case evidence");
+    evalEvidence.fields = fields;
+    evalEvidence.verified = true;
+    return "eval evidence verified";
+  }
+
   function setInteractive(enabled) {
     setControls(enabled, enabled);
   }
@@ -4134,6 +4444,14 @@
       model.modulePlanVerified = false;
       model.modulePlanReceipt = null;
     }
+    if (model.sourceManifest) {
+      model.sourceManifestVerified = false;
+      model.sourceManifestFields = null;
+    }
+    if (model.evalEvidence) {
+      model.evalEvidence.verified = false;
+      model.evalEvidence.fields = null;
+    }
     resetModulePlanActualFetchCount(model);
     renderAdapterOptions(model, "waiting");
     setInteractive(false);
@@ -4155,6 +4473,8 @@
     let modelBytes = null;
     try {
       await loadModulePlanReceipt(model);
+      await loadSourceManifest(model);
+      await loadEvalEvidence(model);
       modelBytes = await fetchModulePlanBytes(model, modelPath, ".slm model", "model");
       if (Number.isSafeInteger(model.modelBytes) && modelBytes.length !== model.modelBytes) {
         throw new Error("Selector model byte count mismatch");
@@ -4591,6 +4911,7 @@
         renderDiagnostics();
         return;
       }
+      restoreStaticModelOptions();
       await loadSelectorRegistry();
       await loadSelectedModel();
     } catch (error) {

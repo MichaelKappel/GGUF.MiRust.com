@@ -17,6 +17,9 @@ use crate::{build_model_file_from_values_with_flags, fixture_value};
 const SOURCE_MANIFEST_NAME: &str = "source.manifest";
 const SOURCE_VERSION: &str = "1";
 const SOURCE_LAYOUT: &str = "raw-f32-tensor-files-v1";
+pub(crate) const SOURCE_REVIEW_KIND: &str = "safetensors-candidate-review";
+pub(crate) const SOURCE_REVIEW_STATUS: &str = "validated-before-extraction";
+pub(crate) const SOURCE_REVIEW_REQUIRED_NEXT_GATE: &str = "extract-raw-f32-tensors";
 const MAX_ABS_SOURCE_WEIGHT: f32 = 64.0;
 const FLAG_TIED_OUTPUT: u32 = 1;
 
@@ -38,6 +41,66 @@ struct SourceTemplate {
     shape: ModelShape,
     tied_output: bool,
     tokenizer: SourceTokenizerTemplate,
+}
+
+/// Reviewed source-shape contract shared with safetensors intake planning.
+pub(crate) struct SourceShapeContract {
+    /// Model dimensions expected by the raw source shape.
+    pub shape: ModelShape,
+    /// Whether the source shape omits `output.weight` and reuses embeddings.
+    pub tied_output: bool,
+    /// Stable tokenizer strategy label for review artifacts.
+    pub tokenizer_strategy: &'static str,
+}
+
+/// Ordered raw-source tensor expectation used by safetensors conversion planning.
+pub(crate) struct SourceTensorExpectation {
+    /// TinyRustLM tensor name expected by the raw-source manifest.
+    pub name: String,
+    /// Tensor dimensions in manifest order.
+    pub dims: Vec<u64>,
+    /// Safe relative output file path under the raw-source `tensors/` directory.
+    pub relative_file: String,
+    /// Byte count required by the raw f32 tensor payload.
+    pub f32_bytes: u64,
+}
+
+/// Reviewed metadata attached to a raw-f32 trained export manifest.
+pub(crate) struct SourceExportMetadata<'a> {
+    /// Stable route or identifier for the reviewed source checkpoint.
+    pub source_id: &'a str,
+    /// License evidence or local review route attached to the source checkpoint.
+    pub source_license: &'a str,
+    /// Dataset or training corpus route attached to the source checkpoint.
+    pub source_dataset: &'a str,
+    /// Short training or extraction summary attached to the source checkpoint.
+    pub source_training_summary: &'a str,
+    /// Review artifact kind that authorized extraction, when available.
+    pub source_review_kind: Option<&'a str>,
+    /// Review validation status carried from the pre-extraction gate.
+    pub source_review_status: Option<&'a str>,
+    /// Checksum of the candidate-review artifact that authorized extraction.
+    pub source_review_checksum: Option<&'a str>,
+    /// Review-declared next gate that extraction consumes.
+    pub source_review_required_next_gate: Option<&'a str>,
+    /// Reviewed tokenizer rows to write instead of the shape template.
+    pub source_tokenizer_override: Option<&'a SourceTokenizerOverride>,
+}
+
+/// Reviewed tokenizer manifest rows carried from a local source artifact.
+pub(crate) struct SourceTokenizerOverride {
+    /// Custom BPE token entries for ids outside byte fallback and specials.
+    pub tokens: Vec<BpeTokenSpec>,
+    /// Ranked BPE merge rules that produce custom token ids.
+    pub merges: Vec<BpeMergeSpec>,
+}
+
+/// Ordered f32 tensor payload ready to be written into a raw-source bundle.
+pub(crate) struct SourceTensorPayload {
+    /// TinyRustLM tensor name for this payload.
+    pub name: String,
+    /// Raw little-endian f32 bytes for the tensor.
+    pub bytes: Vec<u8>,
 }
 
 /// Writes a reviewable raw-f32 trained-source fixture directory.
@@ -64,7 +127,7 @@ pub fn write_source_template_path(output_dir: &Path, shape_name: &str) -> io::Re
         "tied_output",
         if tied_output { "true" } else { "false" },
     );
-    push_tokenizer_template_lines(&mut manifest, template.tokenizer);
+    push_tokenizer_template_lines(&mut manifest, template.tokenizer)?;
     push_line(&mut manifest, "source_dtype", "f32");
     push_line(&mut manifest, "source_kind", "trained-source-fixture");
     push_line(
@@ -180,6 +243,167 @@ pub fn convert_trained_path(
     Ok(())
 }
 
+/// Confirms that a trained-source output quantization name maps to a supported `.slm` dtype.
+pub(crate) fn validate_output_quantization(output_quantization: &str) -> io::Result<()> {
+    dtype_for_output(output_quantization).map(|_| ())
+}
+
+/// Returns ordered raw-source tensor expectations for a supported TinyRustLM source shape.
+pub(crate) fn source_tensor_expectations(
+    shape_name: &str,
+) -> io::Result<Vec<SourceTensorExpectation>> {
+    let template = template_for_name(shape_name)?;
+    let tensors = tensors_for_shape_and_output(&template.shape, DTYPE_F32, template.tied_output);
+    let tensor_names = tensor_names_for_shape(&template.shape, template.tied_output);
+    let mut expectations = Vec::with_capacity(tensors.len());
+    for (index, tensor) in tensors.iter().enumerate() {
+        let name = tensor_names[index].clone();
+        let dims = tensor
+            .dims
+            .iter()
+            .take(tensor.rank as usize)
+            .map(|dim| u64::from(*dim))
+            .collect::<Vec<_>>();
+        let f32_bytes = (tensor.element_count() as u64)
+            .checked_mul(4)
+            .ok_or_else(|| invalid("source tensor f32 byte length overflow"))?;
+        expectations.push(SourceTensorExpectation {
+            relative_file: format!("tensors/{}", tensor_file_name(&name)),
+            name,
+            dims,
+            f32_bytes,
+        });
+    }
+    Ok(expectations)
+}
+
+/// Returns shape, output-head, and tokenizer metadata for a supported source shape.
+pub(crate) fn source_shape_contract(shape_name: &str) -> io::Result<SourceShapeContract> {
+    let template = template_for_name(shape_name)?;
+    let tokenizer_strategy = match template.tokenizer {
+        SourceTokenizerTemplate::Byte => "byte-tokenizer-v1",
+        SourceTokenizerTemplate::TinyBpeDemo => "manifest-bpe-v1",
+    };
+    Ok(SourceShapeContract {
+        shape: template.shape,
+        tied_output: template.tied_output,
+        tokenizer_strategy,
+    })
+}
+
+/// Writes a reviewed raw-f32 trained export directory from ordered tensor payloads.
+pub(crate) fn write_source_export_path(
+    output_dir: &Path,
+    shape_name: &str,
+    metadata: &SourceExportMetadata<'_>,
+    payloads: &[SourceTensorPayload],
+) -> io::Result<()> {
+    validate_evidence_value("source_id", metadata.source_id)?;
+    validate_evidence_value("source_license", metadata.source_license)?;
+    validate_evidence_value("source_dataset", metadata.source_dataset)?;
+    validate_evidence_value("source_training_summary", metadata.source_training_summary)?;
+    validate_source_review_metadata(metadata)?;
+
+    let template = template_for_name(shape_name)?;
+    let shape = template.shape;
+    let tied_output = template.tied_output;
+    let tensors = tensors_for_shape_and_output(&shape, DTYPE_F32, tied_output);
+    let tensor_names = tensor_names_for_shape(&shape, tied_output);
+    if payloads.len() != tensors.len() {
+        return Err(invalid(
+            "source export payload count does not match target source shape",
+        ));
+    }
+
+    let tensor_dir = output_dir.join("tensors");
+    fs::create_dir_all(&tensor_dir)?;
+    let mut manifest = String::new();
+    push_line(
+        &mut manifest,
+        "tinyrustlm_trained_source_version",
+        SOURCE_VERSION,
+    );
+    push_line(&mut manifest, "model_family", "tinyrustlm");
+    push_line(&mut manifest, "layout", SOURCE_LAYOUT);
+    push_line(&mut manifest, "model_shape", shape_name);
+    push_line(
+        &mut manifest,
+        "tied_output",
+        if tied_output { "true" } else { "false" },
+    );
+    push_source_tokenizer_lines(
+        &mut manifest,
+        template.tokenizer,
+        metadata.source_tokenizer_override,
+        &shape,
+    )?;
+    push_line(&mut manifest, "source_dtype", "f32");
+    push_line(&mut manifest, "source_kind", "trained-export");
+    push_line(&mut manifest, "source_id", metadata.source_id);
+    push_line(&mut manifest, "source_license", metadata.source_license);
+    push_line(&mut manifest, "source_dataset", metadata.source_dataset);
+    push_line(
+        &mut manifest,
+        "source_training_summary",
+        metadata.source_training_summary,
+    );
+    if let (Some(kind), Some(status), Some(checksum), Some(required_next_gate)) = (
+        metadata.source_review_kind,
+        metadata.source_review_status,
+        metadata.source_review_checksum,
+        metadata.source_review_required_next_gate,
+    ) {
+        push_line(&mut manifest, "source_review_kind", kind);
+        push_line(&mut manifest, "source_review_status", status);
+        push_line(&mut manifest, "source_review_checksum", checksum);
+        push_line(
+            &mut manifest,
+            "source_review_required_next_gate",
+            required_next_gate,
+        );
+    }
+    push_shape_lines(&mut manifest, &shape);
+    push_line(&mut manifest, "tensor_count", &tensors.len().to_string());
+
+    for (index, tensor) in tensors.iter().enumerate() {
+        let expected_name = &tensor_names[index];
+        let payload = &payloads[index];
+        if payload.name != *expected_name {
+            return Err(invalid(&format!(
+                "source export payload {index} was {}, expected {expected_name}",
+                payload.name
+            )));
+        }
+        validate_raw_f32_tensor_bytes(&payload.bytes, tensor)?;
+        let relative_file = format!("tensors/{}", tensor_file_name(expected_name));
+        let file_path = output_dir.join(&relative_file);
+        fs::write(&file_path, &payload.bytes)?;
+
+        let prefix = format!("tensor.{index}");
+        push_line(&mut manifest, &format!("{prefix}.name"), expected_name);
+        push_line(
+            &mut manifest,
+            &format!("{prefix}.rank"),
+            &tensor.rank.to_string(),
+        );
+        push_line(&mut manifest, &format!("{prefix}.dims"), &dims_text(tensor));
+        push_line(&mut manifest, &format!("{prefix}.file"), &relative_file);
+        push_line(
+            &mut manifest,
+            &format!("{prefix}.bytes"),
+            &payload.bytes.len().to_string(),
+        );
+        push_line(
+            &mut manifest,
+            &format!("{prefix}.checksum"),
+            &format!("0x{:016x}", source_checksum(&payload.bytes)),
+        );
+    }
+
+    fs::write(output_dir.join(SOURCE_MANIFEST_NAME), manifest)?;
+    Ok(())
+}
+
 fn read_source_bundle(source_dir: &Path) -> io::Result<SourceBundle> {
     let manifest_path = source_dir.join(SOURCE_MANIFEST_NAME);
     let manifest = fs::read_to_string(&manifest_path)?;
@@ -251,6 +475,7 @@ fn validate_source_header(fields: &HashMap<String, String>) -> io::Result<()> {
     require_evidence_field(fields, "source_license")?;
     require_evidence_field(fields, "source_dataset")?;
     require_evidence_field(fields, "source_training_summary")?;
+    validate_source_review_fields(fields)?;
     Ok(())
 }
 
@@ -281,8 +506,13 @@ fn template_for_name(shape_name: &str) -> io::Result<SourceTemplate> {
             tied_output: true,
             tokenizer: SourceTokenizerTemplate::Byte,
         }),
+        "tinylm16-bpe" => Ok(SourceTemplate {
+            shape: tinylm16_bpe_shape(),
+            tied_output: false,
+            tokenizer: SourceTokenizerTemplate::TinyBpeDemo,
+        }),
         _ => Err(invalid(
-            "source-template shape must be tiny-fixture, tiny-fixture-tied, tiny-fixture-bpe, tinylm16, or tinylm16-tied",
+            "source-template shape must be tiny-fixture, tiny-fixture-tied, tiny-fixture-bpe, tinylm16, tinylm16-tied, or tinylm16-bpe",
         )),
     }
 }
@@ -291,6 +521,14 @@ fn tiny_bpe_fixture_shape() -> ModelShape {
     ModelShape {
         vocab_size: 262,
         ..ModelShape::tiny_fixture()
+    }
+}
+
+// Keeps the TinyLM-16M tensor layout while selecting the manifest-native BPE path.
+fn tinylm16_bpe_shape() -> ModelShape {
+    ModelShape {
+        vocab_size: 262,
+        ..ModelShape::tinylm16()
     }
 }
 
@@ -434,14 +672,6 @@ fn bpe_tokenizer_from_fields(
         let prefix = format!("bpe.token.{index}");
         let id = parse_u32_key(fields, &format!("{prefix}.id"))?;
         let bytes = parse_hex_bytes(require_key(fields, &format!("{prefix}.bytes_hex"))?)?;
-        if id < 260 || id >= vocab_size || bytes.is_empty() {
-            return Err(invalid(
-                "BPE token entry is outside the declared vocabulary",
-            ));
-        }
-        if tokens.iter().any(|token: &BpeTokenSpec| token.id == id) {
-            return Err(invalid("BPE token ids must be unique"));
-        }
         tokens.push(BpeTokenSpec { id, bytes });
     }
 
@@ -452,15 +682,6 @@ fn bpe_tokenizer_from_fields(
         let right = parse_u32_key(fields, &format!("{prefix}.right"))?;
         let output = parse_u32_key(fields, &format!("{prefix}.output"))?;
         let rank = parse_u32_key(fields, &format!("{prefix}.rank"))?;
-        if left >= vocab_size || right >= vocab_size || output >= vocab_size || output < 260 {
-            return Err(invalid("BPE merge ids must stay inside vocabulary"));
-        }
-        if !tokens.iter().any(|token| token.id == output) {
-            return Err(invalid("BPE merge output must reference a declared token"));
-        }
-        if merges.iter().any(|merge: &BpeMergeSpec| merge.rank == rank) {
-            return Err(invalid("BPE merge ranks must be unique"));
-        }
         merges.push(BpeMergeSpec {
             left,
             right,
@@ -469,9 +690,49 @@ fn bpe_tokenizer_from_fields(
         });
     }
     reject_extra_bpe_keys(fields, token_count, merge_count)?;
+    validate_bpe_parts(vocab_size, &tokens, &merges)?;
     Ok(TokenizerSection::bpe_from_parts(
         vocab_size, &tokens, &merges,
     ))
+}
+
+/// Validates reusable BPE parts before they are written or converted.
+fn validate_bpe_parts(
+    vocab_size: u32,
+    tokens: &[BpeTokenSpec],
+    merges: &[BpeMergeSpec],
+) -> io::Result<()> {
+    if tokens.is_empty() || merges.is_empty() {
+        return Err(invalid(
+            "BPE source tokenizer requires at least one token and one merge",
+        ));
+    }
+    for (index, token) in tokens.iter().enumerate() {
+        if token.id < 260 || token.id >= vocab_size || token.bytes.is_empty() {
+            return Err(invalid(
+                "BPE token entry is outside the declared vocabulary",
+            ));
+        }
+        if tokens[..index].iter().any(|seen| seen.id == token.id) {
+            return Err(invalid("BPE token ids must be unique"));
+        }
+    }
+    for (index, merge) in merges.iter().enumerate() {
+        if merge.left >= vocab_size
+            || merge.right >= vocab_size
+            || merge.output >= vocab_size
+            || merge.output < 260
+        {
+            return Err(invalid("BPE merge ids must stay inside vocabulary"));
+        }
+        if !tokens.iter().any(|token| token.id == merge.output) {
+            return Err(invalid("BPE merge output must reference a declared token"));
+        }
+        if merges[..index].iter().any(|seen| seen.rank == merge.rank) {
+            return Err(invalid("BPE merge ranks must be unique"));
+        }
+    }
+    Ok(())
 }
 
 fn tensors_for_shape_and_output(
@@ -487,6 +748,15 @@ fn tensors_for_shape_and_output(
 }
 
 fn read_raw_f32_values(bytes: &[u8], tensor: &TensorSpec) -> io::Result<Vec<f32>> {
+    validate_raw_f32_tensor_bytes(bytes, tensor)?;
+    let mut values = Vec::with_capacity(tensor.element_count());
+    for chunk in bytes.chunks_exact(4) {
+        values.push(f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
+    }
+    Ok(values)
+}
+
+fn validate_raw_f32_tensor_bytes(bytes: &[u8], tensor: &TensorSpec) -> io::Result<()> {
     let expected_bytes = tensor.element_count().checked_mul(4).ok_or_else(|| {
         invalid("source tensor byte length overflow while validating f32 payload")
     })?;
@@ -494,7 +764,6 @@ fn read_raw_f32_values(bytes: &[u8], tensor: &TensorSpec) -> io::Result<Vec<f32>
         return Err(invalid("source tensor byte length does not match shape"));
     }
 
-    let mut values = Vec::with_capacity(tensor.element_count());
     let mut any_nonzero = false;
     for chunk in bytes.chunks_exact(4) {
         let value = f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
@@ -505,12 +774,11 @@ fn read_raw_f32_values(bytes: &[u8], tensor: &TensorSpec) -> io::Result<Vec<f32>
             return Err(invalid("source tensor contains an out-of-range f32 value"));
         }
         any_nonzero |= value != 0.0;
-        values.push(value);
     }
     if !any_nonzero {
         return Err(invalid("source tensor must not be entirely zero"));
     }
-    Ok(values)
+    Ok(())
 }
 
 fn source_tensor_bytes(tensor: &TensorSpec) -> io::Result<Vec<u8>> {
@@ -619,35 +887,77 @@ fn push_shape_lines(text: &mut String, shape: &ModelShape) {
     push_line(text, "max_context", &shape.max_context.to_string());
 }
 
-fn push_tokenizer_template_lines(text: &mut String, tokenizer: SourceTokenizerTemplate) {
+/// Writes tokenizer rows from either a reviewed override or the shape template.
+fn push_source_tokenizer_lines(
+    text: &mut String,
+    tokenizer: SourceTokenizerTemplate,
+    tokenizer_override: Option<&SourceTokenizerOverride>,
+    shape: &ModelShape,
+) -> io::Result<()> {
+    match tokenizer_override {
+        Some(override_rows) => {
+            if !matches!(tokenizer, SourceTokenizerTemplate::TinyBpeDemo) {
+                return Err(invalid(
+                    "source tokenizer override requires a BPE source model_shape",
+                ));
+            }
+            push_bpe_tokenizer_lines(
+                text,
+                shape.vocab_size,
+                &override_rows.tokens,
+                &override_rows.merges,
+            )
+        }
+        None => push_tokenizer_template_lines(text, tokenizer),
+    }
+}
+
+/// Writes tokenizer rows supplied by a source-shape template.
+fn push_tokenizer_template_lines(
+    text: &mut String,
+    tokenizer: SourceTokenizerTemplate,
+) -> io::Result<()> {
     match tokenizer {
         SourceTokenizerTemplate::Byte => {
             push_line(text, "tokenizer", "byte-v1");
+            Ok(())
         }
         SourceTokenizerTemplate::TinyBpeDemo => {
-            push_line(text, "tokenizer", "bpe-v1");
             let tokens = tiny_bpe_token_specs();
             let merges = tiny_bpe_merge_specs();
-            push_line(text, "bpe_token_count", &tokens.len().to_string());
-            push_line(text, "bpe_merge_count", &merges.len().to_string());
-            for (index, token) in tokens.iter().enumerate() {
-                let prefix = format!("bpe.token.{index}");
-                push_line(text, &format!("{prefix}.id"), &token.id.to_string());
-                push_line(
-                    text,
-                    &format!("{prefix}.bytes_hex"),
-                    &hex_bytes(&token.bytes),
-                );
-            }
-            for (index, merge) in merges.iter().enumerate() {
-                let prefix = format!("bpe.merge.{index}");
-                push_line(text, &format!("{prefix}.left"), &merge.left.to_string());
-                push_line(text, &format!("{prefix}.right"), &merge.right.to_string());
-                push_line(text, &format!("{prefix}.output"), &merge.output.to_string());
-                push_line(text, &format!("{prefix}.rank"), &merge.rank.to_string());
-            }
+            push_bpe_tokenizer_lines(text, 262, &tokens, &merges)
         }
     }
+}
+
+/// Writes BPE tokenizer rows after validating ids, ranks, and vocabulary bounds.
+fn push_bpe_tokenizer_lines(
+    text: &mut String,
+    vocab_size: u32,
+    tokens: &[BpeTokenSpec],
+    merges: &[BpeMergeSpec],
+) -> io::Result<()> {
+    validate_bpe_parts(vocab_size, tokens, merges)?;
+    push_line(text, "tokenizer", "bpe-v1");
+    push_line(text, "bpe_token_count", &tokens.len().to_string());
+    push_line(text, "bpe_merge_count", &merges.len().to_string());
+    for (index, token) in tokens.iter().enumerate() {
+        let prefix = format!("bpe.token.{index}");
+        push_line(text, &format!("{prefix}.id"), &token.id.to_string());
+        push_line(
+            text,
+            &format!("{prefix}.bytes_hex"),
+            &hex_bytes(&token.bytes),
+        );
+    }
+    for (index, merge) in merges.iter().enumerate() {
+        let prefix = format!("bpe.merge.{index}");
+        push_line(text, &format!("{prefix}.left"), &merge.left.to_string());
+        push_line(text, &format!("{prefix}.right"), &merge.right.to_string());
+        push_line(text, &format!("{prefix}.output"), &merge.output.to_string());
+        push_line(text, &format!("{prefix}.rank"), &merge.rank.to_string());
+    }
+    Ok(())
 }
 
 fn tiny_bpe_token_specs() -> Vec<BpeTokenSpec> {
@@ -739,9 +1049,88 @@ fn parse_key_value_manifest(text: &str) -> io::Result<HashMap<String, String>> {
 
 fn require_evidence_field(fields: &HashMap<String, String>, key: &str) -> io::Result<()> {
     let value = require_key(fields, key)?;
+    validate_evidence_value(key, value)
+}
+
+fn validate_source_review_metadata(metadata: &SourceExportMetadata<'_>) -> io::Result<()> {
+    let values = [
+        metadata.source_review_kind,
+        metadata.source_review_status,
+        metadata.source_review_checksum,
+        metadata.source_review_required_next_gate,
+    ];
+    if values.iter().all(|value| value.is_none()) {
+        return Ok(());
+    }
+    let kind = metadata
+        .source_review_kind
+        .ok_or_else(|| invalid("source review metadata missing source_review_kind"))?;
+    let status = metadata
+        .source_review_status
+        .ok_or_else(|| invalid("source review metadata missing source_review_status"))?;
+    let checksum = metadata
+        .source_review_checksum
+        .ok_or_else(|| invalid("source review metadata missing source_review_checksum"))?;
+    let required_next_gate = metadata.source_review_required_next_gate.ok_or_else(|| {
+        invalid("source review metadata missing source_review_required_next_gate")
+    })?;
+    validate_source_review_record(kind, status, checksum, required_next_gate)
+}
+
+fn validate_source_review_fields(fields: &HashMap<String, String>) -> io::Result<()> {
+    let keys = [
+        "source_review_kind",
+        "source_review_status",
+        "source_review_checksum",
+        "source_review_required_next_gate",
+    ];
+    if !keys.iter().any(|key| fields.contains_key(*key)) {
+        return Ok(());
+    }
+    let kind = require_key(fields, "source_review_kind")?;
+    let status = require_key(fields, "source_review_status")?;
+    let checksum = require_key(fields, "source_review_checksum")?;
+    let required_next_gate = require_key(fields, "source_review_required_next_gate")?;
+    validate_source_review_record(kind, status, checksum, required_next_gate)
+}
+
+fn validate_source_review_record(
+    kind: &str,
+    status: &str,
+    checksum: &str,
+    required_next_gate: &str,
+) -> io::Result<()> {
+    if kind != SOURCE_REVIEW_KIND {
+        return Err(invalid("source_review_kind is invalid"));
+    }
+    if status != SOURCE_REVIEW_STATUS {
+        return Err(invalid("source_review_status is invalid"));
+    }
+    validate_hex64_text("source_review_checksum", checksum)?;
+    if required_next_gate != SOURCE_REVIEW_REQUIRED_NEXT_GATE {
+        return Err(invalid("source_review_required_next_gate is invalid"));
+    }
+    Ok(())
+}
+
+fn validate_evidence_value(key: &str, value: &str) -> io::Result<()> {
     if value == "pending" || value == "not-reviewed" || value == "not-provided" || value.len() < 8 {
         return Err(invalid(&format!(
             "source field {key} must contain reviewed routing evidence"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_hex64_text(key: &str, value: &str) -> io::Result<()> {
+    let Some(rest) = value.strip_prefix("0x") else {
+        return Err(invalid(&format!(
+            "source field {key} must be a hex64 checksum"
+        )));
+    };
+    if rest.len() != 16 || !rest.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(invalid(&format!(
+            "source field {key} must be a hex64 checksum"
         )));
     }
     Ok(())
@@ -898,6 +1287,201 @@ mod tests {
             provenance::validate_manifest_path(&output, &sidecar_manifest_path(&output)).unwrap();
         }
         cleanup(&dir);
+    }
+
+    #[test]
+    fn validates_output_quantization_parameter_before_conversion() {
+        for quantization in ["f32", "q8_0", "q4_0"] {
+            validate_output_quantization(quantization).unwrap();
+        }
+
+        let error = validate_output_quantization("q2_0").unwrap_err();
+
+        assert!(error
+            .to_string()
+            .contains("converted output quantization must be f32, q8_0, or q4_0"));
+    }
+
+    #[test]
+    fn returns_ordered_source_tensor_expectations_for_planning() {
+        let expectations = source_tensor_expectations("tiny-fixture-tied").unwrap();
+
+        assert_eq!(expectations.len(), 11);
+        assert_eq!(expectations[0].name, "tok_embeddings.weight");
+        assert_eq!(expectations[0].dims, vec![260, 8]);
+        assert_eq!(
+            expectations[0].relative_file,
+            "tensors/tok_embeddings_weight.f32"
+        );
+        assert_eq!(expectations[0].f32_bytes, 260 * 8 * 4);
+        assert!(!expectations
+            .iter()
+            .any(|expectation| expectation.name == "output.weight"));
+    }
+
+    #[test]
+    fn returns_tinylm16_bpe_source_tensor_expectations_for_planning() {
+        let expectations = source_tensor_expectations("tinylm16-bpe").unwrap();
+        let template = template_for_name("tinylm16-bpe").unwrap();
+
+        assert!(matches!(
+            template.tokenizer,
+            SourceTokenizerTemplate::TinyBpeDemo
+        ));
+        assert_eq!(template.shape.hidden_size, 512);
+        assert_eq!(template.shape.vocab_size, 262);
+        assert_eq!(expectations.len(), 39);
+        assert_eq!(expectations[0].name, "tok_embeddings.weight");
+        assert_eq!(expectations[0].dims, vec![262, 512]);
+        assert_eq!(expectations[2].name, "output.weight");
+        assert_eq!(expectations[2].dims, vec![262, 512]);
+        assert_eq!(expectations[0].f32_bytes, 262 * 512 * 4);
+    }
+
+    #[test]
+    fn writes_reviewed_source_export_and_validates_metadata() {
+        let dir = temp_path("source-export");
+        let payloads = one_f32_payloads("tiny-fixture-tied");
+        let metadata = SourceExportMetadata {
+            source_id: "reviewed-source-001",
+            source_license: "reviewed-local-license",
+            source_dataset: "reviewed-local-dataset",
+            source_training_summary: "Reviewed local safetensors extraction route",
+            source_review_kind: Some(SOURCE_REVIEW_KIND),
+            source_review_status: Some(SOURCE_REVIEW_STATUS),
+            source_review_checksum: Some("0x00000000000000f1"),
+            source_review_required_next_gate: Some(SOURCE_REVIEW_REQUIRED_NEXT_GATE),
+            source_tokenizer_override: None,
+        };
+
+        write_source_export_path(&dir, "tiny-fixture-tied", &metadata, &payloads).unwrap();
+
+        let manifest = fs::read_to_string(dir.join(SOURCE_MANIFEST_NAME)).unwrap();
+        assert!(manifest.contains("source_kind=trained-export"));
+        assert!(manifest.contains("source_id=reviewed-source-001"));
+        assert!(manifest.contains("source_license=reviewed-local-license"));
+        assert!(manifest.contains("source_dataset=reviewed-local-dataset"));
+        assert!(manifest
+            .contains("source_training_summary=Reviewed local safetensors extraction route"));
+        assert!(manifest.contains("source_review_kind=safetensors-candidate-review"));
+        assert!(manifest.contains("source_review_status=validated-before-extraction"));
+        assert!(manifest.contains("source_review_checksum=0x00000000000000f1"));
+        assert!(manifest.contains("source_review_required_next_gate=extract-raw-f32-tensors"));
+        assert!(manifest.contains("model_shape=tiny-fixture-tied"));
+        assert!(!manifest.contains("output.weight"));
+        validate_source_path(&dir).unwrap();
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn writes_reviewed_source_export_with_bpe_tokenizer_override() {
+        let dir = temp_path("source-export-bpe-override");
+        let payloads = one_f32_payloads("tiny-fixture-bpe");
+        let tokenizer_override = SourceTokenizerOverride {
+            tokens: vec![BpeTokenSpec {
+                id: 260,
+                bytes: b"to".to_vec(),
+            }],
+            merges: vec![BpeMergeSpec {
+                left: 116,
+                right: 111,
+                output: 260,
+                rank: 0,
+            }],
+        };
+        let metadata = SourceExportMetadata {
+            source_id: "reviewed-source-bpe",
+            source_license: "reviewed-local-license",
+            source_dataset: "reviewed-local-dataset",
+            source_training_summary: "Reviewed local BPE safetensors extraction route",
+            source_review_kind: Some(SOURCE_REVIEW_KIND),
+            source_review_status: Some(SOURCE_REVIEW_STATUS),
+            source_review_checksum: Some("0x00000000000000b1"),
+            source_review_required_next_gate: Some(SOURCE_REVIEW_REQUIRED_NEXT_GATE),
+            source_tokenizer_override: Some(&tokenizer_override),
+        };
+
+        write_source_export_path(&dir, "tiny-fixture-bpe", &metadata, &payloads).unwrap();
+
+        let manifest = fs::read_to_string(dir.join(SOURCE_MANIFEST_NAME)).unwrap();
+        assert!(manifest.contains("model_shape=tiny-fixture-bpe"));
+        assert!(manifest.contains("tokenizer=bpe-v1"));
+        assert!(manifest.contains("bpe_token_count=1"));
+        assert!(manifest.contains("bpe_merge_count=1"));
+        assert!(manifest.contains("bpe.token.0.bytes_hex=746f"));
+        assert!(manifest.contains("bpe.merge.0.right=111"));
+        assert!(!manifest.contains("bpe.token.0.bytes_hex=7468"));
+        validate_source_path(&dir).unwrap();
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn rejects_source_export_metadata_without_reviewed_evidence() {
+        let dir = temp_path("source-export-metadata");
+        let payloads = one_f32_payloads("tiny-fixture");
+        let metadata = SourceExportMetadata {
+            source_id: "pending",
+            source_license: "reviewed-local-license",
+            source_dataset: "reviewed-local-dataset",
+            source_training_summary: "Reviewed local safetensors extraction route",
+            source_review_kind: None,
+            source_review_status: None,
+            source_review_checksum: None,
+            source_review_required_next_gate: None,
+            source_tokenizer_override: None,
+        };
+
+        let error =
+            write_source_export_path(&dir, "tiny-fixture", &metadata, &payloads).unwrap_err();
+
+        assert!(error.to_string().contains("source field source_id"));
+    }
+
+    #[test]
+    fn rejects_source_export_partial_review_metadata() {
+        let dir = temp_path("source-export-partial-review");
+        let payloads = one_f32_payloads("tiny-fixture");
+        let metadata = SourceExportMetadata {
+            source_id: "reviewed-source-001",
+            source_license: "reviewed-local-license",
+            source_dataset: "reviewed-local-dataset",
+            source_training_summary: "Reviewed local safetensors extraction route",
+            source_review_kind: Some(SOURCE_REVIEW_KIND),
+            source_review_status: None,
+            source_review_checksum: Some("0x00000000000000f1"),
+            source_review_required_next_gate: Some(SOURCE_REVIEW_REQUIRED_NEXT_GATE),
+            source_tokenizer_override: None,
+        };
+
+        let error =
+            write_source_export_path(&dir, "tiny-fixture", &metadata, &payloads).unwrap_err();
+
+        assert!(error.to_string().contains("source_review_status"));
+    }
+
+    #[test]
+    fn rejects_source_export_payload_name_mismatch() {
+        let dir = temp_path("source-export-payload-name");
+        let mut payloads = one_f32_payloads("tiny-fixture");
+        payloads[0].name = "wrong.weight".to_string();
+        let metadata = SourceExportMetadata {
+            source_id: "reviewed-source-001",
+            source_license: "reviewed-local-license",
+            source_dataset: "reviewed-local-dataset",
+            source_training_summary: "Reviewed local safetensors extraction route",
+            source_review_kind: None,
+            source_review_status: None,
+            source_review_checksum: None,
+            source_review_required_next_gate: None,
+            source_tokenizer_override: None,
+        };
+
+        let error =
+            write_source_export_path(&dir, "tiny-fixture", &metadata, &payloads).unwrap_err();
+
+        assert!(error
+            .to_string()
+            .contains("source export payload 0 was wrong.weight"));
     }
 
     #[test]
@@ -1113,6 +1697,23 @@ mod tests {
             .unwrap()
             .as_nanos();
         std::env::temp_dir().join(format!("tinyrustlm-{name}-{}-{nanos}", std::process::id()))
+    }
+
+    fn one_f32_payloads(shape_name: &str) -> Vec<SourceTensorPayload> {
+        source_tensor_expectations(shape_name)
+            .unwrap()
+            .into_iter()
+            .map(|expectation| {
+                let mut bytes = Vec::with_capacity(expectation.f32_bytes as usize);
+                for _ in 0..(expectation.f32_bytes / 4) {
+                    bytes.extend_from_slice(&1.0f32.to_le_bytes());
+                }
+                SourceTensorPayload {
+                    name: expectation.name,
+                    bytes,
+                }
+            })
+            .collect()
     }
 
     fn cleanup(path: &Path) {

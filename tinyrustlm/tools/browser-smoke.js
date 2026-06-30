@@ -16,7 +16,13 @@ const combinedSelectorOperatorFamilyReloadSoakMode = smokeMode === "combined-sel
 const combinedSelectorRouteSoakMode = combinedSelectorOperatorFamilyRouteSoakMode || smokeMode === "combined-selector-route-soak" || smokeMode === "combined-selector-route-extended-soak" || smokeMode === "combined-selector-route-stress-soak";
 const convertedTrainedRegistrySmokeMode = smokeMode === "converted-trained-registry";
 const convertedTrainedRegistryFileSmokeMode = smokeMode === "converted-trained-registry-file";
-const convertedTrainedRegistryAnySmokeMode = convertedTrainedRegistrySmokeMode || convertedTrainedRegistryFileSmokeMode;
+const convertedTrainedBpeRegistryFileSmokeMode = smokeMode === "converted-trained-bpe-registry-file";
+const convertedTrainedSourceManifestDriftSmokeMode = smokeMode === "converted-trained-source-manifest-drift";
+const convertedTrainedSourceIdentityDriftSmokeMode = smokeMode === "converted-trained-source-identity-drift";
+const convertedTrainedSourceReviewDriftSmokeMode = smokeMode === "converted-trained-source-review-drift";
+const convertedTrainedSourceReviewOmittedSmokeMode = smokeMode === "converted-trained-source-review-omitted";
+const convertedTrainedEvalEvidenceDriftSmokeMode = smokeMode === "converted-trained-eval-evidence-drift";
+const convertedTrainedRegistryAnySmokeMode = convertedTrainedRegistrySmokeMode || convertedTrainedRegistryFileSmokeMode || convertedTrainedBpeRegistryFileSmokeMode;
 const q4DefaultSmokeModes = new Set([
   "adapter-manifest-budget",
   "adapter-family-receipt-drift",
@@ -96,7 +102,13 @@ const compactOperatorReceiptDriftSmokeModes = new Set([
   "crossover-operator-receipt-drift",
   "mutation-operator-receipt-drift"
 ]);
-const expectedModel = process.argv[4] || compactOperatorRegistryModels[smokeMode] || (convertedTrainedRegistryAnySmokeMode ? "converted-trained-q8" : smokeMode === "adapter-sidecar-registry-q8" ? "tinyq8" : q4DefaultSmokeModes.has(smokeMode) || combinedSelectorRouteSoakMode ? "multi-parent-sign-merge-q4" : smokeMode === "multi-parent-registry-file" || smokeMode === "adapter-sidecar-registry-file" ? "multi-parent-sign-merge-f32" : smokeMode === "adapter-sidecar" || smokeMode === "adapter-sidecar-checksum-mismatch" ? "tinyf32" : "tinylm16q8");
+const generatedSelectorDriftSmokeModes = new Set([
+  "generated-selector-operator-receipt-drift",
+  "generated-selector-operator-kind-drift",
+  "generated-selector-schedule-source-drift",
+  "generated-selector-schedule-family-drift"
+]);
+const expectedModel = process.argv[4] || compactOperatorRegistryModels[smokeMode] || (convertedTrainedRegistryAnySmokeMode || convertedTrainedSourceManifestDriftSmokeMode || convertedTrainedSourceIdentityDriftSmokeMode || convertedTrainedSourceReviewDriftSmokeMode || convertedTrainedSourceReviewOmittedSmokeMode || convertedTrainedEvalEvidenceDriftSmokeMode ? "converted-trained-q8" : smokeMode === "adapter-sidecar-registry-q8" ? "tinyq8" : q4DefaultSmokeModes.has(smokeMode) || combinedSelectorRouteSoakMode ? "multi-parent-sign-merge-q4" : smokeMode === "multi-parent-registry-file" || smokeMode === "adapter-sidecar-registry-file" ? "multi-parent-sign-merge-f32" : smokeMode === "adapter-sidecar" || smokeMode === "adapter-sidecar-checksum-mismatch" ? "tinyf32" : "tinylm16q8");
 const enduranceCycles = Math.max(2, Math.min(20, Number.parseInt(process.argv[6] || "4", 10) || 4));
 const performanceTokens = Math.max(2, Math.min(8, Number.parseInt(process.argv[6] || "4", 10) || 4));
 const performanceSoakCycles = Math.max(2, Math.min(10, Number.parseInt(process.argv[6] || "3", 10) || 3));
@@ -151,10 +163,20 @@ function expectedOperatorKindForModel(modelKey) {
 function expectedEvolutionScheduleForModel(modelKey) {
   // Mirrors the parent-pool recipe family order written into generated selector entries.
   if (modelKey.startsWith("multi-parent-soup-")) {
-    return { familyIndex: 1, familyCommand: "soup-candidate" };
+    return {
+      familyIndex: 1,
+      familyCommand: "soup-candidate",
+      familySelectionRule: "seed-weighted-direct-parameter-average",
+      familyOutputGate: "multi-parent-candidate-manifest-plus-runtime-smoke-plus-eval"
+    };
   }
   if (modelKey.startsWith("multi-parent-sign-merge-")) {
-    return { familyIndex: 0, familyCommand: "sign-merge-candidate" };
+    return {
+      familyIndex: 0,
+      familyCommand: "sign-merge-candidate",
+      familySelectionRule: "seed-weighted-delta-sign-consensus",
+      familyOutputGate: "multi-parent-candidate-manifest-plus-runtime-smoke-plus-eval"
+    };
   }
   return null;
 }
@@ -378,9 +400,9 @@ const expectedModulePlanModelBudgets = {
 };
 
 const expectedModulePlanTotalBudgets = {
-  "multi-parent-sign-merge-q8": "175670 bytes",
-  "multi-parent-sign-merge-q4": "173430 bytes",
-  "multi-parent-sign-merge-f32": "187204 bytes"
+  "multi-parent-sign-merge-q8": "175663 bytes",
+  "multi-parent-sign-merge-q4": "173423 bytes",
+  "multi-parent-sign-merge-f32": "187197 bytes"
 };
 
 const expectedModulePlanTotalLimits = {
@@ -393,15 +415,15 @@ const expectedModulePlanTotalLimits = {
 };
 
 const expectedModulePlanBytes = {
-  "multi-parent-sign-merge-q8": "0: 8832 bytes, 1: 607 bytes, 2: 1896 bytes, 3: 5999 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 1088 bytes",
-  "multi-parent-sign-merge-q4": "0: 6592 bytes, 1: 607 bytes, 2: 1896 bytes, 3: 5999 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 1088 bytes",
-  "multi-parent-sign-merge-f32": "0: 20352 bytes, 1: 608 bytes, 2: 1909 bytes, 3: 5999 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 1088 bytes"
+  "multi-parent-sign-merge-q8": "0: 8832 bytes, 1: 600 bytes, 2: 1896 bytes, 3: 5999 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 1088 bytes",
+  "multi-parent-sign-merge-q4": "0: 6592 bytes, 1: 600 bytes, 2: 1896 bytes, 3: 5999 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 1088 bytes",
+  "multi-parent-sign-merge-f32": "0: 20352 bytes, 1: 601 bytes, 2: 1909 bytes, 3: 5999 bytes, 4: 20224 bytes, 5: 832 bytes, 6: 1088 bytes"
 };
 
 const expectedModulePlanChecksums = {
-  "multi-parent-sign-merge-q8": "0: 0x0132bc82d5a0d7d6, 1: 0x855c8c30e39227c5, 2: 0x88f5f52063d8d332, 3: 0x0988468dc4daf944, 4: 0x8194a8a671285019, 5: 0x6fa5d29bee9b7cfb, 6: 0x1ed9d08142edfda9",
-  "multi-parent-sign-merge-q4": "0: 0x1a6808e3098d1ce0, 1: 0xfa5ea1108910598f, 2: 0xec65527ba6a0a24d, 3: 0x6c3f07949496907d, 4: 0x0bd71e0020bc6ebf, 5: 0x69638218a1dd1eb6, 6: 0xcaf46ccfc262fad2",
-  "multi-parent-sign-merge-f32": "0: 0x8a0e6c4c01998199, 1: 0xc2b257b1f036bfcb, 2: 0xd6d39c383538e5c3, 3: 0xe958c9dabb3565f0, 4: 0xe9669ade4571fd42, 5: 0x34008cedc028ed5c, 6: 0x1c64143141c223b5"
+  "multi-parent-sign-merge-q8": "0: 0x0132bc82d5a0d7d6, 1: 0xe67e0141a8602759, 2: 0xfd017c2fe5d1f2c9, 3: 0x5857154de5cc46bc, 4: 0x8194a8a671285019, 5: 0x6fa5d29bee9b7cfb, 6: 0x1ed9d08142edfda9",
+  "multi-parent-sign-merge-q4": "0: 0x1a6808e3098d1ce0, 1: 0xbeed28d92ef80a8c, 2: 0x73c01acb9dd13aaa, 3: 0x04bb5fc25a2acfee, 4: 0x0bd71e0020bc6ebf, 5: 0x69638218a1dd1eb6, 6: 0xcaf46ccfc262fad2",
+  "multi-parent-sign-merge-f32": "0: 0x8a0e6c4c01998199, 1: 0xef8c01142b3b0ab2, 2: 0xc93fd1b14407c277, 3: 0xeb5523a8f7a6af63, 4: 0xe9669ade4571fd42, 5: 0x34008cedc028ed5c, 6: 0x1c64143141c223b5"
 };
 
 const expectedModulePlanRoles =
@@ -647,6 +669,49 @@ function textChecksumHex(text) {
   return `0x${acc.toString(16).padStart(16, "0")}`;
 }
 
+function parseManifestText(text) {
+  const fields = Object.create(null);
+  for (const rawLine of String(text || "").split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) {
+      continue;
+    }
+    const separator = line.indexOf("=");
+    if (separator <= 0) {
+      continue;
+    }
+    fields[line.slice(0, separator)] = line.slice(separator + 1);
+  }
+  return fields;
+}
+
+function evalCaseEvidenceChecksumFromText(text) {
+  // Matches the browser and Rust case-ledger checksum for converted-trained eval sidecars.
+  const fields = parseManifestText(text);
+  const caseCount = Number.parseInt(fields.case_count || "", 10);
+  if (!Number.isSafeInteger(caseCount) || String(caseCount) !== fields.case_count || caseCount < 1) {
+    throw new Error("eval sidecar case_count was invalid");
+  }
+  const lines = [];
+  for (const key of ["case_count", "cases_passed", "cases_failed"]) {
+    if (!fields[key]) {
+      throw new Error(`eval sidecar field ${key} was missing`);
+    }
+    lines.push(`${key}=${fields[key]}`);
+  }
+  for (let index = 0; index < caseCount; index += 1) {
+    const prefix = `case.${index}`;
+    for (const suffix of ["status", "expected", "actual", "error"]) {
+      const key = `${prefix}.${suffix}`;
+      if (!fields[key]) {
+        throw new Error(`eval sidecar field ${key} was missing`);
+      }
+      lines.push(`${key}=${fields[key]}`);
+    }
+  }
+  return textChecksumHex(`${lines.join("\n")}\n`);
+}
+
 function hex64(value) {
   return `0x${value.toString(16).padStart(16, "0")}`;
 }
@@ -713,11 +778,13 @@ function isEvolutionScheduleSummary(value, expectedSchedule) {
   // Matches the compact browser text rendered from parent-pool evolution schedule metadata.
   const parts = String(value || "").split(" / ");
   return Boolean(expectedSchedule) &&
-    parts.length === 4 &&
-    parts[0] === "planned" &&
+    parts.length === 6 &&
+    parts[0] === "operator-family-planned" &&
     parts[1] === `family ${expectedSchedule.familyIndex}` &&
     parts[2] === expectedSchedule.familyCommand &&
-    isHex64(parts[3]);
+    parts[3] === expectedSchedule.familySelectionRule &&
+    parts[4] === expectedSchedule.familyOutputGate &&
+    isHex64(parts[5]);
 }
 
 function isNonZeroHex64(value) {
@@ -1300,6 +1367,69 @@ function driftGeneratedSelectorOperatorReceiptKind(registryText) {
   return updated;
 }
 
+// Mutates generated selector schedule source fields before browser registry intake.
+function driftGeneratedSelectorScheduleSource(registryText) {
+  let changed = false;
+  const updated = registryText.replace(
+    /^entry\.(\d+)\.evolution_selection_source=population-fitness-normalized-seed-weights$/gm,
+    (_line, entryIndex) => {
+      changed = true;
+      return `entry.${entryIndex}.evolution_selection_source=population-review-frontier-v1`;
+    }
+  );
+  if (!changed) {
+    throw new Error("selector registry evolution selection source fields were not found");
+  }
+  return updated;
+}
+
+// Mutates copied schedule family fields while preserving the operator receipt kind.
+function driftGeneratedSelectorScheduleFamily(registryText) {
+  let changed = false;
+  const replacements = [
+    [
+      /^entry\.(\d+)\.scheduled_operator_family_command=sign-merge-candidate$/gm,
+      (_line, entryIndex) => {
+        changed = true;
+        return `entry.${entryIndex}.scheduled_operator_family_command=soup-candidate`;
+      }
+    ],
+    [
+      /^entry\.(\d+)\.scheduled_operator_family_command=soup-candidate$/gm,
+      (_line, entryIndex) => {
+        changed = true;
+        return `entry.${entryIndex}.scheduled_operator_family_command=sign-merge-candidate`;
+      }
+    ],
+    [
+      /^entry\.(\d+)\.scheduled_operator_family_selection_rule=seed-weighted-delta-sign-consensus$/gm,
+      (_line, entryIndex) => {
+        changed = true;
+        return `entry.${entryIndex}.scheduled_operator_family_selection_rule=seed-weighted-direct-parameter-average`;
+      }
+    ],
+    [
+      /^entry\.(\d+)\.scheduled_operator_family_selection_rule=seed-weighted-direct-parameter-average$/gm,
+      (_line, entryIndex) => {
+        changed = true;
+        return `entry.${entryIndex}.scheduled_operator_family_selection_rule=seed-weighted-delta-sign-consensus`;
+      }
+    ],
+    [
+      /^entry\.(\d+)\.scheduled_operator_family_output_gate=multi-parent-candidate-manifest-plus-runtime-smoke-plus-eval$/gm,
+      (_line, entryIndex) => {
+        changed = true;
+        return `entry.${entryIndex}.scheduled_operator_family_output_gate=selector-registry-only`;
+      }
+    ]
+  ];
+  const updated = replacements.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), registryText);
+  if (!changed) {
+    throw new Error("selector registry scheduled family fields were not found");
+  }
+  return updated;
+}
+
 function updateModulePlanAssemblyReceiptChecksum(receiptText, checksum) {
   let updated = receiptText;
   for (const key of ["assembly_receipt_checksum", "module.2.checksum"]) {
@@ -1534,6 +1664,10 @@ async function runPageSmoke(client, modelKey) {
         benchScratch: byId("benchScratch").textContent,
         selectedModel: byId("modelSelect").value,
         provenanceSourceKind: byId("provenanceSourceKind").textContent,
+        provenanceSourceSnapshot: byId("provenanceSourceSnapshot").textContent,
+        provenanceSourceId: byId("provenanceSourceId").textContent,
+        provenanceSourceShape: byId("provenanceSourceShape").textContent,
+        provenanceSourceReview: byId("provenanceSourceReview").textContent,
         provenanceAdmission: byId("provenanceAdmission").textContent,
         provenanceQualityClaim: byId("provenanceQualityClaim").textContent,
         provenanceTrainedClaim: byId("provenanceTrainedClaim").textContent,
@@ -2854,6 +2988,10 @@ async function runPageUiAudit(client) {
           developerText: byId("developer").textContent,
           provenanceState: byId("provenanceState").textContent,
           provenanceSourceKind: byId("provenanceSourceKind").textContent,
+          provenanceSourceSnapshot: byId("provenanceSourceSnapshot").textContent,
+          provenanceSourceId: byId("provenanceSourceId").textContent,
+          provenanceSourceShape: byId("provenanceSourceShape").textContent,
+          provenanceSourceReview: byId("provenanceSourceReview").textContent,
           provenanceAdmission: byId("provenanceAdmission").textContent,
           provenanceQualityClaim: byId("provenanceQualityClaim").textContent,
           provenanceTrainedClaim: byId("provenanceTrainedClaim").textContent,
@@ -3086,6 +3224,19 @@ function assertSmoke(result, modelKey, networkRequests) {
   }
 }
 
+// Names the expected source shape for converted-trained registry smoke routes.
+function expectedConvertedTrainedSourceShape() {
+  return convertedTrainedBpeRegistryFileSmokeMode ? "tiny-fixture-bpe" : "tiny-fixture";
+}
+
+// Checks the safetensors review row without fixing real file-backed roots to fixture checksums.
+function isExpectedConvertedTrainedSourceReview(value) {
+  if (convertedTrainedRegistrySmokeMode) {
+    return value === "validated-before-extraction / extract-raw-f32-tensors / 0x00000000000000b1";
+  }
+  return /^validated-before-extraction \/ extract-raw-f32-tensors \/ 0x[0-9a-f]{16}$/i.test(String(value || ""));
+}
+
 function assertMultiParentRegistrySmoke(result, modelKey, networkRequests) {
   assertSmoke(result, modelKey, networkRequests);
   const failures = [];
@@ -3156,6 +3307,16 @@ function assertConvertedTrainedRegistrySmoke(result, modelKey, networkRequests) 
   if (result.provenanceSourceKind !== "converted-trained") {
     failures.push(`provenance source kind was ${result.provenanceSourceKind}`);
   }
+  if (!isExpectedConvertedTrainedSourceIdentity(result.provenanceSourceSnapshot, result.provenanceSourceId)) {
+    failures.push(`provenance source snapshot was ${result.provenanceSourceSnapshot}; provenance source id was ${result.provenanceSourceId}`);
+  }
+  const expectedSourceShape = expectedConvertedTrainedSourceShape();
+  if (result.provenanceSourceShape !== expectedSourceShape) {
+    failures.push(`provenance source shape was ${result.provenanceSourceShape}`);
+  }
+  if (!isExpectedConvertedTrainedSourceReview(result.provenanceSourceReview)) {
+    failures.push(`provenance source review was ${result.provenanceSourceReview}`);
+  }
   if (result.provenanceAdmission !== "structure-accepted-quality-pending") {
     failures.push(`provenance admission was ${result.provenanceAdmission}`);
   }
@@ -3170,6 +3331,231 @@ function assertConvertedTrainedRegistrySmoke(result, modelKey, networkRequests) 
   }
   if (!networkIncludesPath(networkRequests, `${expectedRoute}.manifest`)) {
     failures.push("converted-trained manifest route was not requested");
+  }
+  const expectedSourceManifestRoute = `/evidence/${modelKey}/converted-trained.source.manifest`;
+  if (!networkIncludesPath(networkRequests, expectedSourceManifestRoute)) {
+    failures.push("converted-trained source manifest route was not requested");
+  }
+  const expectedEvalEvidenceRoute = `/evidence/${modelKey}/converted-trained.eval`;
+  if (!networkIncludesPath(networkRequests, expectedEvalEvidenceRoute)) {
+    failures.push("converted-trained eval evidence route was not requested");
+  }
+  const sourceManifestIndex = networkRequests.findIndex((requestUrl) => requestUrlPathEquals(requestUrl, expectedSourceManifestRoute));
+  const evalEvidenceIndex = networkRequests.findIndex((requestUrl) => requestUrlPathEquals(requestUrl, expectedEvalEvidenceRoute));
+  const modelIndex = networkRequests.findIndex((requestUrl) => requestUrlPathEquals(requestUrl, expectedRoute));
+  if (sourceManifestIndex < 0 || modelIndex < 0 || sourceManifestIndex > modelIndex) {
+    failures.push("converted-trained source manifest was not requested before model bytes");
+  }
+  if (evalEvidenceIndex < 0 || modelIndex < 0 || evalEvidenceIndex > modelIndex) {
+    failures.push("converted-trained eval evidence was not requested before model bytes");
+  }
+  const allowedOrigin = new URL(appUrl).origin;
+  for (const requestUrl of networkRequests) {
+    if (!requestUrl.startsWith("http://") && !requestUrl.startsWith("https://")) {
+      continue;
+    }
+    const origin = new URL(requestUrl).origin;
+    if (origin !== allowedOrigin) {
+      failures.push(`remote request observed: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+// Accepts both intercepted fixture routes and real safetensors-exported browser roots.
+function isExpectedConvertedTrainedSourceIdentity(sourceSnapshot, sourceId) {
+  if (sourceSnapshot === "trained-source-fixture") {
+    return sourceId === "tinyrustlm-local-source-fixture";
+  }
+  if (sourceSnapshot === "trained-export") {
+    return /^safetensors-tensor-directory-0x[0-9a-f]+$/i.test(String(sourceId || ""));
+  }
+  return false;
+}
+
+// Confirms source-manifest drift stops converted-trained loading before model bytes.
+function assertConvertedTrainedSourceManifestDriftSmoke(result, modelKey, networkRequests) {
+  const failures = [];
+  if (result.selectedModel !== modelKey) {
+    failures.push(`selected model was ${result.selectedModel}`);
+  }
+  if (result.runtimeStatus !== "Model load failed") {
+    failures.push(`runtime status was ${result.runtimeStatus}`);
+  }
+  if (result.modelState !== "fetch error") {
+    failures.push(`model state was ${result.modelState}`);
+  }
+  if (!String(result.errorState || "").includes("source manifest checksum mismatch")) {
+    failures.push(`error state was ${result.errorState}`);
+  }
+  if (!result.generateDisabled || !result.resetDisabled || !result.stepTokenDisabled) {
+    failures.push("runtime controls were enabled after converted-trained source manifest drift");
+  }
+  if (result.modelSelectDisabled) {
+    failures.push("model selector was disabled after converted-trained source manifest drift");
+  }
+  if (!networkIncludesPath(networkRequests, "/models/selector.registry")) {
+    failures.push("selector registry route was not requested");
+  }
+  const expectedSourceManifestRoute = `/evidence/${modelKey}/converted-trained.source.manifest`;
+  if (!networkIncludesPath(networkRequests, expectedSourceManifestRoute)) {
+    failures.push("converted-trained source manifest route was not requested");
+  }
+  const expectedModelRoute = expectedRouteForModel(modelKey);
+  if (expectedModelRoute && networkIncludesPath(networkRequests, expectedModelRoute)) {
+    failures.push("converted-trained model route was requested after source manifest drift");
+  }
+  const allowedOrigin = new URL(appUrl).origin;
+  for (const requestUrl of networkRequests) {
+    if (!requestUrl.startsWith("http://") && !requestUrl.startsWith("https://")) {
+      continue;
+    }
+    const origin = new URL(requestUrl).origin;
+    if (origin !== allowedOrigin) {
+      failures.push(`remote request observed: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+// Confirms source identity drift stops converted-trained loading even when the source checksum matches.
+function assertConvertedTrainedSourceIdentityDriftSmoke(result, modelKey, networkRequests) {
+  const failures = [];
+  if (result.selectedModel !== modelKey) {
+    failures.push(`selected model was ${result.selectedModel}`);
+  }
+  if (result.runtimeStatus !== "Model load failed") {
+    failures.push(`runtime status was ${result.runtimeStatus}`);
+  }
+  if (result.modelState !== "fetch error") {
+    failures.push(`model state was ${result.modelState}`);
+  }
+  if (!String(result.errorState || "").includes("source manifest identity field source_id")) {
+    failures.push(`error state was ${result.errorState}`);
+  }
+  if (!result.generateDisabled || !result.resetDisabled || !result.stepTokenDisabled) {
+    failures.push("runtime controls were enabled after converted-trained source identity drift");
+  }
+  if (result.modelSelectDisabled) {
+    failures.push("model selector was disabled after converted-trained source identity drift");
+  }
+  if (!networkIncludesPath(networkRequests, "/models/selector.registry")) {
+    failures.push("selector registry route was not requested");
+  }
+  const expectedSourceManifestRoute = `/evidence/${modelKey}/converted-trained.source.manifest`;
+  if (!networkIncludesPath(networkRequests, expectedSourceManifestRoute)) {
+    failures.push("converted-trained source manifest route was not requested");
+  }
+  const expectedRoute = expectedRouteForModel(modelKey) || "/models/converted-trained-q8.slm";
+  if (networkIncludesPath(networkRequests, expectedRoute)) {
+    failures.push("converted-trained model route was requested after source identity drift");
+  }
+  const allowedOrigin = new URL(appUrl).origin;
+  for (const requestUrl of networkRequests) {
+    if (!requestUrl.startsWith("http://") && !requestUrl.startsWith("https://")) {
+      continue;
+    }
+    const origin = new URL(requestUrl).origin;
+    if (origin !== allowedOrigin) {
+      failures.push(`remote request observed: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+// Confirms source review drift stops converted-trained loading even when source bytes match.
+function assertConvertedTrainedSourceReviewDriftSmoke(
+  result,
+  modelKey,
+  networkRequests,
+  expectedError = "source review identity field source_review_checksum"
+) {
+  const failures = [];
+  if (result.selectedModel !== modelKey) {
+    failures.push(`selected model was ${result.selectedModel}`);
+  }
+  if (result.runtimeStatus !== "Model load failed") {
+    failures.push(`runtime status was ${result.runtimeStatus}`);
+  }
+  if (result.modelState !== "fetch error") {
+    failures.push(`model state was ${result.modelState}`);
+  }
+  if (!String(result.errorState || "").includes(expectedError)) {
+    failures.push(`error state was ${result.errorState}`);
+  }
+  if (!result.generateDisabled || !result.resetDisabled || !result.stepTokenDisabled) {
+    failures.push("runtime controls were enabled after converted-trained source review drift");
+  }
+  if (result.modelSelectDisabled) {
+    failures.push("model selector was disabled after converted-trained source review drift");
+  }
+  if (!networkIncludesPath(networkRequests, "/models/selector.registry")) {
+    failures.push("selector registry route was not requested");
+  }
+  const expectedSourceManifestRoute = `/evidence/${modelKey}/converted-trained.source.manifest`;
+  if (!networkIncludesPath(networkRequests, expectedSourceManifestRoute)) {
+    failures.push("converted-trained source manifest route was not requested");
+  }
+  const expectedRoute = expectedRouteForModel(modelKey) || "/models/converted-trained-q8.slm";
+  if (networkIncludesPath(networkRequests, expectedRoute)) {
+    failures.push("converted-trained model route was requested after source review drift");
+  }
+  const allowedOrigin = new URL(appUrl).origin;
+  for (const requestUrl of networkRequests) {
+    if (!requestUrl.startsWith("http://") && !requestUrl.startsWith("https://")) {
+      continue;
+    }
+    const origin = new URL(requestUrl).origin;
+    if (origin !== allowedOrigin) {
+      failures.push(`remote request observed: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+// Confirms eval evidence drift stops converted-trained loading before model bytes.
+function assertConvertedTrainedEvalEvidenceDriftSmoke(result, modelKey, networkRequests) {
+  const failures = [];
+  if (result.selectedModel !== modelKey) {
+    failures.push(`selected model was ${result.selectedModel}`);
+  }
+  if (result.runtimeStatus !== "Model load failed") {
+    failures.push(`runtime status was ${result.runtimeStatus}`);
+  }
+  if (result.modelState !== "fetch error") {
+    failures.push(`model state was ${result.modelState}`);
+  }
+  if (!String(result.errorState || "").includes("eval evidence checksum mismatch")) {
+    failures.push(`error state was ${result.errorState}`);
+  }
+  if (!result.generateDisabled || !result.resetDisabled || !result.stepTokenDisabled) {
+    failures.push("runtime controls were enabled after converted-trained eval evidence drift");
+  }
+  if (result.modelSelectDisabled) {
+    failures.push("model selector was disabled after converted-trained eval evidence drift");
+  }
+  if (!networkIncludesPath(networkRequests, "/models/selector.registry")) {
+    failures.push("selector registry route was not requested");
+  }
+  const expectedSourceManifestRoute = `/evidence/${modelKey}/converted-trained.source.manifest`;
+  if (!networkIncludesPath(networkRequests, expectedSourceManifestRoute)) {
+    failures.push("converted-trained source manifest route was not requested");
+  }
+  const expectedEvalEvidenceRoute = `/evidence/${modelKey}/converted-trained.eval`;
+  if (!networkIncludesPath(networkRequests, expectedEvalEvidenceRoute)) {
+    failures.push("converted-trained eval evidence route was not requested");
+  }
+  const expectedModelRoute = expectedRouteForModel(modelKey);
+  if (expectedModelRoute && networkIncludesPath(networkRequests, expectedModelRoute)) {
+    failures.push("converted-trained model route was requested after eval evidence drift");
   }
   const allowedOrigin = new URL(appUrl).origin;
   for (const requestUrl of networkRequests) {
@@ -3227,7 +3613,7 @@ function assertSelectorOperatorReceiptDriftSmoke(
   }
 }
 
-// Confirms generated selector operator receipt drift prevents generated route intake.
+// Confirms generated selector drift prevents generated route intake.
 function assertGeneratedSelectorOperatorReceiptDriftSmoke(result, modelKey, networkRequests) {
   assertSmoke(result, "tinylm16q8", networkRequests);
   const failures = [];
@@ -3243,10 +3629,10 @@ function assertGeneratedSelectorOperatorReceiptDriftSmoke(result, modelKey, netw
         "multi-parent-soup-q4",
         "multi-parent-soup-q8",
         "multi-parent-soup-f32"
-      ];
+    ];
   for (const generatedModel of generatedModels) {
     if (modelOptionValues.includes(generatedModel)) {
-      failures.push(`generated operator receipt drift entry was accepted: ${generatedModel}`);
+      failures.push(`generated selector drift entry was accepted: ${generatedModel}`);
     }
     const generatedRoutes = [
       expectedModelRoutes[generatedModel],
@@ -3257,7 +3643,7 @@ function assertGeneratedSelectorOperatorReceiptDriftSmoke(result, modelKey, netw
     ].filter(Boolean);
     for (const generatedRoute of generatedRoutes) {
       if (networkIncludesPath(networkRequests, generatedRoute)) {
-        failures.push(`generated route was requested after operator receipt drift: ${generatedRoute}`);
+        failures.push(`generated route was requested after selector drift: ${generatedRoute}`);
       }
     }
   }
@@ -6552,13 +6938,13 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
   if (snapshot.h1 !== "TinyRustLM") {
     failures.push(`${prefix} h1 was ${snapshot.h1}`);
   }
-  if (snapshot.eyebrow !== "GGUF.MiRust.com") {
+  if (snapshot.eyebrow !== "Runtime.MiRust.com") {
     failures.push(`${prefix} eyebrow was ${snapshot.eyebrow}`);
   }
   if (snapshot.notice !== "All inference runs locally in this browser. Prompts are not sent to a server.") {
     failures.push(`${prefix} local-only notice was ${snapshot.notice}`);
   }
-  if (!snapshot.footer.includes("TinyRustLM") || !snapshot.footer.includes("GGUF.MiRust.com") || !snapshot.footer.includes("Rust/WASM")) {
+  if (!snapshot.footer.includes("TinyRustLM") || !snapshot.footer.includes("Runtime.MiRust.com") || !snapshot.footer.includes("Rust/WASM")) {
     failures.push(`${prefix} footer did not expose product, site, and Rust/WASM identity`);
   }
   for (const heading of requiredHeadings) {
@@ -6654,6 +7040,18 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
   }
   if (snapshot.provenanceSourceKind !== "deterministic-smoke") {
     failures.push(`${prefix} provenance source was ${snapshot.provenanceSourceKind}`);
+  }
+  if (snapshot.provenanceSourceSnapshot !== "unavailable") {
+    failures.push(`${prefix} provenance source snapshot was ${snapshot.provenanceSourceSnapshot}`);
+  }
+  if (snapshot.provenanceSourceId !== "unavailable") {
+    failures.push(`${prefix} provenance source id was ${snapshot.provenanceSourceId}`);
+  }
+  if (snapshot.provenanceSourceShape !== "unavailable") {
+    failures.push(`${prefix} provenance source shape was ${snapshot.provenanceSourceShape}`);
+  }
+  if (snapshot.provenanceSourceReview !== "unavailable") {
+    failures.push(`${prefix} provenance source review was ${snapshot.provenanceSourceReview}`);
   }
   if (snapshot.provenanceAdmission !== "accepted-for-runtime-smoke") {
     failures.push(`${prefix} provenance admission was ${snapshot.provenanceAdmission}`);
@@ -7278,8 +7676,80 @@ function convertedTrainedRegistryManifestText() {
   ].join("\n");
 }
 
+// Builds the reviewed trained-source manifest body fetched before converted model bytes.
+function convertedTrainedSourceManifestText() {
+  return [
+    "tinyrustlm_trained_source_version=1",
+    "model_family=tinyrustlm",
+    "layout=raw-f32-tensor-files-v1",
+    "model_shape=tiny-fixture",
+    "tied_output=false",
+    "tokenizer_template=byte",
+    "vocab_size=260",
+    "source_dtype=f32",
+    "source_kind=trained-source-fixture",
+    "source_id=tinyrustlm-local-source-fixture",
+    "source_license=local-fixture-only",
+    "source_dataset=tinyrustlm-local-conversion-fixture",
+    "source_training_summary=Deterministic source-weight fixture for conversion path validation",
+    "source_review_kind=safetensors-candidate-review",
+    "source_review_status=validated-before-extraction",
+    "source_review_checksum=0x00000000000000b1",
+    "source_review_required_next_gate=extract-raw-f32-tensors",
+    "tensor_count=12",
+    ""
+  ].join("\n");
+}
+
+// Builds a checksum-matched source manifest whose identity disagrees with selector metadata.
+function convertedTrainedSourceIdentityDriftManifestText() {
+  return convertedTrainedSourceManifestText().replace(
+    "source_id=tinyrustlm-local-source-fixture",
+    "source_id=tinyrustlm-local-source-drift"
+  );
+}
+
+// Builds a checksum-matched source manifest whose review checksum disagrees with selector metadata.
+function convertedTrainedSourceReviewDriftManifestText() {
+  return convertedTrainedSourceManifestText().replace(
+    "source_review_checksum=0x00000000000000b1",
+    "source_review_checksum=0x00000000000000b2"
+  );
+}
+
+// Builds the passed eval sidecar body fetched before converted model bytes.
+function convertedTrainedEvalEvidenceText() {
+  return [
+    "tinyrustlm_eval_manifest_version=1",
+    "gate=assistant-quality",
+    "source_kind=converted-trained",
+    `manifest_checksum=${textChecksumHex(convertedTrainedRegistryManifestText())}`,
+    "slm_checksum=0x481f1037d57ebcd3",
+    "model_shape=vocab=260,hidden=8,layers=1,heads=2,kv_heads=2,head_dim=4,ffn=16,context=16",
+    "eval_status=pass",
+    "task_eval_status=pass",
+    "safety_review_status=pass",
+    "quality_decision=accepted-for-assistant-quality",
+    "quality_scope=tiny-fixture-runtime-eval-only",
+    "evaluator=browser-smoke-fixture",
+    "eval_dataset=tinyrustlm/tests/fixtures/assistant-quality-eval-cases.txt",
+    "eval_summary=Fixture converted-trained route check",
+    "quality_boundary=fixture-runtime-and-eval-plumbing-not-product-assistant-quality",
+    "case_count=1",
+    "cases_passed=1",
+    "cases_failed=0",
+    "case.0.status=pass",
+    "case.0.expected=e",
+    "case.0.actual=e",
+    "case.0.error=ok",
+    ""
+  ].join("\n");
+}
+
 // Builds a compact selector registry that routes a local converted-trained q8 artifact.
 function convertedTrainedRegistryText() {
+  const sourceManifestText = convertedTrainedSourceManifestText();
+  const evalEvidenceText = convertedTrainedEvalEvidenceText();
   return [
     "tinyrustlm_selector_registry_version=1",
     "selector_id=browser-local-selector",
@@ -7296,6 +7766,17 @@ function convertedTrainedRegistryText() {
     "entry.0.display_name=Converted trained-source q8_0",
     "entry.0.model_path=../models/converted-trained-q8.slm",
     "entry.0.manifest_path=../models/converted-trained-q8.slm.manifest",
+    "entry.0.source_manifest_path=../evidence/converted-trained-q8/converted-trained.source.manifest",
+    `entry.0.source_manifest_checksum=${textChecksumHex(sourceManifestText)}`,
+    "entry.0.source_manifest_kind=trained-source-manifest",
+    "entry.0.source_manifest_status=reviewed-source-snapshot",
+    "entry.0.source_manifest_source_kind=trained-source-fixture",
+    "entry.0.source_manifest_source_id=tinyrustlm-local-source-fixture",
+    "entry.0.source_manifest_model_shape=tiny-fixture",
+    "entry.0.source_review_kind=safetensors-candidate-review",
+    "entry.0.source_review_status=validated-before-extraction",
+    "entry.0.source_review_checksum=0x00000000000000b1",
+    "entry.0.source_review_required_next_gate=extract-raw-f32-tensors",
     "entry.0.artifact_path=tinyrustlm/models/converted-trained-q8.slm",
     "entry.0.max_tokens=8",
     "entry.0.model_bytes=8832",
@@ -7337,8 +7818,9 @@ function convertedTrainedRegistryText() {
     "entry.0.promotion_manifest_checksum=0x0000000000000073",
     "entry.0.provenance_manifest_checksum=0x0000000000000077",
     "entry.0.runtime_smoke_manifest_checksum=0x0000000000000074",
-    "entry.0.eval_manifest_checksum=0x0000000000000075",
-    "entry.0.eval_case_evidence_checksum=0x0000000000000076",
+    "entry.0.eval_path=../evidence/converted-trained-q8/converted-trained.eval",
+    `entry.0.eval_manifest_checksum=${textChecksumHex(evalEvidenceText)}`,
+    `entry.0.eval_case_evidence_checksum=${evalCaseEvidenceChecksumFromText(evalEvidenceText)}`,
     "entry.0.quality_scope=tiny-fixture-runtime-eval-only",
     "entry.0.quality_boundary=fixture-runtime-and-eval-plumbing-not-product-assistant-quality",
     "entry.0.eval_dataset=tinyrustlm/tests/fixtures/assistant-quality-eval-cases.txt",
@@ -7350,6 +7832,30 @@ function convertedTrainedRegistryText() {
     "required_next_gate=browser-loads-selector-registry-entry-models",
     ""
   ].join("\n");
+}
+
+// Recomputes the selector checksum for drifted source bytes while preserving the old source id.
+function convertedTrainedSourceIdentityDriftRegistryText() {
+  return convertedTrainedRegistryText().replace(
+    `entry.0.source_manifest_checksum=${textChecksumHex(convertedTrainedSourceManifestText())}`,
+    `entry.0.source_manifest_checksum=${textChecksumHex(convertedTrainedSourceIdentityDriftManifestText())}`
+  );
+}
+
+// Recomputes only the source manifest checksum for review-field drift.
+function convertedTrainedSourceReviewDriftRegistryText() {
+  return convertedTrainedRegistryText().replace(
+    `entry.0.source_manifest_checksum=${textChecksumHex(convertedTrainedSourceManifestText())}`,
+    `entry.0.source_manifest_checksum=${textChecksumHex(convertedTrainedSourceReviewDriftManifestText())}`
+  );
+}
+
+// Omits selector-carried source review fields while the fetched source manifest still contains them.
+function convertedTrainedSourceReviewOmittedRegistryText() {
+  return convertedTrainedRegistryText()
+    .split("\n")
+    .filter((line) => !line.startsWith("entry.0.source_review_"))
+    .join("\n");
 }
 
 // Serves a local converted-trained model route by reusing the checked tiny q8 bytes with a converted-trained manifest.
@@ -7365,9 +7871,176 @@ function installConvertedTrainedRegistryInterceptor(client) {
         await fulfillTextRequest(client, params.requestId, convertedTrainedRegistryManifestText());
         return;
       }
+      if (requestUrlPathEquals(requestUrl, "/evidence/converted-trained-q8/converted-trained.source.manifest")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceManifestText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/evidence/converted-trained-q8/converted-trained.eval")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedEvalEvidenceText());
+        return;
+      }
       if (requestUrlPathEquals(requestUrl, "/models/converted-trained-q8.slm")) {
         const sourceUrl = new URL("/models/tiny-test-model-q8.slm", requestUrl).toString();
         await fulfillBinaryRequest(client, params.requestId, await getBuffer(sourceUrl));
+        return;
+      }
+      await continuePausedRequest(client, params.requestId);
+    })().catch((error) => {
+      console.error(error);
+      continuePausedRequest(client, params.requestId).catch((continueError) => {
+        console.error(continueError);
+      });
+    });
+  });
+}
+
+// Serves drifted source evidence while leaving the selector registry checksum untouched.
+function installConvertedTrainedSourceManifestDriftInterceptor(client, modelKey) {
+  const sourceManifestRoute = `/evidence/${modelKey}/converted-trained.source.manifest`;
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    (async () => {
+      if (requestUrlPathEquals(requestUrl, sourceManifestRoute)) {
+        await fulfillTextRequest(
+          client,
+          params.requestId,
+          `${convertedTrainedSourceManifestText()}source_manifest_drift=checksum-mismatch\n`
+        );
+        return;
+      }
+      await continuePausedRequest(client, params.requestId);
+    })().catch((error) => {
+      console.error(error);
+      continuePausedRequest(client, params.requestId).catch((continueError) => {
+        console.error(continueError);
+      });
+    });
+  });
+}
+
+// Serves checksum-matched source bytes with a source id that differs from selector metadata.
+function installConvertedTrainedSourceIdentityDriftInterceptor(client, modelKey) {
+  const sourceManifestRoute = `/evidence/${modelKey}/converted-trained.source.manifest`;
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    (async () => {
+      if (requestUrlPathEquals(requestUrl, "/models/selector.registry")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceIdentityDriftRegistryText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/models/converted-trained-q8.slm.manifest")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRegistryManifestText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, sourceManifestRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceIdentityDriftManifestText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/evidence/converted-trained-q8/converted-trained.eval")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedEvalEvidenceText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/models/converted-trained-q8.slm")) {
+        const sourceUrl = new URL("/models/tiny-test-model-q8.slm", requestUrl).toString();
+        await fulfillBinaryRequest(client, params.requestId, await getBuffer(sourceUrl));
+        return;
+      }
+      await continuePausedRequest(client, params.requestId);
+    })().catch((error) => {
+      console.error(error);
+      continuePausedRequest(client, params.requestId).catch((continueError) => {
+        console.error(continueError);
+      });
+    });
+  });
+}
+
+// Serves checksum-matched source bytes whose review checksum differs from selector metadata.
+function installConvertedTrainedSourceReviewDriftInterceptor(client, modelKey) {
+  const sourceManifestRoute = `/evidence/${modelKey}/converted-trained.source.manifest`;
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    (async () => {
+      if (requestUrlPathEquals(requestUrl, "/models/selector.registry")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceReviewDriftRegistryText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/models/converted-trained-q8.slm.manifest")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRegistryManifestText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, sourceManifestRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceReviewDriftManifestText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/evidence/converted-trained-q8/converted-trained.eval")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedEvalEvidenceText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/models/converted-trained-q8.slm")) {
+        const sourceUrl = new URL("/models/tiny-test-model-q8.slm", requestUrl).toString();
+        await fulfillBinaryRequest(client, params.requestId, await getBuffer(sourceUrl));
+        return;
+      }
+      await continuePausedRequest(client, params.requestId);
+    })().catch((error) => {
+      console.error(error);
+      continuePausedRequest(client, params.requestId).catch((continueError) => {
+        console.error(continueError);
+      });
+    });
+  });
+}
+
+// Serves source review evidence in the manifest but omits the selector-carried review route.
+function installConvertedTrainedSourceReviewOmittedInterceptor(client, modelKey) {
+  const sourceManifestRoute = `/evidence/${modelKey}/converted-trained.source.manifest`;
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    (async () => {
+      if (requestUrlPathEquals(requestUrl, "/models/selector.registry")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceReviewOmittedRegistryText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/models/converted-trained-q8.slm.manifest")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRegistryManifestText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, sourceManifestRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceManifestText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/evidence/converted-trained-q8/converted-trained.eval")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedEvalEvidenceText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/models/converted-trained-q8.slm")) {
+        const sourceUrl = new URL("/models/tiny-test-model-q8.slm", requestUrl).toString();
+        await fulfillBinaryRequest(client, params.requestId, await getBuffer(sourceUrl));
+        return;
+      }
+      await continuePausedRequest(client, params.requestId);
+    })().catch((error) => {
+      console.error(error);
+      continuePausedRequest(client, params.requestId).catch((continueError) => {
+        console.error(continueError);
+      });
+    });
+  });
+}
+
+// Serves drifted eval evidence while leaving the selector registry checksum untouched.
+function installConvertedTrainedEvalEvidenceDriftInterceptor(client, modelKey) {
+  const evalEvidenceRoute = `/evidence/${modelKey}/converted-trained.eval`;
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    (async () => {
+      if (requestUrlPathEquals(requestUrl, evalEvidenceRoute)) {
+        await fulfillTextRequest(
+          client,
+          params.requestId,
+          `${convertedTrainedEvalEvidenceText()}case_drift=checksum-mismatch\n`
+        );
         return;
       }
       await continuePausedRequest(client, params.requestId);
@@ -8588,7 +9261,7 @@ async function main() {
     await client.send("Page.enable", {});
     await client.send("Runtime.enable", {});
     await client.send("Network.enable", {});
-    if (smokeMode === "model-error" || smokeMode === "missing-model" || convertedTrainedRegistrySmokeMode || compactOperatorRegistrySmokeModes.has(smokeMode) || compactOperatorReceiptDriftSmokeModes.has(smokeMode) || smokeMode === "generated-selector-operator-receipt-drift" || smokeMode === "generated-selector-operator-kind-drift" || smokeMode === "selector-budget" || smokeMode === "sidecar-budget-contract" || smokeMode === "runtime-manifest-drift" || smokeMode === "module-plan-profile-drift" || smokeMode === "module-plan-execution-profile-drift" || smokeMode === "module-plan-fetch-policy-drift" || smokeMode === "module-plan-origin-policy-drift" || smokeMode === "module-plan-wasm-memory-drift" || smokeMode === "module-plan-wasm-export-set-drift" || smokeMode === "module-plan-wasm-heap-drift" || smokeMode === "module-plan-context-token-drift" || smokeMode === "module-plan-sampler-cap-drift" || smokeMode === "module-plan-tokenizer-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-runtime-scratch-drift" || smokeMode === "module-plan-output-limit-drift" || smokeMode === "module-plan-prompt-limit-drift" || smokeMode === "module-plan-fetch-count-drift" || smokeMode === "module-plan-planned-fetch-count-drift" || smokeMode === "module-plan-route-set-algorithm-drift" || smokeMode === "module-plan-route-set-version-drift" || smokeMode === "module-plan-route-set-drift" || smokeMode === "module-plan-operator-receipt-drift" || smokeMode === "module-plan-kv-cache-drift" || smokeMode === "module-plan-adapter-stack-budget-drift" || smokeMode === "module-plan-total-budget-drift" || smokeMode === "module-plan-total-limit-drift" || smokeMode === "module-plan-count-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift" || smokeMode === "assembly-eval-case-drift" || smokeMode === "assembly-evidence-file-drift" || smokeMode === "adapter-family-receipt-drift" || smokeMode === "adapter-manifest-drift" || smokeMode === "source-backed-alr1-manifest-drift" || smokeMode === "adapter-artifact-drift" || smokeMode === "module-plan-payload-checksum-drift" || smokeMode === "adapter-stack-prefetch-drift" || smokeMode === "adapter-stack-rust-validate-drift" || smokeMode === "adapter-sidecar-registry-q8" || smokeMode === "adapter-sidecar-checksum-mismatch" || smokeMode === "adapter-manifest-budget") {
+    if (smokeMode === "model-error" || smokeMode === "missing-model" || convertedTrainedRegistrySmokeMode || convertedTrainedSourceManifestDriftSmokeMode || convertedTrainedSourceIdentityDriftSmokeMode || convertedTrainedSourceReviewDriftSmokeMode || convertedTrainedSourceReviewOmittedSmokeMode || convertedTrainedEvalEvidenceDriftSmokeMode || compactOperatorRegistrySmokeModes.has(smokeMode) || compactOperatorReceiptDriftSmokeModes.has(smokeMode) || generatedSelectorDriftSmokeModes.has(smokeMode) || smokeMode === "selector-budget" || smokeMode === "sidecar-budget-contract" || smokeMode === "runtime-manifest-drift" || smokeMode === "module-plan-profile-drift" || smokeMode === "module-plan-execution-profile-drift" || smokeMode === "module-plan-fetch-policy-drift" || smokeMode === "module-plan-origin-policy-drift" || smokeMode === "module-plan-wasm-memory-drift" || smokeMode === "module-plan-wasm-export-set-drift" || smokeMode === "module-plan-wasm-heap-drift" || smokeMode === "module-plan-context-token-drift" || smokeMode === "module-plan-sampler-cap-drift" || smokeMode === "module-plan-tokenizer-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-runtime-scratch-drift" || smokeMode === "module-plan-output-limit-drift" || smokeMode === "module-plan-prompt-limit-drift" || smokeMode === "module-plan-fetch-count-drift" || smokeMode === "module-plan-planned-fetch-count-drift" || smokeMode === "module-plan-route-set-algorithm-drift" || smokeMode === "module-plan-route-set-version-drift" || smokeMode === "module-plan-route-set-drift" || smokeMode === "module-plan-operator-receipt-drift" || smokeMode === "module-plan-kv-cache-drift" || smokeMode === "module-plan-adapter-stack-budget-drift" || smokeMode === "module-plan-total-budget-drift" || smokeMode === "module-plan-total-limit-drift" || smokeMode === "module-plan-count-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift" || smokeMode === "assembly-eval-case-drift" || smokeMode === "assembly-evidence-file-drift" || smokeMode === "adapter-family-receipt-drift" || smokeMode === "adapter-manifest-drift" || smokeMode === "source-backed-alr1-manifest-drift" || smokeMode === "adapter-artifact-drift" || smokeMode === "module-plan-payload-checksum-drift" || smokeMode === "adapter-stack-prefetch-drift" || smokeMode === "adapter-stack-rust-validate-drift" || smokeMode === "adapter-sidecar-registry-q8" || smokeMode === "adapter-sidecar-checksum-mismatch" || smokeMode === "adapter-manifest-budget") {
       if (smokeMode === "model-error") {
         installMalformedModelInterceptor(client);
       } else if (smokeMode === "missing-model") {
@@ -8687,6 +9360,16 @@ async function main() {
         installQuantizedAdapterRegistryInterceptor(client);
       } else if (convertedTrainedRegistrySmokeMode) {
         installConvertedTrainedRegistryInterceptor(client);
+      } else if (convertedTrainedSourceManifestDriftSmokeMode) {
+        installConvertedTrainedSourceManifestDriftInterceptor(client, expectedModel);
+      } else if (convertedTrainedSourceIdentityDriftSmokeMode) {
+        installConvertedTrainedSourceIdentityDriftInterceptor(client, expectedModel);
+      } else if (convertedTrainedSourceReviewDriftSmokeMode) {
+        installConvertedTrainedSourceReviewDriftInterceptor(client, expectedModel);
+      } else if (convertedTrainedSourceReviewOmittedSmokeMode) {
+        installConvertedTrainedSourceReviewOmittedInterceptor(client, expectedModel);
+      } else if (convertedTrainedEvalEvidenceDriftSmokeMode) {
+        installConvertedTrainedEvalEvidenceDriftInterceptor(client, expectedModel);
       } else if (smokeMode === "selector-budget") {
         installSelectorBudgetRegistryInterceptor(client);
       } else if (smokeMode === "sidecar-budget-contract") {
@@ -8699,6 +9382,16 @@ async function main() {
         installGeneratedSelectorOperatorReceiptDriftInterceptor(
           client,
           driftGeneratedSelectorOperatorReceiptKind
+        );
+      } else if (smokeMode === "generated-selector-schedule-source-drift") {
+        installGeneratedSelectorOperatorReceiptDriftInterceptor(
+          client,
+          driftGeneratedSelectorScheduleSource
+        );
+      } else if (smokeMode === "generated-selector-schedule-family-drift") {
+        installGeneratedSelectorOperatorReceiptDriftInterceptor(
+          client,
+          driftGeneratedSelectorScheduleFamily
         );
       } else {
         installMultiParentRegistryInterceptor(client);
@@ -9015,14 +9708,14 @@ async function main() {
         assertAdapterArtifactDriftSmoke(result, expectedModel, networkRequests);
       }
       result.networkRequests = networkRequests;
-    } else if (smokeMode === "selector-budget" || smokeMode === "sidecar-budget-contract" || compactOperatorReceiptDriftSmokeModes.has(smokeMode) || smokeMode === "generated-selector-operator-receipt-drift" || smokeMode === "generated-selector-operator-kind-drift") {
+    } else if (smokeMode === "selector-budget" || smokeMode === "sidecar-budget-contract" || compactOperatorReceiptDriftSmokeModes.has(smokeMode) || generatedSelectorDriftSmokeModes.has(smokeMode)) {
       await client.send("Page.reload", { ignoreCache: true });
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
           await sleep(500);
           result = await runPageSmoke(
             client,
-            smokeMode === "generated-selector-operator-receipt-drift" || smokeMode === "generated-selector-operator-kind-drift" ? "tinylm16q8" : expectedModel
+            generatedSelectorDriftSmokeModes.has(smokeMode) ? "tinylm16q8" : expectedModel
           );
           break;
         } catch (error) {
@@ -9035,7 +9728,7 @@ async function main() {
         assertSelectorBudgetSmoke(result, networkRequests);
       } else if (smokeMode === "sidecar-budget-contract") {
         assertSidecarBudgetContractSmoke(result, networkRequests);
-      } else if (smokeMode === "generated-selector-operator-receipt-drift" || smokeMode === "generated-selector-operator-kind-drift") {
+      } else if (generatedSelectorDriftSmokeModes.has(smokeMode)) {
         assertGeneratedSelectorOperatorReceiptDriftSmoke(result, expectedModel, networkRequests);
       } else {
         assertSelectorOperatorReceiptDriftSmoke(
@@ -9044,6 +9737,91 @@ async function main() {
           registryOperatorFixtureForMode(smokeMode).candidateId
         );
       }
+      result.networkRequests = networkRequests;
+    } else if (convertedTrainedSourceManifestDriftSmokeMode) {
+      networkRequests.length = 0;
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageModelErrorSmoke(client, expectedModel);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertConvertedTrainedSourceManifestDriftSmoke(result, expectedModel, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (convertedTrainedSourceIdentityDriftSmokeMode) {
+      networkRequests.length = 0;
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageModelErrorSmoke(client, expectedModel);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertConvertedTrainedSourceIdentityDriftSmoke(result, expectedModel, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (convertedTrainedSourceReviewDriftSmokeMode) {
+      networkRequests.length = 0;
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageModelErrorSmoke(client, expectedModel);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertConvertedTrainedSourceReviewDriftSmoke(result, expectedModel, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (convertedTrainedSourceReviewOmittedSmokeMode) {
+      networkRequests.length = 0;
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageModelErrorSmoke(client, expectedModel);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertConvertedTrainedSourceReviewDriftSmoke(
+        result,
+        expectedModel,
+        networkRequests,
+        "source review identity missing from selector"
+      );
+      result.networkRequests = networkRequests;
+    } else if (convertedTrainedEvalEvidenceDriftSmokeMode) {
+      networkRequests.length = 0;
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageModelErrorSmoke(client, expectedModel);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertConvertedTrainedEvalEvidenceDriftSmoke(result, expectedModel, networkRequests);
       result.networkRequests = networkRequests;
     } else if (convertedTrainedRegistryAnySmokeMode || compactOperatorRegistrySmokeModes.has(smokeMode) || smokeMode === "multi-parent-registry-file") {
       await client.send("Page.reload", { ignoreCache: true });

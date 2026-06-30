@@ -17,3 +17,6 @@ version = "0.1.0"
 [[package]]
 name = "tinyrustlm-slm-pack"
 version = "0.1.0"
+dependencies = [
+ "tinyrustlm-runtime",
+]

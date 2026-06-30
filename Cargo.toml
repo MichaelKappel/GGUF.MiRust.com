@@ -11,8 +11,8 @@ resolver = "2"
 version = "0.1.0"
 edition = "2021"
 license = "Proprietary"
-authors = ["GGUF.MiRust.com maintainers"]
-repository = "https://gguf.mirust.com/"
+authors = ["Runtime.MiRust.com maintainers"]
+repository = "https://Runtime.MiRust.com/"
 
 [workspace.lints.rust]
 missing_docs = "deny"

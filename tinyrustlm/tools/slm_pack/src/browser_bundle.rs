@@ -4,6 +4,8 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use tinyrustlm_runtime::eval_runner;
+
 use crate::adapter;
 use crate::adapter_family;
 use crate::admission;
@@ -70,6 +72,8 @@ const MODULE_PLAN_TOTAL_BYTE_BUDGET_LIMIT: u64 = 32 * 1024 * 1024
     + MODULE_PLAN_RUNTIME_SCRATCH_BYTE_BUDGET
     + MODULE_PLAN_OUTPUT_BYTE_LIMIT;
 const SOURCE_KIND: &str = "converted-trained";
+const SOURCE_MANIFEST_KIND: &str = "trained-source-manifest";
+const SOURCE_MANIFEST_STATUS: &str = "reviewed-source-snapshot";
 const APP_FILES: [&str; 3] = ["index.html", "app.css", "app.js"];
 const RUNTIME_WASM_FILE: &str = "tinyrustlm.wasm";
 const RUNTIME_WASM_MANIFEST_FILE: &str = "tinyrustlm.wasm.manifest";
@@ -365,6 +369,21 @@ pub(crate) fn write_converted_trained_bundle_path(
     source_dir: &Path,
     quantization: &str,
 ) -> io::Result<()> {
+    let eval_cases_path = default_converted_trained_eval_cases_path();
+    write_converted_trained_bundle_path_with_eval_cases(
+        root,
+        source_dir,
+        quantization,
+        &eval_cases_path,
+    )
+}
+
+pub(crate) fn write_converted_trained_bundle_path_with_eval_cases(
+    root: &Path,
+    source_dir: &Path,
+    quantization: &str,
+    eval_cases_path: &Path,
+) -> io::Result<()> {
     let quantizations = converted_trained_quantizations(quantization)?;
     let models = root.join("models");
     let evidence_root = root.join("evidence");
@@ -380,6 +399,7 @@ pub(crate) fn write_converted_trained_bundle_path(
             &evidence_root,
             source_dir,
             entry_quantization,
+            eval_cases_path,
         )?;
         admission_paths.push(admission_path);
         candidate_paths.push(candidate_path);
@@ -411,6 +431,7 @@ fn write_converted_trained_bundle_entry(
     evidence_root: &Path,
     source_dir: &Path,
     quantization: &str,
+    eval_cases_path: &Path,
 ) -> io::Result<(String, PathBuf)> {
     // Stages one converted source artifact and the evidence chain consumed by selector.registry.
     let candidate_id = converted_trained_candidate_id(quantization)?;
@@ -428,6 +449,7 @@ fn write_converted_trained_bundle_entry(
     let admission_path = evidence.join("converted-trained.admission");
 
     trained_source::convert_trained_path(source_dir, &candidate_path, quantization)?;
+    let source_manifest = write_converted_trained_source_manifest_snapshot(source_dir, &evidence)?;
     provenance::validate_manifest_path(&candidate_path, &provenance_path)?;
     compatibility::report_path(&candidate_path, &candidate_path, Some(&compatibility_path))?;
     lineage::write_template_path(
@@ -455,11 +477,18 @@ fn write_converted_trained_bundle_entry(
         None,
     )?;
     provenance::write_runtime_smoke_for_path(&candidate_path, &provenance_path, &runtime_path)?;
-
-    let candidate_bytes = fs::read(&candidate_path)?;
-    let report = slm_validate::validate_bytes(&candidate_bytes, &display_path(&candidate_path))?;
-    let provenance_text = fs::read_to_string(&provenance_path)?;
-    fs::write(&eval_path, passing_eval_text(&report, &provenance_text))?;
+    let eval_outcome = eval_runner::run_eval_to_sidecar(
+        &candidate_path,
+        &provenance_path,
+        eval_cases_path,
+        &eval_path,
+    )?;
+    if !eval_outcome.passed {
+        return Err(invalid(&format!(
+            "converted-trained browser bundle eval failed: {} passed, {} failed",
+            eval_outcome.cases_passed, eval_outcome.cases_failed
+        )));
+    }
     provenance::quality_gate_path(
         &candidate_path,
         &provenance_path,
@@ -479,8 +508,174 @@ fn write_converted_trained_bundle_entry(
         admission::DEFAULT_ADMISSION_SELECTOR_ID,
         None,
     )?;
+    append_converted_trained_source_manifest_route(
+        &admission_path,
+        candidate_id,
+        &source_manifest,
+    )?;
+    append_converted_trained_eval_route(&admission_path, candidate_id)?;
 
     Ok((display_path(&admission_path), candidate_path))
+}
+
+fn default_converted_trained_eval_cases_path() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/assistant-quality-eval-cases.txt")
+}
+
+struct ConvertedTrainedSourceManifestSnapshot {
+    checksum: String,
+    source_kind: String,
+    source_id: String,
+    model_shape: String,
+    source_review: Option<ConvertedTrainedSourceReviewSnapshot>,
+}
+
+struct ConvertedTrainedSourceReviewSnapshot {
+    kind: String,
+    status: String,
+    checksum: String,
+    required_next_gate: String,
+}
+
+fn write_converted_trained_source_manifest_snapshot(
+    source_dir: &Path,
+    evidence_dir: &Path,
+) -> io::Result<ConvertedTrainedSourceManifestSnapshot> {
+    // Carries the reviewed trained-source manifest into the browser evidence folder for audits.
+    let target = evidence_dir.join("converted-trained.source.manifest");
+    fs::copy(source_dir.join("source.manifest"), &target)?;
+    let text = fs::read_to_string(target)?;
+    let fields = provenance::parse_manifest(&text)?;
+    Ok(ConvertedTrainedSourceManifestSnapshot {
+        checksum: hex64(provenance::text_checksum(text.as_bytes())),
+        source_kind: manifest_field(&fields, "source_kind")?.to_string(),
+        source_id: manifest_field(&fields, "source_id")?.to_string(),
+        model_shape: manifest_field(&fields, "model_shape")?.to_string(),
+        source_review: converted_trained_source_review_snapshot(&fields)?,
+    })
+}
+
+fn append_converted_trained_source_manifest_route(
+    admission_path: &Path,
+    candidate_id: &str,
+    source_manifest: &ConvertedTrainedSourceManifestSnapshot,
+) -> io::Result<()> {
+    // Extends the reviewed admission with the browser-verifiable source evidence route.
+    let mut admission = fs::read_to_string(admission_path)?;
+    if !admission.ends_with('\n') {
+        admission.push('\n');
+    }
+    push_line(
+        &mut admission,
+        "source_manifest_path",
+        &converted_trained_source_manifest_registry_path(candidate_id),
+    );
+    push_line(
+        &mut admission,
+        "source_manifest_checksum",
+        &source_manifest.checksum,
+    );
+    push_line(&mut admission, "source_manifest_kind", SOURCE_MANIFEST_KIND);
+    push_line(
+        &mut admission,
+        "source_manifest_status",
+        SOURCE_MANIFEST_STATUS,
+    );
+    push_line(
+        &mut admission,
+        "source_manifest_source_kind",
+        &source_manifest.source_kind,
+    );
+    push_line(
+        &mut admission,
+        "source_manifest_source_id",
+        &source_manifest.source_id,
+    );
+    push_line(
+        &mut admission,
+        "source_manifest_model_shape",
+        &source_manifest.model_shape,
+    );
+    if let Some(source_review) = &source_manifest.source_review {
+        push_line(&mut admission, "source_review_kind", &source_review.kind);
+        push_line(
+            &mut admission,
+            "source_review_status",
+            &source_review.status,
+        );
+        push_line(
+            &mut admission,
+            "source_review_checksum",
+            &source_review.checksum,
+        );
+        push_line(
+            &mut admission,
+            "source_review_required_next_gate",
+            &source_review.required_next_gate,
+        );
+    }
+    fs::write(admission_path, admission)
+}
+
+fn converted_trained_source_review_snapshot(
+    fields: &std::collections::HashMap<String, String>,
+) -> io::Result<Option<ConvertedTrainedSourceReviewSnapshot>> {
+    // Carries safetensors review evidence forward only when the copied source manifest has it.
+    let keys = [
+        "source_review_kind",
+        "source_review_status",
+        "source_review_checksum",
+        "source_review_required_next_gate",
+    ];
+    if !keys.iter().any(|key| fields.contains_key(*key)) {
+        return Ok(None);
+    }
+    let kind = manifest_field(fields, "source_review_kind")?.to_string();
+    let status = manifest_field(fields, "source_review_status")?.to_string();
+    let checksum = manifest_field(fields, "source_review_checksum")?.to_string();
+    let required_next_gate =
+        manifest_field(fields, "source_review_required_next_gate")?.to_string();
+    if kind != trained_source::SOURCE_REVIEW_KIND {
+        return Err(invalid("converted-trained source review kind is invalid"));
+    }
+    if status != trained_source::SOURCE_REVIEW_STATUS {
+        return Err(invalid("converted-trained source review status is invalid"));
+    }
+    validate_hex64_text(&checksum, "source_review_checksum")?;
+    if required_next_gate != trained_source::SOURCE_REVIEW_REQUIRED_NEXT_GATE {
+        return Err(invalid(
+            "converted-trained source review required_next_gate is invalid",
+        ));
+    }
+    Ok(Some(ConvertedTrainedSourceReviewSnapshot {
+        kind,
+        status,
+        checksum,
+        required_next_gate,
+    }))
+}
+
+fn append_converted_trained_eval_route(
+    admission_path: &Path,
+    candidate_id: &str,
+) -> io::Result<()> {
+    // Extends the reviewed admission with the browser-verifiable eval sidecar route.
+    let mut admission = fs::read_to_string(admission_path)?;
+    if !admission.ends_with('\n') {
+        admission.push('\n');
+    }
+    push_line(
+        &mut admission,
+        "eval_path",
+        &format!("../evidence/{candidate_id}/converted-trained.eval"),
+    );
+    fs::write(admission_path, admission)
+}
+
+fn converted_trained_source_manifest_registry_path(candidate_id: &str) -> String {
+    // Matches the browser route from app/ to the copied source manifest evidence.
+    format!("../evidence/{candidate_id}/converted-trained.source.manifest")
 }
 
 fn converted_trained_quantizations(quantization: &str) -> io::Result<Vec<&'static str>> {
@@ -495,6 +690,11 @@ fn converted_trained_quantizations(quantization: &str) -> io::Result<Vec<&'stati
             "browser-converted-trained-bundle quantization must be f32, q8_0, q4_0, or all",
         )),
     }
+}
+
+pub(crate) fn validate_converted_trained_bundle_quantization(quantization: &str) -> io::Result<()> {
+    // Lets source-intake bridges reject unsupported browser bundle selectors before writing files.
+    converted_trained_quantizations(quantization).map(|_| ())
 }
 
 fn converted_trained_candidate_id(quantization: &str) -> io::Result<&'static str> {
@@ -1703,6 +1903,16 @@ fn invalid(message: &str) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message)
 }
 
+fn validate_hex64_text(value: &str, label: &str) -> io::Result<()> {
+    let Some(rest) = value.strip_prefix("0x") else {
+        return Err(invalid(&format!("{label} is not a hex64 checksum")));
+    };
+    if rest.len() != 16 || !rest.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(invalid(&format!("{label} is not a hex64 checksum")));
+    }
+    Ok(())
+}
+
 fn copy_browser_surface(root: &Path) -> io::Result<()> {
     let source_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..");
     let app_source = source_root.join("app");
@@ -2213,10 +2423,22 @@ mod tests {
         assert!(
             registry.contains("entry.0.manifest_path=../models/converted-trained-q8.slm.manifest")
         );
+        assert!(
+            registry.contains("entry.0.source_manifest_path=../evidence/converted-trained-q8/converted-trained.source.manifest")
+        );
+        assert!(registry.contains("entry.0.source_manifest_kind=trained-source-manifest"));
+        assert!(registry.contains("entry.0.source_manifest_status=reviewed-source-snapshot"));
+        assert!(registry.contains("entry.0.source_manifest_source_kind=trained-source-fixture"));
+        assert!(
+            registry.contains("entry.0.source_manifest_source_id=tinyrustlm-local-source-fixture")
+        );
+        assert!(registry.contains("entry.0.source_manifest_model_shape=tiny-fixture"));
+        assert!(registry
+            .contains("entry.0.eval_path=../evidence/converted-trained-q8/converted-trained.eval"));
         assert!(registry.contains("entry.0.quantization=q8_0"));
         assert!(registry.contains("entry.0.mate_selection_status=admission-only"));
         assert!(registry.contains("entry.0.mate_selection_parent_count=1"));
-        assert!(registry.contains("entry.0.quality_scope=tiny-fixture-runtime-eval-only"));
+        assert!(registry.contains("entry.0.quality_scope=tiny-converted-source-fixture-only"));
         assert!(registry.contains("entry.0.public_claim_status=bound-to-eval-scope"));
         assert!(registry.contains("entry.0.genome_strategy=selector-admission-genome-v1"));
         assert!(registry.contains("entry.0.species_strategy=selector-speciation-fit-v1"));
@@ -2248,9 +2470,68 @@ mod tests {
             .join("converted-trained-q8")
             .join("converted-trained.admission")
             .exists());
+        let eval = fs::read_to_string(
+            root.join("evidence")
+                .join("converted-trained-q8")
+                .join("converted-trained.eval"),
+        )
+        .unwrap();
+        assert!(eval.contains("case_count=2"));
+        assert!(eval.contains("cases_passed=2"));
+        assert!(eval.contains("cases_failed=0"));
+        assert!(eval.contains("case.1.expected=eeee"));
+        assert!(eval.contains("case.1.actual=eeee"));
+        let eval_checksum = hex64(provenance::text_checksum(eval.as_bytes()));
+        assert!(registry.contains(&format!("entry.0.eval_manifest_checksum={eval_checksum}")));
+        let source_manifest_checksum =
+            assert_converted_trained_source_manifest_snapshot(&root, "converted-trained-q8");
+        assert!(registry.contains(&format!(
+            "entry.0.source_manifest_checksum={source_manifest_checksum}"
+        )));
         assert!(root.join("app").join("app.js").exists());
         assert_runtime_manifest(&root);
 
+        fs::remove_dir_all(temp).unwrap();
+    }
+
+    #[test]
+    fn rejects_browser_converted_trained_bundle_when_runtime_eval_fails() {
+        let temp = unique_dir("converted-trained-eval-fail");
+        let source = temp.join("source");
+        let root = temp.join("tinyrustlm");
+        let eval_cases = temp.join("mismatched-eval-cases.txt");
+        trained_source::write_source_template_path(&source, "tiny-fixture").unwrap();
+        fs::write(
+            &eval_cases,
+            "tinyrustlm_eval_cases_version=1\nscope=tiny-fixture-runtime-eval-only\nquality_boundary=fixture-runtime-and-eval-plumbing-not-product-assistant-quality\nsafety_review_status=pass\nquality_decision=accepted-for-assistant-quality\nevaluator=unit-test-evaluator\neval_summary=Intentional mismatch for bundle admission test\ncase_count=1\ncase.0.prompt=hi\ncase.0.max_new_tokens=1\ncase.0.expected_text=not-e\ncase.0.required_result=exact\n",
+        )
+        .unwrap();
+
+        let error = write_converted_trained_bundle_path_with_eval_cases(
+            &root,
+            &source,
+            "q8_0",
+            &eval_cases,
+        )
+        .unwrap_err();
+
+        assert!(error
+            .to_string()
+            .contains("converted-trained browser bundle eval failed"));
+        let eval = fs::read_to_string(
+            root.join("evidence")
+                .join("converted-trained-q8")
+                .join("converted-trained.eval"),
+        )
+        .unwrap();
+        assert!(eval.contains("eval_status=fail"));
+        assert!(eval.contains("task_eval_status=fail"));
+        assert!(eval.contains("case.0.status=fail"));
+        assert!(!root
+            .join("evidence")
+            .join("converted-trained-q8")
+            .join("converted-trained.admission")
+            .exists());
         fs::remove_dir_all(temp).unwrap();
     }
 
@@ -2292,6 +2573,17 @@ mod tests {
             assert!(registry.contains(&format!(
                 "manifest_path=../models/{candidate_id}.slm.manifest"
             )));
+            assert!(registry.contains(&format!(
+                "source_manifest_path=../evidence/{candidate_id}/converted-trained.source.manifest"
+            )));
+            assert!(registry.contains("source_manifest_kind=trained-source-manifest"));
+            assert!(registry.contains("source_manifest_status=reviewed-source-snapshot"));
+            assert!(registry.contains("source_manifest_source_kind=trained-source-fixture"));
+            assert!(registry.contains("source_manifest_source_id=tinyrustlm-local-source-fixture"));
+            assert!(registry.contains("source_manifest_model_shape=tiny-fixture"));
+            assert!(registry.contains(&format!(
+                "eval_path=../evidence/{candidate_id}/converted-trained.eval"
+            )));
             assert!(registry.contains(&format!("quantization={quantization}")));
             let manifest = fs::read_to_string(
                 root.join("models")
@@ -2309,6 +2601,19 @@ mod tests {
                 .join(candidate_id)
                 .join("converted-trained.admission")
                 .exists());
+            let source_manifest_checksum =
+                assert_converted_trained_source_manifest_snapshot(&root, candidate_id);
+            assert!(registry.contains(&format!(
+                "source_manifest_checksum={source_manifest_checksum}"
+            )));
+            let eval = fs::read_to_string(
+                root.join("evidence")
+                    .join(candidate_id)
+                    .join("converted-trained.eval"),
+            )
+            .unwrap();
+            let eval_checksum = hex64(provenance::text_checksum(eval.as_bytes()));
+            assert!(registry.contains(&format!("eval_manifest_checksum={eval_checksum}")));
         }
         assert!(root.join("app").join("app.js").exists());
         assert_runtime_manifest(&root);
@@ -2907,6 +3212,24 @@ mod tests {
         assert!(manifest.contains("required_next_gate=instantiate-wasm-runtime"));
 
         fs::remove_dir_all(root).unwrap();
+    }
+
+    fn assert_converted_trained_source_manifest_snapshot(
+        root: &Path,
+        candidate_id: &str,
+    ) -> String {
+        // Confirms each browser evidence lane preserves the reviewed source manifest route.
+        let source_manifest = fs::read_to_string(
+            root.join("evidence")
+                .join(candidate_id)
+                .join("converted-trained.source.manifest"),
+        )
+        .unwrap();
+        assert!(source_manifest.contains("tinyrustlm_trained_source_version=1"));
+        assert!(source_manifest.contains("source_kind=trained-source-fixture"));
+        assert!(source_manifest.contains("source_id=tinyrustlm-local-source-fixture"));
+        assert!(source_manifest.contains("model_shape=tiny-fixture"));
+        hex64(provenance::text_checksum(source_manifest.as_bytes()))
     }
 
     fn assert_runtime_manifest(root: &Path) {

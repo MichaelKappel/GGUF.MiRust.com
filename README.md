@@ -1,6 +1,6 @@
-# GGUF.MiRust.com
+# Runtime.MiRust.com
 
-Canonical Rust source root for the GGUF.MiRust.com client-side SLM runtime and browser UI.
+Canonical Rust source root for the Runtime.MiRust.com client-side SLM runtime and browser UI.
 
 The active implementation target is `tinyrustlm/`: a 100% custom Rust/WASM browser-local AI app named TinyRustLM. The runtime is zero-dependency by design: no third-party Rust crates, no JavaScript frameworks, no tokenizer libraries, no inference frameworks, no package-manager runtime, no remote inference API, and no CDN dependency.
 
@@ -15,7 +15,7 @@ The active implementation target is `tinyrustlm/`: a 100% custom Rust/WASM brows
 - `tinyrustlm/docs/`: architecture, `.slm`, tokenizer, quantization, browser runtime, testing, and performance notes.
 - `tinyrustlm/tests/fixtures/`: small text fixtures for runtime tests.
 - `.uai/`: hot Project Handoff memory and routing state.
-- `wiki/gguf-mirust/`: local LLM Wiki source namespace for AIWikis publication.
+- `wiki/runtime-mirust/`: local LLM Wiki source namespace for AIWikis publication.
 - `agent-file-handoff/Content` and `agent-file-handoff/Improvement`: active intake buckets only.
 
 ## Current Status
@@ -114,4 +114,4 @@ F5 reuses an already-running TinyRustLM server only after checking the app page 
 
 ## Memory Setup
 
-UAIX Project Handoff is active through `.uai/`, following the setup flow at `https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff`. LLM Wiki long memory targets AIWikis.org under `https://aiwikis.org/gguf-mirust/`, with local source records in `wiki/gguf-mirust/`. Hot `.uai` files keep current routing, synthesis, and proof-of-use pointers. Durable report bodies belong in Markdown/wiki files and raw evidence manifests, not inside `.uai/long-term-memory.uai`; the long-term memory ledger stays pointer-only, checksum-bearing, and routing-only.
+UAIX Project Handoff is active through `.uai/`, following the setup flow at `https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff`. LLM Wiki long memory targets AIWikis.org under `https://aiwikis.org/runtime-mirust/`, with local source records in `wiki/runtime-mirust/`. Hot `.uai` files keep current routing, synthesis, and proof-of-use pointers. Durable report bodies belong in Markdown/wiki files and raw evidence manifests, not inside `.uai/long-term-memory.uai`; the long-term memory ledger stays pointer-only, checksum-bearing, and routing-only.

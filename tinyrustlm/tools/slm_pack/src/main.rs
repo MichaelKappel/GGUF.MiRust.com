@@ -23,6 +23,7 @@ mod promotion;
 mod provenance;
 mod prune;
 mod quant_writer;
+mod safetensors;
 mod selector;
 mod sign_merge;
 mod slm_validate;
@@ -75,6 +76,198 @@ fn run() -> io::Result<()> {
         };
         return slm_validate::validate_path(Path::new(&input));
     }
+    if output == "inspect-safetensors" {
+        let Some(input) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "inspect-safetensors requires an input .safetensors path",
+            ));
+        };
+        let output_report = args.next();
+        return safetensors::inspect_path(
+            Path::new(&input),
+            output_report.as_deref().map(Path::new),
+        );
+    }
+    if output == "plan-safetensors-source" {
+        let Some(input) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "plan-safetensors-source requires an input .safetensors path",
+            ));
+        };
+        let Some(shape_name) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "plan-safetensors-source requires a target source shape",
+            ));
+        };
+        let output_plan = args.next();
+        return safetensors::plan_source_path(
+            Path::new(&input),
+            &shape_name,
+            output_plan.as_deref().map(Path::new),
+        );
+    }
+    if output == "review-safetensors-candidate" {
+        let Some(input) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "review-safetensors-candidate requires an input .safetensors path",
+            ));
+        };
+        let Some(shape_name) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "review-safetensors-candidate requires a target source shape",
+            ));
+        };
+        let Some(quantization) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "review-safetensors-candidate requires an output quantization",
+            ));
+        };
+        let Some(source_model_id) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "review-safetensors-candidate requires a source model id",
+            ));
+        };
+        let Some(source_model_sha) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "review-safetensors-candidate requires a source model sha",
+            ));
+        };
+        let Some(source_config_checksum) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "review-safetensors-candidate requires a source config checksum",
+            ));
+        };
+        let Some(source_tokenizer_checksum) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "review-safetensors-candidate requires a source tokenizer checksum",
+            ));
+        };
+        let Some(source_license_route) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "review-safetensors-candidate requires a source license route",
+            ));
+        };
+        let Some(output_review) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "review-safetensors-candidate requires an output review path",
+            ));
+        };
+        let reference_prompt_route = args.next();
+        let reference_output_checksum = args.next();
+        let eval_cases_route = args.next();
+        let source_config_route = args.next();
+        let source_tokenizer_route = args.next();
+        return safetensors::review_candidate_path(
+            Path::new(&input),
+            &shape_name,
+            &quantization,
+            &source_model_id,
+            &source_model_sha,
+            &source_config_checksum,
+            &source_tokenizer_checksum,
+            &source_license_route,
+            Path::new(&output_review),
+            reference_prompt_route.as_deref(),
+            reference_output_checksum.as_deref(),
+            eval_cases_route.as_deref(),
+            source_config_route.as_deref(),
+            source_tokenizer_route.as_deref(),
+        );
+    }
+    if output == "extract-safetensors-source" {
+        let Some(input) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "extract-safetensors-source requires an input .safetensors path",
+            ));
+        };
+        let Some(shape_name) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "extract-safetensors-source requires a target source shape",
+            ));
+        };
+        let Some(output_dir) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "extract-safetensors-source requires an output source directory",
+            ));
+        };
+        let candidate_review = args.next();
+        return safetensors::extract_source_path_with_review(
+            Path::new(&input),
+            &shape_name,
+            Path::new(&output_dir),
+            candidate_review.as_deref().map(Path::new),
+        );
+    }
+    if output == "convert-safetensors-trained" {
+        let Some(input) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "convert-safetensors-trained requires an input .safetensors path",
+            ));
+        };
+        let Some(shape_name) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "convert-safetensors-trained requires a target source shape",
+            ));
+        };
+        let Some(output_source_dir) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "convert-safetensors-trained requires an output source directory",
+            ));
+        };
+        let Some(output_slm) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "convert-safetensors-trained requires an output .slm path",
+            ));
+        };
+        let quantization = args.next().unwrap_or_else(|| "f32".to_string());
+        let candidate_review = args.next();
+        return safetensors::convert_source_path_with_review(
+            Path::new(&input),
+            &shape_name,
+            Path::new(&output_source_dir),
+            Path::new(&output_slm),
+            &quantization,
+            candidate_review.as_deref().map(Path::new),
+        );
+    }
     if output == "browser-multi-parent-bundle" {
         let Some(root) = args.next() else {
             print_usage();
@@ -107,10 +300,61 @@ fn run() -> io::Result<()> {
             ));
         };
         let quantization = args.next().unwrap_or_else(|| "q8_0".to_string());
+        let eval_cases = args.next();
+        if let Some(eval_cases) = eval_cases {
+            return browser_bundle::write_converted_trained_bundle_path_with_eval_cases(
+                Path::new(&root),
+                Path::new(&source_dir),
+                &quantization,
+                Path::new(&eval_cases),
+            );
+        }
         return browser_bundle::write_converted_trained_bundle_path(
             Path::new(&root),
             Path::new(&source_dir),
             &quantization,
+        );
+    }
+    if output == "browser-safetensors-trained-bundle" {
+        let Some(root) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "browser-safetensors-trained-bundle requires an output tinyrustlm root",
+            ));
+        };
+        let Some(input) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "browser-safetensors-trained-bundle requires an input .safetensors path",
+            ));
+        };
+        let Some(shape_name) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "browser-safetensors-trained-bundle requires a target source shape",
+            ));
+        };
+        let Some(output_source_dir) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "browser-safetensors-trained-bundle requires an output source directory",
+            ));
+        };
+        let quantization = args.next().unwrap_or_else(|| "q8_0".to_string());
+        let eval_cases = args.next();
+        let candidate_review = args.next();
+        return safetensors::browser_bundle_path_with_eval_cases_and_review(
+            Path::new(&input),
+            &shape_name,
+            Path::new(&output_source_dir),
+            Path::new(&root),
+            &quantization,
+            eval_cases.as_deref().map(Path::new),
+            candidate_review.as_deref().map(Path::new),
         );
     }
     if output == "runtime-wasm-manifest" {
@@ -3094,7 +3338,13 @@ fn split_parent_admission_args(
 
 fn print_usage() {
     eprintln!(
-        "usage: tinyrustlm-slm-pack <output.slm> [tiny-fixture|tiny-fixture-tied|tiny-fixture-q8|tiny-fixture-q4|tiny-fixture-bpe|tinylm16-f32|tinylm16-q8|tinylm16-q4]\n       tinyrustlm-slm-pack validate <input.slm>\n       tinyrustlm-slm-pack browser-multi-parent-bundle <output-tinyrustlm-root> [f32|q8_0|q4_0|all] [sign-merge|soup|mixed]\n       tinyrustlm-slm-pack browser-converted-trained-bundle <output-tinyrustlm-root> <input-source-dir> [f32|q8_0|q4_0|all]\n       tinyrustlm-slm-pack runtime-wasm-manifest <input.wasm> <output.wasm.manifest>\n       tinyrustlm-slm-pack compatibility <left-parent.slm> <right-parent.slm> [output.compat]\n       tinyrustlm-slm-pack lineage-template <input.compat> <output.lineage> <candidate-id> <operator-id> [resource-budget]\n       tinyrustlm-slm-pack validate-lineage <input.compat> <input.lineage>\n       tinyrustlm-slm-pack blend-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <output.slm> <output.operator> [parent0-weight-ppm]\n       tinyrustlm-slm-pack validate-blend-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack crossover-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <output.slm> <output.operator> [crossover-seed] [parent0-keep-ppm]\n       tinyrustlm-slm-pack validate-crossover-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm]\n       tinyrustlm-slm-pack validate-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack sparse-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm] [keep-ppm]\n       tinyrustlm-slm-pack validate-sparse-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.adapter> <output.adapter.manifest>\n       tinyrustlm-slm-pack validate-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest>\n       tinyrustlm-slm-pack sparse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.adapter> <output.adapter.manifest> [delta-weight-ppm] [keep-ppm]\n       tinyrustlm-slm-pack validate-sparse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest>\n       tinyrustlm-slm-pack fuse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest> <output.slm> <output.operator>\n       tinyrustlm-slm-pack validate-fuse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack candidate-manifest <input.compat> <input.lineage> <candidate.slm> <output.candidate>\n       tinyrustlm-slm-pack validate-candidate <input.compat> <input.lineage> <candidate.slm> <input.candidate>\n       tinyrustlm-slm-pack promotion-template <input.compat> <input.lineage> <candidate.slm> <input.candidate> <output.promotion> [promoter-id] [promotion-scope]\n       tinyrustlm-slm-pack validate-promotion <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion>\n       tinyrustlm-slm-pack admission-record <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion> <input.manifest> <input.runtime> <input.eval> <output.admission> [selector-id]\n       tinyrustlm-slm-pack validate-admission <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion> <input.manifest> <input.runtime> <input.eval> <input.admission>\n       tinyrustlm-slm-pack promotion-ledger <output.ledger> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-promotion-ledger <input.ledger> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack selector-registry <output.registry> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-selector-registry <input.registry> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack manifest <input.slm> <output.manifest> [deterministic-smoke|converted-trained]\n       tinyrustlm-slm-pack validate-manifest <input.slm> <input.manifest>\n       tinyrustlm-slm-pack runtime-smoke <input.slm> <input.manifest> <output.runtime>\n       tinyrustlm-slm-pack validate-runtime-smoke <input.slm> <input.manifest> <input.runtime>\n       tinyrustlm-slm-pack eval-template <input.slm> <input.manifest> <output.eval> [assistant-quality]\n       tinyrustlm-slm-pack quality-gate <input.slm> <input.manifest> <runtime-smoke|assistant-quality> [input.eval]\n       tinyrustlm-slm-pack source-template <output-source-dir> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied]\n       tinyrustlm-slm-pack validate-source <input-source-dir>\n       tinyrustlm-slm-pack convert-trained <input-source-dir> <output.slm> [f32|q8_0|q4_0]"
+        "usage: tinyrustlm-slm-pack <output.slm> [tiny-fixture|tiny-fixture-tied|tiny-fixture-q8|tiny-fixture-q4|tiny-fixture-bpe|tinylm16-f32|tinylm16-q8|tinylm16-q4]\n       tinyrustlm-slm-pack validate <input.slm>\n       tinyrustlm-slm-pack inspect-safetensors <input.safetensors> [output.report]\n       tinyrustlm-slm-pack plan-safetensors-source <input.safetensors> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> [output.plan]\n       tinyrustlm-slm-pack review-safetensors-candidate <input.safetensors> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> <f32|q8_0|q4_0> <source-model-id> <source-model-sha> <source-config-checksum> <source-tokenizer-checksum> <source-license-route> <output.review> [reference-prompt-route] [reference-output-checksum] [eval-cases-route]\n       tinyrustlm-slm-pack extract-safetensors-source <input.safetensors> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> <output-source-dir>\n       tinyrustlm-slm-pack convert-safetensors-trained <input.safetensors> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> <output-source-dir> <output.slm> [f32|q8_0|q4_0]\n       tinyrustlm-slm-pack browser-safetensors-trained-bundle <output-tinyrustlm-root> <input.safetensors> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> <output-source-dir> [f32|q8_0|q4_0|all] [eval-cases.txt]\n       tinyrustlm-slm-pack browser-multi-parent-bundle <output-tinyrustlm-root> [f32|q8_0|q4_0|all] [sign-merge|soup|mixed]\n       tinyrustlm-slm-pack browser-converted-trained-bundle <output-tinyrustlm-root> <input-source-dir> [f32|q8_0|q4_0|all] [eval-cases.txt]\n       tinyrustlm-slm-pack runtime-wasm-manifest <input.wasm> <output.wasm.manifest>\n       tinyrustlm-slm-pack compatibility <left-parent.slm> <right-parent.slm> [output.compat]\n       tinyrustlm-slm-pack lineage-template <input.compat> <output.lineage> <candidate-id> <operator-id> [resource-budget]\n       tinyrustlm-slm-pack validate-lineage <input.compat> <input.lineage>\n       tinyrustlm-slm-pack blend-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <output.slm> <output.operator> [parent0-weight-ppm]\n       tinyrustlm-slm-pack validate-blend-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack crossover-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <output.slm> <output.operator> [crossover-seed] [parent0-keep-ppm]\n       tinyrustlm-slm-pack validate-crossover-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm]\n       tinyrustlm-slm-pack validate-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack sparse-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm] [keep-ppm]\n       tinyrustlm-slm-pack validate-sparse-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.adapter> <output.adapter.manifest>\n       tinyrustlm-slm-pack validate-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest>\n       tinyrustlm-slm-pack sparse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.adapter> <output.adapter.manifest> [delta-weight-ppm] [keep-ppm]\n       tinyrustlm-slm-pack validate-sparse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest>\n       tinyrustlm-slm-pack fuse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest> <output.slm> <output.operator>\n       tinyrustlm-slm-pack validate-fuse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack candidate-manifest <input.compat> <input.lineage> <candidate.slm> <output.candidate>\n       tinyrustlm-slm-pack validate-candidate <input.compat> <input.lineage> <candidate.slm> <input.candidate>\n       tinyrustlm-slm-pack promotion-template <input.compat> <input.lineage> <candidate.slm> <input.candidate> <output.promotion> [promoter-id] [promotion-scope]\n       tinyrustlm-slm-pack validate-promotion <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion>\n       tinyrustlm-slm-pack admission-record <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion> <input.manifest> <input.runtime> <input.eval> <output.admission> [selector-id]\n       tinyrustlm-slm-pack validate-admission <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion> <input.manifest> <input.runtime> <input.eval> <input.admission>\n       tinyrustlm-slm-pack promotion-ledger <output.ledger> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-promotion-ledger <input.ledger> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack selector-registry <output.registry> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-selector-registry <input.registry> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack manifest <input.slm> <output.manifest> [deterministic-smoke|converted-trained]\n       tinyrustlm-slm-pack validate-manifest <input.slm> <input.manifest>\n       tinyrustlm-slm-pack runtime-smoke <input.slm> <input.manifest> <output.runtime>\n       tinyrustlm-slm-pack validate-runtime-smoke <input.slm> <input.manifest> <input.runtime>\n       tinyrustlm-slm-pack eval-template <input.slm> <input.manifest> <output.eval> [assistant-quality]\n       tinyrustlm-slm-pack quality-gate <input.slm> <input.manifest> <runtime-smoke|assistant-quality> [input.eval]\n       tinyrustlm-slm-pack source-template <output-source-dir> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]\n       tinyrustlm-slm-pack validate-source <input-source-dir>\n       tinyrustlm-slm-pack convert-trained <input-source-dir> <output.slm> [f32|q8_0|q4_0]"
+    );
+    eprintln!(
+        "       review-safetensors-candidate optional route tail: [source-config-route] [source-tokenizer-route]"
+    );
+    eprintln!(
+        "       safetensors review-bound tail: extract-safetensors-source ... [candidate-review] | convert-safetensors-trained ... [f32|q8_0|q4_0] [candidate-review] | browser-safetensors-trained-bundle ... [f32|q8_0|q4_0|all] [eval-cases.txt] [candidate-review]"
     );
     eprintln!(
         "       tinyrustlm-slm-pack candidate-manifest <input.compat> <input.lineage> <candidate.slm> <output.candidate> [input.operator]\n       tinyrustlm-slm-pack validate-candidate <input.compat> <input.lineage> <candidate.slm> <input.candidate> [input.operator]"

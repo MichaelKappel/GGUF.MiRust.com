@@ -81,14 +81,19 @@ const MATE_SELECTION_PARENT_POOL_STATUS: &str = "parent-pool-bound";
 const MATE_SELECTION_ADMISSION_STATUS: &str = "admission-only";
 const EVOLUTION_RECIPE_VERSION: &str = "1";
 const EVOLUTION_RECIPE_STRATEGY: &str = "population-based-parent-pool-replay-v1";
-const EVOLUTION_RECIPE_STATUS: &str = "planned";
-const EVOLUTION_SELECTION_SOURCE: &str = "population-review-frontier-v1";
+const EVOLUTION_RECIPE_STATUS: &str = "operator-family-planned";
+const EVOLUTION_SELECTION_SOURCE: &str = "population-fitness-normalized-seed-weights";
 const EVOLUTION_SCHEDULE_CHECKSUM_ALGORITHM: &str = "tinyrustlm-text-checksum-v1";
 const PHENOTYPE_EVIDENCE_STRATEGY: &str = "selector-phenotype-evidence-v1";
 const PHENOTYPE_EVIDENCE_STATUS: &str = "runtime-eval-bound";
 const HERITABLE_ARTIFACT_STRATEGY: &str = "selector-heritable-artifact-v1";
 const HERITABLE_ARTIFACT_STATUS: &str = "served-artifact-bound";
 const FITNESS_VECTOR_STATUS: &str = "eval-bound";
+const SOURCE_MANIFEST_KIND: &str = "trained-source-manifest";
+const SOURCE_MANIFEST_STATUS: &str = "reviewed-source-snapshot";
+const SOURCE_REVIEW_KIND: &str = "safetensors-candidate-review";
+const SOURCE_REVIEW_STATUS: &str = "validated-before-extraction";
+const SOURCE_REVIEW_REQUIRED_NEXT_GATE: &str = "extract-raw-f32-tensors";
 const EVOLUTION_SCHEDULE_KEYS: &[&str] = &[
     "evolution_recipe_version",
     "evolution_recipe_strategy",
@@ -183,6 +188,7 @@ struct RegistryEntry {
     artifact_path: String,
     model_path: String,
     manifest_path: String,
+    source_manifest: Option<RegistrySourceManifestRoute>,
     max_tokens: String,
     model_bytes: String,
     slm_checksum: String,
@@ -194,6 +200,7 @@ struct RegistryEntry {
     promotion_manifest_checksum: String,
     provenance_manifest_checksum: String,
     runtime_smoke_manifest_checksum: String,
+    eval_path: Option<String>,
     eval_manifest_checksum: String,
     eval_case_evidence_checksum: String,
     quality_scope: String,
@@ -213,6 +220,26 @@ struct RegistryEntry {
     adapter_family: Option<RegistryAdapterFamilyRoute>,
     assembly: Option<RegistryAssemblyRoute>,
     module_plan: Option<RegistryModulePlanRoute>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct RegistrySourceManifestRoute {
+    path: String,
+    checksum: String,
+    kind: String,
+    status: String,
+    source_kind: String,
+    source_id: String,
+    model_shape: String,
+    source_review: Option<RegistrySourceReviewRoute>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct RegistrySourceReviewRoute {
+    kind: String,
+    status: String,
+    checksum: String,
+    required_next_gate: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -527,6 +554,65 @@ pub(crate) fn build_registry_text_with_module_plan_routes(
             &format!("{prefix}.manifest_path"),
             &entry.manifest_path,
         );
+        if let Some(source_manifest) = &entry.source_manifest {
+            push_line(
+                &mut text,
+                &format!("{prefix}.source_manifest_path"),
+                &source_manifest.path,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.source_manifest_checksum"),
+                &source_manifest.checksum,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.source_manifest_kind"),
+                &source_manifest.kind,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.source_manifest_status"),
+                &source_manifest.status,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.source_manifest_source_kind"),
+                &source_manifest.source_kind,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.source_manifest_source_id"),
+                &source_manifest.source_id,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.source_manifest_model_shape"),
+                &source_manifest.model_shape,
+            );
+            if let Some(source_review) = &source_manifest.source_review {
+                push_line(
+                    &mut text,
+                    &format!("{prefix}.source_review_kind"),
+                    &source_review.kind,
+                );
+                push_line(
+                    &mut text,
+                    &format!("{prefix}.source_review_status"),
+                    &source_review.status,
+                );
+                push_line(
+                    &mut text,
+                    &format!("{prefix}.source_review_checksum"),
+                    &source_review.checksum,
+                );
+                push_line(
+                    &mut text,
+                    &format!("{prefix}.source_review_required_next_gate"),
+                    &source_review.required_next_gate,
+                );
+            }
+        }
         push_line(
             &mut text,
             &format!("{prefix}.artifact_path"),
@@ -734,6 +820,9 @@ pub(crate) fn build_registry_text_with_module_plan_routes(
             &format!("{prefix}.runtime_smoke_manifest_checksum"),
             &entry.runtime_smoke_manifest_checksum,
         );
+        if let Some(eval_path) = &entry.eval_path {
+            push_line(&mut text, &format!("{prefix}.eval_path"), eval_path);
+        }
         push_line(
             &mut text,
             &format!("{prefix}.eval_manifest_checksum"),
@@ -1273,6 +1362,8 @@ fn entries_from_admissions(admission_texts: &[String]) -> io::Result<Vec<Registr
         let model_shape = require_key(&fields, "candidate_model_shape")?.to_string();
         let model_bytes = selector_model_bytes(require_key(&fields, "candidate_artifact_bytes")?)?;
         let tokenizer_checksum = require_key(&fields, "candidate_tokenizer_checksum")?.to_string();
+        let source_manifest = registry_source_manifest_from_fields(&fields, &candidate_id)?;
+        let eval_path = registry_eval_path_from_fields(&fields, &candidate_id)?;
         let operator_receipt = registry_operator_receipt_from_fields(&fields)?;
         let evolution_schedule =
             registry_evolution_schedule_from_fields(&fields, operator_receipt.as_ref())?;
@@ -1285,6 +1376,7 @@ fn entries_from_admissions(admission_texts: &[String]) -> io::Result<Vec<Registr
             artifact_path,
             model_path,
             manifest_path,
+            source_manifest,
             max_tokens: default_max_tokens(&model_shape).to_string(),
             model_bytes: model_bytes.to_string(),
             slm_checksum,
@@ -1302,6 +1394,7 @@ fn entries_from_admissions(admission_texts: &[String]) -> io::Result<Vec<Registr
                 "runtime_smoke_manifest_checksum",
             )?
             .to_string(),
+            eval_path,
             eval_manifest_checksum: require_key(&fields, "eval_manifest_checksum")?.to_string(),
             eval_case_evidence_checksum: require_key(&fields, "eval_case_evidence_checksum")?
                 .to_string(),
@@ -1341,6 +1434,127 @@ fn entries_from_admissions(admission_texts: &[String]) -> io::Result<Vec<Registr
         });
     }
     Ok(entries)
+}
+
+// Copies optional reviewed source-manifest evidence into selector-owned route metadata.
+fn registry_source_manifest_from_fields(
+    fields: &HashMap<String, String>,
+    candidate_id: &str,
+) -> io::Result<Option<RegistrySourceManifestRoute>> {
+    let keys = [
+        "source_manifest_path",
+        "source_manifest_checksum",
+        "source_manifest_kind",
+        "source_manifest_status",
+        "source_manifest_source_kind",
+        "source_manifest_source_id",
+        "source_manifest_model_shape",
+        "source_review_kind",
+        "source_review_status",
+        "source_review_checksum",
+        "source_review_required_next_gate",
+    ];
+    let has_source_manifest = keys.iter().any(|key| fields.contains_key(*key));
+    if !has_source_manifest {
+        return Ok(None);
+    }
+    let path = require_key(fields, "source_manifest_path")?.to_string();
+    let checksum = require_key(fields, "source_manifest_checksum")?.to_string();
+    let kind = require_key(fields, "source_manifest_kind")?.to_string();
+    let status = require_key(fields, "source_manifest_status")?.to_string();
+    let source_kind = require_key(fields, "source_manifest_source_kind")?.to_string();
+    let source_id = require_key(fields, "source_manifest_source_id")?.to_string();
+    let model_shape = require_key(fields, "source_manifest_model_shape")?.to_string();
+    let expected_path = format!("../evidence/{candidate_id}/converted-trained.source.manifest");
+    if path != expected_path {
+        return Err(invalid("selector registry source manifest path is invalid"));
+    }
+    validate_hex64(&checksum, "source_manifest_checksum")?;
+    if kind != SOURCE_MANIFEST_KIND {
+        return Err(invalid("selector registry source manifest kind is invalid"));
+    }
+    if status != SOURCE_MANIFEST_STATUS {
+        return Err(invalid(
+            "selector registry source manifest status is invalid",
+        ));
+    }
+    match source_kind.as_str() {
+        "trained-source-fixture" | "trained-export" => {}
+        _ => {
+            return Err(invalid(
+                "selector registry source manifest source_kind is invalid",
+            ))
+        }
+    }
+    validate_registry_slug(&source_id, "source_manifest_source_id")?;
+    validate_registry_slug(&model_shape, "source_manifest_model_shape")?;
+    let source_review = registry_source_review_from_fields(fields)?;
+    Ok(Some(RegistrySourceManifestRoute {
+        path,
+        checksum,
+        kind,
+        status,
+        source_kind,
+        source_id,
+        model_shape,
+        source_review,
+    }))
+}
+
+fn registry_source_review_from_fields(
+    fields: &HashMap<String, String>,
+) -> io::Result<Option<RegistrySourceReviewRoute>> {
+    // Copies the pre-extraction safetensors review identity into the browser registry when present.
+    let keys = [
+        "source_review_kind",
+        "source_review_status",
+        "source_review_checksum",
+        "source_review_required_next_gate",
+    ];
+    if !keys.iter().any(|key| fields.contains_key(*key)) {
+        return Ok(None);
+    }
+    let kind = require_key(fields, "source_review_kind")?.to_string();
+    let status = require_key(fields, "source_review_status")?.to_string();
+    let checksum = require_key(fields, "source_review_checksum")?.to_string();
+    let required_next_gate = require_key(fields, "source_review_required_next_gate")?.to_string();
+    if kind != SOURCE_REVIEW_KIND {
+        return Err(invalid("selector registry source_review_kind is invalid"));
+    }
+    if status != SOURCE_REVIEW_STATUS {
+        return Err(invalid("selector registry source_review_status is invalid"));
+    }
+    validate_hex64(&checksum, "source_review_checksum")?;
+    if required_next_gate != SOURCE_REVIEW_REQUIRED_NEXT_GATE {
+        return Err(invalid(
+            "selector registry source_review_required_next_gate is invalid",
+        ));
+    }
+    Ok(Some(RegistrySourceReviewRoute {
+        kind,
+        status,
+        checksum,
+        required_next_gate,
+    }))
+}
+
+fn registry_eval_path_from_fields(
+    fields: &HashMap<String, String>,
+    candidate_id: &str,
+) -> io::Result<Option<String>> {
+    // Preserves a converted-trained eval sidecar route only when it is scoped to the candidate.
+    let Some(path) = fields.get("eval_path") else {
+        return Ok(None);
+    };
+    validate_registry_slug(candidate_id, "candidate_id")?;
+    let expected_path = format!("../evidence/{candidate_id}/converted-trained.eval");
+    if path != &expected_path {
+        return Err(invalid(
+            "selector registry eval path must stay inside candidate evidence",
+        ));
+    }
+    validate_registry_evidence_path(path, "eval_path")?;
+    Ok(Some(path.clone()))
 }
 
 // Copies the full two-parent operator receipt family when an admission exposes it.
@@ -2906,6 +3120,23 @@ fn validate_registry_slug(value: &str, label: &str) -> io::Result<()> {
     Ok(())
 }
 
+fn validate_registry_evidence_path(value: &str, label: &str) -> io::Result<()> {
+    // Keeps selector-carried evidence routes relative to the served local evidence tree.
+    if !value.starts_with("../evidence/")
+        || value.contains('\\')
+        || value.contains("://")
+        || value.contains("//")
+    {
+        return Err(invalid(&format!("selector registry {label} is invalid")));
+    }
+    for part in value["../evidence/".len()..].split('/') {
+        if part.is_empty() || part == "." || part == ".." {
+            return Err(invalid(&format!("selector registry {label} is invalid")));
+        }
+    }
+    Ok(())
+}
+
 fn default_max_tokens(model_shape: &str) -> usize {
     if model_shape.contains("hidden=16") {
         16
@@ -3723,6 +3954,44 @@ fn registry_entry_heritable_artifact_id(entry: &RegistryEntry) -> String {
     push_line(&mut text, "artifact_path", &entry.artifact_path);
     push_line(&mut text, "model_path", &entry.model_path);
     push_line(&mut text, "manifest_path", &entry.manifest_path);
+    match &entry.source_manifest {
+        Some(source_manifest) => {
+            push_line(&mut text, "source_manifest_path", &source_manifest.path);
+            push_line(
+                &mut text,
+                "source_manifest_checksum",
+                &source_manifest.checksum,
+            );
+            push_line(
+                &mut text,
+                "source_manifest_source_kind",
+                &source_manifest.source_kind,
+            );
+            push_line(
+                &mut text,
+                "source_manifest_source_id",
+                &source_manifest.source_id,
+            );
+            push_line(
+                &mut text,
+                "source_manifest_model_shape",
+                &source_manifest.model_shape,
+            );
+            if let Some(source_review) = &source_manifest.source_review {
+                push_line(&mut text, "source_review_kind", &source_review.kind);
+                push_line(&mut text, "source_review_status", &source_review.status);
+                push_line(&mut text, "source_review_checksum", &source_review.checksum);
+                push_line(
+                    &mut text,
+                    "source_review_required_next_gate",
+                    &source_review.required_next_gate,
+                );
+            } else {
+                push_line(&mut text, "source_review_status", "absent");
+            }
+        }
+        None => push_line(&mut text, "source_manifest_status", "absent"),
+    }
     push_line(&mut text, "model_bytes", &entry.model_bytes);
     push_line(&mut text, "slm_checksum", &entry.slm_checksum);
     push_line(&mut text, "model_shape", &entry.model_shape);
@@ -3964,6 +4233,127 @@ mod tests {
     }
 
     #[test]
+    fn writes_and_validates_selector_registry_source_manifest_route() {
+        let admission = fixture_admission_with_source_manifest_route(
+            "converted-trained-q8",
+            "tinyrustlm/models/converted-trained-q8.slm",
+        );
+        let registry = build_registry_text(&[admission.clone()]).unwrap();
+
+        assert!(registry.contains(
+            "entry.0.source_manifest_path=../evidence/converted-trained-q8/converted-trained.source.manifest"
+        ));
+        assert!(registry.contains("entry.0.source_manifest_checksum=0x00000000000000f1"));
+        assert!(registry.contains("entry.0.source_manifest_kind=trained-source-manifest"));
+        assert!(registry.contains("entry.0.source_manifest_status=reviewed-source-snapshot"));
+        assert!(registry.contains("entry.0.source_manifest_source_kind=trained-source-fixture"));
+        assert!(
+            registry.contains("entry.0.source_manifest_source_id=tinyrustlm-local-source-fixture")
+        );
+        assert!(registry.contains("entry.0.source_manifest_model_shape=tiny-fixture"));
+        assert!(registry
+            .contains("entry.0.eval_path=../evidence/converted-trained-q8/converted-trained.eval"));
+        validate_registry_text(&registry, &[admission]).unwrap();
+    }
+
+    #[test]
+    fn rejects_selector_registry_source_manifest_checksum_drift() {
+        let admission = fixture_admission_with_source_manifest_route(
+            "converted-trained-q8",
+            "tinyrustlm/models/converted-trained-q8.slm",
+        );
+        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
+            "entry.0.source_manifest_checksum=0x00000000000000f1",
+            "entry.0.source_manifest_checksum=0x00000000000000f2",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert!(error.to_string().contains("source_manifest_checksum"));
+    }
+
+    #[test]
+    fn writes_and_validates_selector_registry_source_review_route() {
+        let admission = fixture_admission_with_source_review_route(
+            "converted-trained-q8",
+            "tinyrustlm/models/converted-trained-q8.slm",
+        );
+        let registry = build_registry_text(&[admission.clone()]).unwrap();
+
+        assert!(registry.contains("entry.0.source_review_kind=safetensors-candidate-review"));
+        assert!(registry.contains("entry.0.source_review_status=validated-before-extraction"));
+        assert!(registry.contains("entry.0.source_review_checksum=0x00000000000000f3"));
+        assert!(
+            registry.contains("entry.0.source_review_required_next_gate=extract-raw-f32-tensors")
+        );
+        validate_registry_text(&registry, &[admission]).unwrap();
+    }
+
+    #[test]
+    fn rejects_selector_registry_source_review_checksum_drift() {
+        let admission = fixture_admission_with_source_review_route(
+            "converted-trained-q8",
+            "tinyrustlm/models/converted-trained-q8.slm",
+        );
+        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
+            "entry.0.source_review_checksum=0x00000000000000f3",
+            "entry.0.source_review_checksum=0x00000000000000f4",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert!(error.to_string().contains("source_review_checksum"));
+    }
+
+    #[test]
+    fn rejects_selector_registry_source_manifest_route_outside_candidate_evidence() {
+        let admission = fixture_admission_with_source_manifest_route(
+            "converted-trained-q8",
+            "tinyrustlm/models/converted-trained-q8.slm",
+        )
+        .replace(
+            "source_manifest_path=../evidence/converted-trained-q8/converted-trained.source.manifest",
+            "source_manifest_path=../evidence/converted-trained-f32/converted-trained.source.manifest",
+        );
+
+        let error = build_registry_text(&[admission]).unwrap_err();
+
+        assert!(error.to_string().contains("source manifest path"));
+    }
+
+    #[test]
+    fn rejects_selector_registry_source_manifest_identity_drift() {
+        let admission = fixture_admission_with_source_manifest_route(
+            "converted-trained-q8",
+            "tinyrustlm/models/converted-trained-q8.slm",
+        );
+        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
+            "entry.0.source_manifest_source_id=tinyrustlm-local-source-fixture",
+            "entry.0.source_manifest_source_id=tinyrustlm-local-source-drift",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert!(error.to_string().contains("source_manifest_source_id"));
+    }
+
+    #[test]
+    fn rejects_selector_registry_eval_route_outside_candidate_evidence() {
+        let admission = fixture_admission_with_source_manifest_route(
+            "converted-trained-q8",
+            "tinyrustlm/models/converted-trained-q8.slm",
+        )
+        .replace(
+            "eval_path=../evidence/converted-trained-q8/converted-trained.eval",
+            "eval_path=../evidence/converted-trained-f32/converted-trained.eval",
+        );
+
+        let error = build_registry_text(&[admission]).unwrap_err();
+
+        assert!(error.to_string().contains("eval path"));
+    }
+
+    #[test]
     fn display_name_labels_converted_trained_source_entries() {
         assert_eq!(
             display_name("converted-trained-q8", "q8_0"),
@@ -4188,10 +4578,10 @@ mod tests {
         assert!(registry.contains("entry.0.evolution_recipe_version=1"));
         assert!(registry
             .contains("entry.0.evolution_recipe_strategy=population-based-parent-pool-replay-v1"));
-        assert!(registry.contains("entry.0.evolution_recipe_status=planned"));
-        assert!(
-            registry.contains("entry.0.evolution_selection_source=population-review-frontier-v1")
-        );
+        assert!(registry.contains("entry.0.evolution_recipe_status=operator-family-planned"));
+        assert!(registry.contains(
+            "entry.0.evolution_selection_source=population-fitness-normalized-seed-weights"
+        ));
         assert!(
             registry.contains("entry.0.evolution_relatedness_contract_checksum=0x0000000000000016")
         );
@@ -4237,6 +4627,76 @@ mod tests {
 
         assert_eq!(error.kind(), io::ErrorKind::InvalidData);
         assert!(error.to_string().contains("scheduled_operator_family_kind"));
+    }
+
+    #[test]
+    fn rejects_selector_registry_evolution_schedule_metadata_drift() {
+        let admission =
+            fixture_multi_parent_admission("tiny-sign-merge", "tinyrustlm/models/sign-merge.slm");
+        let registry = build_registry_text(&[admission.clone()]).unwrap();
+        let drift_cases = [
+            (
+                "evolution_recipe_status",
+                "entry.0.evolution_recipe_status=operator-family-planned",
+                "entry.0.evolution_recipe_status=operator-family-replayed",
+            ),
+            (
+                "evolution_selection_source",
+                "entry.0.evolution_selection_source=population-fitness-normalized-seed-weights",
+                "entry.0.evolution_selection_source=population-review-frontier-v1",
+            ),
+            (
+                "evolution_relatedness_contract_checksum",
+                "entry.0.evolution_relatedness_contract_checksum=0x0000000000000016",
+                "entry.0.evolution_relatedness_contract_checksum=0x0000000000000018",
+            ),
+            (
+                "evolution_schedule_checksum_algorithm",
+                "entry.0.evolution_schedule_checksum_algorithm=tinyrustlm-text-checksum-v1",
+                "entry.0.evolution_schedule_checksum_algorithm=tinyrustlm-text-checksum-v2",
+            ),
+            (
+                "evolution_schedule_checksum",
+                "entry.0.evolution_schedule_checksum=0x0000000000000017",
+                "entry.0.evolution_schedule_checksum=0x0000000000000019",
+            ),
+            (
+                "scheduled_operator_family_index",
+                "entry.0.scheduled_operator_family_index=0",
+                "entry.0.scheduled_operator_family_index=1",
+            ),
+            (
+                "scheduled_operator_family_command",
+                "entry.0.scheduled_operator_family_command=sign-merge-candidate",
+                "entry.0.scheduled_operator_family_command=soup-candidate",
+            ),
+            (
+                "scheduled_operator_family_selection_rule",
+                "entry.0.scheduled_operator_family_selection_rule=seed-weighted-delta-sign-consensus",
+                "entry.0.scheduled_operator_family_selection_rule=seed-weighted-direct-parameter-average",
+            ),
+            (
+                "scheduled_operator_family_output_gate",
+                "entry.0.scheduled_operator_family_output_gate=multi-parent-candidate-manifest-plus-runtime-smoke-plus-eval",
+                "entry.0.scheduled_operator_family_output_gate=selector-registry-only",
+            ),
+        ];
+
+        for (field, original, replacement) in drift_cases {
+            let drifted = registry.replace(original, replacement);
+            assert_ne!(
+                registry, drifted,
+                "{field} drift fixture must replace an existing selector registry line"
+            );
+
+            let error = validate_registry_text(&drifted, &[admission.clone()]).unwrap_err();
+
+            assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+            assert!(
+                error.to_string().contains(field),
+                "{field} drift error was {error}"
+            );
+        }
     }
 
     #[test]
@@ -6671,6 +7131,73 @@ mod tests {
         fixture_admission_for_bytes(candidate_id, candidate_path, tiny_fixture_q8_bytes())
     }
 
+    fn fixture_admission_with_source_manifest_route(
+        candidate_id: &str,
+        candidate_path: &str,
+    ) -> String {
+        // Adds the converted-trained source evidence route extension consumed by selector entries.
+        let mut admission = fixture_admission(candidate_id, candidate_path);
+        push_line(
+            &mut admission,
+            "source_manifest_path",
+            &format!("../evidence/{candidate_id}/converted-trained.source.manifest"),
+        );
+        push_line(
+            &mut admission,
+            "source_manifest_checksum",
+            "0x00000000000000f1",
+        );
+        push_line(&mut admission, "source_manifest_kind", SOURCE_MANIFEST_KIND);
+        push_line(
+            &mut admission,
+            "source_manifest_status",
+            SOURCE_MANIFEST_STATUS,
+        );
+        push_line(
+            &mut admission,
+            "source_manifest_source_kind",
+            "trained-source-fixture",
+        );
+        push_line(
+            &mut admission,
+            "source_manifest_source_id",
+            "tinyrustlm-local-source-fixture",
+        );
+        push_line(
+            &mut admission,
+            "source_manifest_model_shape",
+            "tiny-fixture",
+        );
+        push_line(
+            &mut admission,
+            "eval_path",
+            &format!("../evidence/{candidate_id}/converted-trained.eval"),
+        );
+        admission
+    }
+
+    fn fixture_admission_with_source_review_route(
+        candidate_id: &str,
+        candidate_path: &str,
+    ) -> String {
+        // Adds pre-extraction safetensors review evidence to the converted-trained source route.
+        let mut admission =
+            fixture_admission_with_source_manifest_route(candidate_id, candidate_path);
+        push_line(&mut admission, "source_review_kind", SOURCE_REVIEW_KIND);
+        push_line(&mut admission, "source_review_status", SOURCE_REVIEW_STATUS);
+        push_line(
+            &mut admission,
+            "source_review_checksum",
+            "0x00000000000000f3",
+        );
+        push_line(
+            &mut admission,
+            "source_review_required_next_gate",
+            SOURCE_REVIEW_REQUIRED_NEXT_GATE,
+        );
+        admission
+    }
+
     fn fixture_f32_admission(candidate_id: &str, candidate_path: &str) -> String {
         fixture_admission_for_bytes(candidate_id, candidate_path, tiny_fixture_f32_bytes())
     }
@@ -7078,11 +7605,15 @@ mod tests {
             "evolution_recipe_strategy",
             "population-based-parent-pool-replay-v1",
         );
-        push_line(&mut text, "evolution_recipe_status", "planned");
+        push_line(
+            &mut text,
+            "evolution_recipe_status",
+            "operator-family-planned",
+        );
         push_line(
             &mut text,
             "evolution_selection_source",
-            "population-review-frontier-v1",
+            "population-fitness-normalized-seed-weights",
         );
         push_line(
             &mut text,

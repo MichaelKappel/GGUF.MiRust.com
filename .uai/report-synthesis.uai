@@ -1,319 +1,383 @@
-profile: gguf-mirust.report-synthesis.v87
-updated_utc: 2026-06-29T20:22:33Z
+profile: runtime-mirust.report-synthesis.v113
+updated_utc: 2026-06-30T17:58:41Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
-  raw_evidence: raw/gguf-mirust/report-intake-2026-06-25/
-  raw_evidence_2026_06_26: raw/gguf-mirust/report-intake-2026-06-26/
-  raw_evidence_2026_06_28: raw/gguf-mirust/report-intake-2026-06-28/
-  raw_manifest: raw/gguf-mirust/MANIFEST.md
-  durable_index: wiki/gguf-mirust/reports/report-intake-index-2026-06-25.md
-  durable_index_2026_06_26: wiki/gguf-mirust/reports/report-intake-index-2026-06-26.md
-  durable_index_2026_06_28: wiki/gguf-mirust/reports/report-intake-index-2026-06-28.md
+  raw_evidence: raw/runtime-mirust/report-intake-2026-06-25/
+  raw_evidence_2026_06_26: raw/runtime-mirust/report-intake-2026-06-26/
+  raw_evidence_2026_06_28: raw/runtime-mirust/report-intake-2026-06-28/
+  raw_evidence_2026_06_29: raw/runtime-mirust/report-intake-2026-06-29/
+  raw_evidence_2026_06_29_followup: raw/runtime-mirust/report-intake-2026-06-29-followup/
+  raw_manifest: raw/runtime-mirust/MANIFEST.md
+  durable_index: wiki/runtime-mirust/reports/report-intake-index-2026-06-25.md
+  durable_index_2026_06_26: wiki/runtime-mirust/reports/report-intake-index-2026-06-26.md
+  durable_index_2026_06_28: wiki/runtime-mirust/reports/report-intake-index-2026-06-28.md
+  durable_index_2026_06_29: wiki/runtime-mirust/reports/report-intake-index-2026-06-29.md
+  durable_index_2026_06_29_followup: wiki/runtime-mirust/reports/report-intake-index-2026-06-29-followup.md
   durable_synthesis:
-    - wiki/gguf-mirust/reports/enterprise-rust-governance-memory-2026-06-25.md
-    - wiki/gguf-mirust/reports/browser-local-runtime-memory-2026-06-25.md
-    - wiki/gguf-mirust/reports/tinylm-modular-architecture-memory-2026-06-25.md
-    - wiki/gguf-mirust/reports/teleodynamic-resource-bounded-memory-2026-06-25.md
-    - wiki/gguf-mirust/reports/brand-product-positioning-memory-2026-06-25.md
-    - wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
-    - wiki/gguf-mirust/reports/runtime-adapter-apply-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/sparse-adapter-package-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/low-rank-adapter-package-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/trained-adapter-source-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/trained-adapter-source-alr1-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-low-rank-adapter-route-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-source-backed-alr1-route-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-source-backed-alr1-contract-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/two-parent-operator-browser-provenance-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/mutation-operator-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/dare-operator-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/dare-browser-operator-provenance-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/browser-converted-trained-provenance-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/browser-converted-trained-file-route-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/browser-converted-trained-all-route-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/federated-operator-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/federated-selector-receipt-route-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/browser-parent-pool-soup-bundle-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/browser-multi-parent-operator-provenance-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/browser-mixed-operator-selector-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/parent-pool-evolution-schedule-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/operator-schedule-carry-forward-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/candidate-operator-receipt-binding-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/promotion-operator-receipt-binding-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/admission-operator-receipt-binding-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/selector-operator-receipt-binding-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/browser-adapter-sidecar-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/registry-adapter-sidecar-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/registry-adapter-family-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/adapter-family-receipt-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/assembly-receipt-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-sparse-adapter-route-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-preferred-adapter-route-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-multi-quant-selector-root-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-frugal-selector-default-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-selector-budget-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-selector-budget-contract-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-auto-assembly-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-auto-assembly-budget-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-text-sidecar-budget-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-text-sidecar-contract-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-runtime-manifest-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-adapter-stack-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-module-plan-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-module-plan-resource-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-module-plan-resource-drift-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-module-plan-graph-drift-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-module-plan-stack-drift-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-module-plan-role-drift-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-module-plan-display-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-module-plan-budget-display-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-module-plan-role-display-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-module-plan-slots-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-module-plan-dependencies-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-module-plan-phases-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-module-plan-byte-counts-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-module-plan-checksums-memory-2026-06-27.md
-    - wiki/gguf-mirust/reports/browser-combined-selector-assembly-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-combined-selector-cycle-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-combined-selector-route-soak-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-combined-selector-extended-route-soak-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-combined-selector-stress-route-soak-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-combined-selector-reload-soak-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-assembly-trace-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-eval-case-evidence-checksum-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-selector-genome-fitness-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-selector-species-fit-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-selector-novelty-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-selector-population-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-selector-mate-selection-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-selector-phenotype-evidence-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-selector-heritable-artifact-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-assembly-eval-case-drift-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-assembly-evidence-file-drift-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-adapter-family-receipt-drift-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-adapter-manifest-drift-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-adapter-artifact-drift-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-adapter-stack-prefetch-drift-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-adapter-stack-rust-validate-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-adapter-stack-rust-validate-drift-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-module-plan-profile-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-module-plan-execution-profile-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-module-plan-fetch-policy-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-module-plan-origin-policy-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-module-plan-runtime-scratch-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-module-plan-output-limit-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-module-plan-total-budget-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-module-plan-total-limit-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-module-plan-wasm-memory-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-module-plan-wasm-export-set-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-module-plan-wasm-heap-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-module-plan-wasm-transfer-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-module-plan-model-release-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/browser-module-plan-runtime-reset-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/browser-module-plan-adapter-validation-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/browser-module-plan-adapter-validation-count-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/browser-module-plan-adapter-apply-count-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/browser-module-plan-planned-fetch-count-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/browser-module-plan-actual-fetch-count-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/browser-module-plan-observed-route-set-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/browser-module-plan-actual-module-checksums-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/browser-module-plan-route-set-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/browser-module-plan-route-set-version-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/browser-module-plan-route-set-algorithm-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/browser-module-plan-operator-receipt-memory-2026-06-29.md
-    - wiki/gguf-mirust/reports/browser-module-plan-kv-cache-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-module-plan-adapter-stack-budget-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-module-plan-context-token-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-module-plan-tokenizer-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-module-plan-fetch-count-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-module-plan-prompt-limit-memory-2026-06-28.md
-    - wiki/gguf-mirust/reports/browser-module-plan-count-drift-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/runtime-rebrand-memory-2026-06-30.md
+    - wiki/runtime-mirust/reports/tinylm16-bpe-safetensors-plan-memory-2026-06-30.md
+    - wiki/runtime-mirust/reports/enterprise-rust-governance-memory-2026-06-25.md
+    - wiki/runtime-mirust/reports/browser-local-runtime-memory-2026-06-25.md
+    - wiki/runtime-mirust/reports/tinylm-modular-architecture-memory-2026-06-25.md
+    - wiki/runtime-mirust/reports/teleodynamic-resource-bounded-memory-2026-06-25.md
+    - wiki/runtime-mirust/reports/brand-product-positioning-memory-2026-06-25.md
+    - wiki/runtime-mirust/reports/model-breeding-ecology-memory-2026-06-26.md
+    - wiki/runtime-mirust/reports/runtime-adapter-apply-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/sparse-adapter-package-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/low-rank-adapter-package-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/trained-adapter-source-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/trained-adapter-source-alr1-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-low-rank-adapter-route-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-source-backed-alr1-route-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-source-backed-alr1-contract-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/two-parent-operator-browser-provenance-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/mutation-operator-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/dare-operator-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/dare-browser-operator-provenance-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/browser-converted-trained-provenance-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/browser-converted-trained-file-route-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/browser-converted-trained-all-route-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/browser-converted-trained-source-evidence-memory-2026-06-30.md
+    - wiki/runtime-mirust/reports/browser-converted-trained-source-identity-memory-2026-06-30.md
+    - wiki/runtime-mirust/reports/browser-converted-trained-source-provenance-memory-2026-06-30.md
+    - wiki/runtime-mirust/reports/browser-converted-trained-runtime-eval-memory-2026-06-30.md
+    - wiki/runtime-mirust/reports/browser-converted-trained-eval-evidence-memory-2026-06-30.md
+    - wiki/runtime-mirust/reports/safetensors-inspection-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/safetensors-source-plan-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/safetensors-source-extraction-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/safetensors-trained-conversion-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/safetensors-browser-bundle-memory-2026-06-30.md
+    - wiki/runtime-mirust/reports/safetensors-candidate-review-memory-2026-06-30.md
+    - wiki/runtime-mirust/reports/federated-operator-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/federated-selector-receipt-route-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/browser-parent-pool-soup-bundle-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/browser-multi-parent-operator-provenance-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/browser-mixed-operator-selector-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/parent-pool-evolution-schedule-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/operator-schedule-carry-forward-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/candidate-operator-receipt-binding-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/promotion-operator-receipt-binding-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/admission-operator-receipt-binding-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/selector-operator-receipt-binding-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/browser-adapter-sidecar-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/registry-adapter-sidecar-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/registry-adapter-family-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/adapter-family-receipt-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/assembly-receipt-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-sparse-adapter-route-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-preferred-adapter-route-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-multi-quant-selector-root-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-frugal-selector-default-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-selector-budget-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-selector-budget-contract-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-auto-assembly-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-auto-assembly-budget-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-text-sidecar-budget-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-text-sidecar-contract-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-runtime-manifest-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-adapter-stack-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-module-plan-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-module-plan-resource-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-module-plan-resource-drift-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-module-plan-graph-drift-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-module-plan-stack-drift-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-module-plan-role-drift-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-module-plan-display-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-module-plan-budget-display-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-module-plan-role-display-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-module-plan-slots-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-module-plan-dependencies-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-module-plan-phases-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-module-plan-byte-counts-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-module-plan-checksums-memory-2026-06-27.md
+    - wiki/runtime-mirust/reports/browser-combined-selector-assembly-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-combined-selector-cycle-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-combined-selector-route-soak-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-combined-selector-extended-route-soak-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-combined-selector-stress-route-soak-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-combined-selector-reload-soak-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-assembly-trace-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-eval-case-evidence-checksum-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-selector-genome-fitness-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-selector-species-fit-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-selector-novelty-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-selector-population-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-selector-mate-selection-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-selector-phenotype-evidence-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-selector-heritable-artifact-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-assembly-eval-case-drift-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-assembly-evidence-file-drift-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-adapter-family-receipt-drift-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-adapter-manifest-drift-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-adapter-artifact-drift-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-adapter-stack-prefetch-drift-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-adapter-stack-rust-validate-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-adapter-stack-rust-validate-drift-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-module-plan-profile-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-module-plan-execution-profile-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-module-plan-fetch-policy-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-module-plan-origin-policy-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-module-plan-runtime-scratch-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-module-plan-output-limit-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-module-plan-total-budget-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-module-plan-total-limit-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-module-plan-wasm-memory-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-module-plan-wasm-export-set-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-module-plan-wasm-heap-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-module-plan-wasm-transfer-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-module-plan-model-release-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/browser-module-plan-runtime-reset-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/browser-module-plan-adapter-validation-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/browser-module-plan-adapter-validation-count-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/browser-module-plan-adapter-apply-count-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/browser-module-plan-planned-fetch-count-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/browser-module-plan-actual-fetch-count-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/browser-module-plan-observed-route-set-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/browser-module-plan-actual-module-checksums-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/browser-module-plan-route-set-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/browser-module-plan-route-set-version-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/browser-module-plan-route-set-algorithm-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/browser-module-plan-operator-receipt-memory-2026-06-29.md
+    - wiki/runtime-mirust/reports/browser-module-plan-kv-cache-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-module-plan-adapter-stack-budget-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-module-plan-context-token-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-module-plan-tokenizer-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-module-plan-fetch-count-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-module-plan-prompt-limit-memory-2026-06-28.md
+    - wiki/runtime-mirust/reports/browser-module-plan-count-drift-memory-2026-06-28.md
   durable_research:
-    - wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md
-    - wiki/gguf-mirust/research/modelbreeder-zero-dependency-reference-ideas-2026-06-28.md
+    - wiki/runtime-mirust/research/model-breeding-reference-ideas-2026-06-26.md
+    - wiki/runtime-mirust/research/modelbreeder-zero-dependency-reference-ideas-2026-06-28.md
+    - wiki/runtime-mirust/research/tiny-model-runtime-memory-reference-ideas-2026-06-29.md
+    - wiki/runtime-mirust/research/tiny-model-candidate-matrix-2026-06-29.md
+    - wiki/runtime-mirust/research/safetensors-tokenizer-budget-reference-ideas-2026-06-29.md
   uaix_strategy_source: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
   uaix_strategy_dogfood: docs/dogfood/uaix-file-handoff-memory-strategy-2026-06-26.md
 strategy_refresh_2026_06_27:
   report_storage: Report bodies stay in raw evidence and wiki/report pages; .uai/long-term-memory.uai keeps checksum-bearing pointers, and .uai/short-term-memory.uai keeps current open-next routes.
-  report_pointer_audit: Every current wiki/gguf-mirust/reports/*.md and wiki/gguf-mirust/research/*.md page is represented in .uai/long-term-memory.uai; repeat this audit after adding report or research pages.
-  research_storage: Model Breeding reference bodies stay in wiki/gguf-mirust/research/ and route through this synthesis file plus short-term memory before any source work.
+  report_pointer_audit: Every current wiki/runtime-mirust/reports/*.md and wiki/runtime-mirust/research/*.md page is represented in .uai/long-term-memory.uai; repeat this audit after adding report or research pages.
+  research_storage: Model Breeding reference bodies stay in wiki/runtime-mirust/research/ and route through this synthesis file plus short-term memory before any source work.
   model_breeding_diverse_lanes: Compatible merge, sparse-lineage, adapter-ecology including ADP1/ASP1/ALR1, population-search, federated/local-update, browser-constrained-assembly, UAIX-memory-strategy, heritable-artifact, mate-selection, phenotype-evidence, and speciation-fit ideas are research/planner lanes until converted into typed receipts, eval sidecars, manifests, tests, or promotion records.
-  site_voice_route: .uai/taboo.uai governs Model Breeding, mutualist, tiny-ecology, UAIX strategy, and public-copy wording for GGUF.MiRust.com.
+  site_voice_route: .uai/taboo.uai governs Model Breeding, mutualist, tiny-ecology, UAIX strategy, and public-copy wording for Runtime.MiRust.com.
 strategy_refresh_2026_06_28:
   setup_file_handoff_source: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
   applied_memory_shape: Active buckets are intake, raw/wiki Markdown holds durable bodies, .uai files hold short routing and synthesis, short-term memory names current report/research routes, and long-term memory keeps checksum pointers.
-  report_memory_shape: All current report pages stay in wiki/gguf-mirust/reports/, research pages stay in wiki/gguf-mirust/research/, and both route from short-term memory plus long-term checksum records.
+  report_memory_shape: All current report pages stay in wiki/runtime-mirust/reports/, research pages stay in wiki/runtime-mirust/research/, and both route from short-term memory plus long-term checksum records.
   model_breeding_concept_lanes: The research page now includes heritable-artifact, mate-selection, phenotype-evidence, and speciation-and-fit lanes beside merge, sparse, adapter, population, local-update, browser-assembly, and UAIX strategy lanes.
   site_voice_route: .uai/taboo.uai carries the direct site voice rule; public copy should center proof, craft, lineage, fit, local agency, routes, and implementation evidence.
+research_intake_2026_06_29:
+  route: wiki/runtime-mirust/research/tiny-model-runtime-memory-reference-ideas-2026-06-29.md
+  candidate_matrix: wiki/runtime-mirust/research/tiny-model-candidate-matrix-2026-06-29.md
+  intake_index: wiki/runtime-mirust/reports/report-intake-index-2026-06-29.md
+  raw_evidence: raw/runtime-mirust/report-intake-2026-06-29/
+  synthesis: Seven Improvement research files route tiny-model candidate selection, low-vocabulary conversion priorities, Rust/WASM runtime memory patterns, deterministic model-breeding metadata, and UAIX/LLM Wiki memory distribution guidance.
+  candidate_matrix_synthesis: Metadata-only model matrix prioritizes Xenova 15M q8/q4 as the first Llama conversion route, Aurelius for GQA and compact-tokenizer work, StorySupra for untied eight-layer Llama, Pythia for GPT-NeoX validation, and Xenova 42M for q4 pressure proof.
+  applied_current_work: Browser generated-selector schedule-family validation now checks expected command, selection rule, output gate, and family index; `generated-selector-schedule-family-drift` proves rejected generated entries restore the static q8 fallback path.
+research_intake_2026_06_29_followup:
+  route: wiki/runtime-mirust/research/safetensors-tokenizer-budget-reference-ideas-2026-06-29.md
+  intake_index: wiki/runtime-mirust/reports/report-intake-index-2026-06-29-followup.md
+  raw_evidence: raw/runtime-mirust/report-intake-2026-06-29-followup/
+  synthesis: Six follow-up Improvement research files route safetensors tensor-name aliases, tokenizer conversion, browser byte budgets, WASM hot loops, model-breeding schedule metadata, and reference-output fixture planning into current implementation work.
+  applied_current_work: Safetensors planning should preserve local raw source names while accepting Hugging Face Llama aliases such as `model.embed_tokens.weight`, `model.norm.weight`, `lm_head.weight`, `model.layers.N.self_attn.q_proj.weight`, and `model.layers.N.mlp.gate_proj.weight`; direct conversion should still write and validate the raw source directory before emitting `.slm`.
 dare_operator_2026_06_29:
-  route: wiki/gguf-mirust/reports/dare-operator-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/dare-operator-memory-2026-06-29.md
   synthesis: DARE now has an offline `dare-candidate` and `validate-dare-candidate` receipt lane with signed task-delta weights, keep/drop ppm, dropout seed, mask checksum, raw delta checksum, rescaled delta checksum, focused parameter tests, and q8 CLI proof before downstream candidate manifests.
 dare_browser_operator_provenance_2026_06_29:
-  route: wiki/gguf-mirust/reports/dare-browser-operator-provenance-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/dare-browser-operator-provenance-memory-2026-06-29.md
   synthesis: DARE compact browser selector proof now renders `receipt-bound / dropout-rescaled-task-delta / 0x00000000000000b7`, rejects DARE operator-kind drift in selector validation, and uses `dare-operator-receipt-drift` to prove static q8 fallback with Operator unavailable.
 browser_converted_trained_provenance_2026_06_29:
-  route: wiki/gguf-mirust/reports/browser-converted-trained-provenance-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/browser-converted-trained-provenance-memory-2026-06-29.md
   synthesis: `converted-trained-registry` proves a compact selector-served q8 route fetches a converted-trained manifest and renders converted-trained source, pending eval, and runtime-compatible quality boundary fields while shared multi-parent registry behavior remains green.
 browser_converted_trained_file_route_2026_06_29:
-  route: wiki/gguf-mirust/reports/browser-converted-trained-file-route-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/browser-converted-trained-file-route-memory-2026-06-29.md
   synthesis: `browser-converted-trained-bundle` stages a reviewed trained-source q8 artifact plus sidecars under a runnable root, and `converted-trained-registry-file` proves real selector, model, and manifest routes.
 browser_converted_trained_all_route_2026_06_29:
-  route: wiki/gguf-mirust/reports/browser-converted-trained-all-route-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/browser-converted-trained-all-route-memory-2026-06-29.md
   synthesis: `browser-converted-trained-bundle ... all` stages converted-trained f32, q8, and q4 artifacts under one q4-defaulted selector root, and `converted-trained-registry-file` proves real selector/model/manifest routes for all three entries.
+browser_converted_trained_source_evidence_2026_06_30:
+  route: wiki/runtime-mirust/reports/browser-converted-trained-source-evidence-memory-2026-06-30.md
+  synthesis: Converted-trained browser bundle entries copy reviewed `source.manifest` into each evidence lane, selector entries carry source-manifest and optional `source_review_*` route fields, and browser smokes verify source/review checksums plus selector-review omission before selected model bytes.
+browser_converted_trained_source_identity_2026_06_30:
+  route: wiki/runtime-mirust/reports/browser-converted-trained-source-identity-memory-2026-06-30.md
+  synthesis: Converted-trained selector entries carry source kind, source id, and source model shape from the reviewed source snapshot; app.js verifies fetched source identity before converted model bytes, safetensors bundle tests assert trained-export source identity, and source-identity drift stops q8 loading.
+browser_converted_trained_source_provenance_2026_06_30:
+  route: wiki/runtime-mirust/reports/browser-converted-trained-source-provenance-memory-2026-06-30.md
+  synthesis: Browser Model Provenance now renders verified converted-trained source snapshot, source id, source shape, and Source Review rows; converted-trained-registry asserts fixture values and ui-audit asserts deterministic fallback.
+browser_converted_trained_runtime_eval_2026_06_30:
+  route: wiki/runtime-mirust/reports/browser-converted-trained-runtime-eval-memory-2026-06-30.md
+  synthesis: Converted-trained and safetensors browser bundles run native eval sidecars before selector admission, accept explicit eval-case files, and stop before admission when eval cases fail.
+browser_converted_trained_eval_evidence_2026_06_30:
+  route: wiki/runtime-mirust/reports/browser-converted-trained-eval-evidence-memory-2026-06-30.md
+  synthesis: Converted-trained selector entries carry `eval_path`, app.js fetches and verifies `converted-trained.eval` plus the case-ledger digest before model bytes, and eval-evidence drift stops q8 loading.
+safetensors_source_plan_2026_06_29:
+  route: wiki/runtime-mirust/reports/safetensors-source-plan-memory-2026-06-29.md
+  synthesis: `plan-safetensors-source` maps inspected safetensors tensor directories into supported raw f32 trained-source layouts, requiring exact tensor names/shapes, per-tensor copy/decode actions, raw file destinations, and mapping checksums before extraction.
+safetensors_source_extraction_2026_06_29:
+  route: wiki/runtime-mirust/reports/safetensors-source-extraction-memory-2026-06-29.md
+  synthesis: `extract-safetensors-source` can consume the candidate-review path, recompute plan and route evidence before output, copy F32 or decode F16/BF16 payloads, and stamp raw f32 bundles with review checksum metadata accepted by `validate-source`.
+safetensors_trained_conversion_2026_06_29:
+  route: wiki/runtime-mirust/reports/safetensors-trained-conversion-memory-2026-06-29.md
+  synthesis: `convert-safetensors-trained` accepts local TinyRustLM names or Hugging Face Llama aliases, optionally enforces the candidate review's `quantization_target`, preserves validated raw f32 source-review metadata, writes f32/q8_0/q4_0 `.slm` artifacts, and emits converted-trained manifests.
+safetensors_browser_bundle_2026_06_30:
+  route: wiki/runtime-mirust/reports/safetensors-browser-bundle-memory-2026-06-30.md
+  synthesis: `browser-safetensors-trained-bundle` can enforce the candidate review's browser-preferred quantization or `all`, then stages converted-trained selector roots, manifests, source snapshots with `source_review_*`, runtime/eval/admission evidence, WASM manifest, and app shell from local safetensors input.
+safetensors_candidate_review_2026_06_30:
+  route: wiki/runtime-mirust/reports/safetensors-candidate-review-memory-2026-06-30.md
+  synthesis: `review-safetensors-candidate` writes a pre-extraction real-checkpoint review tying safetensors metadata to source id/SHA, hex64 config/tokenizer/reference-output checksums, local config/tokenizer JSON artifact evidence with normalized detail rows when routed, required compatible BPE tokenizer JSON import into source-manifest rows, route-only and non-byte-fallback BPE rejection, exact imported-tokenizer byte estimates, browser preference, context/KV budgets, required next gate, and checksum-bound downstream enforcement.
 research_intake_2026_06_28:
-  route: wiki/gguf-mirust/research/modelbreeder-zero-dependency-reference-ideas-2026-06-28.md
-  intake_index: wiki/gguf-mirust/reports/report-intake-index-2026-06-28.md
-  raw_evidence: raw/gguf-mirust/report-intake-2026-06-28/
+  route: wiki/runtime-mirust/research/modelbreeder-zero-dependency-reference-ideas-2026-06-28.md
+  intake_index: wiki/runtime-mirust/reports/report-intake-index-2026-06-28.md
+  raw_evidence: raw/runtime-mirust/report-intake-2026-06-28/
   synthesis: Four Improvement research files route ModelBreeder genome/fitness/novelty/speciation guidance plus zero-dependency browser-runtime lanes for Wasm SIMD, hierarchical quantization, tokenizer/sampler determinism, KV-cache planning, allocator proof, multimodal fixtures, and telemetry.
 latest_federated_operator:
-  route: wiki/gguf-mirust/reports/federated-operator-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/federated-operator-memory-2026-06-29.md
   synthesis: Federated/local-update candidates can now be written and validated from compatibility-bound base plus local-update parents with `local_update_weight_ppm`, local-update counts, raw delta checksum, weighted delta checksum, q8 proof, and CLI write/validate evidence.
 latest_two_parent_operator_browser_provenance:
-  route: wiki/gguf-mirust/reports/two-parent-operator-browser-provenance-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/two-parent-operator-browser-provenance-memory-2026-06-29.md
   synthesis: Blend, task-delta, and sparse task-delta now have compact browser Operator rendering plus byte-echo fallback proof through `blend-operator-registry`, `delta-operator-registry`, `sparse-delta-operator-registry`, and their receipt-drift modes.
 latest_crossover_operator:
-  route: wiki/gguf-mirust/reports/crossover-operator-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/crossover-operator-memory-2026-06-29.md
   synthesis: Crossover candidates can be written and validated from compatibility-bound parents with seed plus parent0 keep fields, selection density, mask checksum, q8 CLI proof, focused parameter/drift tests, and compact browser Operator rendering plus byte-echo fallback through `crossover-operator-registry` and `crossover-operator-receipt-drift`.
 latest_mutation_operator:
-  route: wiki/gguf-mirust/reports/mutation-operator-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/mutation-operator-memory-2026-06-29.md
   synthesis: Mutation candidates can be written and validated from compatibility-bound base/reference parents with seed, rate, magnitude, reference scaling, selection and delta checksums, q8 CLI proof, focused parameter/drift tests, and compact browser Operator rendering plus byte-echo fallback through `mutation-operator-registry` and `mutation-operator-receipt-drift`.
 latest_federated_selector_receipt_route:
-  route: wiki/gguf-mirust/reports/federated-selector-receipt-route-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/federated-selector-receipt-route-memory-2026-06-29.md
   synthesis: A federated/local-update operator receipt now has downstream selector and browser provenance proof through candidate, promotion, admission, selector registry records, and Model Provenance Operator rendering, preserving operator kind, receipt checksum, candidate checksum, and byte-count equality while rejecting federated operator-kind drift plus browser-side operator receipt byte-count drift before the generated route becomes selectable.
 latest_candidate_operator_receipt_binding:
-  route: wiki/gguf-mirust/reports/candidate-operator-receipt-binding-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/candidate-operator-receipt-binding-memory-2026-06-29.md
   synthesis: Candidate artifact manifests can optionally bind the exact operator receipt by path, text checksum, operator id/kind, candidate bytes, and candidate checksum; validation rejects receipt drift, missing receipt input for bound manifests, and candidate checksum disagreement.
 latest_promotion_operator_receipt_binding:
-  route: wiki/gguf-mirust/reports/promotion-operator-receipt-binding-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/promotion-operator-receipt-binding-memory-2026-06-29.md
   synthesis: Two-parent promotion templates can optionally carry candidate receipt bindings forward; validation recomputes the receipt-bound candidate manifest, rejects missing receipt input, and rejects promotion receipt field drift before runtime smoke/eval gates.
 latest_admission_operator_receipt_binding:
-  route: wiki/gguf-mirust/reports/admission-operator-receipt-binding-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/admission-operator-receipt-binding-memory-2026-06-29.md
   synthesis: Two-parent selector admissions can optionally carry promotion receipt bindings forward; validation recomputes candidate and promotion receipt evidence, rejects missing receipt input, rejects admission receipt drift, and checks receipt fields in admission summaries.
 latest_selector_operator_receipt_binding:
-  route: wiki/gguf-mirust/reports/selector-operator-receipt-binding-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/selector-operator-receipt-binding-memory-2026-06-29.md
   synthesis: Selector registries now copy receipt-bound admission fields into entry.N.operator_receipt metadata, bind those fields into mate-selection checksums, and expose a browser Model Provenance Operator row.
 latest_browser_multi_parent_operator_provenance:
-  route: wiki/gguf-mirust/reports/browser-multi-parent-operator-provenance-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/browser-multi-parent-operator-provenance-memory-2026-06-29.md
   synthesis: Generated multi-parent admissions carry receipt-bound operator metadata into selector entries; app.js now enforces generated assembly operator-kind agreement, combined-selector smokes prove q4/q8/f32 soup plus sign-merge Operator rows, `generated-selector-operator-receipt-drift` proves byte-echo fallback, and `generated-selector-operator-kind-drift` proves kind-drift fallback before generated model, module-plan, assembly, adapter-family, or stack routes.
 latest_browser_mixed_operator_selector:
-  route: wiki/gguf-mirust/reports/browser-mixed-operator-selector-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/browser-mixed-operator-selector-memory-2026-06-29.md
   synthesis: `browser-multi-parent-bundle <root> all mixed` emits one sign-merge plus soup f32/q8/q4 selector, keeps sign-merge q4 as the browser-frugal default, and `combined-selector-operator-family-cycle`, `combined-selector-operator-family-route-soak`, plus `combined-selector-operator-family-reload-soak` prove same-page, route, and fresh-page cross-family assembly.
 latest_parent_pool_evolution_schedule:
-  route: wiki/gguf-mirust/reports/parent-pool-evolution-schedule-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/parent-pool-evolution-schedule-memory-2026-06-29.md
   synthesis: Parent-pool recipes now carry a checksum-bound `population-based-parent-pool-replay-v1` schedule for sign-merge and soup operator families, including commands, selection rules, selected parent ids, seed weights, and population fitness echoes before downstream multi-parent operators consume the pool.
 latest_operator_schedule_carry_forward:
-  route: wiki/gguf-mirust/reports/operator-schedule-carry-forward-memory-2026-06-29.md
-  synthesis: Sign-merge and soup receipts now echo parent-pool schedule identity plus selected family index, command, selection rule, and output gate; multi-parent candidate manifests validate those fields, while promotion templates and selector admission records preserve them through evaluated handoff.
+  route: wiki/runtime-mirust/reports/operator-schedule-carry-forward-memory-2026-06-29.md
+  synthesis: Sign-merge and soup receipts now echo parent-pool schedule identity plus selected family index, command, selection rule, and output gate; candidate, promotion, admission, selector registry, and browser Model Provenance Schedule rows preserve and verify those fields through generated mixed-root proof, and `generated-selector-schedule-source-drift` proves schedule source drift falls back before generated routes.
 latest_browser_selector_genome_fitness:
-  route: wiki/gguf-mirust/reports/browser-selector-genome-fitness-memory-2026-06-28.md
+  route: wiki/runtime-mirust/reports/browser-selector-genome-fitness-memory-2026-06-28.md
   synthesis: Generated selector registries now bind deterministic genome ids, admission lineage checksums, and eval-bound fitness-vector checksums; browser provenance renders Genome and Fitness rows for q4_0/q8_0/f32 generated entries.
 latest_browser_selector_species_fit:
-  route: wiki/gguf-mirust/reports/browser-selector-species-fit-memory-2026-06-28.md
+  route: wiki/runtime-mirust/reports/browser-selector-species-fit-memory-2026-06-28.md
   synthesis: Generated selector registries now bind deterministic species ids and browser-fit checksums from candidate family traits plus browser resource envelopes; browser provenance renders Species rows for q4_0/q8_0/f32 generated entries.
 latest_browser_selector_novelty:
-  route: wiki/gguf-mirust/reports/browser-selector-novelty-memory-2026-06-28.md
+  route: wiki/runtime-mirust/reports/browser-selector-novelty-memory-2026-06-28.md
   synthesis: Generated selector registries now bind deterministic novelty ids and behavior-sketch checksums from candidate descriptors plus eval, assembly, adapter-family, and module-plan evidence; browser provenance renders Novelty rows for q4_0/q8_0/f32 generated entries.
 latest_browser_selector_population:
-  route: wiki/gguf-mirust/reports/browser-selector-population-memory-2026-06-28.md
+  route: wiki/runtime-mirust/reports/browser-selector-population-memory-2026-06-28.md
   synthesis: Generated selector registries now bind deterministic population ids and population-review checksums from species, novelty, scoped fitness, lineage, assembly, and module-plan route context; browser provenance renders Population rows for q4_0/q8_0/f32 generated entries.
 latest_browser_selector_mate_selection:
-  route: wiki/gguf-mirust/reports/browser-selector-mate-selection-memory-2026-06-28.md
+  route: wiki/runtime-mirust/reports/browser-selector-mate-selection-memory-2026-06-28.md
   synthesis: Generated selector registries now bind mate-selection ids, parent counts, and parent-pool-bound checksums from parent-pool, sign-merge, population-review, promotion-ledger, and admission evidence; browser provenance renders Mate Selection rows for q4_0/q8_0/f32 generated entries.
 latest_browser_selector_phenotype_evidence:
-  route: wiki/gguf-mirust/reports/browser-selector-phenotype-evidence-memory-2026-06-28.md
+  route: wiki/runtime-mirust/reports/browser-selector-phenotype-evidence-memory-2026-06-28.md
   synthesis: Generated selector registries now bind phenotype-evidence ids and runtime-eval-bound checksums from provenance manifests, runtime-smoke, eval, eval-case, assembly, mate-selection, and fitness evidence; browser provenance renders Phenotype rows for q4_0/q8_0/f32 generated entries.
 latest_browser_selector_heritable_artifact:
-  route: wiki/gguf-mirust/reports/browser-selector-heritable-artifact-memory-2026-06-28.md
+  route: wiki/runtime-mirust/reports/browser-selector-heritable-artifact-memory-2026-06-28.md
   synthesis: Generated selector registries now bind served artifact ids and served-artifact-bound checksums from candidate, model, manifest, genome, phenotype, fitness, assembly, adapter-family, and module-plan evidence; browser provenance renders Artifact rows for q4_0/q8_0/f32 generated entries.
 latest_browser_module_plan_wasm_memory:
-  route: wiki/gguf-mirust/reports/browser-module-plan-wasm-memory-memory-2026-06-28.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-wasm-memory-memory-2026-06-28.md
   synthesis: Generated selector entries and module-plan receipts now bind the WASM runtime's pre-init exported memory page count, render `WASM Pages`, and prove drift stops before generated model bytes.
 latest_browser_module_plan_wasm_export_set:
-  route: wiki/gguf-mirust/reports/browser-module-plan-wasm-export-set-memory-2026-06-28.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-wasm-export-set-memory-2026-06-28.md
   synthesis: Selector entries and module-plan receipts now bind `tinyrustlm-generate-v1`, browser receipt validation checks instantiated WASM exports, renders `WASM ABI`, and proves export-set drift stops before generated routes.
 latest_browser_module_plan_wasm_heap:
-  route: wiki/gguf-mirust/reports/browser-module-plan-wasm-heap-memory-2026-06-28.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-wasm-heap-memory-2026-06-28.md
   synthesis: Selector entries and receipts bind `module_plan_wasm_heap_min_bytes`, browser recomputes and probes the WASM heap floor before generated model fetch, renders `Heap Floor`, and proves drift stops before generated routes.
 latest_browser_module_plan_wasm_transfer:
-  route: wiki/gguf-mirust/reports/browser-module-plan-wasm-transfer-memory-2026-06-28.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-wasm-transfer-memory-2026-06-28.md
   synthesis: Selector entries and receipts bind `module_plan_wasm_transfer_strategy=copy-then-release-v1`, browser renders `Transfer`, source roots keep `unavailable`, and drift stops before generated model routes.
 latest_browser_module_plan_model_release:
-  route: wiki/gguf-mirust/reports/browser-module-plan-model-release-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-model-release-memory-2026-06-29.md
   synthesis: Selector entries and receipts bind `module_plan_model_release_strategy=free-before-reassembly-v1`, browser renders `Release`, source roots keep `unavailable`, release drift stops before generated routes, and combined-selector-cycle proves `free_model` before reassembly.
 latest_browser_module_plan_runtime_reset:
-  route: wiki/gguf-mirust/reports/browser-module-plan-runtime-reset-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-runtime-reset-memory-2026-06-29.md
   synthesis: Selector entries and receipts bind `module_plan_runtime_reset_strategy=reset-context-before-assembly-v1`, browser renders `Reset`, source roots keep `unavailable`, reset drift stops before generated routes, and combined-selector-cycle proves `reset_context` before adapters.
 latest_browser_module_plan_adapter_validation:
-  route: wiki/gguf-mirust/reports/browser-module-plan-adapter-validation-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-adapter-validation-memory-2026-06-29.md
   synthesis: Selector entries and receipts bind `module_plan_adapter_validation_strategy=rust-validate-before-apply-v1`, browser renders `Validate`, source roots keep `unavailable`, validation-strategy drift stops before generated routes, and combined-selector-assembly proves Rust validation before apply.
 latest_browser_module_plan_adapter_validation_count:
-  route: wiki/gguf-mirust/reports/browser-module-plan-adapter-validation-count-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-adapter-validation-count-memory-2026-06-29.md
   synthesis: Selector entries and receipts bind `module_plan_adapter_validation_count=3`, browser renders `Validate Count`, source roots keep `unavailable`, adapter-family stack count and apply-count fields must agree, combined-selector-assembly proves three Rust validation calls per generated assembly step, and validation-count drift stops before generated routes.
 latest_browser_module_plan_adapter_apply_count:
-  route: wiki/gguf-mirust/reports/browser-module-plan-adapter-apply-count-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-adapter-apply-count-memory-2026-06-29.md
   synthesis: Selector entries and receipts bind `module_plan_adapter_apply_count=3`, browser renders `Apply Count`, source roots keep `unavailable`, adapter-family stack count and runtime `adapter_apply_count` diagnostics must agree, and apply-count drift stops before generated routes.
 latest_browser_module_plan_planned_fetch_count:
-  route: wiki/gguf-mirust/reports/browser-module-plan-planned-fetch-count-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-planned-fetch-count-memory-2026-06-29.md
   synthesis: Selector entries and receipts bind `module_plan_planned_fetch_count=21`, browser renders `Plan Fetches`, source roots keep `unavailable`, generated-route cardinality must agree, and planned-fetch-count drift stops before generated routes.
 latest_browser_module_plan_actual_fetch_count:
-  route: wiki/gguf-mirust/reports/browser-module-plan-actual-fetch-count-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-actual-fetch-count-memory-2026-06-29.md
   synthesis: Browser app state counts accepted generated self-assembly route fetches, renders `Actual Fetches`, source roots keep `unavailable`, Ready requires actual count to equal planned count, and combined-selector-assembly proves q4_0/q8_0/f32 each show `21 fetches`.
 latest_browser_module_plan_observed_route_set:
-  route: wiki/gguf-mirust/reports/browser-module-plan-observed-route-set-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-observed-route-set-memory-2026-06-29.md
   synthesis: Browser app state records observed generated route `{kind,path}` entries, renders `Actual Route Set`, source roots keep `unavailable`, Ready requires observed checksum to equal declared route-set checksum, and combined-selector-assembly proves q4_0/q8_0/f32 equality.
 latest_browser_module_plan_actual_module_bytes:
-  route: wiki/gguf-mirust/reports/browser-module-plan-actual-module-bytes-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-actual-module-bytes-memory-2026-06-29.md
   synthesis: Browser app state records accepted generated module byte lengths, renders `Actual Module Bytes`, source roots keep `unavailable`, Ready requires observed module bytes to equal receipt module byte rows, and combined-selector-assembly proves q4_0/q8_0/f32 totals.
 latest_browser_module_plan_actual_module_checksums:
-  route: wiki/gguf-mirust/reports/browser-module-plan-actual-module-checksums-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-actual-module-checksums-memory-2026-06-29.md
   synthesis: Browser app state records accepted generated module checksums, renders `Actual Module Checksums`, source roots keep `unavailable`, Ready requires observed checksums to equal receipt module checksum rows, combined-selector-assembly proves q4_0/q8_0/f32 equality, and module-plan-payload-checksum-drift proves coherent payload checksum rewrites stop at the stale module-plan checksum row before generated model routes.
 latest_browser_module_plan_route_set:
-  route: wiki/gguf-mirust/reports/browser-module-plan-route-set-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-route-set-memory-2026-06-29.md
   synthesis: Selector entries and receipts bind `module_plan_route_set_checksum`, browser renders `Route Set`, source roots keep `unavailable`, ordered generated self-assembly routes must agree, and route-set drift stops before generated routes.
 latest_browser_module_plan_route_set_version:
-  route: wiki/gguf-mirust/reports/browser-module-plan-route-set-version-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-route-set-version-memory-2026-06-29.md
   synthesis: Selector entries and receipts bind `module_plan_route_set_version=1`, browser renders `Route Version`, source roots keep `unavailable`, route-set checksum preimages use the version constant, and route-set-version drift stops before generated routes.
 latest_browser_module_plan_route_set_algorithm:
-  route: wiki/gguf-mirust/reports/browser-module-plan-route-set-algorithm-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-route-set-algorithm-memory-2026-06-29.md
   synthesis: Selector entries and receipts bind `module_plan_route_set_checksum_algorithm=tinyrustlm-text-checksum-v1`, browser renders `Route Hash`, source roots keep `unavailable`, route-set checksum preimages include the algorithm label, and route-set-algorithm drift stops before generated routes.
 latest_browser_module_plan_operator_receipt:
-  route: wiki/gguf-mirust/reports/browser-module-plan-operator-receipt-memory-2026-06-29.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-operator-receipt-memory-2026-06-29.md
   synthesis: Selector entries, module-plan receipts, assembly receipts, and fetched `sign-merge.operator` evidence now agree on operator receipt route/checksum before generated model bytes; `module-plan-operator-receipt-drift` stops after selector registry plus module-plan receipt, and fresh `combined-selector-assembly` proves q4_0/q8_0/f32 self-assembly with ADP1/ASP1/ALR1 stack apply before generation.
 latest_browser_module_plan_total_limit:
-  route: wiki/gguf-mirust/reports/browser-module-plan-total-limit-memory-2026-06-28.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-total-limit-memory-2026-06-28.md
   synthesis: Generated selector entries and module-plan receipts now bind current prompt-aware `module_plan_total_byte_budget_limit=43454464`, render `Total Limit`, and prove cap drift stops at the module-plan receipt before generated model or stack bytes.
 latest_browser_module_plan_output_limit:
-  route: wiki/gguf-mirust/reports/browser-module-plan-output-limit-memory-2026-06-28.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-output-limit-memory-2026-06-28.md
   synthesis: Generated selector entries and module-plan receipts now bind `module_plan_output_byte_limit=65536`, render `Output Limit`, include the cap in total budget math, and prove output-limit drift stops at module-plan validation.
 latest_browser_module_plan_kv_cache:
-  route: wiki/gguf-mirust/reports/browser-module-plan-kv-cache-memory-2026-06-28.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-kv-cache-memory-2026-06-28.md
   synthesis: Runtime diagnostics, selector entries, and module-plan receipts now bind exact KV-cache byte budget and page count, render KV rows, include KV bytes in totals, and prove page-count drift stops before generated routes.
 latest_browser_module_plan_adapter_stack_budget:
-  route: wiki/gguf-mirust/reports/browser-module-plan-adapter-stack-budget-memory-2026-06-28.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-adapter-stack-budget-memory-2026-06-28.md
   synthesis: Selector entries and module-plan receipts now bind exact ADP1 plus ASP1 plus ALR1 stack bytes, render `Stack Budget`, include stack bytes in totals, and prove stack-budget drift stops before generated routes.
 latest_browser_module_plan_context_token:
-  route: wiki/gguf-mirust/reports/browser-module-plan-context-token-memory-2026-06-28.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-context-token-memory-2026-06-28.md
   synthesis: Selector entries and module-plan receipts now bind validated context token limits, render `Context`, match admitted model shape, and prove context-token drift stops before generated routes.
 latest_browser_module_plan_tokenizer:
-  route: wiki/gguf-mirust/reports/browser-module-plan-tokenizer-memory-2026-06-28.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-tokenizer-memory-2026-06-28.md
   synthesis: Selector entries and module-plan receipts now bind admitted tokenizer checksums, render `Tokenizer`, feed tokenizer-aware lineage checksums, and prove tokenizer drift stops before generated routes.
 latest_browser_module_plan_sampler_cap:
-  route: wiki/gguf-mirust/reports/browser-module-plan-sampler-cap-memory-2026-06-28.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-sampler-cap-memory-2026-06-28.md
   synthesis: Selector entries and module-plan receipts now bind `module_plan_sampler_candidate_cap=1024`, render `Sampler Cap`, clamp browser Top K to the fixed-buffer envelope, and prove sampler-cap drift stops before generated routes.
 latest_browser_module_plan_fetch_count:
-  route: wiki/gguf-mirust/reports/browser-module-plan-fetch-count-memory-2026-06-28.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-fetch-count-memory-2026-06-28.md
   synthesis: Selector entries and receipts bind `module_plan_fetch_count_limit=32`, render `Fetch Limit`, compute planned route count before model bytes, count actual governed requests, and prove 21 requests per generated pass.
 latest_browser_module_plan_prompt_limit:
-  route: wiki/gguf-mirust/reports/browser-module-plan-prompt-limit-memory-2026-06-28.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-prompt-limit-memory-2026-06-28.md
   synthesis: Selector entries and module-plan receipts now bind `module_plan_prompt_byte_limit=4096`, render `Prompt Limit`, include prompt bytes in total budget math, and prove prompt-limit drift plus source prompt-transfer boundaries.
 latest_browser_module_plan_count_drift:
-  route: wiki/gguf-mirust/reports/browser-module-plan-count-drift-memory-2026-06-28.md
+  route: wiki/runtime-mirust/reports/browser-module-plan-count-drift-memory-2026-06-28.md
   synthesis: `module-plan-count-drift` mutates receipt `module_count` while refreshing selector checksum, proving selector cardinality remains authoritative before generated model or stack routes.
 latest_browser_combined_selector_extended_route_soak:
-  route: wiki/gguf-mirust/reports/browser-combined-selector-extended-route-soak-memory-2026-06-28.md
+  route: wiki/runtime-mirust/reports/browser-combined-selector-extended-route-soak-memory-2026-06-28.md
   synthesis: `combined-selector-route-extended-soak` runs five q4_0/q8_0/f32 cycles from one generated all-root, proving fifteen assemblies with fresh route requests and path-flexible total-budget checks.
 latest_browser_combined_selector_stress_route_soak:
-  route: wiki/gguf-mirust/reports/browser-combined-selector-stress-route-soak-memory-2026-06-28.md
+  route: wiki/runtime-mirust/reports/browser-combined-selector-stress-route-soak-memory-2026-06-28.md
   synthesis: `combined-selector-route-stress-soak` runs eight q4_0/q8_0/f32 cycles from one generated all-root, proving twenty-four assemblies with fresh route requests.
 failure_dogfood:
   issue: First report-processing pass over-prioritized durable wiki files and pointer-ledger cleanliness, leaving hot .uai files too thin for cold-start agents.
@@ -378,8 +442,8 @@ report_clusters:
     sources: 26-report 2026-06-26 batch covering 4Fs, code beading, model breeding, model merging, LoRA/adapters, on-device tiny LLMs, mutualism, and evolutionary motivation.
     hot_takeaway: Treat model breeding as traceable offline candidate lineage: compatible parents, operator metadata, generated artifact, eval sidecar, promotion record, and current-runtime admission gates.
     apply_now:
-      - Route future model-breeding work to wiki/gguf-mirust/reports/model-breeding-ecology-memory-2026-06-26.md.
-      - Use wiki/gguf-mirust/research/model-breeding-reference-ideas-2026-06-26.md for primary research references.
+      - Route future model-breeding work to wiki/runtime-mirust/reports/model-breeding-ecology-memory-2026-06-26.md.
+      - Use wiki/runtime-mirust/research/model-breeding-reference-ideas-2026-06-26.md for primary research references.
       - Keep browser inference stable; breeding operators belong in offline tooling until artifacts pass normal .slm admission and manifest gates.
       - Require exact base-family, tokenizer, tensor-shape, quantization, and output-head compatibility before any parameter-level merge.
       - Use sparse-delta-candidate for lineage-bound sparse task-vector .slm candidates before candidate-manifest.

@@ -1,10 +1,10 @@
-# GGUF.MiRust.com Browser Harness Architecture
+# Runtime.MiRust.com Browser Harness Architecture
 
 Reviewed: 2026-06-24
 
 ## Purpose
 
-GGUF.MiRust.com is planned as an enterprise Rust mini-browser and browser-based AI harness for GGUF model workflows. The current implementation is a skeleton that defines boundaries before runtime behavior.
+Runtime.MiRust.com is planned as an enterprise Rust mini-browser and browser-based AI harness for GGUF model workflows. The current implementation is a skeleton that defines boundaries before runtime behavior.
 
 ## Planned Runtime Areas
 

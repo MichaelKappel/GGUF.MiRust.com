@@ -2,7 +2,7 @@
 
 ## Trigger
 
-During GGUF.MiRust.com report intake, 23 reports were preserved into raw evidence and synthesized into durable LLM Wiki Markdown. The first pass kept `.uai/long-term-memory.uai` pointer-only and created useful wiki files, but under-populated typed `.uai` files. The human correctly flagged that the report intelligence had not really made it into the active `.uai` memory layer.
+During Runtime.MiRust.com report intake, 23 reports were preserved into raw evidence and synthesized into durable LLM Wiki Markdown. The first pass kept `.uai/long-term-memory.uai` pointer-only and created useful wiki files, but under-populated typed `.uai` files. The human correctly flagged that the report intelligence had not really made it into the active `.uai` memory layer.
 
 ## Failure
 

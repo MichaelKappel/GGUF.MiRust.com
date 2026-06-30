@@ -1,6 +1,6 @@
-# GGUF.MiRust.com Agent Instructions
+# Runtime.MiRust.com Agent Instructions
 
-Canonical project root: `E:\Source\Rust\GGUF.MiRust.com`.
+Canonical project root: `E:\Source\Rust\Runtime.MiRust.com`.
 
 Read these files before broad local memory loading or source edits:
 
@@ -13,7 +13,7 @@ Read these files before broad local memory loading or source edits:
 
 This project uses UAIX Project Handoff together with an LLM Wiki/AIWikis long-memory path. Active dropped files live only in `agent-file-handoff/Content/` and `agent-file-handoff/Improvement/`. Do not create `agent-file-handoff/Archive/` as a default resting place. After a safe file is reviewed, used for real project work, and recorded in durable proof-of-use state, preserve the original in the configured AIWikis evidence path with checksums and a manifest, then remove the source-site copy unless the human explicitly keeps that named file active.
 
-The LLM Wiki target is AIWikis.org under `/gguf-mirust/`. Local LLM Wiki source files live under `wiki/gguf-mirust/`; local raw evidence stubs live under `raw/gguf-mirust/`.
+The LLM Wiki target is AIWikis.org under `/runtime-mirust/`. Local LLM Wiki source files live under `wiki/runtime-mirust/`; local raw evidence stubs live under `raw/runtime-mirust/`.
 
 The `.uai/long-term-memory.uai` ledger must stay pointer-only but not context-free. Each pointer needs a stable id, path or route, label, routing-only summary, authority, review state, status, last-reviewed UTC, and checksum when the target is a file. Summaries route agents to what to open next; they do not store durable memory bodies.
 

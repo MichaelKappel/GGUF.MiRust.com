@@ -2,7 +2,7 @@
 
 Reviewed: 2026-06-24
 
-These standards are shared guidance for GGUF.MiRust.com until a broader organization-level Rust harness standard exists.
+These standards are shared guidance for Runtime.MiRust.com until a broader organization-level Rust harness standard exists.
 
 - Keep browser actions typed and reviewable.
 - Keep model output as proposals until a policy gate accepts them.

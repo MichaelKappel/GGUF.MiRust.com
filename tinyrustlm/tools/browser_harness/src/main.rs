@@ -42,6 +42,9 @@ const REQUIRED_IDS: &[&str] = &[
     "provenancePanel",
     "provenanceState",
     "provenanceSourceKind",
+    "provenanceSourceSnapshot",
+    "provenanceSourceId",
+    "provenanceSourceShape",
     "provenanceAdmission",
     "provenanceQualityClaim",
     "provenanceTrainedClaim",
@@ -121,7 +124,7 @@ const REQUIRED_IDS: &[&str] = &[
 
 const REQUIRED_HTML_TEXT: &[&str] = &[
     "TinyRustLM",
-    "GGUF.MiRust.com",
+    "Runtime.MiRust.com",
     "Runtime Diagnostics",
     "Token Generation Console",
     "Developer Mode",
