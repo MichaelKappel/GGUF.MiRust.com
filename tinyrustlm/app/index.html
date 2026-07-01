@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SLM Composer</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="./app.css?v=20260701-dashboard">
+  <link rel="stylesheet" href="./app.css?v=20260701-layoutfix">
 </head>
 <body>
   <svg class="icon-sprite" aria-hidden="true" focusable="false">
@@ -104,12 +104,12 @@
       <section id="modelToolbar" class="model-toolbar" aria-label="Loaded local model">
         <div class="model-icon" aria-hidden="true"><svg><use href="#icon-cube"></use></svg></div>
         <button id="modelEditButton" class="model-name-button" type="button" aria-haspopup="dialog" aria-expanded="false">
-          <span>Llama 3 8B Instruct Q4_K_M</span>
+          <span id="modelToolbarName">Choose a local .slm</span>
           <svg aria-hidden="true"><use href="#icon-chevron"></use></svg>
         </button>
-        <span class="status-pill success"><span class="mini-dot"></span>Loaded locally</span>
+        <span id="modelLoadPill" class="status-pill neutral"><span class="mini-dot"></span>No model imported</span>
         <span class="status-pill info"><span class="mini-dot"></span>WASM ready <span id="wasmState" class="sr-only">waiting</span></span>
-        <span class="status-pill neutral">4096 context</span>
+        <span id="modelContextPill" class="status-pill neutral">Browser local</span>
         <button class="edit-model-button" type="button" data-open-model-popover>
           <svg aria-hidden="true"><use href="#icon-pencil"></use></svg>
           <span>Edit Model</span>
@@ -492,6 +492,6 @@
       <span id="currentModelSummary" class="model-summary">No model loaded</span>
     </footer>
   </main>
-  <script src="./app.js?v=20260701-dashboard"></script>
+  <script src="./app.js?v=20260701-layoutfix"></script>
 </body>
 </html>

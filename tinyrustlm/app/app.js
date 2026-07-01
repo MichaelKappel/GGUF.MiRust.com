@@ -347,6 +347,9 @@
     simpleDiscoveryStatus: document.getElementById("simpleDiscoveryStatus"),
     simpleErrorPanel: document.getElementById("simpleErrorPanel"),
     simpleErrorMessage: document.getElementById("simpleErrorMessage"),
+    modelToolbarName: document.getElementById("modelToolbarName"),
+    modelLoadPill: document.getElementById("modelLoadPill"),
+    modelContextPill: document.getElementById("modelContextPill"),
     simpleRepeatable: document.getElementById("simpleRepeatable"),
     keepRunHistoryToggle: document.getElementById("keepRunHistoryToggle"),
     clearRunHistoryButton: document.getElementById("clearRunHistoryButton"),
@@ -490,6 +493,7 @@
     creativity: "slmcomposer.ui.creativity",
     length: "slmcomposer.ui.length",
     repeatable: "slmcomposer.ui.repeatable",
+    sidebarCollapsed: "slmcomposer.ui.sidebarCollapsed",
     railCollapsed: "slmcomposer.ui.railCollapsed",
     activeTab: "slmcomposer.ui.activeTab",
     keepRunHistory: "slmcomposer.ui.keepRunHistory",
@@ -763,6 +767,47 @@
       ? el.modelSelect.selectedOptions[0].textContent.trim()
       : "No model selected";
     const stateText = el.modelState ? el.modelState.textContent : "";
+    const model = paths.models[state.activeModelKey] || paths.models[el.modelSelect.value] || null;
+    const hasLoadedModel = state.modelLoaded === true;
+    const hasLocalCandidate = Boolean(state.localModel);
+    const friendlyModelName = hasLoadedModel
+      ? selected
+      : hasLocalCandidate
+        ? state.localModel.label || "Selected local .slm"
+        : "Choose a local .slm";
+    if (el.modelToolbarName) {
+      el.modelToolbarName.textContent = friendlyModelName;
+    }
+    if (el.modelLoadPill) {
+      let pillText = "No model imported";
+      let pillClass = "status-pill neutral";
+      const lowerState = String(stateText || "").toLowerCase();
+      if (hasLoadedModel) {
+        pillText = "Loaded locally";
+        pillClass = "status-pill success";
+      } else if (lowerState.includes("loading") || lowerState.includes("reading") || lowerState.includes("import")) {
+        pillText = "Importing";
+        pillClass = "status-pill info";
+      } else if (lowerState.includes("error") || lowerState.includes("rejected") || lowerState.includes("failed")) {
+        pillText = "Needs attention";
+        pillClass = "status-pill error";
+      } else if (hasLocalCandidate) {
+        pillText = "Ready to import";
+        pillClass = "status-pill neutral";
+      }
+      let dot = el.modelLoadPill.querySelector(".mini-dot");
+      if (!dot) {
+        dot = document.createElement("span");
+        dot.className = "mini-dot";
+      }
+      el.modelLoadPill.className = pillClass;
+      el.modelLoadPill.replaceChildren(dot, document.createTextNode(pillText));
+    }
+    if (el.modelContextPill) {
+      el.modelContextPill.textContent = hasLoadedModel && model && Number.isFinite(model.maxTokens)
+        ? `${model.maxTokens} max tokens`
+        : "Browser local";
+    }
     el.currentModelSummary.textContent = `${selected} / ${stateText || "waiting"}`;
   }
 
@@ -914,6 +959,7 @@
       button.setAttribute("aria-expanded", String(!collapsed));
       button.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
     }
+    storageSet(uiStorageKeys.sidebarCollapsed, String(Boolean(collapsed)));
   }
 
   function useStarterPrompt(button) {
@@ -1146,6 +1192,7 @@
     markStarterSelected(storageGet(uiStorageKeys.selectedStarter, ""));
     setSimpleSourceOption(storageGet(uiStorageKeys.simpleSourceOption, "local"), false);
     setActiveTab(storageGet(uiStorageKeys.activeTab, "runtime"));
+    collapseSidebar(storageGet(uiStorageKeys.sidebarCollapsed, "false") === "true");
     const storedRailCollapsed = storageGet(uiStorageKeys.railCollapsed, null);
     const shouldCollapseRail = storedRailCollapsed !== null
       ? storedRailCollapsed === "true"
@@ -1307,6 +1354,7 @@
     if (el.simpleOpenAdvancedDiscoveryButton) {
       el.simpleOpenAdvancedDiscoveryButton.addEventListener("click", () => {
         setAppMode("advanced");
+        setRailCollapsed(false);
         const panelKey = state.simpleSourceOption === "huggingface"
           ? "advanced-discovery"
           : state.simpleSourceOption === "local"
