@@ -431,6 +431,23 @@ records:
     last_reviewed_utc: 2026-07-01T15:40:02Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; implementation lives in the target file.
+  - stable_id: tinyrustlm_browser_root_handoff_html
+    memory_domain: tinyrustlm.browser_app_source
+    pointer_type: local_html
+    path: tinyrustlm/index.html
+    target_location: tinyrustlm/index.html
+    label: Required For SLMComposer Root App Handoff
+    summary: Routes agents to the root static HTML handoff that sends SLMComposer.com `/` visitors to the browser-local app shell under `/app/`.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed app source
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing public root routing, deployment layout, static host entrypoints, or SLMComposer.com launch behavior.
+    checksum_hash: sha256:3F4C9FD9782CE5A7AAC509A989091E02504602766484837FB0EF1B66403BA3E2
+    last_reviewed_utc: 2026-07-01T16:20:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; root handoff markup lives in the target file.
   - stable_id: tinyrustlm_browser_app_js
     memory_domain: tinyrustlm.browser_app_source
     pointer_type: local_js
@@ -1277,8 +1294,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Run after app, WASM, server, adapter sidecar, registry, or model selector changes.
-    checksum_hash: sha256:9A43FD91EBFE49052833F43D61F492F0296F73206C2DB92F013936150610EF02
-    last_reviewed_utc: 2026-07-01T15:40:02Z
+    checksum_hash: sha256:1EAA54019ADF31625C1C20A6DC5EC99BC9FDE34D606884CFABA89E1CD6599262
+    last_reviewed_utc: 2026-07-01T16:20:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; executable test behavior lives in the target file.
   - stable_id: tinyrustlm_wasm_abi_smoke_tool
@@ -1338,15 +1355,15 @@ records:
     path: tinyrustlm/tools/static-server.js
     target_location: tinyrustlm/tools/static-server.js
     label: Fallback TinyRustLM Node Static Server
-    summary: Routes agents to the legacy no-dependency Node fallback server retained for comparison while Rust server is the normal hosting path.
+    summary: Routes agents to the legacy no-dependency Node fallback server, including the root `/` to `/app/` redirect used by browser smoke checks.
     pointer_status: superseded
     authority: durable-memory-pointer
     source_authority: local reviewed development tool
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing local serving, browser smoke hosting, or Visual Studio run/test server behavior.
-    checksum_hash: sha256:93A2E12153444E18D807D2F4C7E9FA9BAF5EBEAA81D93DC175778C97876FF61C
-    last_reviewed_utc: 2026-06-25T00:00:00Z
+    checksum_hash: sha256:2EC433BD9C7031F4EB75FA4A27C65534C7BC48EB3EA5EAB3FAB566DBE24E4E7C
+    last_reviewed_utc: 2026-07-01T16:20:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; executable server behavior lives in the target file.
   - stable_id: tinyrustlm_rust_local_server

@@ -1557,6 +1557,7 @@ function sleep(ms) {
 
 async function waitForTarget() {
   const endpoint = `http://127.0.0.1:${port}/json/list`;
+  let fallbackTarget = null;
   for (let attempt = 0; attempt < 120; attempt += 1) {
     try {
       const targets = JSON.parse(await get(endpoint));
@@ -1565,11 +1566,18 @@ async function waitForTarget() {
         return appTarget;
       }
       if (targets[0]) {
-        return targets[0];
+        fallbackTarget = fallbackTarget || targets[0];
+        if (attempt >= 20) {
+          return fallbackTarget;
+        }
       }
     } catch (_error) {
       await sleep(100);
     }
+    await sleep(100);
+  }
+  if (fallbackTarget) {
+    return fallbackTarget;
   }
   throw new Error("Timed out waiting for a browser debugging target");
 }
@@ -1764,18 +1772,52 @@ async function runPagePublicLocalOnlySmoke(client) {
   return parseEvaluateValue(result);
 }
 
-async function setFileInputFiles(client, selector, files) {
+async function waitForDomSelector(client, selector, timeoutMs = 15000) {
   await client.send("DOM.enable", {});
-  const documentResult = await client.send("DOM.getDocument", {});
-  const queryResult = await client.send("DOM.querySelector", {
-    nodeId: documentResult.root.nodeId,
-    selector
-  });
-  if (!queryResult.nodeId) {
-    throw new Error(`Unable to find file input ${selector}`);
+  const deadline = Date.now() + timeoutMs;
+  let lastSnapshot = "unavailable";
+  while (Date.now() < deadline) {
+    try {
+      const snapshotResult = await client.send("Runtime.evaluate", {
+        expression: `(() => {
+          const node = document.querySelector(${JSON.stringify(selector)});
+          return JSON.stringify({
+            url: window.location.href,
+            readyState: document.readyState,
+            hasSelector: Boolean(node),
+            tagName: node ? node.tagName : "",
+            inputType: node && "type" in node ? node.type : "",
+            inputCount: document.querySelectorAll("input").length,
+            bodyPrefix: document.body ? document.body.innerHTML.slice(0, 160) : ""
+          });
+        })()`,
+        returnByValue: true
+      });
+      if (snapshotResult.result && typeof snapshotResult.result.value === "string") {
+        lastSnapshot = snapshotResult.result.value;
+      }
+      const evaluateResult = await client.send("Runtime.evaluate", {
+        expression: `document.querySelector(${JSON.stringify(selector)})`,
+        objectGroup: "dom-selector-wait",
+        returnByValue: false
+      });
+      if (evaluateResult.result && evaluateResult.result.objectId) {
+        return evaluateResult.result.objectId;
+      }
+    } catch (error) {
+      if (!String(error.message || error).includes("Execution context was destroyed")) {
+        throw error;
+      }
+    }
+    await sleep(100);
   }
+  throw new Error(`Unable to find DOM selector ${selector}; last page snapshot: ${lastSnapshot}`);
+}
+
+async function setFileInputFiles(client, selector, files) {
+  const objectId = await waitForDomSelector(client, selector);
   await client.send("DOM.setFileInputFiles", {
-    nodeId: queryResult.nodeId,
+    objectId,
     files
   });
 }
@@ -1837,7 +1879,13 @@ async function runPageCatalogLocalImportSmoke(client) {
         const byId = (id) => document.getElementById(id);
         const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         for (let index = 0; index < 600; index += 1) {
-          if (byId("wasmState") && byId("wasmState").textContent === "loaded") {
+          if (
+            byId("wasmState") &&
+            byId("wasmState").textContent === "loaded" &&
+            byId("localCatalogFile") &&
+            byId("importLocalCatalogButton") &&
+            byId("catalogResults")
+          ) {
             return true;
           }
           await sleep(100);
@@ -1845,12 +1893,12 @@ async function runPageCatalogLocalImportSmoke(client) {
         throw new Error("runtime did not boot");
       })()
     `;
-    await client.send("Runtime.evaluate", {
+    parseEvaluateValue(await client.send("Runtime.evaluate", {
       expression: waitExpression,
       awaitPromise: true,
       returnByValue: true,
       timeout: 90000
-    });
+    }));
     await setFileInputFiles(client, "#localCatalogFile", [fixture.catalogPath]);
     const catalogExpression = `
       (async () => {
