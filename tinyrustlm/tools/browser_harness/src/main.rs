@@ -31,6 +31,13 @@ const REQUIRED_IDS: &[&str] = &[
     "conversation",
     "response",
     "modelSelect",
+    "localModelFile",
+    "importLocalModelButton",
+    "localModelState",
+    "hfSearchInput",
+    "hfSearchButton",
+    "hfStatus",
+    "hfResults",
     "adapterSelect",
     "applyAdapterButton",
     "adapterPanel",
@@ -128,8 +135,10 @@ const REQUIRED_IDS: &[&str] = &[
 ];
 
 const REQUIRED_HTML_TEXT: &[&str] = &[
+    "SLM Composer",
     "TinyRustLM",
     "Runtime.MiRust.com",
+    "Hugging Face",
     "Runtime Diagnostics",
     "Token Generation Console",
     "Developer Mode",
@@ -364,6 +373,15 @@ fn audit_static_contract(root: &Path, checks: &mut Vec<String>) -> Result<(), Ha
     require_contains("app.js local fetch", &js, "fetch(")?;
     require_contains("app.js manifest fetch", &js, "model.path")?;
     require_contains("app.js manifest fetch", &js, ".manifest")?;
+    require_contains("app.js local file model key", &js, "__local_slm_file")?;
+    require_contains("app.js local file route", &js, "local-file:")?;
+    require_contains("app.js public local-only host", &js, "slmcomposer.com")?;
+    require_contains("app.js external model discovery", &js, "/api/models")?;
+    require_contains(
+        "app.js external search omits credentials",
+        &js,
+        "credentials: \"omit\"",
+    )?;
     require_contains(
         "app.js selector registry fetch",
         &js,
@@ -611,7 +629,7 @@ fn audit_http_contract(app_url: &str, checks: &mut Vec<String>) -> Result<(), Ha
         }
         if method == "GET" {
             let body = String::from_utf8_lossy(&response.body);
-            require_contains("http app body", &body, "<title>TinyRustLM</title>")?;
+            require_contains("http app body", &body, "<title>SLM Composer</title>")?;
             require_contains("http app body", &body, PRIVACY_NOTICE)?;
         }
     }

@@ -1,6 +1,9 @@
-profile: runtime-mirust.uai-index.v65
-updated_utc: 2026-06-30T06:45:00Z
+profile: runtime-mirust.uai-index.v66
+updated_utc: 2026-07-01T03:35:00Z
 files:
+  - .uai/totem.uai
+  - .uai/taboo.uai
+  - .uai/talisman.uai
   - .uai/system-profile.uai
   - .uai/workspace-guidance.uai
   - .uai/coding-standards.uai
@@ -12,7 +15,6 @@ files:
   - .uai/long-term-memory.uai
   - .uai/test-plan.uai
   - .uai/receiver-brief.uai
-  - .uai/taboo.uai
   - .uai/startup-packet.uai
   - .uai/operations.uai
   - .uai/next-recursive-prompt.uai

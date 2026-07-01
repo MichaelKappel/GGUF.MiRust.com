@@ -3,21 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TinyRustLM</title>
+  <title>SLM Composer</title>
   <link rel="stylesheet" href="./app.css">
 </head>
 <body>
   <main class="shell">
     <header class="topbar">
       <div>
-        <p class="eyebrow">Runtime.MiRust.com</p>
-        <h1>TinyRustLM</h1>
+        <p class="eyebrow">Runtime.MiRust.com / TinyRustLM</p>
+        <h1>SLM Composer</h1>
       </div>
       <div class="status" id="runtimeStatus">Booting</div>
     </header>
 
     <section class="notice">
       All inference runs locally in this browser. Prompts are not sent to a server.
+      SLMComposer.com does not serve runnable model weights; choose a local .slm file or an external source you trust.
     </section>
 
     <section class="grid">
@@ -70,11 +71,30 @@
           <option value="tinyq4">Tiny Fixture q4_0</option>
           <option value="tinybpe">Tiny Fixture BPE f32</option>
         </select>
+        <div class="local-import">
+          <label for="localModelFile">Local .slm</label>
+          <input id="localModelFile" type="file" accept=".slm,application/octet-stream">
+          <div class="actions">
+            <button id="importLocalModelButton" type="button">Import Local Model</button>
+          </div>
+          <p id="localModelState" class="inline-status">waiting</p>
+        </div>
         <dl id="loadPanel">
           <dt>WASM</dt><dd id="wasmState">waiting</dd>
           <dt>Model</dt><dd id="modelState">waiting</dd>
           <dt>Error</dt><dd id="errorState">none</dd>
         </dl>
+      </section>
+
+      <section class="panel">
+        <h2>Model Discovery</h2>
+        <label for="hfSearchInput">Hugging Face</label>
+        <div class="search-row">
+          <input id="hfSearchInput" type="search" value="tiny text-generation slm">
+          <button id="hfSearchButton" type="button">Search</button>
+        </div>
+        <p id="hfStatus" class="inline-status">idle</p>
+        <ol id="hfResults" class="model-results"></ol>
       </section>
 
       <section class="panel">
@@ -217,8 +237,9 @@
     </section>
 
     <footer class="footnote" id="appFooter">
-      <span>TinyRustLM</span>
+      <span>SLMComposer.com</span>
       <span>Runtime.MiRust.com browser-local Rust/WASM runtime</span>
+      <span>TinyRustLM model docs: tinyrustlm.mirust.com</span>
       <span>Local .slm models only</span>
     </footer>
   </main>

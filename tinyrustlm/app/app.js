@@ -79,6 +79,12 @@
     }
   };
   const staticModels = paths.models;
+  const localModelKey = "__local_slm_file";
+  const localModelMaxBytes = 128 * 1024 * 1024;
+  const publicLocalOnlyHosts = new Set(["slmcomposer.com", "www.slmcomposer.com"]);
+  const hfDiscoveryScheme = "https";
+  const hfDiscoveryHost = "huggingface.co";
+  const hfSearchLimit = 8;
 
   const registryAdapterApplyStatus = "runtime-f32-compatible-or-fuse-to-slm";
   const registryQuantizedAdapterApplyStatus = "runtime-q8-q4-compatible-or-fuse-to-slm";
@@ -302,6 +308,8 @@
     modulePlanTrace: [],
     selectorRegistry: null,
     selectorDefaultModelKey: "",
+    localModel: null,
+    hfSearchAbort: null,
     hasContext: false,
     messages: []
   };
@@ -323,6 +331,13 @@
     topP: document.getElementById("topP"),
     seed: document.getElementById("seed"),
     modelSelect: document.getElementById("modelSelect"),
+    localModelFile: document.getElementById("localModelFile"),
+    importLocalModelButton: document.getElementById("importLocalModelButton"),
+    localModelState: document.getElementById("localModelState"),
+    hfSearchInput: document.getElementById("hfSearchInput"),
+    hfSearchButton: document.getElementById("hfSearchButton"),
+    hfStatus: document.getElementById("hfStatus"),
+    hfResults: document.getElementById("hfResults"),
     adapterSelect: document.getElementById("adapterSelect"),
     applyAdapterButton: document.getElementById("applyAdapterButton"),
     adapterState: document.getElementById("adapterState"),
@@ -742,8 +757,8 @@
   }
 
   // Renders selector entries while allowing registry boot to prefer its declared default.
-  function renderModelOptions(models, preferDeclaredDefault) {
-    const selected = preferDeclaredDefault ? "" : el.modelSelect.value;
+  function renderModelOptions(models, preferDeclaredDefault, selectedOverride) {
+    const selected = selectedOverride || (preferDeclaredDefault ? "" : el.modelSelect.value);
     el.modelSelect.replaceChildren();
     let firstKey = "";
     for (const key of Object.keys(models)) {
@@ -755,16 +770,242 @@
         firstKey = key;
       }
     }
+    if (!firstKey) {
+      const option = document.createElement("option");
+      option.value = "";
+      option.textContent = "Choose a local .slm file";
+      option.disabled = true;
+      option.selected = true;
+      el.modelSelect.append(option);
+      return;
+    }
     const defaultKey = state.selectorDefaultModelKey;
     el.modelSelect.value = models[selected] ? selected : (models[defaultKey] ? defaultKey : firstKey);
   }
 
+  function isPublicLocalOnlyHost() {
+    return publicLocalOnlyHosts.has(window.location.hostname.toLowerCase());
+  }
+
+  function modelsWithoutLocalModel(models) {
+    const result = Object.create(null);
+    for (const key of Object.keys(models || {})) {
+      if (key !== localModelKey) {
+        result[key] = models[key];
+      }
+    }
+    return result;
+  }
+
+  function modelsWithLocalModel(models) {
+    const result = isPublicLocalOnlyHost() ? Object.create(null) : modelsWithoutLocalModel(models);
+    if (state.localModel) {
+      result[localModelKey] = state.localModel;
+    }
+    return result;
+  }
+
   // Restores the built-in model menu when optional selector registry intake finds no accepted entries.
   function restoreStaticModelOptions() {
-    paths.models = staticModels;
+    paths.models = modelsWithLocalModel(staticModels);
     state.selectorRegistry = null;
     state.selectorDefaultModelKey = "";
     renderModelOptions(paths.models, false);
+  }
+
+  function formatByteCount(bytes) {
+    if (!Number.isFinite(bytes)) {
+      return "unknown bytes";
+    }
+    if (bytes >= 1024 * 1024) {
+      return `${(bytes / (1024 * 1024)).toFixed(2)} MiB`;
+    }
+    if (bytes >= 1024) {
+      return `${(bytes / 1024).toFixed(1)} KiB`;
+    }
+    return `${bytes} bytes`;
+  }
+
+  function safeLocalModelName(name) {
+    const cleaned = String(name || "local-model.slm")
+      .replace(/[\\/:*?"<>|]+/g, "_")
+      .replace(/\s+/g, " ")
+      .trim();
+    return (cleaned || "local-model.slm").slice(0, 96);
+  }
+
+  function setLocalModelStatus(text, isError) {
+    if (el.localModelState) {
+      setText(el.localModelState, text, isError);
+    }
+  }
+
+  async function importLocalModelFile() {
+    const file = el.localModelFile && el.localModelFile.files ? el.localModelFile.files[0] : null;
+    if (!file) {
+      throw new Error("Choose a local .slm file");
+    }
+    const name = safeLocalModelName(file.name);
+    if (!/\.slm$/i.test(name)) {
+      throw new Error("Local model must use the .slm extension");
+    }
+    if (!Number.isFinite(file.size) || file.size <= 0) {
+      throw new Error("Local model file is empty");
+    }
+    if (file.size > localModelMaxBytes) {
+      throw new Error(`Local model exceeds ${formatByteCount(localModelMaxBytes)} browser limit`);
+    }
+    setLocalModelStatus(`reading ${name}`, false);
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const checksum = bytesChecksumHex(bytes);
+    state.localModel = {
+      label: `${name} (local file)`,
+      path: `local-file:${name}`,
+      maxTokens: 64,
+      localFile: {
+        name,
+        bytes,
+        byteLength: bytes.length,
+        checksum
+      }
+    };
+    paths.models = modelsWithLocalModel(paths.models);
+    renderModelOptions(paths.models, false, localModelKey);
+    setLocalModelStatus(`${name} / ${formatByteCount(bytes.length)} / ${checksum}`, false);
+    setText(el.errorState, "none", false);
+    if (state.exports) {
+      await loadSelectedModel();
+    }
+  }
+
+  function hfOrigin() {
+    return `${hfDiscoveryScheme}://${hfDiscoveryHost}`;
+  }
+
+  function hfModelUrl(modelId) {
+    return `${hfOrigin()}/${String(modelId).split("/").map(encodeURIComponent).join("/")}`;
+  }
+
+  function hfResolveUrl(modelId, fileName) {
+    const modelPath = String(modelId).split("/").map(encodeURIComponent).join("/");
+    const filePath = String(fileName).split("/").map(encodeURIComponent).join("/");
+    return `${hfOrigin()}/${modelPath}/resolve/main/${filePath}`;
+  }
+
+  function setHfStatus(text, isError) {
+    if (el.hfStatus) {
+      setText(el.hfStatus, text, isError);
+    }
+  }
+
+  function clearHfResults() {
+    if (el.hfResults) {
+      el.hfResults.replaceChildren();
+    }
+  }
+
+  function hfModelId(result) {
+    const id = result && (result.modelId || result.id || result.name);
+    const text = String(id || "").trim();
+    return /^[A-Za-z0-9][A-Za-z0-9._/-]{1,180}$/.test(text) ? text : "";
+  }
+
+  function hfSlmSiblings(result) {
+    const siblings = result && Array.isArray(result.siblings) ? result.siblings : [];
+    return siblings
+      .map((sibling) => String(sibling && sibling.rfilename ? sibling.rfilename : "").trim())
+      .filter((fileName) => /\.slm$/i.test(fileName) && !fileName.includes("\\"))
+      .slice(0, 3);
+  }
+
+  function renderHfResults(results) {
+    clearHfResults();
+    const accepted = [];
+    for (const result of results) {
+      const modelId = hfModelId(result);
+      if (modelId) {
+        accepted.push({ result, modelId });
+      }
+      if (accepted.length >= hfSearchLimit) {
+        break;
+      }
+    }
+    if (!accepted.length) {
+      setHfStatus("no model records returned", false);
+      return;
+    }
+    for (const entry of accepted) {
+      const item = document.createElement("li");
+      item.className = "model-result";
+      const title = document.createElement("strong");
+      title.textContent = entry.modelId;
+      const meta = document.createElement("div");
+      meta.className = "model-result-meta";
+      const downloads = Number.isFinite(entry.result.downloads) ? `${entry.result.downloads} downloads` : "downloads unavailable";
+      const likes = Number.isFinite(entry.result.likes) ? `${entry.result.likes} likes` : "likes unavailable";
+      meta.textContent = `${downloads} / ${likes}`;
+      const actions = document.createElement("div");
+      actions.className = "model-result-actions";
+      const pageLink = document.createElement("a");
+      pageLink.href = hfModelUrl(entry.modelId);
+      pageLink.target = "_blank";
+      pageLink.rel = "noopener noreferrer";
+      pageLink.textContent = "Model Page";
+      actions.append(pageLink);
+      const slmFiles = hfSlmSiblings(entry.result);
+      if (slmFiles.length) {
+        for (const fileName of slmFiles) {
+          const slmLink = document.createElement("a");
+          slmLink.href = hfResolveUrl(entry.modelId, fileName);
+          slmLink.target = "_blank";
+          slmLink.rel = "noopener noreferrer";
+          slmLink.textContent = `Download ${safeLocalModelName(fileName)}`;
+          actions.append(slmLink);
+        }
+      } else {
+        const note = document.createElement("span");
+        note.className = "model-result-meta";
+        note.textContent = "Convert to .slm before importing";
+        actions.append(note);
+      }
+      item.append(title, meta, actions);
+      el.hfResults.append(item);
+    }
+    setHfStatus(`${accepted.length} external records`, false);
+  }
+
+  async function searchHuggingFaceModels() {
+    const query = String(el.hfSearchInput && el.hfSearchInput.value ? el.hfSearchInput.value : "").trim();
+    if (!query) {
+      throw new Error("Enter a model search phrase");
+    }
+    if (state.hfSearchAbort) {
+      state.hfSearchAbort.abort();
+    }
+    clearHfResults();
+    setHfStatus("searching external index", false);
+    const controller = new AbortController();
+    state.hfSearchAbort = controller;
+    const url = new URL(`${hfOrigin()}/api/models`);
+    url.searchParams.set("search", query);
+    url.searchParams.set("filter", "text-generation");
+    url.searchParams.set("sort", "downloads");
+    url.searchParams.set("direction", "-1");
+    url.searchParams.set("limit", String(hfSearchLimit));
+    url.searchParams.set("full", "true");
+    const response = await fetch(url.toString(), {
+      cache: "no-store",
+      credentials: "omit",
+      signal: controller.signal
+    });
+    if (!response.ok) {
+      throw new Error(`External model search failed (${response.status})`);
+    }
+    const results = await response.json();
+    if (!Array.isArray(results)) {
+      throw new Error("External model search returned an unexpected body");
+    }
+    renderHfResults(results);
   }
 
   function isSafeRegistryModelPath(value) {
@@ -2607,6 +2848,9 @@
 
   // Loads the optional generated selector registry before the first model is chosen.
   async function loadSelectorRegistry() {
+    if (isPublicLocalOnlyHost()) {
+      return;
+    }
     try {
       const text = await fetchTextWithinBudget(
         paths.registry,
@@ -2623,7 +2867,7 @@
         restoreStaticModelOptions();
         return;
       }
-      paths.models = registry.models;
+      paths.models = modelsWithLocalModel(registry.models);
       state.selectorRegistry = fields;
       state.selectorDefaultModelKey = registry.defaultModelKey || "";
       renderModelOptions(paths.models, Boolean(state.selectorDefaultModelKey));
@@ -2682,9 +2926,15 @@
     const admissionEvidence = model && model.admissionEvidence ? model.admissionEvidence : null;
     const evalEvidence = model && model.evalEvidence ? model.evalEvidence : null;
     el.provenanceSourceKind.textContent = manifestValue(fields, "source_kind");
-    el.provenanceSourceSnapshot.textContent = sourceManifest ? sourceManifest.sourceKind : "unavailable";
-    el.provenanceSourceId.textContent = sourceManifest ? sourceManifest.sourceId : "unavailable";
-    el.provenanceSourceShape.textContent = sourceManifest ? sourceManifest.modelShape : "unavailable";
+    el.provenanceSourceSnapshot.textContent = sourceManifest
+      ? sourceManifest.sourceKind
+      : manifestValue(fields, "source_snapshot");
+    el.provenanceSourceId.textContent = sourceManifest
+      ? sourceManifest.sourceId
+      : manifestValue(fields, "source_id");
+    el.provenanceSourceShape.textContent = sourceManifest
+      ? sourceManifest.modelShape
+      : manifestValue(fields, "model_shape");
     el.provenanceSourceReview.textContent = sourceReview
       ? [
           sourceReview.status,
@@ -4554,6 +4804,23 @@
   }
 
   async function loadModelManifest(model) {
+    if (model.localFile) {
+      const fields = {
+        source_kind: "user-local-file",
+        source_id: model.localFile.name,
+        source_snapshot: "browser-file-picker",
+        model_shape: "runtime-validated-by-wasm",
+        quality_claim: "not-claimed",
+        trained_quality_claim: "not-claimed",
+        admission_status: "runtime-validated-local-file",
+        slm_checksum: model.localFile.checksum,
+        artifact_bytes: String(model.localFile.byteLength),
+        required_next_gate: "user-owned-local-review"
+      };
+      state.modelManifest = fields;
+      renderProvenance("local file", fields, false);
+      return;
+    }
     const manifestPath = `${model.path}.manifest`;
     try {
       const text = await fetchModulePlanTextWithinBudget(
@@ -5177,7 +5444,30 @@
   async function loadSelectedModel() {
     const loadId = state.modelLoadSequence + 1;
     state.modelLoadSequence = loadId;
-    const selectedModel = paths.models[el.modelSelect.value] ? el.modelSelect.value : "tinylm16q8";
+    const selectedValue = el.modelSelect.value;
+    const selectedModel = paths.models[selectedValue]
+      ? selectedValue
+      : paths.models[localModelKey]
+        ? localModelKey
+        : paths.models.tinylm16q8
+          ? "tinylm16q8"
+          : Object.keys(paths.models)[0] || "";
+    if (!selectedModel) {
+      state.activeModelKey = "";
+      state.modelLoaded = false;
+      state.hasContext = false;
+      setInteractive(false);
+      renderAdapterOptions(null, "waiting");
+      renderProvenance("choose a local .slm file", null, false);
+      renderModulePlan("none", null, false);
+      resetModulePlanTrace("unavailable", false);
+      renderAssembly("none", null, false);
+      setText(el.runtimeStatus, state.exports ? "Runtime ready" : "Booting", false);
+      setText(el.modelState, "choose a local .slm file", false);
+      setText(el.errorState, "none", false);
+      renderDiagnostics();
+      return false;
+    }
     const model = paths.models[selectedModel];
     const previousModelKey = state.activeModelKey;
     const releaseLoadedModel = state.modelLoaded === true;
@@ -5249,16 +5539,20 @@
     const started = performance.now();
     let modelBytes = null;
     try {
-      await loadModulePlanReceipt(model);
-      await loadSourceManifest(model);
-      await loadSourceReviewEvidence(model);
-      await loadSourceValidationEvidence(model);
-      await loadRuntimeSmokeEvidence(model);
-      await loadEvalEvidence(model);
-      await loadAdmissionEvidence(model);
-      modelBytes = await fetchModulePlanBytes(model, modelPath, ".slm model", "model");
-      if (Number.isSafeInteger(model.modelBytes) && modelBytes.length !== model.modelBytes) {
-        throw new Error("Selector model byte count mismatch");
+      if (model.localFile) {
+        modelBytes = new Uint8Array(model.localFile.bytes);
+      } else {
+        await loadModulePlanReceipt(model);
+        await loadSourceManifest(model);
+        await loadSourceReviewEvidence(model);
+        await loadSourceValidationEvidence(model);
+        await loadRuntimeSmokeEvidence(model);
+        await loadEvalEvidence(model);
+        await loadAdmissionEvidence(model);
+        modelBytes = await fetchModulePlanBytes(model, modelPath, ".slm model", "model");
+        if (Number.isSafeInteger(model.modelBytes) && modelBytes.length !== model.modelBytes) {
+          throw new Error("Selector model byte count mismatch");
+        }
       }
       recordModulePlanActualModuleBytes(model, 0, modelBytes.length);
     } catch (error) {
@@ -5326,6 +5620,12 @@
       }
       if (model.modulePlan) {
         recordModulePlanTrace("model accepted");
+      }
+      if (model.localFile) {
+        setLocalModelStatus(
+          `${model.localFile.name} / ${formatByteCount(model.localFile.byteLength)} / ${model.localFile.checksum} / loaded`,
+          false
+        );
       }
       renderProvenance("loading local manifest", null, false);
       await loadModelManifest(model);
@@ -5802,6 +6102,44 @@
       setText(el.errorState, errorMessage(error), true);
       setControls(false, Boolean(state.exports));
     });
+  });
+
+  el.importLocalModelButton.addEventListener("click", function () {
+    importLocalModelFile().catch((error) => {
+      const text = errorMessage(error);
+      setLocalModelStatus(text, true);
+      setText(el.errorState, text, true);
+      if (state.exports) {
+        setControls(state.modelLoaded, true);
+      }
+    });
+  });
+
+  el.localModelFile.addEventListener("change", function () {
+    const file = el.localModelFile.files && el.localModelFile.files[0];
+    if (!file) {
+      setLocalModelStatus("waiting", false);
+      return;
+    }
+    const name = safeLocalModelName(file.name);
+    setLocalModelStatus(`${name} / ${formatByteCount(file.size)} selected`, false);
+  });
+
+  el.hfSearchButton.addEventListener("click", function () {
+    searchHuggingFaceModels().catch((error) => {
+      if (error && error.name === "AbortError") {
+        return;
+      }
+      setHfStatus(errorMessage(error), true);
+    });
+  });
+
+  el.hfSearchInput.addEventListener("keydown", function (event) {
+    if (event.key !== "Enter") {
+      return;
+    }
+    event.preventDefault();
+    el.hfSearchButton.click();
   });
 
   el.applyAdapterButton.addEventListener("click", function () {

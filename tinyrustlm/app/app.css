@@ -165,7 +165,9 @@ select {
   margin-bottom: 0;
 }
 
-input[type="number"] {
+input[type="number"],
+input[type="file"],
+input[type="search"] {
   width: 100%;
   min-height: 38px;
   color: var(--text);
@@ -174,6 +176,70 @@ input[type="number"] {
   border-radius: 6px;
   padding: 0 10px;
   font: inherit;
+}
+
+.local-import {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.inline-status {
+  margin: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.model-results {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.model-result {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #0c0f13;
+}
+
+.model-result strong,
+.model-result a {
+  color: var(--accent);
+}
+
+.model-result-meta {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.model-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.model-result-actions a {
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  background: var(--panel-strong);
+  text-decoration: none;
 }
 
 .actions {
@@ -290,7 +356,8 @@ dd {
   }
 
   .settings,
-  .decoding {
+  .decoding,
+  .search-row {
     grid-template-columns: 1fr;
   }
 }
