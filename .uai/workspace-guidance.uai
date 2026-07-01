@@ -1,5 +1,5 @@
-profile: runtime-mirust.workspace-guidance.v120
-updated_utc: 2026-07-01T14:50:00Z
+profile: runtime-mirust.workspace-guidance.v121
+updated_utc: 2026-07-01T15:30:00Z
 canonical_root: E:\Source\Rust\SLMComposer.com
 startup_rule: Read AGENTS.md, workspace.uai, and local .uai startup files before broad loading.
 memory_strategy:
@@ -31,6 +31,7 @@ memory_strategy:
   docs_report_intake_2026_06_30: Route nine docs-preserved Improvement reports through docs/report-intake/2026-06-30/MANIFEST.md and docs/report-intake/2026-06-30/runtime-mirust-report-synthesis-2026-06-30.md before zero-dependency Rust architecture, TinyLM training, safetensors browser runtime, tokenizer, browser budget, CLI/runtime, Visual Studio/.NET packaging, or orchestration-tooling changes; active source-site copies were removed after byte-exact docs preservation and active intake is now empty or placeholder-only.
   docs_report_intake_2026_07_01: Route seven MiniModel.org Improvement reports through docs/report-intake/2026-07-01/MANIFEST.md, docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md, and wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md before MiniModel catalog, verifier, manifest, legal boundary, peer-transfer, or SLMComposer import work; active source-site copies were removed after byte-exact docs preservation.
   minimodel_p2p_roadmap_2026_07_01: Keep MiniModel.org Rust-first and metadata-only at project servers, use checksum-bound manifests and local verification, compare Pear/Bare/Hyper as tradeoffs rather than core dependency, and keep SLMComposer browser-local.
+  minimodel_manifest_verifier_mvp_2026_07_01: Route manifest schema, local Rust verifier, import receipt, metadata-only catalog, and non-byte-serving examples through wiki/runtime-mirust/research/minimodel-manifest-verifier-mvp-2026-07-01.md before implementing `minimodel-core` or public catalog behavior.
   safetensors_inspection_2026_06_29: Route no-crate `inspect-safetensors` metadata intake, dtype/shape/offset validation, checksum-bearing report rows, focused tests, CLI smoke, and first real tiny-model source review through wiki/runtime-mirust/reports/safetensors-inspection-memory-2026-06-29.md.
   safetensors_source_plan_2026_06_29: Route no-crate `plan-safetensors-source`, raw f32 source-shape mapping, required tensor name/shape checks, Hugging Face Llama alias intake, copy/decode action rows, mapping checksum, focused tests, and CLI plan smoke through wiki/runtime-mirust/reports/safetensors-source-plan-memory-2026-06-29.md.
   safetensors_source_extraction_2026_06_29: Route no-crate `extract-safetensors-source`, optional candidate-review enforcement, F32 copy, F16/BF16 decode, raw f32 source bundle writing with source_review rows, focused tests, and first real tiny-checkpoint source bridge through wiki/runtime-mirust/reports/safetensors-source-extraction-memory-2026-06-29.md.
