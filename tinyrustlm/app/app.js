@@ -354,6 +354,7 @@
     runSummary: document.getElementById("runSummary"),
     diagnosticsRail: document.getElementById("diagnosticsRail"),
     diagnosticsRailToggle: document.getElementById("diagnosticsRailToggle"),
+    mobileAdvancedButton: document.getElementById("mobileAdvancedButton"),
     clearConsoleButton: document.getElementById("clearConsoleButton"),
     copyConsoleButton: document.getElementById("copyConsoleButton"),
     pauseConsoleScroll: document.getElementById("pauseConsoleScroll"),
@@ -496,7 +497,7 @@
     consolePaused: "slmcomposer.ui.consolePaused"
   };
 
-  const uiPreferenceVersion = "chat-first-source-options-v2";
+  const uiPreferenceVersion = "local-ai-dashboard-v1";
 
   const starterProfiles = {
     fast: {
@@ -531,6 +532,14 @@
       normal: "80",
       detailed: "160"
     }
+  };
+
+  const generationPresets = {
+    balanced: { temperature: "0.70", topK: "40", topP: "0.90" },
+    creative: { temperature: "0.95", topK: "80", topP: "0.95" },
+    precise: { temperature: "0.25", topK: "20", topP: "0.70" },
+    code: { temperature: "0.20", topK: "30", topP: "0.80" },
+    json: { temperature: "0.10", topK: "20", topP: "0.65" }
   };
 
   function storageGet(key, fallback) {
@@ -816,6 +825,7 @@
     if (el.seed && (refreshSeed || repeatable)) {
       el.seed.value = repeatable ? "1" : String(Math.floor(Math.random() * 4294967295));
     }
+    syncRangeControls();
     storageSet(uiStorageKeys.creativity, creativity);
     storageSet(uiStorageKeys.length, length);
     storageSet(uiStorageKeys.repeatable, String(repeatable));
@@ -828,6 +838,93 @@
       el.simpleRepeatable.checked = storageGet(uiStorageKeys.repeatable, "false") === "true";
     }
     syncSemanticControls(false);
+  }
+
+  function formatRangeValue(input) {
+    if (!input) {
+      return "";
+    }
+    if (input.id === "temperature" || input.id === "topP") {
+      return Number.parseFloat(input.value || "0").toFixed(2);
+    }
+    return String(Number.parseInt(input.value, 10) || 0);
+  }
+
+  function syncRangeControl(input) {
+    if (!input || input.type !== "range") {
+      return;
+    }
+    const min = Number.parseFloat(input.min || "0");
+    const max = Number.parseFloat(input.max || "100");
+    const value = Number.parseFloat(input.value || input.min || "0");
+    const span = max > min ? ((value - min) / (max - min)) * 100 : 0;
+    input.style.setProperty("--fill", `${Math.max(0, Math.min(100, span))}%`);
+    const output = document.querySelector(`[data-value-for="${input.id}"]`);
+    if (output) {
+      output.textContent = formatRangeValue(input);
+    }
+  }
+
+  function syncRangeControls() {
+    document.querySelectorAll('input[type="range"]').forEach(syncRangeControl);
+  }
+
+  function setPresetButtonState(preset) {
+    document.querySelectorAll(".preset-button").forEach((button) => {
+      const selected = button.dataset.preset === preset;
+      button.classList.toggle("is-active", selected);
+      button.setAttribute("aria-pressed", String(selected));
+    });
+  }
+
+  function applyGenerationPreset(preset) {
+    const nextPreset = generationPresets[preset] ? preset : "balanced";
+    const values = generationPresets[nextPreset];
+    setPresetButtonState(nextPreset);
+    if (el.temperature) {
+      el.temperature.value = values.temperature;
+    }
+    if (el.topK) {
+      el.topK.value = values.topK;
+    }
+    if (el.topP) {
+      el.topP.value = values.topP;
+    }
+    syncRangeControls();
+  }
+
+  function toggleModelPopover(forceOpen) {
+    const panel = el.simpleDiscoveryPanel;
+    const openers = document.querySelectorAll("[data-open-model-popover], #modelEditButton");
+    if (!panel) {
+      return;
+    }
+    const nextOpen = typeof forceOpen === "boolean" ? forceOpen : panel.hidden;
+    panel.hidden = !nextOpen;
+    openers.forEach((button) => button.setAttribute("aria-expanded", String(nextOpen)));
+  }
+
+  function collapseSidebar(collapsed) {
+    if (!el.appShell) {
+      return;
+    }
+    el.appShell.dataset.sidebarCollapsed = String(Boolean(collapsed));
+    const button = document.getElementById("sidebarCollapseButton");
+    if (button) {
+      button.setAttribute("aria-expanded", String(!collapsed));
+      button.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
+    }
+  }
+
+  function useStarterPrompt(button) {
+    const template = button ? button.dataset.promptTemplate : "";
+    if (!template || !el.prompt) {
+      return false;
+    }
+    markStarterSelected(button.dataset.starter || "");
+    el.prompt.value = template;
+    el.prompt.focus();
+    return true;
   }
 
   function selectModelIfAvailable(modelKey) {
@@ -903,8 +1000,14 @@
     }
     el.appShell.dataset.railCollapsed = String(Boolean(collapsed));
     if (el.diagnosticsRailToggle) {
-      el.diagnosticsRailToggle.textContent = collapsed ? "Expand" : "Collapse";
+      el.diagnosticsRailToggle.setAttribute(
+        "aria-label",
+        collapsed ? "Show Advanced Options" : "Collapse Advanced Options"
+      );
       el.diagnosticsRailToggle.setAttribute("aria-expanded", String(!collapsed));
+    }
+    if (el.mobileAdvancedButton) {
+      el.mobileAdvancedButton.setAttribute("aria-expanded", String(!collapsed));
     }
     storageSet(uiStorageKeys.railCollapsed, String(Boolean(collapsed)));
   }
@@ -1043,23 +1146,35 @@
     markStarterSelected(storageGet(uiStorageKeys.selectedStarter, ""));
     setSimpleSourceOption(storageGet(uiStorageKeys.simpleSourceOption, "local"), false);
     setActiveTab(storageGet(uiStorageKeys.activeTab, "runtime"));
-    setRailCollapsed(storageGet(uiStorageKeys.railCollapsed, "false") === "true");
+    const storedRailCollapsed = storageGet(uiStorageKeys.railCollapsed, null);
+    const shouldCollapseRail = storedRailCollapsed !== null
+      ? storedRailCollapsed === "true"
+      : window.matchMedia("(max-width: 1199px)").matches;
+    setRailCollapsed(shouldCollapseRail);
     if (el.pauseConsoleScroll) {
       el.pauseConsoleScroll.checked = storageGet(uiStorageKeys.consolePaused, "false") === "true";
       state.consoleAutoScroll = !el.pauseConsoleScroll.checked;
     }
     document.querySelectorAll("details[data-panel-key]").forEach((panel) => {
+      const summary = panel.querySelector("summary");
       const stored = storageGet(`slmcomposer.ui.panel.${panel.dataset.panelKey}`, null);
       if (stored !== null) {
         panel.open = stored === "true";
       }
+      if (summary) {
+        summary.setAttribute("aria-expanded", String(panel.open));
+      }
       panel.addEventListener("toggle", () => {
+        if (summary) {
+          summary.setAttribute("aria-expanded", String(panel.open));
+        }
         storageSet(`slmcomposer.ui.panel.${panel.dataset.panelKey}`, String(panel.open));
       });
     });
     restoreRunHistoryPreference();
     updateSystemStatus(el.runtimeStatus ? el.runtimeStatus.textContent : "Booting", false);
     updateModelSummary();
+    syncRangeControls();
   }
 
   function installUiEventHandlers() {
@@ -1070,8 +1185,66 @@
       el.advancedModeButton.addEventListener("click", () => setAppMode("advanced"));
     }
     document.querySelectorAll(".starter-action").forEach((button) => {
-      button.addEventListener("click", () => applyStarter(button.dataset.starter));
+      button.addEventListener("click", () => {
+        if (!useStarterPrompt(button)) {
+          applyStarter(button.dataset.starter);
+        }
+      });
     });
+    const sidebarButton = document.getElementById("sidebarCollapseButton");
+    if (sidebarButton) {
+      sidebarButton.addEventListener("click", () => {
+        collapseSidebar(!(el.appShell && el.appShell.dataset.sidebarCollapsed === "true"));
+      });
+    }
+    const newChatButton = document.getElementById("newChatButton");
+    if (newChatButton) {
+      newChatButton.addEventListener("click", () => {
+        state.messages = [];
+        if (el.prompt) {
+          el.prompt.value = "";
+          el.prompt.focus();
+        }
+        if (el.response) {
+          el.response.textContent = "";
+        }
+        renderConversation();
+      });
+    }
+    document.querySelectorAll("[data-open-model-popover], #modelEditButton").forEach((button) => {
+      button.addEventListener("click", () => toggleModelPopover());
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        toggleModelPopover(false);
+      }
+    });
+    document.addEventListener("click", (event) => {
+      const panel = el.simpleDiscoveryPanel;
+      if (!panel || panel.hidden) {
+        return;
+      }
+      const clickedOpener = event.target.closest("[data-open-model-popover], #modelEditButton");
+      if (!clickedOpener && !panel.contains(event.target)) {
+        toggleModelPopover(false);
+      }
+    });
+    document.querySelectorAll(".preset-button").forEach((button) => {
+      button.addEventListener("click", () => applyGenerationPreset(button.dataset.preset));
+    });
+    document.querySelectorAll('input[type="range"]').forEach((input) => {
+      input.addEventListener("input", () => {
+        input.dataset.userEdited = "true";
+        syncRangeControl(input);
+      });
+      input.addEventListener("change", () => syncRangeControl(input));
+    });
+    const seedRandomButton = document.getElementById("seedRandomButton");
+    if (seedRandomButton && el.seed) {
+      seedRandomButton.addEventListener("click", () => {
+        el.seed.value = String(Math.floor(Math.random() * 4294967295));
+      });
+    }
     document.querySelectorAll("[data-source-option]").forEach((button) => {
       button.addEventListener("click", () => setSimpleSourceOption(button.dataset.sourceOption, true));
     });
@@ -1162,6 +1335,11 @@
     if (el.diagnosticsRailToggle) {
       el.diagnosticsRailToggle.addEventListener("click", () => {
         setRailCollapsed(!(el.appShell && el.appShell.dataset.railCollapsed === "true"));
+      });
+    }
+    if (el.mobileAdvancedButton) {
+      el.mobileAdvancedButton.addEventListener("click", () => {
+        setRailCollapsed(false);
       });
     }
     if (el.clearConsoleButton) {
@@ -1336,17 +1514,79 @@
 
   function renderConversation() {
     el.conversation.replaceChildren();
+    if (state.messages.length === 0) {
+      const examples = [
+        {
+          role: "You",
+          avatar: "You",
+          text: "Can you explain the benefits of edge computing in simple terms?",
+          time: "10:24 AM",
+          assistant: false
+        },
+        {
+          role: "SLM Composer",
+          avatar: "",
+          text: "Edge computing processes data closer to where it\u2019s generated\u2014like on your device or nearby servers\u2014instead of sending it to a distant data center. This reduces latency, saves bandwidth, and improves reliability, especially for real-time applications like IoT, gaming, and autonomous systems.",
+          time: "10:24 AM",
+          assistant: true
+        }
+      ];
+      for (const example of examples) {
+        const item = document.createElement("li");
+        const avatar = document.createElement("div");
+        const content = document.createElement("div");
+        const role = document.createElement("div");
+        const text = document.createElement("div");
+        const time = document.createElement("time");
+        item.className = `preview-message${example.assistant ? " assistant" : ""}`;
+        avatar.className = example.assistant ? "assistant-avatar" : "message-avatar";
+        avatar.textContent = example.avatar;
+        if (example.assistant) {
+          const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+          const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+          use.setAttribute("href", "#icon-cube");
+          icon.append(use);
+          avatar.append(icon);
+        }
+        role.className = "message-role";
+        role.textContent = example.role;
+        text.className = "message-text";
+        text.textContent = example.text;
+        time.className = "message-time";
+        time.textContent = example.time;
+        content.append(role, text);
+        item.append(avatar, content, time);
+        el.conversation.append(item);
+      }
+      el.clearChatButton.disabled = true;
+      return;
+    }
     for (const message of state.messages) {
       const item = document.createElement("li");
+      const avatar = document.createElement("div");
+      const content = document.createElement("div");
       const role = document.createElement("div");
       const text = document.createElement("div");
+      const time = document.createElement("time");
       item.className = `message message-${message.role}`;
       item.classList.toggle("error", Boolean(message.isError));
+      avatar.className = message.role === "user" ? "message-avatar" : "assistant-avatar";
+      avatar.textContent = message.role === "user" ? "You" : "";
+      if (message.role !== "user") {
+        const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+        use.setAttribute("href", "#icon-cube");
+        icon.append(use);
+        avatar.append(icon);
+      }
       role.className = "message-role";
       text.className = "message-text";
-      role.textContent = message.role === "user" ? "User" : "TinyRustLM";
+      time.className = "message-time";
+      role.textContent = message.role === "user" ? "You" : "SLM Composer";
       text.textContent = message.text;
-      item.append(role, text);
+      time.textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      content.append(role, text);
+      item.append(avatar, content, time);
       el.conversation.append(item);
     }
     el.clearChatButton.disabled = state.messages.length === 0;
@@ -1411,6 +1651,7 @@
     el.topK.value = String(config.topK);
     el.topP.value = String(config.topP);
     el.seed.value = String(config.seed);
+    syncRangeControls();
     return config;
   }
 
@@ -6700,7 +6941,10 @@
     const releaseLoadedModel = state.modelLoaded === true;
     el.modelSelect.value = selectedModel;
     const modelPath = model.path;
-    el.maxTokens.value = String(model.maxTokens);
+    if (el.maxTokens && !el.maxTokens.dataset.userEdited && !el.maxTokens.dataset.presetApplied) {
+      el.maxTokens.value = el.maxTokens.value || String(model.maxTokens);
+    }
+    syncRangeControls();
     state.activeModelKey = selectedModel;
     state.modelLoaded = false;
     state.hasContext = false;
@@ -7255,6 +7499,7 @@
     const ptr = allocCopy(bytes);
     const maxTokens = Math.max(1, Math.min(512, Number.parseInt(el.maxTokens.value, 10) || 1));
     el.maxTokens.value = String(maxTokens);
+    syncRangeControls();
     let sampling = null;
     try {
       sampling = applySamplingConfig();

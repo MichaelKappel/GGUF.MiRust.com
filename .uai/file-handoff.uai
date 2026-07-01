@@ -1,5 +1,5 @@
-profile: runtime-mirust.file-handoff.v26
-updated_utc: 2026-07-01T16:20:00Z
+profile: runtime-mirust.file-handoff.v27
+updated_utc: 2026-07-01T22:25:00Z
 handoff_root: agent-file-handoff/
 active_buckets:
   content: agent-file-handoff/Content/
@@ -53,17 +53,19 @@ uaix_cleanup_correction_2026_06_30:
   proof: Nine Improvement reports were copied byte-for-byte to docs/report-intake/2026-06-30/ with SHA256 verification, then removed from agent-file-handoff/Improvement/; current scan sees Content=0 and Improvement=0.
   next_agent_action: Treat non-placeholder files in Content/Improvement as pending intake; do not call handoff complete until each has disposition, proof-of-use, durable preservation when accepted, and source-site removal or a real keep-active blocker.
 current_scan:
-  scanned_utc: 2026-07-01T16:20:00Z
+  scanned_utc: 2026-07-01T22:25:00Z
   workspace_checked: E:\Source\Rust\SLMComposer.com
   content_bucket_non_placeholder_files: 0
   improvement_bucket_non_placeholder_files: 0
   misplaced_root_files: 0
-  status: processed_2026_07_01_minimodel_huggingface_batch
-  action: User authorized intake processing; seven MiniModel.org Improvement reports plus one Hugging Face API option report were copied byte-exact to docs/report-intake/2026-07-01/, synthesized, routed into the MiniModel.org source-option roadmap, and removed from active intake.
+  status: processed_2026_07_01_minimodel_huggingface_slmcomposer_ui_batch
+  action: User authorized intake processing; seven MiniModel.org Improvement reports, one Hugging Face API option report, the SLM Composer UI plan, and the dashboard redesign batch were copied byte-exact to docs/report-intake/2026-07-01/, synthesized, routed into durable memory/product guidance, and removed from active intake.
   keep_active_reason: none
   durable_manifest: docs/report-intake/2026-07-01/MANIFEST.md
   durable_synthesis: docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md
+  durable_dashboard_synthesis: docs/report-intake/2026-07-01/slmcomposer-dashboard-ui-synthesis-2026-07-01.md
   durable_roadmap: wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md
+  durable_dashboard_memory: wiki/runtime-mirust/reports/slmcomposer-local-ai-dashboard-memory-2026-07-01.md
   processed_improvement_files:
     - path: agent-file-handoff/Improvement/Building Custom Tiny AI_ML Models.md
       docs_copy: docs/report-intake/2026-07-01/Building Custom Tiny AI_ML Models.md
@@ -100,8 +102,33 @@ current_scan:
       bytes: 48634
       sha256: 924879b3dbed7824d4c3144b4e7fbc0251468221164bbfaf8ea5ad20f641eb66
       route_hint: checksum-bound manifests, supply-chain trust, Sigstore-style identity, Merkle verification, and SLM predicates.
+    - path: agent-file-handoff/Improvement/SLM Composer UI Improvement Plan.md
+      docs_copy: docs/report-intake/2026-07-01/SLM Composer UI Improvement Plan.md
+      bytes: 50612
+      sha256: a64117a7beaf45bb104a23166926dbf4e9b843c6b977da8c50aa4dc4b87ede27
+      route_hint: progressive-disclosure SLMComposer UI plan, beginner chat defaults, advanced diagnostics containment, and source-option affordances.
     - path: agent-file-handoff/Improvement/Understanding Pear Runtime.md
       docs_copy: docs/report-intake/2026-07-01/Understanding Pear Runtime.md
       bytes: 53868
       sha256: f79b91088475585ef1cf91d271bdb7f1692e37a7369108ca89420661df019d42
       route_hint: Pear/Bare/Holepunch runtime model, zero-infrastructure P2P app lifecycle, and Hypercore stack.
+    - path: agent-file-handoff/Improvement/Designing Beginner-Friendly Chatbot Interfaces.md
+      docs_copy: docs/report-intake/2026-07-01/Designing Beginner-Friendly Chatbot Interfaces.md
+      bytes: 51314
+      sha256: 5d018fa52ddbcccd4d8e314adb0e97105f4fef858ca0b9a90b9973ffbb68ee43
+      route_hint: beginner-friendly chatbot onboarding, progressive disclosure, starter actions, accessibility, trust, and recovery patterns.
+    - path: agent-file-handoff/Improvement/Improving SLM Composer for New Users.md
+      docs_copy: docs/report-intake/2026-07-01/Improving SLM Composer for New Users.md
+      bytes: 42766
+      sha256: 4edf50460f37a3ab08c6803c47d5d42264c494baa0e4fccccb8ed297bc22972d
+      route_hint: SLMComposer local-model UX, first-run simplification, local privacy proof, advanced controls, and source/import guidance.
+    - path: agent-file-handoff/Improvement/SLMComposer Functionality Improvement Suggestions.md
+      docs_copy: docs/report-intake/2026-07-01/SLMComposer Functionality Improvement Suggestions.md
+      bytes: 51107
+      sha256: a97377c88ccee39cfd0c679f903fe959ba5828b49496cf73d8e82b94192dd6df
+      route_hint: product functionality improvements, model loading clarity, presets, diagnostics, provenance, and professional workflow affordances.
+    - path: agent-file-handoff/Improvement/Modern AI chat dashboard interface.png
+      docs_copy: docs/report-intake/2026-07-01/Modern AI chat dashboard interface.png
+      bytes: 1434195
+      sha256: 88008dc091b61ee4a46630afb4b91842f745d1d8097ac95b47613a2669c84221
+      route_hint: visual reference for high-fidelity dark dashboard layout, left nav, central chat, and right advanced controls.

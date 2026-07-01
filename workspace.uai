@@ -1,7 +1,7 @@
-profile: runtime-mirust.workspace.v121
+profile: runtime-mirust.workspace.v122
 project_name: SLMComposer.com
 canonical_root: E:\Source\Rust\SLMComposer.com
-updated_utc: 2026-07-01T20:46:46Z
+updated_utc: 2026-07-01T22:25:00Z
 version_authority:
   current_version: 0.1.0
   next_version: 0.1.0
@@ -27,11 +27,11 @@ deploy_gate:
     - Run relevant pointer audits and git diff --check before packaging or deployment.
     - If deployment access is missing or live docs cannot be updated, record the blocker and do not claim the site is deployed.
 active_intake_state:
-  scanned_utc: 2026-07-01T16:20:00Z
-  status: processed_2026_07_01_minimodel_huggingface_batch
+  scanned_utc: 2026-07-01T22:25:00Z
+  status: processed_2026_07_01_minimodel_huggingface_slmcomposer_ui_batch
   content_bucket_non_placeholder_files: 0
   improvement_bucket_non_placeholder_files: 0
-  instruction: Seven MiniModel Improvement docs plus one Hugging Face API option report were preserved under docs/report-intake/2026-07-01/, synthesized into durable memory, routed into MiniModel.org/ROADMAP.md, and removed from active intake.
+  instruction: Seven MiniModel Improvement docs, one Hugging Face API option report, the SLM Composer UI plan, and the dashboard redesign batch were preserved under docs/report-intake/2026-07-01/, synthesized into durable memory, routed into product guidance, and removed from active intake.
 memory_authority:
   hot_memory_root: .uai/
   llm_wiki_namespace: wiki/runtime-mirust/
@@ -44,6 +44,7 @@ memory_authority:
   runtime_rebrand_2026_06_30: wiki/runtime-mirust/reports/runtime-rebrand-memory-2026-06-30.md routes Runtime.MiRust.com site identity, `runtime-mirust` wiki/raw namespaces, publish-review bundle naming, old-name audits, and outer folder handoff.
   slmcomposer_public_local_launch_2026_07_01: wiki/runtime-mirust/reports/slmcomposer-public-local-launch-memory-2026-07-01.md routes SLMComposer.com live-site identity, local `.slm` file import, optional user-triggered Hugging Face discovery, and public-host proof with no `/models/` fetch before user action.
   slmcomposer_minimodel_catalog_import_2026_07_01: wiki/runtime-mirust/reports/slmcomposer-minimodel-catalog-import-memory-2026-07-01.md routes the default MiniModel.org catalog URL, metadata/local-list model selection, local `.slm` SHA-256 verification, and browser-local Rust/WASM import proof.
+  slmcomposer_local_ai_dashboard_2026_07_01: wiki/runtime-mirust/reports/slmcomposer-local-ai-dashboard-memory-2026-07-01.md routes the high-fidelity dark dashboard redesign, beginner starter cards, left navigation, desktop/mobile Advanced Options, source popover, and local-only model byte boundary.
   huggingface_api_source_options_2026_07_01: wiki/runtime-mirust/research/huggingface-api-source-options-2026-07-01.md routes Hugging Face as a user-triggered external metadata/source option beside user-local files and future P2P, without project-server byte proxying or remote inference.
   tinylm16_bpe_safetensors_plan_2026_06_30: wiki/runtime-mirust/reports/tinylm16-bpe-safetensors-plan-memory-2026-06-30.md routes `tinylm16-bpe` source shape, 39 untied TinyLM-16M tensors, manifest-native BPE1 metadata, sparse safetensors planner proof, and docs/CLI shape lists.
   two_parent_operator_browser_provenance_2026_06_29: wiki/runtime-mirust/reports/two-parent-operator-browser-provenance-memory-2026-06-29.md routes compact browser Model Provenance Operator rendering and receipt byte-echo fallback for blend, task-delta, and sparse task-delta selector fixtures.
@@ -72,7 +73,7 @@ memory_authority:
   tiny_model_candidate_matrix_2026_06_29: wiki/runtime-mirust/research/tiny-model-candidate-matrix-2026-06-29.md routes the first real trained .slm conversion order through Xenova 15M q8/q4, Aurelius GQA, StorySupra untied Llama, Pythia GPT-NeoX, and Xenova 42M q4 pressure lanes.
   safetensors_tokenizer_budget_reference_2026_06_29: wiki/runtime-mirust/research/safetensors-tokenizer-budget-reference-ideas-2026-06-29.md routes follow-up safetensors tensor-name alias mapping, tokenizer conversion, browser byte budgets, WASM hot loops, model-breeding schedule metadata, and reference-output fixtures.
   docs_report_intake_2026_06_30: docs/report-intake/2026-06-30/MANIFEST.md routes nine preserved Improvement reports through docs/report-intake/2026-06-30/runtime-mirust-report-synthesis-2026-06-30.md for zero-dependency Rust, TinyLM creation, safetensors browser runtime, tokenizer implementation, browser fit, CLI/runtime patterns, NuGet packaging, and typed orchestration reference; active source-site copies were removed after byte-exact docs preservation and active intake is now empty or placeholder-only.
-  docs_report_intake_2026_07_01: docs/report-intake/2026-07-01/MANIFEST.md routes seven preserved MiniModel Improvement reports plus one Hugging Face API option report through docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md, wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md, and wiki/runtime-mirust/research/huggingface-api-source-options-2026-07-01.md for local, Hugging Face, and P2P source options under no-server-model-bytes rules.
+  docs_report_intake_2026_07_01: docs/report-intake/2026-07-01/MANIFEST.md routes seven preserved MiniModel Improvement reports, one Hugging Face API option report, the SLM Composer UI plan, and the dashboard redesign batch through the MiniModel synthesis, dashboard synthesis, roadmap/research routes, and SLMComposer dashboard memory under no-server-model-bytes rules.
   minimodel_p2p_roadmap_2026_07_01: wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md routes MiniModel.org Rust-first P2P architecture, metadata-only catalog, local verification, peer transfer, legal/liability boundaries, secure manifests, and SLMComposer browser-local handoff.
   minimodel_manifest_verifier_mvp_2026_07_01: wiki/runtime-mirust/research/minimodel-manifest-verifier-mvp-2026-07-01.md routes MiniModel.org manifest v0, local Rust verifier, metadata-only catalog boundary, non-byte-serving examples, and import receipt next gates.
   safetensors_inspection_2026_06_29: wiki/runtime-mirust/reports/safetensors-inspection-memory-2026-06-29.md routes no-crate safetensors header inspection, dtype/shape/offset validation, report writing, focused tests, CLI smoke, and first real tiny-model source intake.

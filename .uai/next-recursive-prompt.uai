@@ -1,7 +1,7 @@
-profile: runtime-mirust.next-recursive-prompt.v9
-updated_utc: 2026-07-01T20:11:00Z
+profile: runtime-mirust.next-recursive-prompt.v10
+updated_utc: 2026-07-01T22:25:00Z
 prompt: >
-  Continue in E:\Source\Rust\SLMComposer.com as the active Rust workspace for SLMComposer.com / TinyRustLM, with E:\Source\Rust\MiniModel.org as the MiniModel.org site workspace. The site-folder split, source-control cleanup, MiniModel intake processing, Hugging Face option routing, roadmap, first MiniModel implementation docs, metadata-only MiniModel catalog endpoint, SLMComposer catalog-to-local-file import slice, and local Chat/Advanced Tools source-option UI correction are complete. Live SLMComposer.com is stale until the explicit-FTPS deploy path is available. Start the next work by planning or scaffolding the local Rust verifier (`minimodel-core` plus CLI) from E:\Source\Rust\MiniModel.org\docs\manifest-v0.md and docs\verifier-mvp.md. Keep SLMComposer.com browser-local and keep project servers metadata-only: no server-side user model execution and no project-server user model bytes.
+  Continue in E:\Source\Rust\SLMComposer.com as the active Rust workspace for SLMComposer.com / TinyRustLM, with E:\Source\Rust\MiniModel.org as the MiniModel.org site workspace. The site-folder split, source-control cleanup, MiniModel intake processing, Hugging Face option routing, roadmap, first MiniModel implementation docs, metadata-only MiniModel catalog endpoint, SLMComposer catalog-to-local-file import slice, local Chat/Advanced Tools source-option correction, and high-fidelity dark dashboard redesign are complete in local source. Live SLMComposer.com is not proven updated with the dashboard until an explicit deploy path/credential is available and live proof is run. Start the next work by either deploying the dashboard with explicit access plus docs-site freshness checks, or planning/scaffolding the local Rust verifier (`minimodel-core` plus CLI) from E:\Source\Rust\MiniModel.org\docs\manifest-v0.md and docs\verifier-mvp.md. Keep SLMComposer.com browser-local and keep project servers metadata-only: no server-side user model execution and no project-server user model bytes.
 primary_goal: >
   Move from the browser catalog/import proof into the first local Rust verifier implementation path: manifest parsing, boundary rejection, artifact checksum verification, TinyRustLM compatibility checks, and local import receipts, before any peer networking.
 required_context:
@@ -16,11 +16,13 @@ required_context:
   - docs/report-intake/2026-07-01/MANIFEST.md
   - docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md
   - docs/report-intake/2026-07-01/SLM Composer UI Improvement Plan.md
+  - docs/report-intake/2026-07-01/slmcomposer-dashboard-ui-synthesis-2026-07-01.md
   - wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md
   - wiki/runtime-mirust/research/minimodel-manifest-verifier-mvp-2026-07-01.md
   - wiki/runtime-mirust/research/huggingface-api-source-options-2026-07-01.md
   - wiki/runtime-mirust/reports/slmcomposer-minimodel-catalog-import-memory-2026-07-01.md
   - wiki/runtime-mirust/reports/slmcomposer-progressive-source-ui-memory-2026-07-01.md
+  - wiki/runtime-mirust/reports/slmcomposer-local-ai-dashboard-memory-2026-07-01.md
   - E:\Source\Rust\MiniModel.org\ROADMAP.md
   - E:\Source\Rust\MiniModel.org\docs\manifest-v0.md
   - E:\Source\Rust\MiniModel.org\docs\verifier-mvp.md
@@ -35,12 +37,14 @@ processed_intake_routes:
   manifest_verifier_mvp: wiki/runtime-mirust/research/minimodel-manifest-verifier-mvp-2026-07-01.md
   slmcomposer_catalog_import: wiki/runtime-mirust/reports/slmcomposer-minimodel-catalog-import-memory-2026-07-01.md
   slmcomposer_progressive_source_ui: wiki/runtime-mirust/reports/slmcomposer-progressive-source-ui-memory-2026-07-01.md
+  slmcomposer_dashboard_ui: wiki/runtime-mirust/reports/slmcomposer-local-ai-dashboard-memory-2026-07-01.md
   minimodel_site_roadmap: E:\Source\Rust\MiniModel.org\ROADMAP.md
   source_site_result: processed source-site copies removed from agent-file-handoff/Improvement/ after byte-exact preservation and pointer updates.
 roadmap_guardrails:
   - Rust-first P2P model exchange architecture; evaluate Pear/Bare/Hyper as tradeoffs, not core SLMComposer dependencies.
   - Source options are user-owned local files/lists, user-triggered Hugging Face discovery, and future MiniModel P2P transfer; all converge on local `.slm` verification.
   - SLMComposer Chat mode should keep Local Files, Hugging Face, P2P Exchange, prompt, and Generate visible on first load while Advanced Tools exposes diagnostics and lower-level controls.
+  - SLMComposer dashboard source should remain simple on first load: left navigation, local privacy proof, model-ready toolbar, starter cards, central composer, and contained Advanced Options for pro controls.
   - Legal/liability boundaries must keep MiniModel.org as metadata/catalog guidance until legal review; no claims that third-party models are safe, legal, or endorsed.
   - Secure manifests must be checksum-bound and route source identity, model cards, license, tokenizer/config, eval/admission evidence, chunk/Merkle data, and signatures.
   - Tiny-model creation/import stays tied to TinyRustLM local review, conversion, validation, runtime-smoke, eval, admission, and local import receipts.

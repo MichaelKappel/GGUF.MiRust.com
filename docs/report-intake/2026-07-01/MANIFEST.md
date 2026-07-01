@@ -1,6 +1,6 @@
 # Runtime.MiRust.com Report Intake Manifest 2026-07-01
 
-This directory preserves byte-exact reviewed copies of the 2026-07-01 MiniModel.org Improvement intake reports, the follow-up Hugging Face API option report, and the SLM Composer progressive UI plan. Each copied file matches the source file from `agent-file-handoff/Improvement/` by SHA256 at intake completion time, and the processed source-site copies are removed from active intake after durable preservation and proof-of-use.
+This directory preserves byte-exact reviewed copies of the 2026-07-01 MiniModel.org Improvement intake reports, the follow-up Hugging Face API option report, the SLM Composer progressive UI plan, and the SLM Composer dashboard redesign intake batch. Each copied file matches the source file from `agent-file-handoff/Improvement/` by SHA256 at intake completion time, and the processed source-site copies are removed from active intake after durable preservation and proof-of-use.
 
 | Report | Source SHA256 | Durable docs copy |
 | --- | --- | --- |
@@ -13,9 +13,17 @@ This directory preserves byte-exact reviewed copies of the 2026-07-01 MiniModel.
 | Secure Model Exchange Manifest Design.md | `924879B3DBED7824D4C3144B4E7FBC0251468221164BBFAF8EA5AD20F641EB66` | [Secure Model Exchange Manifest Design.md](<Secure Model Exchange Manifest Design.md>) |
 | SLM Composer UI Improvement Plan.md | `A64117A7BEAF45BB104A23166926DBF4E9B843C6B977DA8C50AA4DC4B87EDE27` | [SLM Composer UI Improvement Plan.md](<SLM Composer UI Improvement Plan.md>) |
 | Understanding Pear Runtime.md | `F79B91088475585EF1CF91D271BDB7F1692E37A7369108CA89420661DF019D42` | [Understanding Pear Runtime.md](<Understanding Pear Runtime.md>) |
+| Designing Beginner-Friendly Chatbot Interfaces.md | `5D018FA52DDBCCCD4D8E314ADB0E97105F4FEF858CA0B9A90B9973FFBB68EE43` | [Designing Beginner-Friendly Chatbot Interfaces.md](<Designing Beginner-Friendly Chatbot Interfaces.md>) |
+| Improving SLM Composer for New Users.md | `4EDF50460F37A3AB08C6803C47D5D42264C494BAA0E4FCCCCB8ED297BC22972D` | [Improving SLM Composer for New Users.md](<Improving SLM Composer for New Users.md>) |
+| SLMComposer Functionality Improvement Suggestions.md | `A97377C88CCEE39CFD0C679F903FE959BA5828B49496CF73D8E82B94192DD6DF` | [SLMComposer Functionality Improvement Suggestions.md](<SLMComposer Functionality Improvement Suggestions.md>) |
+| Modern AI chat dashboard interface.png | `88008DC091B61EE4A46630AFB4B91842F745D1D8097AC95B47613A2669C84221` | [Modern AI chat dashboard interface.png](<Modern AI chat dashboard interface.png>) |
 
 The implementation synthesis for this batch is [minimodel-p2p-report-synthesis-2026-07-01.md](minimodel-p2p-report-synthesis-2026-07-01.md).
+
+The SLMComposer dashboard UI synthesis for the latest design batch is [slmcomposer-dashboard-ui-synthesis-2026-07-01.md](slmcomposer-dashboard-ui-synthesis-2026-07-01.md).
 
 The durable roadmap route is [wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md](../../../wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md).
 
 The SLM Composer progressive UI implementation memory is [wiki/runtime-mirust/reports/slmcomposer-progressive-source-ui-memory-2026-07-01.md](../../../wiki/runtime-mirust/reports/slmcomposer-progressive-source-ui-memory-2026-07-01.md).
+
+The SLM Composer local AI dashboard memory is [wiki/runtime-mirust/reports/slmcomposer-local-ai-dashboard-memory-2026-07-01.md](../../../wiki/runtime-mirust/reports/slmcomposer-local-ai-dashboard-memory-2026-07-01.md).

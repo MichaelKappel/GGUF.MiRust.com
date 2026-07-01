@@ -1773,6 +1773,12 @@ async function runPagePublicLocalOnlySmoke(client) {
 }
 
 async function runPageSourceOptionsSmoke(client) {
+  await client.send("Emulation.setDeviceMetricsOverride", {
+    width: 1280,
+    height: 900,
+    deviceScaleFactor: 1,
+    mobile: false
+  });
   const expression = `
     (async () => {
       const byId = (id) => document.getElementById(id);
@@ -1819,6 +1825,10 @@ async function runPageSourceOptionsSmoke(client) {
         if (byId("wasmState") && byId("wasmState").textContent !== "waiting") {
           break;
         }
+        await sleep(100);
+      }
+      if (document.querySelector(".app-shell") && document.querySelector(".app-shell").dataset.railCollapsed === "true" && byId("diagnosticsRailToggle")) {
+        byId("diagnosticsRailToggle").click();
         await sleep(100);
       }
       const initial = snapshot("initial");
@@ -3320,8 +3330,8 @@ async function runPageUiAudit(client) {
         const value = Number.parseFloat(text.replace(/[^0-9.]/g, ""));
         return Number.isFinite(value) ? value : 0;
       };
-      const textList = (selector) => Array.from(document.querySelectorAll(selector)).map((node) => node.textContent.trim());
-      const badRects = () => Array.from(document.querySelectorAll(".masthead,.notice,.workspace,.conversation-panel,.composer-panel,.model-drawer,.diagnostics-rail,.footnote,button,textarea,select,input"))
+      const textList = (selector) => Array.from(document.querySelectorAll(selector)).map((node) => node.textContent.replace(/\\s+/g, " ").trim());
+      const badRects = () => Array.from(document.querySelectorAll(".left-sidebar,.main-workspace,.advanced-options-panel,.model-toolbar,.privacy-badge,.conversation-panel,.composer-panel,.model-drawer,.diagnostics-rail,.footnote,button,textarea,select,input"))
         .filter((node) => {
           if (node.closest("[hidden]")) {
             return false;
@@ -3358,8 +3368,15 @@ async function runPageUiAudit(client) {
           h1: document.querySelector("h1") ? document.querySelector("h1").textContent.trim() : "",
           eyebrow: document.querySelector(".eyebrow") ? document.querySelector(".eyebrow").textContent.trim() : "",
           notice: document.querySelector(".notice") ? document.querySelector(".notice").textContent.trim() : "",
+          privacyBadge: document.querySelector(".privacy-badge") ? document.querySelector(".privacy-badge").textContent.replace(/\\s+/g, " ").trim() : "",
+          modelToolbar: document.querySelector(".model-toolbar") ? document.querySelector(".model-toolbar").textContent.replace(/\\s+/g, " ").trim() : "",
+          starterLabels: textList(".starter-action"),
+          presetLabels: textList(".preset-button"),
+          hasLeftSidebar: Boolean(document.querySelector(".left-sidebar")),
+          hasMainWorkspace: Boolean(document.querySelector(".main-workspace")),
+          hasAdvancedOptionsPanel: Boolean(document.querySelector(".advanced-options-panel")),
           footer: byId("appFooter") ? byId("appFooter").textContent.replace(/\\s+/g, " ").trim() : "",
-          headings: textList("h2, summary, .tab-button"),
+          headings: textList("h2, h3, summary, .tab-button"),
           labels: textList("label"),
           modelOptions: Array.from(byId("modelSelect").options).map((option) => option.textContent.trim()),
           runtimeStatus: byId("runtimeStatus").textContent,
@@ -3476,7 +3493,7 @@ async function runPageUiAudit(client) {
           resetDisabled: byId("resetButton").disabled,
           clearChatDisabled: byId("clearChatButton").disabled,
           modelSelectDisabled: byId("modelSelect").disabled,
-          panelCount: document.querySelectorAll(".conversation-panel,.composer-panel,.model-drawer,.diagnostics-rail,.run-history,.drawer-section,.tab-panel").length,
+          panelCount: document.querySelectorAll(".conversation-panel,.composer-panel,.model-drawer,.diagnostics-rail,.advanced-options-panel,.generation-card,.status-accordion,.run-history,.drawer-section,.tab-panel").length,
           badRects: badRects(),
           viewportWidth: window.innerWidth,
           viewportHeight: window.innerHeight,
@@ -7669,26 +7686,19 @@ function assertPerformanceSoak(result, networkRequests) {
 function assertUiSnapshot(snapshot, phase, viewportName) {
   const failures = [];
   const requiredHeadings = [
-    "Source Options",
-    "Model Selection",
-    "Local Model Import",
-    "Model Catalog",
-    "Conversation",
-    "Response",
-    "Model Discovery",
-    "Adapter Sidecar",
-    "Generation Parameters",
-    "Run History / State Ledger",
+    "Advanced Options",
+    "Generation Presets",
+    "Runtime Status",
     "Diagnostics",
-    "Runtime",
     "Provenance",
-    "Assembly",
-    "Module Plan",
     "Benchmark",
-    "Token Console",
-    "Teleodynamic"
+    "Adapter Sidecar",
+    "Module Plan",
+    "Run History / State Ledger"
   ];
-  const requiredLabels = ["Prompt", "Max Tokens", "Temperature", "Top K", "Top P", "Seed", "Model", "Local .slm", "Hugging Face"];
+  const requiredLabels = ["Prompt", "Max Tokens", "Temperature", "Top-K", "Top-P", "Seed", "Model", "Local .slm", "Hugging Face"];
+  const requiredStarterCards = ["Summarize this article", "Explain code", "Rewrite text", "Generate JSON"];
+  const requiredPresets = ["Balanced", "Creative", "Precise", "Code", "JSON"];
   const requiredOptions = [
     "TinyLM-16M q8_0",
     "TinyLM-16M q4_0",
@@ -7712,11 +7722,12 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
   if (snapshot.eyebrow !== "Runtime.MiRust.com / TinyRustLM") {
     failures.push(`${prefix} eyebrow was ${snapshot.eyebrow}`);
   }
-  if (
-    !snapshot.notice.includes("All inference runs locally in this browser. Prompts are not sent to a server.") ||
-    !snapshot.notice.includes("SLMComposer.com does not serve runnable model weights")
-  ) {
-    failures.push(`${prefix} local-only notice was ${snapshot.notice}`);
+  const localOnlyCopy = `${snapshot.privacyBadge} ${snapshot.notice} ${snapshot.footer}`;
+  if (!localOnlyCopy.includes("Local browser inference") || !localOnlyCopy.includes("No prompts sent to a server")) {
+    failures.push(`${prefix} privacy badge was ${snapshot.privacyBadge}`);
+  }
+  if (!localOnlyCopy.includes("SLMComposer.com does not serve runnable model weights")) {
+    failures.push(`${prefix} model-serving boundary was not visible`);
   }
   if (
     !snapshot.footer.includes("SLMComposer.com") ||
@@ -7726,13 +7737,31 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
   ) {
     failures.push(`${prefix} footer did not expose product, site, and Rust/WASM identity`);
   }
+  if (!snapshot.hasLeftSidebar || !snapshot.hasMainWorkspace || !snapshot.hasAdvancedOptionsPanel) {
+    failures.push(`${prefix} three-region dashboard flags were ${snapshot.hasLeftSidebar}/${snapshot.hasMainWorkspace}/${snapshot.hasAdvancedOptionsPanel}`);
+  }
+  for (const toolbarText of ["Llama 3 8B Instruct Q4_K_M", "Loaded locally", "WASM ready", "4096 context", "Edit Model"]) {
+    if (!snapshot.modelToolbar.includes(toolbarText)) {
+      failures.push(`${prefix} model toolbar was missing ${toolbarText}`);
+    }
+  }
+  for (const card of requiredStarterCards) {
+    if (!snapshot.starterLabels.some((text) => text.includes(card))) {
+      failures.push(`${prefix} missing starter card ${card}`);
+    }
+  }
+  for (const preset of requiredPresets) {
+    if (!snapshot.presetLabels.some((text) => text.includes(preset))) {
+      failures.push(`${prefix} missing generation preset ${preset}`);
+    }
+  }
   for (const heading of requiredHeadings) {
-    if (!snapshot.headings.includes(heading)) {
+    if (!snapshot.headings.some((text) => text.includes(heading))) {
       failures.push(`${prefix} missing heading ${heading}`);
     }
   }
   for (const label of requiredLabels) {
-    if (!snapshot.labels.includes(label)) {
+    if (!snapshot.labels.some((text) => text.includes(label))) {
       failures.push(`${prefix} missing label ${label}`);
     }
   }
@@ -7774,10 +7803,10 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
     if (!Array.isArray(snapshot.conversationItems) || snapshot.conversationItems.length !== 2) {
       failures.push(`${prefix} conversation item count was ${snapshot.conversationItems ? snapshot.conversationItems.length : "missing"}`);
     } else {
-      if (snapshot.conversationItems[0].role !== "User" || snapshot.conversationItems[0].text !== "hi") {
+      if (snapshot.conversationItems[0].role !== "You" || snapshot.conversationItems[0].text !== "hi") {
         failures.push(`${prefix} conversation user item was ${JSON.stringify(snapshot.conversationItems[0])}`);
       }
-      if (snapshot.conversationItems[1].role !== "TinyRustLM" || snapshot.conversationItems[1].text !== "e" || snapshot.conversationItems[1].isError) {
+      if (snapshot.conversationItems[1].role !== "SLM Composer" || snapshot.conversationItems[1].text !== "e" || snapshot.conversationItems[1].isError) {
         failures.push(`${prefix} conversation assistant item was ${JSON.stringify(snapshot.conversationItems[1])}`);
       }
     }
@@ -8105,27 +8134,28 @@ function assertUiAudit(result, networkRequests) {
 function assertSourceOptionsSmoke(result, networkRequests) {
   const failures = [];
   const requiredLabels = ["Your Local Files", "Hugging Face", "P2P Exchange"];
+  const requiredStarterCards = ["Summarize this article", "Explain code", "Rewrite text", "Generate JSON"];
   if (!result || !result.initial || !result.external || !result.p2p || !result.local || !result.advanced) {
     failures.push("source-option result was incomplete");
   } else {
     if (result.initial.mode !== "simple") {
       failures.push(`initial mode was ${result.initial.mode}`);
     }
-    if (!result.initial.discoveryVisible || !result.initial.localVisible) {
-      failures.push("simple source chooser was not visible on first load");
+    if (result.initial.discoveryVisible) {
+      failures.push("model source popover was open before the user requested it");
     }
-    if (result.initial.maxTokensVisible || result.initial.advancedModelVisible || result.initial.railVisible) {
-      failures.push("advanced controls were visible in initial Simple Mode");
+    if (!result.initial.maxTokensVisible || !result.initial.advancedModelVisible || !result.initial.railVisible) {
+      failures.push("advanced dashboard controls were not visible on desktop first load");
     }
     if (!result.initial.promptVisible || !result.initial.generateVisible) {
       failures.push("chat prompt and Generate were not visible in initial Simple Mode");
     }
-    if (result.initial.starterCardCount < 3) {
+    if (result.initial.starterCardCount < 4) {
       failures.push(`starter cards were missing in initial Simple Mode: ${result.initial.starterCardCount}`);
     }
-    for (const label of ["Fast & Lightweight", "Everyday Chat", "Precise & Repeatable"]) {
+    for (const label of requiredStarterCards) {
       if (!result.initial.starterLabels.some((text) => text.includes(label))) {
-        failures.push(`missing starter profile ${label}`);
+        failures.push(`missing starter action ${label}`);
       }
     }
     if (!result.initial.modeButtonLabels.some((text) => text.includes("Advanced Tools"))) {
