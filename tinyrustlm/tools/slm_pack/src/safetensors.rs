@@ -10,7 +10,7 @@ use crate::tensor_writer::{
 };
 use crate::tokenizer_writer::{BpeMergeSpec, BpeTokenSpec, ByteTokenizerSection, TokenizerSection};
 use crate::writer::align_to_64;
-use crate::{browser_bundle, provenance, trained_source};
+use crate::{browser_bundle, provenance, selector, trained_source};
 
 const SAFETENSORS_REPORT_VERSION: &str = "1";
 const SAFETENSORS_SOURCE_PLAN_VERSION: &str = "1";
@@ -22,6 +22,7 @@ const RAW_SOURCE_LAYOUT: &str = "raw-f32-tensor-files-v1";
 const MAX_HEADER_BYTES: u64 = 16 * 1024 * 1024;
 const SELECTOR_MODEL_BYTE_BUDGET: u64 = 33_554_432;
 const SELECTOR_DEFAULT_STRATEGY: &str = "browser-frugal-quantized";
+const BROWSER_ADMISSION_PREFERENCE_ORDER: &str = "q8_0,q4_0,f32";
 const SLM_HEADER_LEN: usize = 108;
 const SLM_TENSOR_ENTRY_LEN: usize = 64;
 
@@ -92,6 +93,9 @@ struct CandidateReview<'a> {
     metadata: CandidateReviewMetadata<'a>,
     source_config_artifact: ReviewArtifactEvidence,
     source_tokenizer_artifact: ReviewArtifactEvidence,
+    source_license_artifact: ReviewArtifactEvidence,
+    reference_prompt_artifact: ReviewArtifactEvidence,
+    eval_cases_artifact: ReviewArtifactEvidence,
     output_quantization: String,
     quantization_budgets: Vec<QuantizationBudgetReview>,
     browser_admission_preferred_quantization: &'static str,
@@ -129,6 +133,13 @@ enum ReviewArtifactRole {
     Tokenizer,
 }
 
+#[derive(Clone, Copy)]
+enum ReviewRouteArtifactRole {
+    License,
+    ReferencePrompt,
+    EvalCases,
+}
+
 impl ReviewArtifactRole {
     /// Returns the report-field prefix used for this review artifact.
     fn artifact_prefix(self) -> &'static str {
@@ -151,6 +162,35 @@ impl ReviewArtifactRole {
         match self {
             ReviewArtifactRole::Config => "source_config_checksum",
             ReviewArtifactRole::Tokenizer => "source_tokenizer_checksum",
+        }
+    }
+}
+
+impl ReviewRouteArtifactRole {
+    /// Returns the report-field prefix used for this routed evidence artifact.
+    fn artifact_prefix(self) -> &'static str {
+        match self {
+            ReviewRouteArtifactRole::License => "source_license",
+            ReviewRouteArtifactRole::ReferencePrompt => "reference_prompt",
+            ReviewRouteArtifactRole::EvalCases => "eval_cases",
+        }
+    }
+
+    /// Returns the candidate-review route field that points to this artifact.
+    fn route_field(self) -> &'static str {
+        match self {
+            ReviewRouteArtifactRole::License => "source_license_route",
+            ReviewRouteArtifactRole::ReferencePrompt => "reference_prompt_route",
+            ReviewRouteArtifactRole::EvalCases => "eval_cases_route",
+        }
+    }
+
+    /// Returns the artifact kind recorded in the candidate-review rows.
+    fn artifact_kind(self) -> &'static str {
+        match self {
+            ReviewRouteArtifactRole::License => "license-text",
+            ReviewRouteArtifactRole::ReferencePrompt => "reference-prompt-text",
+            ReviewRouteArtifactRole::EvalCases => "eval-cases-manifest",
         }
     }
 }
@@ -441,6 +481,8 @@ pub fn browser_bundle_path_with_eval_cases_and_review(
     candidate_review: Option<&Path>,
 ) -> io::Result<()> {
     browser_bundle::validate_converted_trained_bundle_quantization(output_quantization)?;
+    let eval_cases_path =
+        eval_cases_path_for_browser_bundle(input, candidate_review, eval_cases_path)?;
     extract_source_path_checked(
         input,
         shape_name,
@@ -450,20 +492,13 @@ pub fn browser_bundle_path_with_eval_cases_and_review(
         true,
     )?;
     trained_source::validate_source_path(output_source_dir)?;
-    if let Some(eval_cases_path) = eval_cases_path {
-        browser_bundle::write_converted_trained_bundle_path_with_eval_cases(
-            output_root,
-            output_source_dir,
-            output_quantization,
-            eval_cases_path,
-        )?;
-    } else {
-        browser_bundle::write_converted_trained_bundle_path(
-            output_root,
-            output_source_dir,
-            output_quantization,
-        )?;
-    }
+    browser_bundle::write_converted_trained_bundle_path_with_eval_cases_and_source_review(
+        output_root,
+        output_source_dir,
+        output_quantization,
+        &eval_cases_path,
+        candidate_review,
+    )?;
     println!("Safetensors browser trained bundle: PASS");
     println!("source_path: {}", input.display());
     println!("target_model_shape: {shape_name}");
@@ -471,6 +506,55 @@ pub fn browser_bundle_path_with_eval_cases_and_review(
     println!("output_root: {}", output_root.display());
     println!("output_quantization: {output_quantization}");
     Ok(())
+}
+
+/// Chooses the eval-case file for browser bundling and binds reviewed routes before extraction.
+fn eval_cases_path_for_browser_bundle(
+    input: &Path,
+    candidate_review: Option<&Path>,
+    eval_cases_path: Option<&Path>,
+) -> io::Result<PathBuf> {
+    let Some(candidate_review) = candidate_review else {
+        return Ok(eval_cases_path
+            .map(Path::to_path_buf)
+            .unwrap_or_else(default_converted_trained_eval_cases_path_for_safetensors));
+    };
+    let review_text = fs::read_to_string(candidate_review)?;
+    let fields = provenance::parse_manifest(&review_text)?;
+    let route = require_review_key(&fields, "eval_cases_route")?;
+    if route == "pending-eval-cases" {
+        return Err(invalid(
+            "review-bound browser bundle requires reviewed eval_cases_route",
+        ));
+    }
+    let Some(reviewed_eval_cases_path) = local_review_artifact_path(input, route) else {
+        return Err(invalid(
+            "review-bound browser bundle requires eval_cases_route to resolve to a local file",
+        ));
+    };
+    if let Some(eval_cases_path) = eval_cases_path {
+        let reviewed = canonical_eval_cases_path(&reviewed_eval_cases_path, "eval_cases_route")?;
+        let explicit = canonical_eval_cases_path(eval_cases_path, "explicit eval-cases path")?;
+        if reviewed != explicit {
+            return Err(invalid(
+                "browser bundle eval-cases path must match candidate review eval_cases_route",
+            ));
+        }
+        return Ok(eval_cases_path.to_path_buf());
+    }
+    Ok(reviewed_eval_cases_path)
+}
+
+/// Canonicalizes an eval-case path so explicit and reviewed routes compare by file identity.
+fn canonical_eval_cases_path(path: &Path, label: &str) -> io::Result<PathBuf> {
+    fs::canonicalize(path)
+        .map_err(|error| invalid(&format!("{label} could not be opened: {error}")))
+}
+
+fn default_converted_trained_eval_cases_path_for_safetensors() -> PathBuf {
+    // Mirrors the converted-trained bundle default while keeping review sidecar routing explicit.
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/assistant-quality-eval-cases.txt")
 }
 
 /// Reads only the safetensors prefix and header before validating offsets against file length.
@@ -1087,6 +1171,21 @@ fn build_candidate_review<'a>(
         ReviewArtifactRole::Tokenizer,
         &contract,
     )?;
+    let source_license_artifact = review_route_artifact_evidence(
+        input,
+        Some(metadata.source_license_route),
+        ReviewRouteArtifactRole::License,
+    )?;
+    let reference_prompt_artifact = review_route_artifact_evidence(
+        input,
+        metadata.reference_prompt_route,
+        ReviewRouteArtifactRole::ReferencePrompt,
+    )?;
+    let eval_cases_artifact = review_route_artifact_evidence(
+        input,
+        metadata.eval_cases_route,
+        ReviewRouteArtifactRole::EvalCases,
+    )?;
     require_exact_bpe_tokenizer_artifact(
         &contract,
         source_tokenizer_artifact.tokenizer_override.as_ref(),
@@ -1124,6 +1223,9 @@ fn build_candidate_review<'a>(
         metadata,
         source_config_artifact,
         source_tokenizer_artifact,
+        source_license_artifact,
+        reference_prompt_artifact,
+        eval_cases_artifact,
         output_quantization: output_quantization.to_string(),
         quantization_budgets,
         browser_admission_preferred_quantization,
@@ -1171,6 +1273,35 @@ fn review_artifact_evidence(
         });
     };
     validated_local_review_artifact(&path, expected_checksum, role, contract)
+}
+
+/// Builds checksum-bound evidence for local reference prompt or eval-case route files.
+fn review_route_artifact_evidence(
+    input: &Path,
+    route: Option<&str>,
+    role: ReviewRouteArtifactRole,
+) -> io::Result<ReviewArtifactEvidence> {
+    let Some(route) = route else {
+        return Ok(ReviewArtifactEvidence {
+            status: "pending-route",
+            kind: "not-local-artifact",
+            checksum: None,
+            byte_count: None,
+            detail: None,
+            tokenizer_override: None,
+        });
+    };
+    let Some(path) = local_review_artifact_path(input, route) else {
+        return Ok(ReviewArtifactEvidence {
+            status: "route-only",
+            kind: "not-local-artifact",
+            checksum: None,
+            byte_count: None,
+            detail: None,
+            tokenizer_override: None,
+        });
+    };
+    validated_local_review_route_artifact(&path, role)
 }
 
 /// Revalidates a review artifact that a candidate review recorded as local JSON evidence.
@@ -1232,6 +1363,64 @@ fn validate_review_artifact_for_fields(
     Ok(evidence.tokenizer_override)
 }
 
+/// Revalidates local prompt or eval-case evidence recorded in a candidate review.
+fn validate_review_route_artifact_for_fields(
+    fields: &HashMap<String, String>,
+    input: &Path,
+    role: ReviewRouteArtifactRole,
+) -> io::Result<()> {
+    let prefix = role.artifact_prefix();
+    let status = require_review_key(fields, &format!("{prefix}_artifact_status"))?;
+    match status {
+        "local-text-bound" => {
+            let route = require_review_key(fields, role.route_field())?;
+            let Some(path) = local_review_artifact_path(input, route) else {
+                return Err(invalid(&format!(
+                    "safetensors candidate review {prefix}_artifact_status was local-text-bound but route could not be opened"
+                )));
+            };
+            let evidence = validated_local_review_route_artifact(&path, role)?;
+            require_review_equal(
+                fields,
+                &format!("{prefix}_artifact_checksum"),
+                evidence.checksum.as_deref().unwrap_or("not-local"),
+            )?;
+            require_review_equal(
+                fields,
+                &format!("{prefix}_artifact_bytes"),
+                &evidence.byte_count.unwrap_or(0).to_string(),
+            )?;
+            require_review_equal(fields, &format!("{prefix}_artifact_kind"), evidence.kind)?;
+            require_review_equal(
+                fields,
+                &format!("{prefix}_artifact_detail"),
+                evidence.detail.as_deref().unwrap_or("not-local"),
+            )?;
+        }
+        "route-only" => {
+            require_review_equal(
+                fields,
+                &format!("{prefix}_artifact_kind"),
+                "not-local-artifact",
+            )?;
+            require_review_equal(fields, &format!("{prefix}_artifact_checksum"), "not-local")?;
+            require_review_equal(fields, &format!("{prefix}_artifact_bytes"), "not-local")?;
+            require_review_equal(fields, &format!("{prefix}_artifact_detail"), "not-local")?;
+        }
+        "pending-route" => {
+            return Err(invalid(&format!(
+                "safetensors candidate review {prefix}_artifact_status must be reviewed before extraction"
+            )));
+        }
+        _ => {
+            return Err(invalid(&format!(
+                "safetensors candidate review {prefix}_artifact_status was {status}, expected local-text-bound or route-only"
+            )));
+        }
+    }
+    Ok(())
+}
+
 /// Opens, parses, and checksum-checks a local config or tokenizer review artifact.
 fn validated_local_review_artifact(
     path: &Path,
@@ -1275,6 +1464,90 @@ fn validated_local_review_artifact(
         detail: Some(detail),
         tokenizer_override,
     })
+}
+
+/// Opens and checksum-checks a local prompt or eval-case route artifact.
+fn validated_local_review_route_artifact(
+    path: &Path,
+    role: ReviewRouteArtifactRole,
+) -> io::Result<ReviewArtifactEvidence> {
+    let bytes = fs::read(path)?;
+    let text = std::str::from_utf8(&bytes).map_err(|_| {
+        invalid(&format!(
+            "safetensors candidate review {} must be UTF-8 text",
+            role.route_field()
+        ))
+    })?;
+    let detail = review_route_artifact_detail(text, role)?;
+    Ok(ReviewArtifactEvidence {
+        status: "local-text-bound",
+        kind: role.artifact_kind(),
+        checksum: Some(hex64(provenance::text_checksum(&bytes))),
+        byte_count: Some(bytes.len() as u64),
+        detail: Some(detail),
+        tokenizer_override: None,
+    })
+}
+
+/// Summarizes local prompt or eval-case evidence without copying body text into the review.
+fn review_route_artifact_detail(text: &str, role: ReviewRouteArtifactRole) -> io::Result<String> {
+    match role {
+        ReviewRouteArtifactRole::License => license_artifact_detail(text),
+        ReviewRouteArtifactRole::ReferencePrompt => reference_prompt_artifact_detail(text),
+        ReviewRouteArtifactRole::EvalCases => eval_cases_artifact_detail(text),
+    }
+}
+
+/// Builds a compact detail row for a local source license file.
+fn license_artifact_detail(text: &str) -> io::Result<String> {
+    if text.trim().is_empty() {
+        return Err(invalid(
+            "safetensors candidate review source_license_route must not be empty",
+        ));
+    }
+    let line_count = text.lines().count().max(1);
+    Ok(format!("line_count:{line_count}"))
+}
+
+/// Builds a compact detail row for a local reference prompt file.
+fn reference_prompt_artifact_detail(text: &str) -> io::Result<String> {
+    if text.trim().is_empty() {
+        return Err(invalid(
+            "safetensors candidate review reference_prompt_route must not be empty",
+        ));
+    }
+    let line_count = text.lines().count().max(1);
+    Ok(format!("line_count:{line_count}"))
+}
+
+/// Builds a compact detail row for a local eval-cases manifest file.
+fn eval_cases_artifact_detail(text: &str) -> io::Result<String> {
+    let fields = provenance::parse_manifest(text)?;
+    let version = fields
+        .get("tinyrustlm_eval_cases_version")
+        .map(String::as_str)
+        .ok_or_else(|| invalid("eval_cases_route missing tinyrustlm_eval_cases_version"))?;
+    if version != "1" {
+        return Err(invalid(
+            "eval_cases_route tinyrustlm_eval_cases_version must be 1",
+        ));
+    }
+    let scope = fields
+        .get("scope")
+        .map(String::as_str)
+        .ok_or_else(|| invalid("eval_cases_route missing scope"))?;
+    let case_count = fields
+        .get("case_count")
+        .ok_or_else(|| invalid("eval_cases_route missing case_count"))?
+        .parse::<usize>()
+        .map_err(|_| invalid("eval_cases_route case_count must be an integer"))?;
+    if case_count == 0 {
+        return Err(invalid("eval_cases_route case_count must be positive"));
+    }
+    Ok(format!(
+        "scope:{};case_count:{case_count}",
+        artifact_detail_atom(scope)
+    ))
 }
 
 /// Resolves a review route to a local file when it is absolute, cwd-relative, or input-relative.
@@ -1400,15 +1673,16 @@ fn validate_tokenizer_artifact(
         return Ok((
             "bpe-tokenizer-json",
             tokenizer_artifact_detail(
+                object,
                 model_type,
                 Some(vocab_entries),
                 max_token_id,
                 Some(merges.len()),
-            ),
+            )?,
             tokenizer_override,
         ));
     }
-    let detail = tokenizer_artifact_detail(model_type, None, None, None);
+    let detail = tokenizer_artifact_detail(object, model_type, None, None, None)?;
     if model_type_lower.contains("unigram") {
         return Ok(("unigram-tokenizer-json", detail, None));
     }
@@ -1656,12 +1930,24 @@ fn tokenizer_vocab_stats(vocab: &[(String, JsonValue)]) -> io::Result<(usize, Op
 
 /// Summarizes tokenizer JSON fields into a stable review detail row.
 fn tokenizer_artifact_detail(
+    object: &[(String, JsonValue)],
     model_type: &str,
     vocab_entries: Option<usize>,
     max_token_id: Option<u64>,
     merge_count: Option<usize>,
-) -> String {
+) -> io::Result<String> {
+    let added_tokens = optional_array_count(
+        object,
+        "added_tokens",
+        "source_tokenizer_route added_tokens",
+    )?;
     let pairs = vec![
+        (
+            "tokenizer_version",
+            optional_string_field(object, "version")
+                .map(artifact_detail_atom)
+                .unwrap_or_else(|| "missing".to_string()),
+        ),
         ("model_type", artifact_detail_atom(model_type)),
         (
             "vocab_entries",
@@ -1674,8 +1960,58 @@ fn tokenizer_artifact_detail(
                 .unwrap_or_else(|| "not-bpe".to_string()),
         ),
         ("merge_count", artifact_detail_usize(merge_count, "not-bpe")),
+        (
+            "added_tokens",
+            artifact_detail_usize(added_tokens, "missing"),
+        ),
+        (
+            "normalizer",
+            tokenizer_pipeline_component_detail(object, "normalizer"),
+        ),
+        (
+            "pre_tokenizer",
+            tokenizer_pipeline_component_detail(object, "pre_tokenizer"),
+        ),
+        (
+            "decoder",
+            tokenizer_pipeline_component_detail(object, "decoder"),
+        ),
+        (
+            "post_processor",
+            tokenizer_pipeline_component_detail(object, "post_processor"),
+        ),
     ];
-    join_artifact_detail_pairs(&pairs)
+    Ok(join_artifact_detail_pairs(&pairs))
+}
+
+/// Counts an optional top-level tokenizer array while rejecting type drift.
+fn optional_array_count(
+    object: &[(String, JsonValue)],
+    key: &str,
+    label: &str,
+) -> io::Result<Option<usize>> {
+    match find_object_field(object, key) {
+        Some(JsonValue::Array(items)) => Ok(Some(items.len())),
+        Some(_) => Err(invalid(&format!(
+            "safetensors candidate review {label} must be an array"
+        ))),
+        None => Ok(None),
+    }
+}
+
+/// Describes optional tokenizer pipeline components without executing tokenizer code.
+fn tokenizer_pipeline_component_detail(object: &[(String, JsonValue)], key: &str) -> String {
+    match find_object_field(object, key) {
+        Some(JsonValue::Object(component)) => optional_string_field(component, "type")
+            .map(artifact_detail_atom)
+            .unwrap_or_else(|| "object".to_string()),
+        Some(JsonValue::Array(items)) => format!("array-{}", items.len()),
+        Some(JsonValue::String(value)) => artifact_detail_atom(value),
+        Some(JsonValue::Number(_)) => "number".to_string(),
+        Some(JsonValue::Bool) => "bool".to_string(),
+        Some(JsonValue::Null) => "null".to_string(),
+        None => "missing".to_string(),
+    }
 }
 
 /// Extracts the first present unsigned integer from a list of alias keys.
@@ -1775,7 +2111,7 @@ fn selector_budget_status(estimated_slm_bytes: u64) -> &'static str {
     }
 }
 
-/// Picks the reviewed target when it fits, otherwise the frugal browser fallback.
+/// Picks the reviewed target when it fits, otherwise the best quantized browser fallback.
 fn browser_admission_preference(
     output_quantization: &str,
     budgets: &[QuantizationBudgetReview],
@@ -1788,13 +2124,13 @@ fn browser_admission_preference(
     if fallback == "none" {
         Ok(("none", "no-browser-fit-quantization"))
     } else {
-        Ok((fallback, "target-exceeds-selector-budget-frugal-fit"))
+        Ok((fallback, "target-exceeds-selector-budget-quantized-fit"))
     }
 }
 
-/// Finds the first fitting quantization in the browser's frugal selector order.
+/// Finds the first fitting quantization in the reviewed browser preference order.
 fn browser_admission_fallback_quantization(budgets: &[QuantizationBudgetReview]) -> &'static str {
-    for quantization in ["q4_0", "q8_0", "f32"] {
+    for quantization in ["q8_0", "q4_0", "f32"] {
         if let Some(budget) = budgets
             .iter()
             .find(|entry| entry.quantization == quantization)
@@ -1922,6 +2258,8 @@ fn require_reviewed_source_routes(
         ReviewArtifactRole::Tokenizer,
         contract,
     )?;
+    validate_review_tokenizer_import_fields(fields, source_tokenizer_override.as_ref())?;
+    validate_review_route_artifact_for_fields(fields, input, ReviewRouteArtifactRole::License)?;
     require_exact_bpe_tokenizer_artifact(contract, source_tokenizer_override.as_ref())?;
     require_review_not_value(fields, "reference_prompt_route", "pending-reference-prompt")?;
     require_review_not_value(
@@ -1930,6 +2268,12 @@ fn require_reviewed_source_routes(
         "pending-reference-output",
     )?;
     require_review_not_value(fields, "eval_cases_route", "pending-eval-cases")?;
+    validate_review_route_artifact_for_fields(
+        fields,
+        input,
+        ReviewRouteArtifactRole::ReferencePrompt,
+    )?;
+    validate_review_route_artifact_for_fields(fields, input, ReviewRouteArtifactRole::EvalCases)?;
     Ok(ValidatedCandidateReviewGate {
         source_tokenizer_override,
     })
@@ -1966,6 +2310,11 @@ fn validate_review_budget_fields(
         "browser_admission_default_strategy",
         SELECTOR_DEFAULT_STRATEGY,
     )?;
+    require_review_equal(
+        fields,
+        "browser_admission_preference_order",
+        BROWSER_ADMISSION_PREFERENCE_ORDER,
+    )?;
     let fallback = browser_admission_fallback_quantization(&budgets);
     require_review_equal(fields, "browser_admission_fallback_quantization", fallback)?;
     for budget in &budgets {
@@ -1988,6 +2337,28 @@ fn validate_review_budget_fields(
         preferred,
     )?;
     require_review_equal(fields, "browser_admission_preference_reason", reason)?;
+    Ok(())
+}
+
+/// Recomputes imported tokenizer row evidence recorded in the candidate review.
+fn validate_review_tokenizer_import_fields(
+    fields: &HashMap<String, String>,
+    tokenizer_override: Option<&trained_source::SourceTokenizerOverride>,
+) -> io::Result<()> {
+    let (status, token_count, merge_count, checksum) =
+        tokenizer_import_evidence(tokenizer_override);
+    require_review_equal(fields, "source_tokenizer_import_status", status)?;
+    require_review_equal(
+        fields,
+        "source_tokenizer_import_token_count",
+        &token_count.to_string(),
+    )?;
+    require_review_equal(
+        fields,
+        "source_tokenizer_import_merge_count",
+        &merge_count.to_string(),
+    )?;
+    require_review_equal(fields, "source_tokenizer_import_checksum", &checksum)?;
     Ok(())
 }
 
@@ -2125,11 +2496,16 @@ fn render_candidate_review(review: &CandidateReview<'_>) -> String {
         "source_tokenizer",
         &review.source_tokenizer_artifact,
     );
+    push_source_tokenizer_import_lines(
+        &mut text,
+        review.source_tokenizer_artifact.tokenizer_override.as_ref(),
+    );
     push_line(
         &mut text,
         "source_license_route",
         review.metadata.source_license_route,
     );
+    push_review_artifact_lines(&mut text, "source_license", &review.source_license_artifact);
     push_line(
         &mut text,
         "source_file_bytes",
@@ -2221,6 +2597,11 @@ fn render_candidate_review(review: &CandidateReview<'_>) -> String {
     );
     push_line(
         &mut text,
+        "browser_admission_preference_order",
+        BROWSER_ADMISSION_PREFERENCE_ORDER,
+    );
+    push_line(
+        &mut text,
         "browser_admission_preferred_quantization",
         review.browser_admission_preferred_quantization,
     );
@@ -2267,6 +2648,11 @@ fn render_candidate_review(review: &CandidateReview<'_>) -> String {
             .reference_prompt_route
             .unwrap_or("pending-reference-prompt"),
     );
+    push_review_artifact_lines(
+        &mut text,
+        "reference_prompt",
+        &review.reference_prompt_artifact,
+    );
     push_line(
         &mut text,
         "reference_output_checksum",
@@ -2284,6 +2670,7 @@ fn render_candidate_review(review: &CandidateReview<'_>) -> String {
             .eval_cases_route
             .unwrap_or("pending-eval-cases"),
     );
+    push_review_artifact_lines(&mut text, "eval_cases", &review.eval_cases_artifact);
     push_line(&mut text, "eval_sidecar_route", "pending-eval-sidecar");
     push_line(&mut text, "required_next_gate", "extract-raw-f32-tensors");
     text
@@ -2292,7 +2679,7 @@ fn render_candidate_review(review: &CandidateReview<'_>) -> String {
 /// Validates line-based review metadata before rendering the handoff artifact.
 fn validate_candidate_review_metadata(metadata: &CandidateReviewMetadata<'_>) -> io::Result<()> {
     validate_review_value("source_model_id", metadata.source_model_id)?;
-    validate_review_value("source_model_sha", metadata.source_model_sha)?;
+    validate_source_model_sha_value("source_model_sha", metadata.source_model_sha)?;
     validate_review_checksum_value("source_config_checksum", metadata.source_config_checksum)?;
     validate_review_checksum_value(
         "source_tokenizer_checksum",
@@ -2313,6 +2700,30 @@ fn validate_candidate_review_metadata(metadata: &CandidateReviewMetadata<'_>) ->
     }
     if let Some(value) = metadata.source_tokenizer_route {
         validate_review_value("source_tokenizer_route", value)?;
+    }
+    Ok(())
+}
+
+/// Confirms a source model revision is a real SHA-shaped identity.
+fn validate_source_model_sha_value(field: &str, value: &str) -> io::Result<()> {
+    validate_review_value(field, value)?;
+    let (digest, expected_len) = if let Some(digest) = value.strip_prefix("sha256:") {
+        (digest, 64)
+    } else if let Some(digest) = value.strip_prefix("sha1:") {
+        (digest, 40)
+    } else if value.len() == 40 {
+        (value, 40)
+    } else if value.len() == 64 {
+        (value, 64)
+    } else {
+        return Err(invalid(&format!(
+            "safetensors candidate review {field} must be a 40-hex SHA-1 or 64-hex SHA-256 value, optionally prefixed with sha1: or sha256:"
+        )));
+    };
+    if digest.len() != expected_len || !digest.as_bytes().iter().all(u8::is_ascii_hexdigit) {
+        return Err(invalid(&format!(
+            "safetensors candidate review {field} must be a 40-hex SHA-1 or 64-hex SHA-256 value, optionally prefixed with sha1: or sha256:"
+        )));
     }
     Ok(())
 }
@@ -2978,6 +3389,77 @@ fn push_review_artifact_lines(text: &mut String, prefix: &str, artifact: &Review
     );
 }
 
+/// Appends the manifest-ready tokenizer rows imported from a local tokenizer JSON artifact.
+fn push_source_tokenizer_import_lines(
+    text: &mut String,
+    tokenizer_override: Option<&trained_source::SourceTokenizerOverride>,
+) {
+    let (status, token_count, merge_count, checksum) =
+        tokenizer_import_evidence(tokenizer_override);
+    push_line(text, "source_tokenizer_import_status", status);
+    push_line(
+        text,
+        "source_tokenizer_import_token_count",
+        &token_count.to_string(),
+    );
+    push_line(
+        text,
+        "source_tokenizer_import_merge_count",
+        &merge_count.to_string(),
+    );
+    push_line(text, "source_tokenizer_import_checksum", &checksum);
+}
+
+/// Computes stable evidence for tokenizer rows that will be copied into source manifests.
+fn tokenizer_import_evidence(
+    tokenizer_override: Option<&trained_source::SourceTokenizerOverride>,
+) -> (&'static str, usize, usize, String) {
+    let Some(tokenizer_override) = tokenizer_override else {
+        return ("not-imported", 0, 0, "0x0000000000000000".to_string());
+    };
+    (
+        "byte-fallback-bpe-compatible",
+        tokenizer_override.tokens.len(),
+        tokenizer_override.merges.len(),
+        tokenizer_import_checksum(tokenizer_override),
+    )
+}
+
+/// Checksums imported BPE token and merge rows independently from the source manifest.
+fn tokenizer_import_checksum(
+    tokenizer_override: &trained_source::SourceTokenizerOverride,
+) -> String {
+    let mut text = String::new();
+    for token in &tokenizer_override.tokens {
+        text.push_str("token|");
+        text.push_str(&token.id.to_string());
+        text.push('|');
+        push_hex_bytes(&mut text, &token.bytes);
+        text.push('\n');
+    }
+    for merge in &tokenizer_override.merges {
+        text.push_str("merge|");
+        text.push_str(&merge.left.to_string());
+        text.push('|');
+        text.push_str(&merge.right.to_string());
+        text.push('|');
+        text.push_str(&merge.output.to_string());
+        text.push('|');
+        text.push_str(&merge.rank.to_string());
+        text.push('\n');
+    }
+    hex64(local_checksum(text.as_bytes()))
+}
+
+/// Appends bytes as lowercase hex without relying on external crates.
+fn push_hex_bytes(text: &mut String, bytes: &[u8]) {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    for byte in bytes {
+        text.push(HEX[(byte >> 4) as usize] as char);
+        text.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+}
+
 fn candidate_review_checksum(path: &Path) -> io::Result<String> {
     // Binds the raw-source manifest to the reviewed pre-extraction gate file.
     let bytes = fs::read(path)?;
@@ -3010,6 +3492,21 @@ mod tests {
     use crate::{provenance, slm_validate};
     use std::io::Write;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    const TEST_SOURCE_SHA256: &str =
+        "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+    #[test]
+    fn accepts_source_model_sha_revision_formats() {
+        for value in [
+            TEST_SOURCE_SHA256,
+            "sha1:0123456789abcdef0123456789abcdef01234567",
+            "0123456789abcdef0123456789abcdef01234567",
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        ] {
+            validate_source_model_sha_value("source_model_sha", value).unwrap();
+        }
+    }
 
     #[test]
     fn inspects_valid_safetensors_header_and_writes_report() {
@@ -3185,7 +3682,7 @@ mod tests {
             "tiny-fixture",
             "q8_0",
             "Xenova/llama2.c-stories15M",
-            "sha256:source",
+            TEST_SOURCE_SHA256,
             "0x00000000000000c1",
             "0x00000000000000c2",
             "license-review://xenova-15m",
@@ -3202,7 +3699,7 @@ mod tests {
         assert!(review.contains("tinyrustlm_safetensors_candidate_review_version=1"));
         assert!(review.contains("review_layout=safetensors-real-trained-candidate-review-v1"));
         assert!(review.contains("source_model_id=Xenova/llama2.c-stories15M"));
-        assert!(review.contains("source_model_sha=sha256:source"));
+        assert!(review.contains(&format!("source_model_sha={TEST_SOURCE_SHA256}")));
         assert!(review.contains("source_config_checksum=0x00000000000000c1"));
         assert!(
             review.contains("source_config_route=fixtures/source-configs/xenova-15m.config.json")
@@ -3222,9 +3719,10 @@ mod tests {
         assert!(review.contains("q8_0_selector_budget_status=fits"));
         assert!(review.contains("q4_0_selector_budget_status=fits"));
         assert!(review.contains("browser_admission_default_strategy=browser-frugal-quantized"));
+        assert!(review.contains("browser_admission_preference_order=q8_0,q4_0,f32"));
         assert!(review.contains("browser_admission_preferred_quantization=q8_0"));
         assert!(review.contains("browser_admission_preference_reason=target-fits-selector-budget"));
-        assert!(review.contains("browser_admission_fallback_quantization=q4_0"));
+        assert!(review.contains("browser_admission_fallback_quantization=q8_0"));
         assert!(review.contains("module_plan_context_token_limit=16"));
         assert!(review.contains("module_plan_kv_cache_byte_budget=1024"));
         assert!(review.contains("module_plan_kv_cache_page_count=1"));
@@ -3254,7 +3752,7 @@ mod tests {
             "tiny-fixture-bpe",
             "q8_0",
             "local/tiny-bpe",
-            "sha256:tiny-bpe",
+            TEST_SOURCE_SHA256,
             &config_checksum,
             &tokenizer_checksum,
             "license-review://tiny-bpe",
@@ -3307,7 +3805,7 @@ mod tests {
             "tiny-fixture-bpe",
             "q8_0",
             "local/tiny-bpe",
-            "sha256:tiny-bpe",
+            TEST_SOURCE_SHA256,
             "0x0000000000000b01",
             "0x0000000000000b02",
             "license-review://tiny-bpe",
@@ -3341,7 +3839,7 @@ mod tests {
             "tiny-fixture-bpe",
             "q8_0",
             "local/tiny-bpe",
-            "sha256:tiny-bpe",
+            TEST_SOURCE_SHA256,
             &config_checksum,
             &tokenizer_checksum,
             "license-review://tiny-bpe",
@@ -3369,9 +3867,44 @@ mod tests {
             "source_tokenizer_artifact_checksum={tokenizer_checksum}"
         )));
         assert!(review.contains(
-            "source_tokenizer_artifact_detail=model_type:BPE;vocab_entries:6;max_token_id:261;merge_count:2"
+            "source_tokenizer_artifact_detail=tokenizer_version:1.0;model_type:BPE;vocab_entries:6;max_token_id:261;merge_count:2;added_tokens:missing;normalizer:missing;pre_tokenizer:missing;decoder:missing;post_processor:missing"
         ));
         assert!(review.contains("tokenizer_strategy=manifest-bpe-v1"));
+    }
+
+    #[test]
+    fn records_tokenizer_json_pipeline_route_evidence() {
+        let dir = unique_dir("candidate-review-tokenizer-pipeline");
+        fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("tiny-bpe-source.safetensors");
+        let review_path = dir.join("tiny-bpe.review");
+        write_template_source_extract_safetensors_with_hf_aliases(&input, "tiny-fixture-bpe");
+        let tokenizer = r#"{"version":"1.0","added_tokens":[{"id":256,"content":"<s>"},{"id":257,"content":"</s>"}],"normalizer":{"type":"NFC"},"pre_tokenizer":{"type":"Whitespace"},"decoder":{"type":"ByteLevel"},"post_processor":{"type":"TemplateProcessing"},"model":{"type":"BPE","vocab":{"<unk>":0,"t":116,"h":104,"e":101,"th":260,"the":261},"merges":["t h","th e"]}}"#;
+        let (config_route, config_checksum, tokenizer_route, tokenizer_checksum) =
+            write_local_review_artifacts_with_tokenizer(&dir, tokenizer);
+
+        review_candidate_path(
+            &input,
+            "tiny-fixture-bpe",
+            "q8_0",
+            "local/tiny-bpe-tokenizer-pipeline",
+            TEST_SOURCE_SHA256,
+            &config_checksum,
+            &tokenizer_checksum,
+            "license-review://tiny-bpe-tokenizer-pipeline",
+            &review_path,
+            Some("fixtures/reference-prompts/tiny-bpe-the.txt"),
+            Some("0x0000000000000b03"),
+            Some("fixtures/eval/tiny-bpe.eval-cases.txt"),
+            Some(&config_route),
+            Some(&tokenizer_route),
+        )
+        .unwrap();
+
+        let review = fs::read_to_string(&review_path).unwrap();
+        assert!(review.contains(
+            "source_tokenizer_artifact_detail=tokenizer_version:1.0;model_type:BPE;vocab_entries:6;max_token_id:261;merge_count:2;added_tokens:2;normalizer:NFC;pre_tokenizer:Whitespace;decoder:ByteLevel;post_processor:TemplateProcessing"
+        ));
     }
 
     #[test]
@@ -3389,7 +3922,7 @@ mod tests {
             "tiny-fixture-bpe",
             "q8_0",
             "local/tiny-bpe",
-            "sha256:tiny-bpe",
+            TEST_SOURCE_SHA256,
             "0x0000000000000000",
             &tokenizer_checksum,
             "license-review://tiny-bpe",
@@ -3421,7 +3954,7 @@ mod tests {
             "tiny-fixture-bpe",
             "q8_0",
             "local/tiny-bpe",
-            "sha256:tiny-bpe",
+            TEST_SOURCE_SHA256,
             &config_checksum,
             &tokenizer_checksum,
             "license-review://tiny-bpe",
@@ -3447,7 +3980,7 @@ mod tests {
 
         let metadata = CandidateReviewMetadata {
             source_model_id: "local/tinylm16",
-            source_model_sha: "sha256:tinylm16",
+            source_model_sha: TEST_SOURCE_SHA256,
             source_config_checksum: "0x0000000000000101",
             source_tokenizer_checksum: "0x0000000000000102",
             source_license_route: "license-review://tinylm16",
@@ -3468,16 +4001,44 @@ mod tests {
         assert!(report.contains("q8_0_selector_budget_status=fits"));
         assert!(report.contains("q4_0_selector_budget_status=fits"));
         assert!(report.contains("browser_admission_default_strategy=browser-frugal-quantized"));
-        assert!(report.contains("browser_admission_preferred_quantization=q4_0"));
+        assert!(report.contains("browser_admission_preference_order=q8_0,q4_0,f32"));
+        assert!(report.contains("browser_admission_preferred_quantization=q8_0"));
         assert!(report.contains(
-            "browser_admission_preference_reason=target-exceeds-selector-budget-frugal-fit"
+            "browser_admission_preference_reason=target-exceeds-selector-budget-quantized-fit"
         ));
-        assert!(report.contains("browser_admission_fallback_quantization=q4_0"));
+        assert!(report.contains("browser_admission_fallback_quantization=q8_0"));
         assert!(report.contains("reference_output_checksum=pending-reference-output"));
         assert!(report.contains("eval_cases_route=pending-eval-cases"));
         assert!(report.contains("module_plan_context_token_limit=512"));
         assert!(report.contains("module_plan_kv_cache_byte_budget=8388608"));
         assert!(report.contains("module_plan_kv_cache_page_count=128"));
+    }
+
+    #[test]
+    fn falls_back_to_q4_when_f32_and_q8_exceed_browser_budget() {
+        let budgets = vec![
+            QuantizationBudgetReview {
+                quantization: "f32",
+                estimated_slm_bytes: SELECTOR_MODEL_BYTE_BUDGET + 4096,
+                selector_budget_status: "exceeds",
+            },
+            QuantizationBudgetReview {
+                quantization: "q8_0",
+                estimated_slm_bytes: SELECTOR_MODEL_BYTE_BUDGET + 1,
+                selector_budget_status: "exceeds",
+            },
+            QuantizationBudgetReview {
+                quantization: "q4_0",
+                estimated_slm_bytes: SELECTOR_MODEL_BYTE_BUDGET,
+                selector_budget_status: "fits",
+            },
+        ];
+
+        let (preferred, reason) = browser_admission_preference("f32", &budgets).unwrap();
+
+        assert_eq!(preferred, "q4_0");
+        assert_eq!(reason, "target-exceeds-selector-budget-quantized-fit");
+        assert_eq!(browser_admission_fallback_quantization(&budgets), "q4_0");
     }
 
     #[test]
@@ -3493,7 +4054,7 @@ mod tests {
             "tiny-fixture",
             "q2_0",
             "local/tiny",
-            "sha256:tiny",
+            TEST_SOURCE_SHA256,
             "0x0000000000000201",
             "0x0000000000000202",
             "license-review://tiny",
@@ -3525,7 +4086,7 @@ mod tests {
             "tiny-fixture",
             "q8_0",
             "local/tiny\nextra",
-            "sha256:tiny",
+            TEST_SOURCE_SHA256,
             "0x0000000000000301",
             "0x0000000000000302",
             "license-review://tiny",
@@ -3539,6 +4100,36 @@ mod tests {
         .unwrap_err();
 
         assert!(error.to_string().contains("source_model_id"));
+        assert!(!output.exists());
+    }
+
+    #[test]
+    fn rejects_safetensors_candidate_review_invalid_source_model_sha() {
+        let dir = unique_dir("candidate-review-source-sha");
+        fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("tiny-source.safetensors");
+        let output = dir.join("tiny.review");
+        write_source_plan_safetensors(&input, "tiny-fixture", "F32", None, false);
+
+        let error = review_candidate_path(
+            &input,
+            "tiny-fixture",
+            "q8_0",
+            "local/tiny",
+            "sha256:not-a-real-source-sha",
+            "0x0000000000000401",
+            "0x0000000000000402",
+            "license-review://tiny",
+            &output,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap_err();
+
+        assert!(error.to_string().contains("source_model_sha"));
         assert!(!output.exists());
     }
 
@@ -3576,7 +4167,7 @@ mod tests {
                 "tiny-fixture",
                 "q8_0",
                 "local/tiny",
-                "sha256:tiny",
+                TEST_SOURCE_SHA256,
                 config_checksum,
                 tokenizer_checksum,
                 "license-review://tiny",
@@ -3607,7 +4198,7 @@ mod tests {
             "tiny-fixture",
             "q8_0",
             "local/tiny",
-            "sha256:tiny",
+            TEST_SOURCE_SHA256,
             "0x0000000000000401",
             "0x0000000000000402",
             "license-review://tiny",
@@ -3684,10 +4275,18 @@ mod tests {
         fs::create_dir_all(&dir).unwrap();
         let input = dir.join("tiny-hf-source.safetensors");
         let review = dir.join("tiny.review");
+        let eval_cases = dir.join("tiny.eval-cases.txt");
         let output_dir = dir.join("source");
         let root = dir.join("tinyrustlm");
         write_template_source_extract_safetensors_with_hf_aliases(&input, "tiny-fixture");
-        write_reviewed_candidate_for_test(&input, "tiny-fixture", "q4_0", &review);
+        write_fixture_eval_cases(&eval_cases, "tiny-review-bound-browser-runtime-eval");
+        write_reviewed_candidate_with_eval_cases_for_test(
+            &input,
+            "tiny-fixture",
+            "q4_0",
+            &eval_cases,
+            &review,
+        );
 
         browser_bundle_path_with_eval_cases_and_review(
             &input,
@@ -3705,12 +4304,77 @@ mod tests {
         assert!(registry.contains("entry.0.candidate_id=converted-trained-q4"));
         assert!(registry.contains("entry.0.quantization=q4_0"));
         assert!(registry.contains("entry.0.source_review_kind=safetensors-candidate-review"));
+        assert!(registry.contains(
+            "entry.0.source_review_path=../evidence/converted-trained-q4/converted-trained.source.review"
+        ));
         assert!(registry.contains("entry.0.source_review_status=validated-before-extraction"));
         assert!(registry.contains(&format!("entry.0.source_review_checksum={review_checksum}")));
         assert!(
             registry.contains("entry.0.source_review_required_next_gate=extract-raw-f32-tensors")
         );
+        let copied_review = root
+            .join("evidence")
+            .join("converted-trained-q4")
+            .join("converted-trained.source.review");
+        assert!(copied_review.exists());
+        assert_eq!(
+            candidate_review_checksum(&copied_review).unwrap(),
+            review_checksum
+        );
+        let eval = fs::read_to_string(
+            root.join("evidence")
+                .join("converted-trained-q4")
+                .join("converted-trained.eval"),
+        )
+        .unwrap();
+        assert!(eval.contains("quality_scope=tiny-review-bound-browser-runtime-eval"));
+        assert!(eval.contains(&format!("eval_cases_route={}", eval_cases.display())));
+        assert_browser_runtime_smoke_sidecar(&root, "converted-trained-q4", &registry);
         assert_browser_source_manifest_snapshot(&root, "converted-trained-q4");
+    }
+
+    // Proves browser bundle eval evidence must use the route recorded in the candidate review.
+    #[test]
+    fn rejects_browser_bundle_review_eval_cases_route_drift() {
+        let dir = unique_dir("review-bound-browser-eval-drift");
+        fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("tiny-hf-source.safetensors");
+        let review = dir.join("tiny.review");
+        let reviewed_eval_cases = dir.join("reviewed.eval-cases.txt");
+        let explicit_eval_cases = dir.join("explicit.eval-cases.txt");
+        let output_dir = dir.join("source");
+        let root = dir.join("tinyrustlm");
+        write_template_source_extract_safetensors_with_hf_aliases(&input, "tiny-fixture");
+        write_fixture_eval_cases(
+            &reviewed_eval_cases,
+            "tiny-review-bound-browser-reviewed-eval",
+        );
+        write_fixture_eval_cases(
+            &explicit_eval_cases,
+            "tiny-review-bound-browser-explicit-eval",
+        );
+        write_reviewed_candidate_with_eval_cases_for_test(
+            &input,
+            "tiny-fixture",
+            "q8_0",
+            &reviewed_eval_cases,
+            &review,
+        );
+
+        let error = browser_bundle_path_with_eval_cases_and_review(
+            &input,
+            "tiny-fixture",
+            &output_dir,
+            &root,
+            "q8_0",
+            Some(&explicit_eval_cases),
+            Some(&review),
+        )
+        .unwrap_err();
+
+        assert!(error.to_string().contains("eval_cases_route"));
+        assert!(!output_dir.exists());
+        assert!(!root.exists());
     }
 
     // Proves review-bound extraction rejects source-plan evidence drift before output exists.
@@ -3737,6 +4401,32 @@ mod tests {
         assert!(!output_dir.exists());
     }
 
+    // Proves review-bound extraction rejects browser preference order drift before output exists.
+    #[test]
+    fn rejects_review_bound_extraction_browser_preference_order_drift() {
+        let dir = unique_dir("review-bound-preference-order-drift");
+        fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("tiny-hf-source.safetensors");
+        let review = dir.join("tiny.review");
+        let output_dir = dir.join("source");
+        write_template_source_extract_safetensors_with_hf_aliases(&input, "tiny-fixture");
+        write_reviewed_candidate_for_test(&input, "tiny-fixture", "q8_0", &review);
+        rewrite_review_line(
+            &review,
+            "browser_admission_preference_order",
+            "browser_admission_preference_order=q4_0,q8_0,f32",
+        );
+
+        let error =
+            extract_source_path_with_review(&input, "tiny-fixture", &output_dir, Some(&review))
+                .unwrap_err();
+
+        assert!(error
+            .to_string()
+            .contains("browser_admission_preference_order"));
+        assert!(!output_dir.exists());
+    }
+
     // Proves local config/tokenizer artifact evidence remains checksum-bound at extraction time.
     #[test]
     fn rejects_review_bound_extraction_source_artifact_checksum_drift() {
@@ -3753,7 +4443,7 @@ mod tests {
             "tiny-fixture-bpe",
             "q8_0",
             "local/tiny-bpe",
-            "sha256:tiny-bpe",
+            TEST_SOURCE_SHA256,
             &config_checksum,
             &tokenizer_checksum,
             "license-review://tiny-bpe",
@@ -3797,7 +4487,7 @@ mod tests {
             "tiny-fixture-bpe",
             "q8_0",
             "local/tiny-bpe",
-            "sha256:tiny-bpe",
+            TEST_SOURCE_SHA256,
             &config_checksum,
             &tokenizer_checksum,
             "license-review://tiny-bpe",
@@ -3812,7 +4502,7 @@ mod tests {
         rewrite_review_line(
             &review,
             "source_tokenizer_artifact_detail",
-            "source_tokenizer_artifact_detail=model_type:BPE;vocab_entries:6;max_token_id:260;merge_count:2",
+            "source_tokenizer_artifact_detail=tokenizer_version:1.0;model_type:BPE;vocab_entries:6;max_token_id:260;merge_count:2;added_tokens:missing;normalizer:missing;pre_tokenizer:missing;decoder:missing;post_processor:missing",
         );
 
         let error =
@@ -3822,6 +4512,225 @@ mod tests {
         assert!(error
             .to_string()
             .contains("source_tokenizer_artifact_detail"));
+        assert!(!output_dir.exists());
+    }
+
+    // Proves local reference and eval routes become checksum-bearing review evidence.
+    #[test]
+    fn records_local_reference_and_eval_route_artifact_evidence() {
+        let dir = unique_dir("review-route-artifact-evidence");
+        fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("tiny-hf-source.safetensors");
+        let review = dir.join("tiny.review");
+        let reference_prompt = dir.join("reference.prompt.txt");
+        let eval_cases = dir.join("tiny.eval-cases.txt");
+        write_template_source_extract_safetensors_with_hf_aliases(&input, "tiny-fixture");
+        fs::write(&reference_prompt, "hi\n").unwrap();
+        write_fixture_eval_cases(&eval_cases, "tiny-review-route-artifact-eval");
+
+        review_candidate_path(
+            &input,
+            "tiny-fixture",
+            "q8_0",
+            "local/tiny-route-artifacts",
+            TEST_SOURCE_SHA256,
+            "0x00000000000000c1",
+            "0x00000000000000c2",
+            "license-review://tiny-route-artifacts",
+            &review,
+            Some(&reference_prompt.display().to_string()),
+            Some("0x00000000000000c3"),
+            Some(&eval_cases.display().to_string()),
+            Some("fixtures/source-configs/tiny-route-artifacts.config.json"),
+            Some("fixtures/tokenizers/tiny-route-artifacts.tokenizer.json"),
+        )
+        .unwrap();
+
+        let text = fs::read_to_string(&review).unwrap();
+        let reference_checksum = hex64(provenance::text_checksum(
+            &fs::read(&reference_prompt).unwrap(),
+        ));
+        let eval_checksum = hex64(provenance::text_checksum(&fs::read(&eval_cases).unwrap()));
+        assert!(text.contains("reference_prompt_artifact_status=local-text-bound"));
+        assert!(text.contains("reference_prompt_artifact_kind=reference-prompt-text"));
+        assert!(text.contains(&format!(
+            "reference_prompt_artifact_checksum={reference_checksum}"
+        )));
+        assert!(text.contains("reference_prompt_artifact_bytes=3"));
+        assert!(text.contains("reference_prompt_artifact_detail=line_count:1"));
+        assert!(text.contains("eval_cases_artifact_status=local-text-bound"));
+        assert!(text.contains("eval_cases_artifact_kind=eval-cases-manifest"));
+        assert!(text.contains(&format!("eval_cases_artifact_checksum={eval_checksum}")));
+        assert!(text.contains(
+            "eval_cases_artifact_detail=scope:tiny-review-route-artifact-eval;case_count:1"
+        ));
+    }
+
+    // Proves local license routes become checksum-bearing review evidence.
+    #[test]
+    fn records_local_license_route_artifact_evidence() {
+        let dir = unique_dir("review-license-route-artifact");
+        fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("tiny-hf-source.safetensors");
+        let review = dir.join("tiny.review");
+        let license = dir.join("LICENSE.txt");
+        write_template_source_extract_safetensors_with_hf_aliases(&input, "tiny-fixture");
+        fs::write(&license, "Tiny local license review.\nSecond line.\n").unwrap();
+
+        review_candidate_path(
+            &input,
+            "tiny-fixture",
+            "q8_0",
+            "local/tiny-license-artifact",
+            TEST_SOURCE_SHA256,
+            "0x00000000000000c1",
+            "0x00000000000000c2",
+            &license.display().to_string(),
+            &review,
+            Some("fixtures/reference-prompts/tiny-license-hi.txt"),
+            Some("0x00000000000000c3"),
+            Some("fixtures/eval/tiny-license.eval-cases.txt"),
+            Some("fixtures/source-configs/tiny-license.config.json"),
+            Some("fixtures/tokenizers/tiny-license.tokenizer.json"),
+        )
+        .unwrap();
+
+        let text = fs::read_to_string(&review).unwrap();
+        let license_bytes = fs::read(&license).unwrap();
+        let license_checksum = hex64(provenance::text_checksum(&license_bytes));
+        assert!(text.contains("source_license_artifact_status=local-text-bound"));
+        assert!(text.contains("source_license_artifact_kind=license-text"));
+        assert!(text.contains(&format!(
+            "source_license_artifact_checksum={license_checksum}"
+        )));
+        assert!(text.contains(&format!(
+            "source_license_artifact_bytes={}",
+            license_bytes.len()
+        )));
+        assert!(text.contains("source_license_artifact_detail=line_count:2"));
+    }
+
+    // Proves reviewed local license evidence is rechecked before extraction writes tensors.
+    #[test]
+    fn rejects_review_bound_extraction_license_artifact_drift() {
+        let dir = unique_dir("review-bound-license-drift");
+        fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("tiny-bpe-source.safetensors");
+        let review = dir.join("tiny-bpe.review");
+        let output_dir = dir.join("source");
+        let license = dir.join("LICENSE.txt");
+        write_template_source_extract_safetensors_with_hf_aliases(&input, "tiny-fixture-bpe");
+        fs::write(&license, "Tiny local license review.\n").unwrap();
+        let (config_route, config_checksum, tokenizer_route, tokenizer_checksum) =
+            write_local_review_artifacts(&dir, "BPE");
+        review_candidate_path(
+            &input,
+            "tiny-fixture-bpe",
+            "q8_0",
+            "local/tiny-bpe-license-drift",
+            TEST_SOURCE_SHA256,
+            &config_checksum,
+            &tokenizer_checksum,
+            &license.display().to_string(),
+            &review,
+            Some("fixtures/reference-prompts/tiny-bpe-the.txt"),
+            Some("0x0000000000000b03"),
+            Some("fixtures/eval/tiny-bpe.eval-cases.txt"),
+            Some(&config_route),
+            Some(&tokenizer_route),
+        )
+        .unwrap();
+        fs::write(&license, "Changed local license review.\n").unwrap();
+
+        let error =
+            extract_source_path_with_review(&input, "tiny-fixture-bpe", &output_dir, Some(&review))
+                .unwrap_err();
+
+        assert!(error
+            .to_string()
+            .contains("source_license_artifact_checksum"));
+        assert!(!output_dir.exists());
+    }
+
+    // Proves reference prompt route drift is rejected before raw source output is written.
+    #[test]
+    fn rejects_review_bound_extraction_reference_prompt_artifact_drift() {
+        let dir = unique_dir("review-reference-prompt-drift");
+        fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("tiny-hf-source.safetensors");
+        let review = dir.join("tiny.review");
+        let reference_prompt = dir.join("reference.prompt.txt");
+        let eval_cases = dir.join("tiny.eval-cases.txt");
+        let output_dir = dir.join("source");
+        write_template_source_extract_safetensors_with_hf_aliases(&input, "tiny-fixture");
+        fs::write(&reference_prompt, "hi\n").unwrap();
+        write_fixture_eval_cases(&eval_cases, "tiny-reference-prompt-drift-eval");
+        review_candidate_path(
+            &input,
+            "tiny-fixture",
+            "q8_0",
+            "local/tiny-reference-prompt-drift",
+            TEST_SOURCE_SHA256,
+            "0x00000000000000c1",
+            "0x00000000000000c2",
+            "license-review://tiny-reference-prompt-drift",
+            &review,
+            Some(&reference_prompt.display().to_string()),
+            Some("0x00000000000000c3"),
+            Some(&eval_cases.display().to_string()),
+            Some("fixtures/source-configs/tiny-reference-prompt-drift.config.json"),
+            Some("fixtures/tokenizers/tiny-reference-prompt-drift.tokenizer.json"),
+        )
+        .unwrap();
+        fs::write(&reference_prompt, "changed\n").unwrap();
+
+        let error =
+            extract_source_path_with_review(&input, "tiny-fixture", &output_dir, Some(&review))
+                .unwrap_err();
+
+        assert!(error
+            .to_string()
+            .contains("reference_prompt_artifact_checksum"));
+        assert!(!output_dir.exists());
+    }
+
+    // Proves eval-case route drift is rejected before raw source output is written.
+    #[test]
+    fn rejects_review_bound_extraction_eval_cases_artifact_drift() {
+        let dir = unique_dir("review-eval-cases-drift");
+        fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("tiny-hf-source.safetensors");
+        let review = dir.join("tiny.review");
+        let reference_prompt = dir.join("reference.prompt.txt");
+        let eval_cases = dir.join("tiny.eval-cases.txt");
+        let output_dir = dir.join("source");
+        write_template_source_extract_safetensors_with_hf_aliases(&input, "tiny-fixture");
+        fs::write(&reference_prompt, "hi\n").unwrap();
+        write_fixture_eval_cases(&eval_cases, "tiny-eval-cases-drift-before");
+        review_candidate_path(
+            &input,
+            "tiny-fixture",
+            "q8_0",
+            "local/tiny-eval-cases-drift",
+            TEST_SOURCE_SHA256,
+            "0x00000000000000c1",
+            "0x00000000000000c2",
+            "license-review://tiny-eval-cases-drift",
+            &review,
+            Some(&reference_prompt.display().to_string()),
+            Some("0x00000000000000c3"),
+            Some(&eval_cases.display().to_string()),
+            Some("fixtures/source-configs/tiny-eval-cases-drift.config.json"),
+            Some("fixtures/tokenizers/tiny-eval-cases-drift.tokenizer.json"),
+        )
+        .unwrap();
+        write_fixture_eval_cases(&eval_cases, "tiny-eval-cases-drift-after");
+
+        let error =
+            extract_source_path_with_review(&input, "tiny-fixture", &output_dir, Some(&review))
+                .unwrap_err();
+
+        assert!(error.to_string().contains("eval_cases_artifact_checksum"));
         assert!(!output_dir.exists());
     }
 
@@ -3844,7 +4753,7 @@ mod tests {
             "tiny-fixture-bpe",
             "q8_0",
             "local/tiny-bpe-custom-tokenizer",
-            "sha256:tiny-bpe-custom-tokenizer",
+            TEST_SOURCE_SHA256,
             &config_checksum,
             &tokenizer_checksum,
             "license-review://tiny-bpe",
@@ -3864,8 +4773,17 @@ mod tests {
             .parse::<u64>()
             .unwrap();
         assert!(review_text.contains(
-            "source_tokenizer_artifact_detail=model_type:BPE;vocab_entries:4;max_token_id:260;merge_count:1"
+            "source_tokenizer_artifact_detail=tokenizer_version:1.0;model_type:BPE;vocab_entries:4;max_token_id:260;merge_count:1;added_tokens:missing;normalizer:missing;pre_tokenizer:missing;decoder:missing;post_processor:missing"
         ));
+        assert!(review_text.contains("source_tokenizer_import_status=byte-fallback-bpe-compatible"));
+        assert!(review_text.contains("source_tokenizer_import_token_count=1"));
+        assert!(review_text.contains("source_tokenizer_import_merge_count=1"));
+        let import_checksum = review_fields
+            .get("source_tokenizer_import_checksum")
+            .map(String::as_str)
+            .unwrap();
+        assert!(import_checksum.starts_with("0x"));
+        assert_ne!(import_checksum, "0x0000000000000000");
 
         convert_source_path_with_review(
             &input,
@@ -3905,7 +4823,7 @@ mod tests {
             "tiny-fixture-bpe",
             "q8_0",
             "local/tiny-bpe-bytelevel",
-            "sha256:tiny-bpe-bytelevel",
+            TEST_SOURCE_SHA256,
             &config_checksum,
             &tokenizer_checksum,
             "license-review://tiny-bpe",
@@ -3922,6 +4840,53 @@ mod tests {
         assert!(!review.exists());
     }
 
+    // Proves imported tokenizer row evidence remains checksum-bound at extraction time.
+    #[test]
+    fn rejects_review_bound_extraction_tokenizer_import_checksum_drift() {
+        let dir = unique_dir("review-bound-bpe-import-drift");
+        fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("tiny-bpe-source.safetensors");
+        let review = dir.join("tiny-bpe.review");
+        let output_dir = dir.join("source");
+        write_template_source_extract_safetensors_with_hf_aliases(&input, "tiny-fixture-bpe");
+        let tokenizer = r#"{"version":"1.0","model":{"type":"BPE","vocab":{"<unk>":0,"t":116,"o":111,"to":260},"merges":["t o"]}}"#;
+        let (config_route, config_checksum, tokenizer_route, tokenizer_checksum) =
+            write_local_review_artifacts_with_tokenizer(&dir, tokenizer);
+
+        review_candidate_path(
+            &input,
+            "tiny-fixture-bpe",
+            "q8_0",
+            "local/tiny-bpe-import-drift",
+            TEST_SOURCE_SHA256,
+            &config_checksum,
+            &tokenizer_checksum,
+            "license-review://tiny-bpe",
+            &review,
+            Some("fixtures/reference-prompts/tiny-bpe-to.txt"),
+            Some("0x0000000000000b06"),
+            Some("fixtures/eval/tiny-bpe.eval-cases.txt"),
+            Some(&config_route),
+            Some(&tokenizer_route),
+        )
+        .unwrap();
+        let text = fs::read_to_string(&review).unwrap();
+        let drifted = text.replace(
+            "source_tokenizer_import_checksum=",
+            "source_tokenizer_import_checksum=0x0000000000000000 # ",
+        );
+        fs::write(&review, drifted).unwrap();
+
+        let error =
+            extract_source_path_with_review(&input, "tiny-fixture-bpe", &output_dir, Some(&review))
+                .unwrap_err();
+
+        assert!(error
+            .to_string()
+            .contains("source_tokenizer_import_checksum"));
+        assert!(!output_dir.exists());
+    }
+
     // Proves placeholder source or eval routes cannot pass the review-bound extraction gate.
     #[test]
     fn rejects_review_bound_extraction_with_pending_routes() {
@@ -3936,7 +4901,7 @@ mod tests {
             "tiny-fixture",
             "q8_0",
             "Xenova/llama2.c-stories15M",
-            "sha256:source",
+            TEST_SOURCE_SHA256,
             "0x00000000000000c1",
             "0x00000000000000c2",
             "license-review://xenova-15m",
@@ -3964,10 +4929,18 @@ mod tests {
         fs::create_dir_all(&dir).unwrap();
         let input = dir.join("tiny-hf-source.safetensors");
         let review = dir.join("tiny.review");
+        let eval_cases = dir.join("tiny.eval-cases.txt");
         let output_dir = dir.join("source");
         let root = dir.join("tinyrustlm");
         write_template_source_extract_safetensors_with_hf_aliases(&input, "tiny-fixture");
-        write_reviewed_candidate_for_test(&input, "tiny-fixture", "q8_0", &review);
+        write_fixture_eval_cases(&eval_cases, "tiny-review-bound-browser-quant-drift-eval");
+        write_reviewed_candidate_with_eval_cases_for_test(
+            &input,
+            "tiny-fixture",
+            "q8_0",
+            &eval_cases,
+            &review,
+        );
 
         let error = browser_bundle_path_with_eval_cases_and_review(
             &input,
@@ -4203,6 +5176,7 @@ mod tests {
         .unwrap();
         assert!(eval.contains("cases_passed=2"));
         assert!(eval.contains("case.1.actual=eeee"));
+        assert_browser_runtime_smoke_sidecar(&root, "converted-trained-q8", &registry);
         assert_browser_source_manifest_snapshot(&root, "converted-trained-q8");
         assert_browser_runtime_manifest(&root);
     }
@@ -4229,14 +5203,14 @@ mod tests {
             "tiny-fixture-bpe",
             "q8_0",
             "local/tiny-bpe",
-            "sha256:tiny-bpe",
+            TEST_SOURCE_SHA256,
             &config_checksum,
             &tokenizer_checksum,
             "license-review://tiny-bpe",
             &review,
             Some("fixtures/reference-prompts/tiny-bpe-the.txt"),
             Some("0x0000000000000b03"),
-            Some("fixtures/eval/tiny-bpe.eval-cases.txt"),
+            Some(&eval_cases.display().to_string()),
             Some(&config_route),
             Some(&tokenizer_route),
         )
@@ -4259,7 +5233,19 @@ mod tests {
         assert!(registry.contains("entry.0.candidate_id=converted-trained-q8"));
         assert!(registry.contains("entry.0.quantization=q8_0"));
         assert!(registry.contains("entry.0.source_manifest_model_shape=tiny-fixture-bpe"));
+        assert!(registry.contains(
+            "entry.0.source_review_path=../evidence/converted-trained-q8/converted-trained.source.review"
+        ));
         assert!(registry.contains(&format!("entry.0.source_review_checksum={review_checksum}")));
+        let copied_review = root
+            .join("evidence")
+            .join("converted-trained-q8")
+            .join("converted-trained.source.review");
+        assert!(copied_review.exists());
+        assert_eq!(
+            candidate_review_checksum(&copied_review).unwrap(),
+            review_checksum
+        );
         let output_slm = root.join("models").join("converted-trained-q8.slm");
         let bytes = fs::read(&output_slm).unwrap();
         assert_eq!(&bytes[SLM_HEADER_LEN..SLM_HEADER_LEN + 4], b"BPE1");
@@ -4273,13 +5259,176 @@ mod tests {
         )
         .unwrap();
         assert!(eval.contains("quality_scope=tiny-bpe-fixture-runtime-eval-only"));
+        assert!(eval.contains(&format!("eval_cases_route={}", eval_cases.display())));
         assert!(eval.contains("cases_passed=1"));
         assert!(eval.contains("case.0.actual=e"));
+        assert_browser_runtime_smoke_sidecar(&root, "converted-trained-q8", &registry);
         assert_browser_source_manifest_snapshot_shape(
             &root,
             "converted-trained-q8",
             "tiny-fixture-bpe",
         );
+        assert_browser_runtime_manifest(&root);
+    }
+
+    #[test]
+    fn runs_reviewed_bpe_safetensors_local_pipeline_to_all_browser_admission() {
+        let dir = unique_dir("reviewed-bpe-local-pipeline");
+        fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("tiny-bpe-source.safetensors");
+        let inspect_report = dir.join("tiny-bpe.inspect");
+        let source_plan = dir.join("tiny-bpe.source.plan");
+        let review = dir.join("tiny-bpe.review");
+        let extracted_source = dir.join("reviewed-source");
+        let converted_source = dir.join("converted-source");
+        let converted_q8 = dir.join("tiny-bpe-q8.slm");
+        let browser_source = dir.join("browser-source");
+        let root = dir.join("tinyrustlm");
+        let eval_cases = dir.join("tiny-bpe.eval-cases.txt");
+        write_template_source_extract_safetensors_with_hf_aliases(&input, "tiny-fixture-bpe");
+        fs::write(
+            &eval_cases,
+            "tinyrustlm_eval_cases_version=1\nscope=tiny-bpe-reviewed-local-pipeline-runtime-eval\nquality_boundary=fixture-runtime-and-eval-plumbing-not-product-assistant-quality\nsafety_review_status=pass\nquality_decision=accepted-for-assistant-quality\nevaluator=unit-test-evaluator\neval_summary=Reviewed local BPE safetensors pipeline evidence.\ncase_count=1\ncase.0.prompt=the\ncase.0.max_new_tokens=1\ncase.0.expected_text=e\ncase.0.required_result=exact\n",
+        )
+        .unwrap();
+        let (config_route, config_checksum, tokenizer_route, tokenizer_checksum) =
+            write_local_review_artifacts(&dir, "BPE");
+
+        inspect_path(&input, Some(&inspect_report)).unwrap();
+        plan_source_path(&input, "tiny-fixture-bpe", Some(&source_plan)).unwrap();
+        review_candidate_path(
+            &input,
+            "tiny-fixture-bpe",
+            "q8_0",
+            "local/tiny-bpe-reviewed-fixture",
+            TEST_SOURCE_SHA256,
+            &config_checksum,
+            &tokenizer_checksum,
+            "license-review://tiny-bpe-reviewed-fixture",
+            &review,
+            Some("fixtures/reference-prompts/tiny-bpe-the.txt"),
+            Some("0x0000000000000b03"),
+            Some(&eval_cases.display().to_string()),
+            Some(&config_route),
+            Some(&tokenizer_route),
+        )
+        .unwrap();
+        extract_source_path_with_review(
+            &input,
+            "tiny-fixture-bpe",
+            &extracted_source,
+            Some(&review),
+        )
+        .unwrap();
+        trained_source::validate_source_path(&extracted_source).unwrap();
+        convert_source_path_with_review(
+            &input,
+            "tiny-fixture-bpe",
+            &converted_source,
+            &converted_q8,
+            "q8_0",
+            Some(&review),
+        )
+        .unwrap();
+        browser_bundle_path_with_eval_cases_and_review(
+            &input,
+            "tiny-fixture-bpe",
+            &browser_source,
+            &root,
+            "all",
+            Some(&eval_cases),
+            Some(&review),
+        )
+        .unwrap();
+
+        let inspect = fs::read_to_string(&inspect_report).unwrap();
+        assert!(inspect.contains("tinyrustlm_safetensors_inspection_version=1"));
+        assert!(inspect.contains("source_layout=safetensors-v1"));
+        let plan = fs::read_to_string(&source_plan).unwrap();
+        assert!(plan.contains("tinyrustlm_safetensors_source_plan_version=1"));
+        assert!(plan.contains("plan_layout=safetensors-to-raw-f32-source-plan-v1"));
+        assert!(plan.contains("target_model_shape=tiny-fixture-bpe"));
+        assert!(plan.contains("conversion_status=copy-ready"));
+        let review_text = fs::read_to_string(&review).unwrap();
+        let review_checksum = candidate_review_checksum(&review).unwrap();
+        assert!(review_text.contains("source_model_id=local/tiny-bpe-reviewed-fixture"));
+        assert!(review_text.contains("tokenizer_strategy=manifest-bpe-v1"));
+        assert!(review_text.contains("browser_admission_preferred_quantization=q8_0"));
+        assert!(review_text.contains("required_next_gate=extract-raw-f32-tensors"));
+        assert!(fs::read_to_string(extracted_source.join("source.manifest"))
+            .unwrap()
+            .contains(&format!("source_review_checksum={review_checksum}")));
+        let converted_bytes = fs::read(&converted_q8).unwrap();
+        assert_eq!(
+            &converted_bytes[SLM_HEADER_LEN..SLM_HEADER_LEN + 4],
+            b"BPE1"
+        );
+        let converted_report =
+            slm_validate::validate_bytes(&converted_bytes, &converted_q8.display().to_string())
+                .unwrap();
+        assert_eq!(converted_report.quantization_label(), "q8_0");
+        provenance::validate_manifest_path(&converted_q8, &slm_manifest_path(&converted_q8))
+            .unwrap();
+
+        let registry_path = root.join("models").join("selector.registry");
+        let registry = fs::read_to_string(&registry_path).unwrap();
+        assert!(registry.contains("entry_count=3"));
+        assert!(registry.contains("selector_default_candidate_id=converted-trained-q4"));
+        let mut admission_paths = Vec::new();
+        for (candidate_id, quantization) in [
+            ("converted-trained-f32", "f32"),
+            ("converted-trained-q8", "q8_0"),
+            ("converted-trained-q4", "q4_0"),
+        ] {
+            admission_paths.push(
+                root.join("evidence")
+                    .join(candidate_id)
+                    .join("converted-trained.admission")
+                    .display()
+                    .to_string(),
+            );
+            assert!(registry.contains(&format!("candidate_id={candidate_id}")));
+            assert!(registry.contains(&format!("quantization={quantization}")));
+            assert!(registry.contains(&format!(
+                "source_review_path=../evidence/{candidate_id}/converted-trained.source.review"
+            )));
+            assert!(registry.contains(&format!("source_review_checksum={review_checksum}")));
+            let candidate_bytes =
+                fs::read(root.join("models").join(format!("{candidate_id}.slm"))).unwrap();
+            let candidate_report =
+                slm_validate::validate_bytes(&candidate_bytes, &format!("{candidate_id}.slm"))
+                    .unwrap();
+            assert_eq!(candidate_report.quantization_label(), quantization);
+            assert_eq!(
+                &candidate_bytes[SLM_HEADER_LEN..SLM_HEADER_LEN + 4],
+                b"BPE1"
+            );
+            let copied_review = root
+                .join("evidence")
+                .join(candidate_id)
+                .join("converted-trained.source.review");
+            assert_eq!(
+                candidate_review_checksum(&copied_review).unwrap(),
+                review_checksum
+            );
+            let eval = fs::read_to_string(
+                root.join("evidence")
+                    .join(candidate_id)
+                    .join("converted-trained.eval"),
+            )
+            .unwrap();
+            assert!(eval.contains("quality_scope=tiny-bpe-reviewed-local-pipeline-runtime-eval"));
+            assert!(eval.contains(&format!("eval_cases_route={}", eval_cases.display())));
+            assert!(eval.contains("cases_passed=1"));
+            assert!(eval.contains("case.0.actual=e"));
+            assert_browser_runtime_smoke_sidecar(root.as_path(), candidate_id, &registry);
+            assert_browser_source_manifest_snapshot_shape(
+                root.as_path(),
+                candidate_id,
+                "tiny-fixture-bpe",
+            );
+        }
+        selector::validate_registry_path(&registry_path, &admission_paths).unwrap();
         assert_browser_runtime_manifest(&root);
     }
 
@@ -4323,6 +5472,7 @@ mod tests {
             )
             .unwrap();
             assert!(eval.contains("cases_passed=2"));
+            assert_browser_runtime_smoke_sidecar(&root, candidate_id, &registry);
             assert_browser_source_manifest_snapshot(&root, candidate_id);
         }
         assert_browser_runtime_manifest(&root);
@@ -4699,6 +5849,26 @@ mod tests {
         assert!(manifest.contains("runtime_wasm_checksum=0x"));
     }
 
+    // Confirms selector admission exposes the converted-trained runtime-smoke sidecar.
+    fn assert_browser_runtime_smoke_sidecar(root: &Path, candidate_id: &str, registry: &str) {
+        let runtime = fs::read_to_string(
+            root.join("evidence")
+                .join(candidate_id)
+                .join("converted-trained.runtime"),
+        )
+        .unwrap();
+        assert!(runtime.contains("gate=runtime-smoke"));
+        assert!(runtime.contains("source_kind=converted-trained"));
+        assert!(runtime.contains("runtime_smoke_status=pass"));
+        assert!(registry.contains(&format!(
+            "runtime_smoke_path=../evidence/{candidate_id}/converted-trained.runtime"
+        )));
+        let runtime_checksum = hex64(provenance::text_checksum(runtime.as_bytes()));
+        assert!(registry.contains(&format!(
+            "runtime_smoke_manifest_checksum={runtime_checksum}"
+        )));
+    }
+
     // Confirms safetensors-generated browser roots carry their reviewed source manifest snapshot.
     fn assert_browser_source_manifest_snapshot(root: &Path, candidate_id: &str) {
         assert_browser_source_manifest_snapshot_shape(root, candidate_id, "tiny-fixture");
@@ -4736,7 +5906,7 @@ mod tests {
             shape_name,
             quantization,
             "Xenova/llama2.c-stories15M",
-            "sha256:source",
+            TEST_SOURCE_SHA256,
             "0x00000000000000c1",
             "0x00000000000000c2",
             "license-review://xenova-15m",
@@ -4746,6 +5916,44 @@ mod tests {
             Some("fixtures/eval/xenova-15m.eval-cases.txt"),
             Some("fixtures/source-configs/xenova-15m.config.json"),
             Some("fixtures/tokenizers/xenova-15m.tokenizer.json"),
+        )
+        .unwrap();
+    }
+
+    // Writes a candidate review whose eval route resolves to a local browser eval-case file.
+    fn write_reviewed_candidate_with_eval_cases_for_test(
+        input: &Path,
+        shape_name: &str,
+        quantization: &str,
+        eval_cases_path: &Path,
+        output_review: &Path,
+    ) {
+        review_candidate_path(
+            input,
+            shape_name,
+            quantization,
+            "Xenova/llama2.c-stories15M",
+            TEST_SOURCE_SHA256,
+            "0x00000000000000c1",
+            "0x00000000000000c2",
+            "license-review://xenova-15m",
+            output_review,
+            Some("fixtures/reference-prompts/xenova-15m-hi.txt"),
+            Some("0x00000000000000c3"),
+            Some(&eval_cases_path.display().to_string()),
+            Some("fixtures/source-configs/xenova-15m.config.json"),
+            Some("fixtures/tokenizers/xenova-15m.tokenizer.json"),
+        )
+        .unwrap();
+    }
+
+    // Writes a one-case deterministic eval file that matches the tiny fixture output.
+    fn write_fixture_eval_cases(path: &Path, scope: &str) {
+        fs::write(
+            path,
+            format!(
+                "tinyrustlm_eval_cases_version=1\nscope={scope}\nquality_boundary=fixture-runtime-and-eval-plumbing-not-product-assistant-quality\nsafety_review_status=pass\nquality_decision=accepted-for-assistant-quality\nevaluator=unit-test-evaluator\neval_summary=Review-bound browser eval route fixture.\ncase_count=1\ncase.0.prompt=hi\ncase.0.max_new_tokens=1\ncase.0.expected_text=e\ncase.0.required_result=exact\n"
+            ),
         )
         .unwrap();
     }

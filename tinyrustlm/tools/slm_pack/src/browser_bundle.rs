@@ -74,6 +74,11 @@ const MODULE_PLAN_TOTAL_BYTE_BUDGET_LIMIT: u64 = 32 * 1024 * 1024
 const SOURCE_KIND: &str = "converted-trained";
 const SOURCE_MANIFEST_KIND: &str = "trained-source-manifest";
 const SOURCE_MANIFEST_STATUS: &str = "reviewed-source-snapshot";
+const SOURCE_VALIDATION_VERSION: &str = "1";
+const SOURCE_VALIDATION_GATE: &str = "validate-source";
+const SOURCE_VALIDATION_STATUS: &str = "pass";
+const SOURCE_VALIDATION_DECISION: &str = "accepted-for-conversion";
+const SOURCE_VALIDATION_NEXT_GATE: &str = "convert-raw-f32-source-to-slm";
 const APP_FILES: [&str; 3] = ["index.html", "app.css", "app.js"];
 const RUNTIME_WASM_FILE: &str = "tinyrustlm.wasm";
 const RUNTIME_WASM_MANIFEST_FILE: &str = "tinyrustlm.wasm.manifest";
@@ -384,6 +389,22 @@ pub(crate) fn write_converted_trained_bundle_path_with_eval_cases(
     quantization: &str,
     eval_cases_path: &Path,
 ) -> io::Result<()> {
+    write_converted_trained_bundle_path_with_eval_cases_and_source_review(
+        root,
+        source_dir,
+        quantization,
+        eval_cases_path,
+        None,
+    )
+}
+
+pub(crate) fn write_converted_trained_bundle_path_with_eval_cases_and_source_review(
+    root: &Path,
+    source_dir: &Path,
+    quantization: &str,
+    eval_cases_path: &Path,
+    source_review_path: Option<&Path>,
+) -> io::Result<()> {
     let quantizations = converted_trained_quantizations(quantization)?;
     let models = root.join("models");
     let evidence_root = root.join("evidence");
@@ -400,6 +421,7 @@ pub(crate) fn write_converted_trained_bundle_path_with_eval_cases(
             source_dir,
             entry_quantization,
             eval_cases_path,
+            source_review_path,
         )?;
         admission_paths.push(admission_path);
         candidate_paths.push(candidate_path);
@@ -432,6 +454,7 @@ fn write_converted_trained_bundle_entry(
     source_dir: &Path,
     quantization: &str,
     eval_cases_path: &Path,
+    source_review_path: Option<&Path>,
 ) -> io::Result<(String, PathBuf)> {
     // Stages one converted source artifact and the evidence chain consumed by selector.registry.
     let candidate_id = converted_trained_candidate_id(quantization)?;
@@ -449,7 +472,19 @@ fn write_converted_trained_bundle_entry(
     let admission_path = evidence.join("converted-trained.admission");
 
     trained_source::convert_trained_path(source_dir, &candidate_path, quantization)?;
-    let source_manifest = write_converted_trained_source_manifest_snapshot(source_dir, &evidence)?;
+    let mut source_manifest =
+        write_converted_trained_source_manifest_snapshot(source_dir, &evidence)?;
+    write_converted_trained_source_review_snapshot(
+        &evidence,
+        candidate_id,
+        source_review_path,
+        &mut source_manifest,
+    )?;
+    let source_validation = write_converted_trained_source_validation_snapshot(
+        &evidence,
+        candidate_id,
+        &source_manifest,
+    )?;
     provenance::validate_manifest_path(&candidate_path, &provenance_path)?;
     compatibility::report_path(&candidate_path, &candidate_path, Some(&compatibility_path))?;
     lineage::write_template_path(
@@ -483,6 +518,7 @@ fn write_converted_trained_bundle_entry(
         eval_cases_path,
         &eval_path,
     )?;
+    append_reviewed_eval_cases_route(&eval_path, source_review_path)?;
     if !eval_outcome.passed {
         return Err(invalid(&format!(
             "converted-trained browser bundle eval failed: {} passed, {} failed",
@@ -508,11 +544,18 @@ fn write_converted_trained_bundle_entry(
         admission::DEFAULT_ADMISSION_SELECTOR_ID,
         None,
     )?;
+    append_converted_trained_admission_route(&admission_path, candidate_id)?;
     append_converted_trained_source_manifest_route(
         &admission_path,
         candidate_id,
         &source_manifest,
     )?;
+    append_converted_trained_source_validation_route(
+        &admission_path,
+        candidate_id,
+        &source_validation,
+    )?;
+    append_converted_trained_runtime_smoke_route(&admission_path, candidate_id)?;
     append_converted_trained_eval_route(&admission_path, candidate_id)?;
 
     Ok((display_path(&admission_path), candidate_path))
@@ -528,14 +571,39 @@ struct ConvertedTrainedSourceManifestSnapshot {
     source_kind: String,
     source_id: String,
     model_shape: String,
+    source_dtype: String,
+    tied_output: String,
+    tensor_count: String,
     source_review: Option<ConvertedTrainedSourceReviewSnapshot>,
 }
 
 struct ConvertedTrainedSourceReviewSnapshot {
     kind: String,
+    path: Option<String>,
     status: String,
     checksum: String,
     required_next_gate: String,
+}
+
+struct ConvertedTrainedSourceValidationSnapshot {
+    checksum: String,
+}
+
+fn append_converted_trained_admission_route(
+    admission_path: &Path,
+    candidate_id: &str,
+) -> io::Result<()> {
+    // Carries the selector admission sidecar as a browser-verifiable route on the record itself.
+    let mut admission = fs::read_to_string(admission_path)?;
+    if !admission.ends_with('\n') {
+        admission.push('\n');
+    }
+    push_line(
+        &mut admission,
+        "admission_path",
+        &converted_trained_admission_registry_path(candidate_id),
+    );
+    fs::write(admission_path, admission)
 }
 
 fn write_converted_trained_source_manifest_snapshot(
@@ -552,7 +620,60 @@ fn write_converted_trained_source_manifest_snapshot(
         source_kind: manifest_field(&fields, "source_kind")?.to_string(),
         source_id: manifest_field(&fields, "source_id")?.to_string(),
         model_shape: manifest_field(&fields, "model_shape")?.to_string(),
+        source_dtype: manifest_field(&fields, "source_dtype")?.to_string(),
+        tied_output: manifest_field(&fields, "tied_output")?.to_string(),
+        tensor_count: manifest_field(&fields, "tensor_count")?.to_string(),
         source_review: converted_trained_source_review_snapshot(&fields)?,
+    })
+}
+
+fn write_converted_trained_source_validation_snapshot(
+    evidence_dir: &Path,
+    candidate_id: &str,
+    source_manifest: &ConvertedTrainedSourceManifestSnapshot,
+) -> io::Result<ConvertedTrainedSourceValidationSnapshot> {
+    // Records the validate-source gate as browser-routed evidence before conversion is admitted.
+    let target = evidence_dir.join("converted-trained.source.validation");
+    let mut text = String::new();
+    push_line(
+        &mut text,
+        "tinyrustlm_source_validation_version",
+        SOURCE_VALIDATION_VERSION,
+    );
+    push_line(&mut text, "source_validation_gate", SOURCE_VALIDATION_GATE);
+    push_line(
+        &mut text,
+        "source_validation_status",
+        SOURCE_VALIDATION_STATUS,
+    );
+    push_line(
+        &mut text,
+        "source_validation_decision",
+        SOURCE_VALIDATION_DECISION,
+    );
+    push_line(
+        &mut text,
+        "source_manifest_path",
+        &converted_trained_source_manifest_registry_path(candidate_id),
+    );
+    push_line(
+        &mut text,
+        "source_manifest_checksum",
+        &source_manifest.checksum,
+    );
+    push_line(&mut text, "source_kind", &source_manifest.source_kind);
+    push_line(&mut text, "source_id", &source_manifest.source_id);
+    push_line(&mut text, "model_shape", &source_manifest.model_shape);
+    push_line(&mut text, "source_dtype", &source_manifest.source_dtype);
+    push_line(&mut text, "tied_output", &source_manifest.tied_output);
+    push_line(&mut text, "tensor_count", &source_manifest.tensor_count);
+    if let Some(source_review) = &source_manifest.source_review {
+        push_line(&mut text, "source_review_checksum", &source_review.checksum);
+    }
+    push_line(&mut text, "required_next_gate", SOURCE_VALIDATION_NEXT_GATE);
+    fs::write(&target, &text)?;
+    Ok(ConvertedTrainedSourceValidationSnapshot {
+        checksum: hex64(provenance::text_checksum(text.as_bytes())),
     })
 }
 
@@ -599,6 +720,9 @@ fn append_converted_trained_source_manifest_route(
     );
     if let Some(source_review) = &source_manifest.source_review {
         push_line(&mut admission, "source_review_kind", &source_review.kind);
+        if let Some(path) = &source_review.path {
+            push_line(&mut admission, "source_review_path", path);
+        }
         push_line(
             &mut admission,
             "source_review_status",
@@ -615,6 +739,29 @@ fn append_converted_trained_source_manifest_route(
             &source_review.required_next_gate,
         );
     }
+    fs::write(admission_path, admission)
+}
+
+fn append_converted_trained_source_validation_route(
+    admission_path: &Path,
+    candidate_id: &str,
+    source_validation: &ConvertedTrainedSourceValidationSnapshot,
+) -> io::Result<()> {
+    // Extends the reviewed admission with the browser-verifiable source validation sidecar.
+    let mut admission = fs::read_to_string(admission_path)?;
+    if !admission.ends_with('\n') {
+        admission.push('\n');
+    }
+    push_line(
+        &mut admission,
+        "source_validation_path",
+        &converted_trained_source_validation_registry_path(candidate_id),
+    );
+    push_line(
+        &mut admission,
+        "source_validation_checksum",
+        &source_validation.checksum,
+    );
     fs::write(admission_path, admission)
 }
 
@@ -650,10 +797,37 @@ fn converted_trained_source_review_snapshot(
     }
     Ok(Some(ConvertedTrainedSourceReviewSnapshot {
         kind,
+        path: None,
         status,
         checksum,
         required_next_gate,
     }))
+}
+
+fn write_converted_trained_source_review_snapshot(
+    evidence_dir: &Path,
+    candidate_id: &str,
+    source_review_path: Option<&Path>,
+    source_manifest: &mut ConvertedTrainedSourceManifestSnapshot,
+) -> io::Result<()> {
+    // Copies a supplied safetensors review report into the served evidence route.
+    let Some(source_review) = &mut source_manifest.source_review else {
+        return Ok(());
+    };
+    let Some(source_review_path) = source_review_path else {
+        return Ok(());
+    };
+    let target = evidence_dir.join("converted-trained.source.review");
+    fs::copy(source_review_path, &target)?;
+    let text = fs::read_to_string(&target)?;
+    let checksum = hex64(provenance::text_checksum(text.as_bytes()));
+    if checksum != source_review.checksum {
+        return Err(invalid(
+            "converted-trained source review sidecar checksum did not match source manifest",
+        ));
+    }
+    source_review.path = Some(converted_trained_source_review_registry_path(candidate_id));
+    Ok(())
 }
 
 fn append_converted_trained_eval_route(
@@ -673,9 +847,74 @@ fn append_converted_trained_eval_route(
     fs::write(admission_path, admission)
 }
 
+fn append_converted_trained_runtime_smoke_route(
+    admission_path: &Path,
+    candidate_id: &str,
+) -> io::Result<()> {
+    // Extends the admission with the browser-verifiable runtime-smoke sidecar route.
+    let mut admission = fs::read_to_string(admission_path)?;
+    if !admission.ends_with('\n') {
+        admission.push('\n');
+    }
+    push_line(
+        &mut admission,
+        "runtime_smoke_path",
+        &format!("../evidence/{candidate_id}/converted-trained.runtime"),
+    );
+    fs::write(admission_path, admission)
+}
+
 fn converted_trained_source_manifest_registry_path(candidate_id: &str) -> String {
     // Matches the browser route from app/ to the copied source manifest evidence.
     format!("../evidence/{candidate_id}/converted-trained.source.manifest")
+}
+
+fn converted_trained_source_review_registry_path(candidate_id: &str) -> String {
+    // Matches the browser route from app/ to the copied candidate-review evidence.
+    format!("../evidence/{candidate_id}/converted-trained.source.review")
+}
+
+fn converted_trained_source_validation_registry_path(candidate_id: &str) -> String {
+    // Matches the browser route from app/ to the source-validation evidence.
+    format!("../evidence/{candidate_id}/converted-trained.source.validation")
+}
+
+fn converted_trained_admission_registry_path(candidate_id: &str) -> String {
+    // Matches the browser route from app/ to the selector admission evidence.
+    format!("../evidence/{candidate_id}/converted-trained.admission")
+}
+
+fn append_reviewed_eval_cases_route(
+    eval_path: &Path,
+    source_review_path: Option<&Path>,
+) -> io::Result<()> {
+    // Binds the browser-fetched eval sidecar back to the reviewed eval case route.
+    let Some(source_review_path) = source_review_path else {
+        return Ok(());
+    };
+    let review_text = fs::read_to_string(source_review_path)?;
+    let review_fields = provenance::parse_manifest(&review_text)?;
+    let eval_cases_route = manifest_field(&review_fields, "eval_cases_route")?;
+    if eval_cases_route == "pending-eval-cases" {
+        return Err(invalid(
+            "converted-trained source review eval_cases_route is pending",
+        ));
+    }
+    let mut eval_text = fs::read_to_string(eval_path)?;
+    let eval_fields = provenance::parse_manifest(&eval_text)?;
+    if let Some(existing) = eval_fields.get("eval_cases_route") {
+        if existing != eval_cases_route {
+            return Err(invalid(
+                "converted-trained eval sidecar eval_cases_route does not match source review",
+            ));
+        }
+        return Ok(());
+    }
+    if !eval_text.ends_with('\n') {
+        eval_text.push('\n');
+    }
+    push_line(&mut eval_text, "eval_cases_route", eval_cases_route);
+    fs::write(eval_path, eval_text)
 }
 
 fn converted_trained_quantizations(quantization: &str) -> io::Result<Vec<&'static str>> {
@@ -2433,8 +2672,14 @@ mod tests {
             registry.contains("entry.0.source_manifest_source_id=tinyrustlm-local-source-fixture")
         );
         assert!(registry.contains("entry.0.source_manifest_model_shape=tiny-fixture"));
+        assert!(registry.contains(
+            "entry.0.runtime_smoke_path=../evidence/converted-trained-q8/converted-trained.runtime"
+        ));
         assert!(registry
             .contains("entry.0.eval_path=../evidence/converted-trained-q8/converted-trained.eval"));
+        assert!(registry.contains(
+            "entry.0.admission_path=../evidence/converted-trained-q8/converted-trained.admission"
+        ));
         assert!(registry.contains("entry.0.quantization=q8_0"));
         assert!(registry.contains("entry.0.mate_selection_status=admission-only"));
         assert!(registry.contains("entry.0.mate_selection_parent_count=1"));
@@ -2470,6 +2715,17 @@ mod tests {
             .join("converted-trained-q8")
             .join("converted-trained.admission")
             .exists());
+        let admission = fs::read_to_string(
+            root.join("evidence")
+                .join("converted-trained-q8")
+                .join("converted-trained.admission"),
+        )
+        .unwrap();
+        assert!(admission.contains(
+            "admission_path=../evidence/converted-trained-q8/converted-trained.admission"
+        ));
+        let admission_checksum = hex64(provenance::text_checksum(admission.as_bytes()));
+        assert!(registry.contains(&format!("entry.0.admission_checksum={admission_checksum}")));
         let eval = fs::read_to_string(
             root.join("evidence")
                 .join("converted-trained-q8")
@@ -2483,6 +2739,18 @@ mod tests {
         assert!(eval.contains("case.1.actual=eeee"));
         let eval_checksum = hex64(provenance::text_checksum(eval.as_bytes()));
         assert!(registry.contains(&format!("entry.0.eval_manifest_checksum={eval_checksum}")));
+        let runtime = fs::read_to_string(
+            root.join("evidence")
+                .join("converted-trained-q8")
+                .join("converted-trained.runtime"),
+        )
+        .unwrap();
+        assert!(runtime.contains("gate=runtime-smoke"));
+        assert!(runtime.contains("runtime_smoke_status=pass"));
+        let runtime_checksum = hex64(provenance::text_checksum(runtime.as_bytes()));
+        assert!(registry.contains(&format!(
+            "entry.0.runtime_smoke_manifest_checksum={runtime_checksum}"
+        )));
         let source_manifest_checksum =
             assert_converted_trained_source_manifest_snapshot(&root, "converted-trained-q8");
         assert!(registry.contains(&format!(
@@ -2584,6 +2852,12 @@ mod tests {
             assert!(registry.contains(&format!(
                 "eval_path=../evidence/{candidate_id}/converted-trained.eval"
             )));
+            assert!(registry.contains(&format!(
+                "runtime_smoke_path=../evidence/{candidate_id}/converted-trained.runtime"
+            )));
+            assert!(registry.contains(&format!(
+                "admission_path=../evidence/{candidate_id}/converted-trained.admission"
+            )));
             assert!(registry.contains(&format!("quantization={quantization}")));
             let manifest = fs::read_to_string(
                 root.join("models")
@@ -2601,6 +2875,17 @@ mod tests {
                 .join(candidate_id)
                 .join("converted-trained.admission")
                 .exists());
+            let admission = fs::read_to_string(
+                root.join("evidence")
+                    .join(candidate_id)
+                    .join("converted-trained.admission"),
+            )
+            .unwrap();
+            assert!(admission.contains(&format!(
+                "admission_path=../evidence/{candidate_id}/converted-trained.admission"
+            )));
+            let admission_checksum = hex64(provenance::text_checksum(admission.as_bytes()));
+            assert!(registry.contains(&format!("admission_checksum={admission_checksum}")));
             let source_manifest_checksum =
                 assert_converted_trained_source_manifest_snapshot(&root, candidate_id);
             assert!(registry.contains(&format!(
@@ -2614,6 +2899,18 @@ mod tests {
             .unwrap();
             let eval_checksum = hex64(provenance::text_checksum(eval.as_bytes()));
             assert!(registry.contains(&format!("eval_manifest_checksum={eval_checksum}")));
+            let runtime = fs::read_to_string(
+                root.join("evidence")
+                    .join(candidate_id)
+                    .join("converted-trained.runtime"),
+            )
+            .unwrap();
+            assert!(runtime.contains("gate=runtime-smoke"));
+            assert!(runtime.contains("runtime_smoke_status=pass"));
+            let runtime_checksum = hex64(provenance::text_checksum(runtime.as_bytes()));
+            assert!(registry.contains(&format!(
+                "runtime_smoke_manifest_checksum={runtime_checksum}"
+            )));
         }
         assert!(root.join("app").join("app.js").exists());
         assert_runtime_manifest(&root);

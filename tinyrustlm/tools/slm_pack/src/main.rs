@@ -36,7 +36,7 @@ mod trained_source;
 mod writer;
 
 use std::env;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::{self, Write};
 use std::path::Path;
 
@@ -345,8 +345,8 @@ fn run() -> io::Result<()> {
             ));
         };
         let quantization = args.next().unwrap_or_else(|| "q8_0".to_string());
-        let eval_cases = args.next();
-        let candidate_review = args.next();
+        let (eval_cases, candidate_review) =
+            split_browser_safetensors_bundle_tail(args.next(), args.next());
         return safetensors::browser_bundle_path_with_eval_cases_and_review(
             Path::new(&input),
             &shape_name,
@@ -3336,15 +3336,43 @@ fn split_parent_admission_args(
     Ok((parents, admissions))
 }
 
+/// Splits the safetensors browser tail while allowing a lone review to supply eval routing.
+fn split_browser_safetensors_bundle_tail(
+    eval_cases_or_review: Option<String>,
+    candidate_review: Option<String>,
+) -> (Option<String>, Option<String>) {
+    if candidate_review.is_some() {
+        return (eval_cases_or_review, candidate_review);
+    }
+    if let Some(path) = eval_cases_or_review {
+        if looks_like_safetensors_candidate_review(Path::new(&path)) {
+            return (None, Some(path));
+        }
+        return (Some(path), None);
+    }
+    (None, None)
+}
+
+/// Detects a review file by its stable manifest version key without fully validating it.
+fn looks_like_safetensors_candidate_review(path: &Path) -> bool {
+    fs::read_to_string(path)
+        .map(|text| {
+            text.lines()
+                .any(|line| line == "tinyrustlm_safetensors_candidate_review_version=1")
+        })
+        .unwrap_or(false)
+}
+
 fn print_usage() {
-    eprintln!(
-        "usage: tinyrustlm-slm-pack <output.slm> [tiny-fixture|tiny-fixture-tied|tiny-fixture-q8|tiny-fixture-q4|tiny-fixture-bpe|tinylm16-f32|tinylm16-q8|tinylm16-q4]\n       tinyrustlm-slm-pack validate <input.slm>\n       tinyrustlm-slm-pack inspect-safetensors <input.safetensors> [output.report]\n       tinyrustlm-slm-pack plan-safetensors-source <input.safetensors> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> [output.plan]\n       tinyrustlm-slm-pack review-safetensors-candidate <input.safetensors> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> <f32|q8_0|q4_0> <source-model-id> <source-model-sha> <source-config-checksum> <source-tokenizer-checksum> <source-license-route> <output.review> [reference-prompt-route] [reference-output-checksum] [eval-cases-route]\n       tinyrustlm-slm-pack extract-safetensors-source <input.safetensors> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> <output-source-dir>\n       tinyrustlm-slm-pack convert-safetensors-trained <input.safetensors> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> <output-source-dir> <output.slm> [f32|q8_0|q4_0]\n       tinyrustlm-slm-pack browser-safetensors-trained-bundle <output-tinyrustlm-root> <input.safetensors> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> <output-source-dir> [f32|q8_0|q4_0|all] [eval-cases.txt]\n       tinyrustlm-slm-pack browser-multi-parent-bundle <output-tinyrustlm-root> [f32|q8_0|q4_0|all] [sign-merge|soup|mixed]\n       tinyrustlm-slm-pack browser-converted-trained-bundle <output-tinyrustlm-root> <input-source-dir> [f32|q8_0|q4_0|all] [eval-cases.txt]\n       tinyrustlm-slm-pack runtime-wasm-manifest <input.wasm> <output.wasm.manifest>\n       tinyrustlm-slm-pack compatibility <left-parent.slm> <right-parent.slm> [output.compat]\n       tinyrustlm-slm-pack lineage-template <input.compat> <output.lineage> <candidate-id> <operator-id> [resource-budget]\n       tinyrustlm-slm-pack validate-lineage <input.compat> <input.lineage>\n       tinyrustlm-slm-pack blend-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <output.slm> <output.operator> [parent0-weight-ppm]\n       tinyrustlm-slm-pack validate-blend-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack crossover-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <output.slm> <output.operator> [crossover-seed] [parent0-keep-ppm]\n       tinyrustlm-slm-pack validate-crossover-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm]\n       tinyrustlm-slm-pack validate-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack sparse-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm] [keep-ppm]\n       tinyrustlm-slm-pack validate-sparse-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.adapter> <output.adapter.manifest>\n       tinyrustlm-slm-pack validate-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest>\n       tinyrustlm-slm-pack sparse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.adapter> <output.adapter.manifest> [delta-weight-ppm] [keep-ppm]\n       tinyrustlm-slm-pack validate-sparse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest>\n       tinyrustlm-slm-pack fuse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest> <output.slm> <output.operator>\n       tinyrustlm-slm-pack validate-fuse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack candidate-manifest <input.compat> <input.lineage> <candidate.slm> <output.candidate>\n       tinyrustlm-slm-pack validate-candidate <input.compat> <input.lineage> <candidate.slm> <input.candidate>\n       tinyrustlm-slm-pack promotion-template <input.compat> <input.lineage> <candidate.slm> <input.candidate> <output.promotion> [promoter-id] [promotion-scope]\n       tinyrustlm-slm-pack validate-promotion <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion>\n       tinyrustlm-slm-pack admission-record <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion> <input.manifest> <input.runtime> <input.eval> <output.admission> [selector-id]\n       tinyrustlm-slm-pack validate-admission <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion> <input.manifest> <input.runtime> <input.eval> <input.admission>\n       tinyrustlm-slm-pack promotion-ledger <output.ledger> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-promotion-ledger <input.ledger> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack selector-registry <output.registry> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-selector-registry <input.registry> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack manifest <input.slm> <output.manifest> [deterministic-smoke|converted-trained]\n       tinyrustlm-slm-pack validate-manifest <input.slm> <input.manifest>\n       tinyrustlm-slm-pack runtime-smoke <input.slm> <input.manifest> <output.runtime>\n       tinyrustlm-slm-pack validate-runtime-smoke <input.slm> <input.manifest> <input.runtime>\n       tinyrustlm-slm-pack eval-template <input.slm> <input.manifest> <output.eval> [assistant-quality]\n       tinyrustlm-slm-pack quality-gate <input.slm> <input.manifest> <runtime-smoke|assistant-quality> [input.eval]\n       tinyrustlm-slm-pack source-template <output-source-dir> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]\n       tinyrustlm-slm-pack validate-source <input-source-dir>\n       tinyrustlm-slm-pack convert-trained <input-source-dir> <output.slm> [f32|q8_0|q4_0]"
-    );
+    eprintln!("{}", primary_usage_text());
     eprintln!(
         "       review-safetensors-candidate optional route tail: [source-config-route] [source-tokenizer-route]"
     );
     eprintln!(
-        "       safetensors review-bound tail: extract-safetensors-source ... [candidate-review] | convert-safetensors-trained ... [f32|q8_0|q4_0] [candidate-review] | browser-safetensors-trained-bundle ... [f32|q8_0|q4_0|all] [eval-cases.txt] [candidate-review]"
+        "       safetensors review-bound tail: extract-safetensors-source ... [candidate-review] | convert-safetensors-trained ... [f32|q8_0|q4_0] [candidate-review] | browser-safetensors-trained-bundle ... [f32|q8_0|q4_0|all] [eval-cases.txt|candidate.review] [candidate-review]"
+    );
+    eprintln!(
+        "       review-bound browser bundles use eval_cases_route when a lone candidate-review path is supplied; explicit eval-cases must match that reviewed route"
     );
     eprintln!(
         "       tinyrustlm-slm-pack candidate-manifest <input.compat> <input.lineage> <candidate.slm> <output.candidate> [input.operator]\n       tinyrustlm-slm-pack validate-candidate <input.compat> <input.lineage> <candidate.slm> <input.candidate> [input.operator]"
@@ -3394,6 +3422,11 @@ fn print_usage() {
     eprintln!(
         "       tinyrustlm-slm-pack multi-parent-admission-record <input.ledger> <input.review> <input.recipe> <candidate.slm> <input.operator> <input.candidate> <input.promotion> <input.provenance> <input.runtime> <input.eval> <output.admission> --parents <parent.slm> [...parent.slm] --admissions <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-multi-parent-admission <input.ledger> <input.review> <input.recipe> <candidate.slm> <input.operator> <input.candidate> <input.promotion> <input.provenance> <input.runtime> <input.eval> <input.admission> --parents <parent.slm> [...parent.slm] --admissions <input.admission> [...input.admission]"
     );
+}
+
+/// Returns the primary CLI usage text without writing to stderr.
+fn primary_usage_text() -> &'static str {
+    "usage: tinyrustlm-slm-pack <output.slm> [tiny-fixture|tiny-fixture-tied|tiny-fixture-q8|tiny-fixture-q4|tiny-fixture-bpe|tinylm16-f32|tinylm16-q8|tinylm16-q4]\n       tinyrustlm-slm-pack validate <input.slm>\n       tinyrustlm-slm-pack inspect-safetensors <input.safetensors> [output.report]\n       tinyrustlm-slm-pack plan-safetensors-source <input.safetensors> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> [output.plan]\n       tinyrustlm-slm-pack review-safetensors-candidate <input.safetensors> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> <f32|q8_0|q4_0> <source-model-id> <source-model-sha> <source-config-checksum> <source-tokenizer-checksum> <source-license-route> <output.review> [reference-prompt-route] [reference-output-checksum] [eval-cases-route] [source-config-route] [source-tokenizer-route]\n       tinyrustlm-slm-pack extract-safetensors-source <input.safetensors> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> <output-source-dir> [candidate-review]\n       tinyrustlm-slm-pack convert-safetensors-trained <input.safetensors> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> <output-source-dir> <output.slm> [f32|q8_0|q4_0] [candidate-review]\n       tinyrustlm-slm-pack browser-safetensors-trained-bundle <output-tinyrustlm-root> <input.safetensors> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> <output-source-dir> [f32|q8_0|q4_0|all] [eval-cases.txt|candidate.review] [candidate-review]\n       tinyrustlm-slm-pack browser-multi-parent-bundle <output-tinyrustlm-root> [f32|q8_0|q4_0|all] [sign-merge|soup|mixed]\n       tinyrustlm-slm-pack browser-converted-trained-bundle <output-tinyrustlm-root> <input-source-dir> [f32|q8_0|q4_0|all] [eval-cases.txt]\n       tinyrustlm-slm-pack runtime-wasm-manifest <input.wasm> <output.wasm.manifest>\n       tinyrustlm-slm-pack compatibility <left-parent.slm> <right-parent.slm> [output.compat]\n       tinyrustlm-slm-pack lineage-template <input.compat> <output.lineage> <candidate-id> <operator-id> [resource-budget]\n       tinyrustlm-slm-pack validate-lineage <input.compat> <input.lineage>\n       tinyrustlm-slm-pack blend-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <output.slm> <output.operator> [parent0-weight-ppm]\n       tinyrustlm-slm-pack validate-blend-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack crossover-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <output.slm> <output.operator> [crossover-seed] [parent0-keep-ppm]\n       tinyrustlm-slm-pack validate-crossover-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm]\n       tinyrustlm-slm-pack validate-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack sparse-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm] [keep-ppm]\n       tinyrustlm-slm-pack validate-sparse-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.adapter> <output.adapter.manifest>\n       tinyrustlm-slm-pack validate-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest>\n       tinyrustlm-slm-pack sparse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.adapter> <output.adapter.manifest> [delta-weight-ppm] [keep-ppm]\n       tinyrustlm-slm-pack validate-sparse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest>\n       tinyrustlm-slm-pack fuse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest> <output.slm> <output.operator>\n       tinyrustlm-slm-pack validate-fuse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack candidate-manifest <input.compat> <input.lineage> <candidate.slm> <output.candidate>\n       tinyrustlm-slm-pack validate-candidate <input.compat> <input.lineage> <candidate.slm> <input.candidate>\n       tinyrustlm-slm-pack promotion-template <input.compat> <input.lineage> <candidate.slm> <input.candidate> <output.promotion> [promoter-id] [promotion-scope]\n       tinyrustlm-slm-pack validate-promotion <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion>\n       tinyrustlm-slm-pack admission-record <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion> <input.manifest> <input.runtime> <input.eval> <output.admission> [selector-id]\n       tinyrustlm-slm-pack validate-admission <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion> <input.manifest> <input.runtime> <input.eval> <input.admission>\n       tinyrustlm-slm-pack promotion-ledger <output.ledger> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-promotion-ledger <input.ledger> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack selector-registry <output.registry> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-selector-registry <input.registry> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack manifest <input.slm> <output.manifest> [deterministic-smoke|converted-trained]\n       tinyrustlm-slm-pack validate-manifest <input.slm> <input.manifest>\n       tinyrustlm-slm-pack runtime-smoke <input.slm> <input.manifest> <output.runtime>\n       tinyrustlm-slm-pack validate-runtime-smoke <input.slm> <input.manifest> <input.runtime>\n       tinyrustlm-slm-pack eval-template <input.slm> <input.manifest> <output.eval> [assistant-quality]\n       tinyrustlm-slm-pack quality-gate <input.slm> <input.manifest> <runtime-smoke|assistant-quality> [input.eval]\n       tinyrustlm-slm-pack source-template <output-source-dir> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]\n       tinyrustlm-slm-pack validate-source <input-source-dir>\n       tinyrustlm-slm-pack convert-trained <input-source-dir> <output.slm> [f32|q8_0|q4_0]"
 }
 
 pub(crate) fn build_model_file(
@@ -3834,5 +3867,90 @@ fn square_identity_value(tensor: &TensorSpec, elem: usize, scale: f32) -> f32 {
         scale
     } else {
         0.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    // Keeps temporary parser fixtures outside the repository tree.
+    fn unique_tail_test_path(name: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!(
+            "tinyrustlm-slm-pack-main-{name}-{}-{nanos}.txt",
+            std::process::id()
+        ))
+    }
+
+    // Preserves the historical single-tail eval-cases interpretation.
+    #[test]
+    fn browser_safetensors_tail_keeps_single_eval_cases_path() {
+        let eval_cases = unique_tail_test_path("eval-cases");
+        fs::write(&eval_cases, "tinyrustlm_eval_cases_version=1\n").unwrap();
+        let eval_cases_arg = eval_cases.display().to_string();
+
+        let (eval_cases_tail, review_tail) =
+            split_browser_safetensors_bundle_tail(Some(eval_cases_arg.clone()), None);
+
+        assert_eq!(eval_cases_tail.as_deref(), Some(eval_cases_arg.as_str()));
+        assert!(review_tail.is_none());
+        fs::remove_file(eval_cases).unwrap();
+    }
+
+    // Allows a lone candidate-review path to drive eval routing from eval_cases_route.
+    #[test]
+    fn browser_safetensors_tail_routes_single_candidate_review_path() {
+        let review = unique_tail_test_path("candidate-review");
+        fs::write(
+            &review,
+            "tinyrustlm_safetensors_candidate_review_version=1\n",
+        )
+        .unwrap();
+        let review_arg = review.display().to_string();
+
+        let (eval_cases_tail, review_tail) =
+            split_browser_safetensors_bundle_tail(Some(review_arg.clone()), None);
+
+        assert!(eval_cases_tail.is_none());
+        assert_eq!(review_tail.as_deref(), Some(review_arg.as_str()));
+        fs::remove_file(review).unwrap();
+    }
+
+    // Keeps the explicit eval-cases plus candidate-review tail unchanged.
+    #[test]
+    fn browser_safetensors_tail_keeps_explicit_eval_and_review_paths() {
+        let eval_cases_arg = "cases.txt".to_string();
+        let review_arg = "candidate.review".to_string();
+
+        let (eval_cases_tail, review_tail) = split_browser_safetensors_bundle_tail(
+            Some(eval_cases_arg.clone()),
+            Some(review_arg.clone()),
+        );
+
+        assert_eq!(eval_cases_tail.as_deref(), Some(eval_cases_arg.as_str()));
+        assert_eq!(review_tail.as_deref(), Some(review_arg.as_str()));
+    }
+
+    // Keeps the printed safetensors handoff route aligned with accepted CLI tails.
+    #[test]
+    fn primary_usage_lists_review_bound_safetensors_tails() {
+        let usage = primary_usage_text();
+
+        assert!(usage.contains("[eval-cases-route] [source-config-route] [source-tokenizer-route]"));
+        assert!(usage.contains(
+            "extract-safetensors-source <input.safetensors> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> <output-source-dir> [candidate-review]"
+        ));
+        assert!(usage.contains(
+            "convert-safetensors-trained <input.safetensors> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> <output-source-dir> <output.slm> [f32|q8_0|q4_0] [candidate-review]"
+        ));
+        assert!(usage.contains(
+            "browser-safetensors-trained-bundle <output-tinyrustlm-root> <input.safetensors> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> <output-source-dir> [f32|q8_0|q4_0|all] [eval-cases.txt|candidate.review] [candidate-review]"
+        ));
     }
 }

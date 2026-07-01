@@ -20,8 +20,14 @@ const convertedTrainedBpeRegistryFileSmokeMode = smokeMode === "converted-traine
 const convertedTrainedSourceManifestDriftSmokeMode = smokeMode === "converted-trained-source-manifest-drift";
 const convertedTrainedSourceIdentityDriftSmokeMode = smokeMode === "converted-trained-source-identity-drift";
 const convertedTrainedSourceReviewDriftSmokeMode = smokeMode === "converted-trained-source-review-drift";
+const convertedTrainedSourceReviewSidecarDriftSmokeMode = smokeMode === "converted-trained-source-review-sidecar-drift";
+const convertedTrainedSourceReviewTokenizerImportDriftSmokeMode = smokeMode === "converted-trained-source-review-tokenizer-import-drift";
+const convertedTrainedSourceReviewEvalRouteDriftSmokeMode = smokeMode === "converted-trained-source-review-eval-route-drift";
 const convertedTrainedSourceReviewOmittedSmokeMode = smokeMode === "converted-trained-source-review-omitted";
+const convertedTrainedSourceValidationDriftSmokeMode = smokeMode === "converted-trained-source-validation-drift";
+const convertedTrainedRuntimeEvidenceDriftSmokeMode = smokeMode === "converted-trained-runtime-evidence-drift";
 const convertedTrainedEvalEvidenceDriftSmokeMode = smokeMode === "converted-trained-eval-evidence-drift";
+const convertedTrainedAdmissionDriftSmokeMode = smokeMode === "converted-trained-admission-drift";
 const convertedTrainedRegistryAnySmokeMode = convertedTrainedRegistrySmokeMode || convertedTrainedRegistryFileSmokeMode || convertedTrainedBpeRegistryFileSmokeMode;
 const q4DefaultSmokeModes = new Set([
   "adapter-manifest-budget",
@@ -108,7 +114,7 @@ const generatedSelectorDriftSmokeModes = new Set([
   "generated-selector-schedule-source-drift",
   "generated-selector-schedule-family-drift"
 ]);
-const expectedModel = process.argv[4] || compactOperatorRegistryModels[smokeMode] || (convertedTrainedRegistryAnySmokeMode || convertedTrainedSourceManifestDriftSmokeMode || convertedTrainedSourceIdentityDriftSmokeMode || convertedTrainedSourceReviewDriftSmokeMode || convertedTrainedSourceReviewOmittedSmokeMode || convertedTrainedEvalEvidenceDriftSmokeMode ? "converted-trained-q8" : smokeMode === "adapter-sidecar-registry-q8" ? "tinyq8" : q4DefaultSmokeModes.has(smokeMode) || combinedSelectorRouteSoakMode ? "multi-parent-sign-merge-q4" : smokeMode === "multi-parent-registry-file" || smokeMode === "adapter-sidecar-registry-file" ? "multi-parent-sign-merge-f32" : smokeMode === "adapter-sidecar" || smokeMode === "adapter-sidecar-checksum-mismatch" ? "tinyf32" : "tinylm16q8");
+const expectedModel = process.argv[4] || compactOperatorRegistryModels[smokeMode] || (convertedTrainedRegistryAnySmokeMode || convertedTrainedSourceManifestDriftSmokeMode || convertedTrainedSourceIdentityDriftSmokeMode || convertedTrainedSourceReviewDriftSmokeMode || convertedTrainedSourceReviewSidecarDriftSmokeMode || convertedTrainedSourceReviewTokenizerImportDriftSmokeMode || convertedTrainedSourceReviewEvalRouteDriftSmokeMode || convertedTrainedSourceReviewOmittedSmokeMode || convertedTrainedSourceValidationDriftSmokeMode || convertedTrainedRuntimeEvidenceDriftSmokeMode || convertedTrainedEvalEvidenceDriftSmokeMode || convertedTrainedAdmissionDriftSmokeMode ? "converted-trained-q8" : smokeMode === "adapter-sidecar-registry-q8" ? "tinyq8" : q4DefaultSmokeModes.has(smokeMode) || combinedSelectorRouteSoakMode ? "multi-parent-sign-merge-q4" : smokeMode === "multi-parent-registry-file" || smokeMode === "adapter-sidecar-registry-file" ? "multi-parent-sign-merge-f32" : smokeMode === "adapter-sidecar" || smokeMode === "adapter-sidecar-checksum-mismatch" ? "tinyf32" : "tinylm16q8");
 const enduranceCycles = Math.max(2, Math.min(20, Number.parseInt(process.argv[6] || "4", 10) || 4));
 const performanceTokens = Math.max(2, Math.min(8, Number.parseInt(process.argv[6] || "4", 10) || 4));
 const performanceSoakCycles = Math.max(2, Math.min(10, Number.parseInt(process.argv[6] || "3", 10) || 3));
@@ -1668,6 +1674,10 @@ async function runPageSmoke(client, modelKey) {
         provenanceSourceId: byId("provenanceSourceId").textContent,
         provenanceSourceShape: byId("provenanceSourceShape").textContent,
         provenanceSourceReview: byId("provenanceSourceReview").textContent,
+        provenanceSourceReviewRoutes: byId("provenanceSourceReviewRoutes").textContent,
+        provenanceSourceReviewArtifacts: byId("provenanceSourceReviewArtifacts").textContent,
+        provenanceSourceTokenizerImport: byId("provenanceSourceTokenizerImport").textContent,
+        provenanceSourceValidation: byId("provenanceSourceValidation").textContent,
         provenanceAdmission: byId("provenanceAdmission").textContent,
         provenanceQualityClaim: byId("provenanceQualityClaim").textContent,
         provenanceTrainedClaim: byId("provenanceTrainedClaim").textContent,
@@ -2992,6 +3002,10 @@ async function runPageUiAudit(client) {
           provenanceSourceId: byId("provenanceSourceId").textContent,
           provenanceSourceShape: byId("provenanceSourceShape").textContent,
           provenanceSourceReview: byId("provenanceSourceReview").textContent,
+          provenanceSourceReviewRoutes: byId("provenanceSourceReviewRoutes").textContent,
+          provenanceSourceReviewArtifacts: byId("provenanceSourceReviewArtifacts").textContent,
+          provenanceSourceTokenizerImport: byId("provenanceSourceTokenizerImport").textContent,
+          provenanceSourceValidation: byId("provenanceSourceValidation").textContent,
           provenanceAdmission: byId("provenanceAdmission").textContent,
           provenanceQualityClaim: byId("provenanceQualityClaim").textContent,
           provenanceTrainedClaim: byId("provenanceTrainedClaim").textContent,
@@ -3232,9 +3246,78 @@ function expectedConvertedTrainedSourceShape() {
 // Checks the safetensors review row without fixing real file-backed roots to fixture checksums.
 function isExpectedConvertedTrainedSourceReview(value) {
   if (convertedTrainedRegistrySmokeMode) {
-    return value === "validated-before-extraction / extract-raw-f32-tensors / 0x00000000000000b1";
+    return value === [
+      "validated-before-extraction",
+      "extract-raw-f32-tensors",
+      convertedTrainedSourceReviewChecksum(),
+      convertedTrainedSourceReviewModelId(),
+      convertedTrainedSourceReviewSha()
+    ].join(" / ");
   }
-  return /^validated-before-extraction \/ extract-raw-f32-tensors \/ 0x[0-9a-f]{16}$/i.test(String(value || ""));
+  return /^validated-before-extraction \/ extract-raw-f32-tensors \/ 0x[0-9a-f]{16} \/ .+ \/ (?:sha256:[0-9a-f]{64}|sha1:[0-9a-f]{40}|[0-9a-f]{40}|[0-9a-f]{64})$/i.test(String(value || ""));
+}
+
+// Checks browser-visible routes copied from the checksum-verified source-review sidecar.
+function isExpectedConvertedTrainedSourceReviewRoutes(value) {
+  if (convertedTrainedRegistrySmokeMode) {
+    return value === [
+      "license=docs/report-intake/2026-06-30/Safetensors Browser Runtime Guide.md",
+      "prompt=fixtures/browser-smoke-reference-prompt.txt",
+      "reference=0x00000000000000e1",
+      `eval=${convertedTrainedEvalCasesRoute()}`
+    ].join(" / ");
+  }
+  return /^license=.+ \/ prompt=.+ \/ reference=0x[0-9a-f]{16} \/ eval=.+$/i.test(String(value || ""));
+}
+
+// Checks browser-visible checksum-bound local artifact summaries from the source review.
+function isExpectedConvertedTrainedSourceReviewArtifacts(value) {
+  if (convertedTrainedRegistrySmokeMode) {
+    return value === [
+      "config=local-json-bound@0x00000000000000c1",
+      "tokenizer=local-json-bound@0x00000000000000c2",
+      "license=local-text-bound@0x00000000000000d1",
+      "prompt=local-text-bound@0x00000000000000d2",
+      "eval=local-text-bound@0x00000000000000d3"
+    ].join(" / ");
+  }
+  const text = String(value || "");
+  return text === "unavailable" || /(?:config|tokenizer|license|prompt|eval)=(?:not-local|[a-z0-9._-]+@0x[0-9a-f]{16})/i.test(text);
+}
+
+// Checks the imported tokenizer rows fingerprint rendered from the fetched review sidecar.
+function isExpectedConvertedTrainedSourceTokenizerImport(value) {
+  if (convertedTrainedRegistrySmokeMode) {
+    return value === "not-imported / tokens=0 / merges=0 / 0x0000000000000000";
+  }
+  const text = String(value || "");
+  return text === "unavailable" || /^(?:not-imported \/ tokens=0 \/ merges=0 \/ 0x0000000000000000|byte-fallback-bpe-compatible \/ tokens=[1-9][0-9]* \/ merges=[1-9][0-9]* \/ 0x[0-9a-f]{16})$/i.test(text);
+}
+
+// Checks the validate-source sidecar summary rendered from browser-fetched evidence.
+function isExpectedConvertedTrainedSourceValidation(value) {
+  if (convertedTrainedRegistrySmokeMode) {
+    return value === [
+      "pass",
+      "convert-raw-f32-source-to-slm",
+      textChecksumHex(convertedTrainedSourceValidationText())
+    ].join(" / ");
+  }
+  const text = String(value || "");
+  return text === "unavailable" || /^pass \/ convert-raw-f32-source-to-slm \/ 0x[0-9a-f]{16}$/i.test(text);
+}
+
+// Checks the selector admission sidecar summary rendered after evidence verification.
+function isExpectedConvertedTrainedAdmission(value) {
+  if (convertedTrainedRegistrySmokeMode) {
+    return value === [
+      "admitted-for-browser-selector",
+      "browser-selector-loads-only-admission-record-artifacts",
+      textChecksumHex(convertedTrainedAdmissionText())
+    ].join(" / ");
+  }
+  const text = String(value || "");
+  return /^admitted-for-browser-selector \/ browser-selector-loads-only-admission-record-artifacts \/ 0x[0-9a-f]{16}$/i.test(text);
 }
 
 function assertMultiParentRegistrySmoke(result, modelKey, networkRequests) {
@@ -3317,7 +3400,19 @@ function assertConvertedTrainedRegistrySmoke(result, modelKey, networkRequests) 
   if (!isExpectedConvertedTrainedSourceReview(result.provenanceSourceReview)) {
     failures.push(`provenance source review was ${result.provenanceSourceReview}`);
   }
-  if (result.provenanceAdmission !== "structure-accepted-quality-pending") {
+  if (!isExpectedConvertedTrainedSourceReviewRoutes(result.provenanceSourceReviewRoutes)) {
+    failures.push(`provenance source review routes were ${result.provenanceSourceReviewRoutes}`);
+  }
+  if (!isExpectedConvertedTrainedSourceReviewArtifacts(result.provenanceSourceReviewArtifacts)) {
+    failures.push(`provenance source review artifacts were ${result.provenanceSourceReviewArtifacts}`);
+  }
+  if (!isExpectedConvertedTrainedSourceTokenizerImport(result.provenanceSourceTokenizerImport)) {
+    failures.push(`provenance source tokenizer import was ${result.provenanceSourceTokenizerImport}`);
+  }
+  if (!isExpectedConvertedTrainedSourceValidation(result.provenanceSourceValidation)) {
+    failures.push(`provenance source validation was ${result.provenanceSourceValidation}`);
+  }
+  if (!isExpectedConvertedTrainedAdmission(result.provenanceAdmission)) {
     failures.push(`provenance admission was ${result.provenanceAdmission}`);
   }
   if (result.provenanceQualityClaim !== "runtime-compatible-not-quality-verified") {
@@ -3336,18 +3431,65 @@ function assertConvertedTrainedRegistrySmoke(result, modelKey, networkRequests) 
   if (!networkIncludesPath(networkRequests, expectedSourceManifestRoute)) {
     failures.push("converted-trained source manifest route was not requested");
   }
+  const expectedSourceReviewRoute = `/evidence/${modelKey}/converted-trained.source.review`;
+  if (!networkIncludesPath(networkRequests, expectedSourceReviewRoute)) {
+    failures.push("converted-trained source review route was not requested");
+  }
+  const expectedSourceValidationRoute = `/evidence/${modelKey}/converted-trained.source.validation`;
+  if (!networkIncludesPath(networkRequests, expectedSourceValidationRoute)) {
+    failures.push("converted-trained source validation route was not requested");
+  }
+  const expectedRuntimeEvidenceRoute = `/evidence/${modelKey}/converted-trained.runtime`;
+  if (!networkIncludesPath(networkRequests, expectedRuntimeEvidenceRoute)) {
+    failures.push("converted-trained runtime smoke route was not requested");
+  }
   const expectedEvalEvidenceRoute = `/evidence/${modelKey}/converted-trained.eval`;
   if (!networkIncludesPath(networkRequests, expectedEvalEvidenceRoute)) {
     failures.push("converted-trained eval evidence route was not requested");
   }
+  const expectedAdmissionRoute = `/evidence/${modelKey}/converted-trained.admission`;
+  if (!networkIncludesPath(networkRequests, expectedAdmissionRoute)) {
+    failures.push("converted-trained admission evidence route was not requested");
+  }
   const sourceManifestIndex = networkRequests.findIndex((requestUrl) => requestUrlPathEquals(requestUrl, expectedSourceManifestRoute));
+  const sourceReviewIndex = networkRequests.findIndex((requestUrl) => requestUrlPathEquals(requestUrl, expectedSourceReviewRoute));
+  const sourceValidationIndex = networkRequests.findIndex((requestUrl) => requestUrlPathEquals(requestUrl, expectedSourceValidationRoute));
+  const runtimeEvidenceIndex = networkRequests.findIndex((requestUrl) => requestUrlPathEquals(requestUrl, expectedRuntimeEvidenceRoute));
   const evalEvidenceIndex = networkRequests.findIndex((requestUrl) => requestUrlPathEquals(requestUrl, expectedEvalEvidenceRoute));
+  const admissionEvidenceIndex = networkRequests.findIndex((requestUrl) => requestUrlPathEquals(requestUrl, expectedAdmissionRoute));
   const modelIndex = networkRequests.findIndex((requestUrl) => requestUrlPathEquals(requestUrl, expectedRoute));
   if (sourceManifestIndex < 0 || modelIndex < 0 || sourceManifestIndex > modelIndex) {
     failures.push("converted-trained source manifest was not requested before model bytes");
   }
+  if (sourceReviewIndex < 0 || modelIndex < 0 || sourceReviewIndex > modelIndex) {
+    failures.push("converted-trained source review was not requested before model bytes");
+  }
+  if (sourceManifestIndex >= 0 && sourceReviewIndex >= 0 && sourceManifestIndex > sourceReviewIndex) {
+    failures.push("converted-trained source review was requested before source manifest");
+  }
+  if (sourceValidationIndex < 0 || modelIndex < 0 || sourceValidationIndex > modelIndex) {
+    failures.push("converted-trained source validation was not requested before model bytes");
+  }
+  if (sourceReviewIndex >= 0 && sourceValidationIndex >= 0 && sourceReviewIndex > sourceValidationIndex) {
+    failures.push("converted-trained source validation was requested before source review");
+  }
+  if (runtimeEvidenceIndex < 0 || modelIndex < 0 || runtimeEvidenceIndex > modelIndex) {
+    failures.push("converted-trained runtime smoke was not requested before model bytes");
+  }
+  if (sourceValidationIndex >= 0 && runtimeEvidenceIndex >= 0 && sourceValidationIndex > runtimeEvidenceIndex) {
+    failures.push("converted-trained runtime smoke was requested before source validation");
+  }
   if (evalEvidenceIndex < 0 || modelIndex < 0 || evalEvidenceIndex > modelIndex) {
     failures.push("converted-trained eval evidence was not requested before model bytes");
+  }
+  if (runtimeEvidenceIndex >= 0 && evalEvidenceIndex >= 0 && runtimeEvidenceIndex > evalEvidenceIndex) {
+    failures.push("converted-trained eval evidence was requested before runtime smoke");
+  }
+  if (admissionEvidenceIndex < 0 || modelIndex < 0 || admissionEvidenceIndex > modelIndex) {
+    failures.push("converted-trained admission evidence was not requested before model bytes");
+  }
+  if (evalEvidenceIndex >= 0 && admissionEvidenceIndex >= 0 && evalEvidenceIndex > admissionEvidenceIndex) {
+    failures.push("converted-trained admission evidence was requested before eval evidence");
   }
   const allowedOrigin = new URL(appUrl).origin;
   for (const requestUrl of networkRequests) {
@@ -3474,7 +3616,8 @@ function assertConvertedTrainedSourceReviewDriftSmoke(
   result,
   modelKey,
   networkRequests,
-  expectedError = "source review identity field source_review_checksum"
+  expectedError = "source review identity field source_review_checksum",
+  expectSourceReviewSidecar = false
 ) {
   const failures = [];
   if (result.selectedModel !== modelKey) {
@@ -3502,6 +3645,14 @@ function assertConvertedTrainedSourceReviewDriftSmoke(
   if (!networkIncludesPath(networkRequests, expectedSourceManifestRoute)) {
     failures.push("converted-trained source manifest route was not requested");
   }
+  const expectedSourceReviewRoute = `/evidence/${modelKey}/converted-trained.source.review`;
+  if (expectSourceReviewSidecar && !networkIncludesPath(networkRequests, expectedSourceReviewRoute)) {
+    failures.push("converted-trained source review route was not requested");
+  }
+  const expectedEvalRoute = `/evidence/${modelKey}/converted-trained.eval`;
+  if (expectSourceReviewSidecar && networkIncludesPath(networkRequests, expectedEvalRoute)) {
+    failures.push("converted-trained eval route was requested after source review sidecar drift");
+  }
   const expectedRoute = expectedRouteForModel(modelKey) || "/models/converted-trained-q8.slm";
   if (networkIncludesPath(networkRequests, expectedRoute)) {
     failures.push("converted-trained model route was requested after source review drift");
@@ -3521,8 +3672,8 @@ function assertConvertedTrainedSourceReviewDriftSmoke(
   }
 }
 
-// Confirms eval evidence drift stops converted-trained loading before model bytes.
-function assertConvertedTrainedEvalEvidenceDriftSmoke(result, modelKey, networkRequests) {
+// Confirms source-validation drift stops converted-trained loading before runtime, eval, or model bytes.
+function assertConvertedTrainedSourceValidationDriftSmoke(result, modelKey, networkRequests) {
   const failures = [];
   if (result.selectedModel !== modelKey) {
     failures.push(`selected model was ${result.selectedModel}`);
@@ -3533,7 +3684,152 @@ function assertConvertedTrainedEvalEvidenceDriftSmoke(result, modelKey, networkR
   if (result.modelState !== "fetch error") {
     failures.push(`model state was ${result.modelState}`);
   }
-  if (!String(result.errorState || "").includes("eval evidence checksum mismatch")) {
+  if (!String(result.errorState || "").includes("source validation field source_validation_status")) {
+    failures.push(`error state was ${result.errorState}`);
+  }
+  if (!result.generateDisabled || !result.resetDisabled || !result.stepTokenDisabled) {
+    failures.push("runtime controls were enabled after converted-trained source validation drift");
+  }
+  if (result.modelSelectDisabled) {
+    failures.push("model selector was disabled after converted-trained source validation drift");
+  }
+  if (!networkIncludesPath(networkRequests, "/models/selector.registry")) {
+    failures.push("selector registry route was not requested");
+  }
+  const expectedSourceManifestRoute = `/evidence/${modelKey}/converted-trained.source.manifest`;
+  if (!networkIncludesPath(networkRequests, expectedSourceManifestRoute)) {
+    failures.push("converted-trained source manifest route was not requested");
+  }
+  const expectedSourceReviewRoute = `/evidence/${modelKey}/converted-trained.source.review`;
+  if (!networkIncludesPath(networkRequests, expectedSourceReviewRoute)) {
+    failures.push("converted-trained source review route was not requested");
+  }
+  const expectedSourceValidationRoute = `/evidence/${modelKey}/converted-trained.source.validation`;
+  if (!networkIncludesPath(networkRequests, expectedSourceValidationRoute)) {
+    failures.push("converted-trained source validation route was not requested");
+  }
+  const expectedRuntimeEvidenceRoute = `/evidence/${modelKey}/converted-trained.runtime`;
+  if (networkIncludesPath(networkRequests, expectedRuntimeEvidenceRoute)) {
+    failures.push("converted-trained runtime smoke route was requested after source validation drift");
+  }
+  const expectedEvalEvidenceRoute = `/evidence/${modelKey}/converted-trained.eval`;
+  if (networkIncludesPath(networkRequests, expectedEvalEvidenceRoute)) {
+    failures.push("converted-trained eval evidence route was requested after source validation drift");
+  }
+  const expectedModelRoute = expectedRouteForModel(modelKey);
+  if (expectedModelRoute && networkIncludesPath(networkRequests, expectedModelRoute)) {
+    failures.push("converted-trained model route was requested after source validation drift");
+  }
+  const sourceReviewIndex = networkRequests.findIndex((requestUrl) => requestUrlPathEquals(requestUrl, expectedSourceReviewRoute));
+  const sourceValidationIndex = networkRequests.findIndex((requestUrl) => requestUrlPathEquals(requestUrl, expectedSourceValidationRoute));
+  if (sourceReviewIndex >= 0 && sourceValidationIndex >= 0 && sourceReviewIndex > sourceValidationIndex) {
+    failures.push("converted-trained source validation was requested before source review");
+  }
+  const allowedOrigin = new URL(appUrl).origin;
+  for (const requestUrl of networkRequests) {
+    if (!requestUrl.startsWith("http://") && !requestUrl.startsWith("https://")) {
+      continue;
+    }
+    const origin = new URL(requestUrl).origin;
+    if (origin !== allowedOrigin) {
+      failures.push(`remote request observed: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+// Confirms runtime-smoke drift stops converted-trained loading before eval evidence or model bytes.
+function assertConvertedTrainedRuntimeEvidenceDriftSmoke(result, modelKey, networkRequests) {
+  const failures = [];
+  if (result.selectedModel !== modelKey) {
+    failures.push(`selected model was ${result.selectedModel}`);
+  }
+  if (result.runtimeStatus !== "Model load failed") {
+    failures.push(`runtime status was ${result.runtimeStatus}`);
+  }
+  if (result.modelState !== "fetch error") {
+    failures.push(`model state was ${result.modelState}`);
+  }
+  if (!String(result.errorState || "").includes("runtime smoke evidence checksum mismatch")) {
+    failures.push(`error state was ${result.errorState}`);
+  }
+  if (!result.generateDisabled || !result.resetDisabled || !result.stepTokenDisabled) {
+    failures.push("runtime controls were enabled after converted-trained runtime evidence drift");
+  }
+  if (result.modelSelectDisabled) {
+    failures.push("model selector was disabled after converted-trained runtime evidence drift");
+  }
+  if (!networkIncludesPath(networkRequests, "/models/selector.registry")) {
+    failures.push("selector registry route was not requested");
+  }
+  const expectedSourceManifestRoute = `/evidence/${modelKey}/converted-trained.source.manifest`;
+  if (!networkIncludesPath(networkRequests, expectedSourceManifestRoute)) {
+    failures.push("converted-trained source manifest route was not requested");
+  }
+  const expectedSourceReviewRoute = `/evidence/${modelKey}/converted-trained.source.review`;
+  if (!networkIncludesPath(networkRequests, expectedSourceReviewRoute)) {
+    failures.push("converted-trained source review route was not requested");
+  }
+  const expectedSourceValidationRoute = `/evidence/${modelKey}/converted-trained.source.validation`;
+  if (!networkIncludesPath(networkRequests, expectedSourceValidationRoute)) {
+    failures.push("converted-trained source validation route was not requested");
+  }
+  const expectedRuntimeEvidenceRoute = `/evidence/${modelKey}/converted-trained.runtime`;
+  if (!networkIncludesPath(networkRequests, expectedRuntimeEvidenceRoute)) {
+    failures.push("converted-trained runtime smoke route was not requested");
+  }
+  const expectedEvalEvidenceRoute = `/evidence/${modelKey}/converted-trained.eval`;
+  if (networkIncludesPath(networkRequests, expectedEvalEvidenceRoute)) {
+    failures.push("converted-trained eval evidence route was requested after runtime smoke drift");
+  }
+  const expectedModelRoute = expectedRouteForModel(modelKey);
+  if (expectedModelRoute && networkIncludesPath(networkRequests, expectedModelRoute)) {
+    failures.push("converted-trained model route was requested after runtime smoke drift");
+  }
+  const sourceReviewIndex = networkRequests.findIndex((requestUrl) => requestUrlPathEquals(requestUrl, expectedSourceReviewRoute));
+  const sourceValidationIndex = networkRequests.findIndex((requestUrl) => requestUrlPathEquals(requestUrl, expectedSourceValidationRoute));
+  const runtimeEvidenceIndex = networkRequests.findIndex((requestUrl) => requestUrlPathEquals(requestUrl, expectedRuntimeEvidenceRoute));
+  if (sourceReviewIndex >= 0 && sourceValidationIndex >= 0 && sourceReviewIndex > sourceValidationIndex) {
+    failures.push("converted-trained source validation was requested before source review");
+  }
+  if (sourceValidationIndex >= 0 && runtimeEvidenceIndex >= 0 && sourceValidationIndex > runtimeEvidenceIndex) {
+    failures.push("converted-trained runtime smoke was requested before source validation");
+  }
+  const allowedOrigin = new URL(appUrl).origin;
+  for (const requestUrl of networkRequests) {
+    if (!requestUrl.startsWith("http://") && !requestUrl.startsWith("https://")) {
+      continue;
+    }
+    const origin = new URL(requestUrl).origin;
+    if (origin !== allowedOrigin) {
+      failures.push(`remote request observed: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+// Confirms eval evidence drift stops converted-trained loading before model bytes.
+function assertConvertedTrainedEvalEvidenceDriftSmoke(
+  result,
+  modelKey,
+  networkRequests,
+  expectedError = "eval evidence checksum mismatch"
+) {
+  const failures = [];
+  if (result.selectedModel !== modelKey) {
+    failures.push(`selected model was ${result.selectedModel}`);
+  }
+  if (result.runtimeStatus !== "Model load failed") {
+    failures.push(`runtime status was ${result.runtimeStatus}`);
+  }
+  if (result.modelState !== "fetch error") {
+    failures.push(`model state was ${result.modelState}`);
+  }
+  if (!String(result.errorState || "").includes(expectedError)) {
     failures.push(`error state was ${result.errorState}`);
   }
   if (!result.generateDisabled || !result.resetDisabled || !result.stepTokenDisabled) {
@@ -3549,6 +3845,14 @@ function assertConvertedTrainedEvalEvidenceDriftSmoke(result, modelKey, networkR
   if (!networkIncludesPath(networkRequests, expectedSourceManifestRoute)) {
     failures.push("converted-trained source manifest route was not requested");
   }
+  const expectedSourceReviewRoute = `/evidence/${modelKey}/converted-trained.source.review`;
+  if (!networkIncludesPath(networkRequests, expectedSourceReviewRoute)) {
+    failures.push("converted-trained source review route was not requested");
+  }
+  const expectedSourceValidationRoute = `/evidence/${modelKey}/converted-trained.source.validation`;
+  if (!networkIncludesPath(networkRequests, expectedSourceValidationRoute)) {
+    failures.push("converted-trained source validation route was not requested");
+  }
   const expectedEvalEvidenceRoute = `/evidence/${modelKey}/converted-trained.eval`;
   if (!networkIncludesPath(networkRequests, expectedEvalEvidenceRoute)) {
     failures.push("converted-trained eval evidence route was not requested");
@@ -3556,6 +3860,78 @@ function assertConvertedTrainedEvalEvidenceDriftSmoke(result, modelKey, networkR
   const expectedModelRoute = expectedRouteForModel(modelKey);
   if (expectedModelRoute && networkIncludesPath(networkRequests, expectedModelRoute)) {
     failures.push("converted-trained model route was requested after eval evidence drift");
+  }
+  const allowedOrigin = new URL(appUrl).origin;
+  for (const requestUrl of networkRequests) {
+    if (!requestUrl.startsWith("http://") && !requestUrl.startsWith("https://")) {
+      continue;
+    }
+    const origin = new URL(requestUrl).origin;
+    if (origin !== allowedOrigin) {
+      failures.push(`remote request observed: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+// Confirms admission sidecar drift stops converted-trained loading after eval and before model bytes.
+function assertConvertedTrainedAdmissionDriftSmoke(result, modelKey, networkRequests) {
+  const failures = [];
+  if (result.selectedModel !== modelKey) {
+    failures.push(`selected model was ${result.selectedModel}`);
+  }
+  if (result.runtimeStatus !== "Model load failed") {
+    failures.push(`runtime status was ${result.runtimeStatus}`);
+  }
+  if (result.modelState !== "fetch error") {
+    failures.push(`model state was ${result.modelState}`);
+  }
+  if (!String(result.errorState || "").includes("admission evidence field admission_status")) {
+    failures.push(`error state was ${result.errorState}`);
+  }
+  if (!result.generateDisabled || !result.resetDisabled || !result.stepTokenDisabled) {
+    failures.push("runtime controls were enabled after converted-trained admission drift");
+  }
+  if (result.modelSelectDisabled) {
+    failures.push("model selector was disabled after converted-trained admission drift");
+  }
+  if (!networkIncludesPath(networkRequests, "/models/selector.registry")) {
+    failures.push("selector registry route was not requested");
+  }
+  const expectedSourceManifestRoute = `/evidence/${modelKey}/converted-trained.source.manifest`;
+  if (!networkIncludesPath(networkRequests, expectedSourceManifestRoute)) {
+    failures.push("converted-trained source manifest route was not requested");
+  }
+  const expectedSourceReviewRoute = `/evidence/${modelKey}/converted-trained.source.review`;
+  if (!networkIncludesPath(networkRequests, expectedSourceReviewRoute)) {
+    failures.push("converted-trained source review route was not requested");
+  }
+  const expectedSourceValidationRoute = `/evidence/${modelKey}/converted-trained.source.validation`;
+  if (!networkIncludesPath(networkRequests, expectedSourceValidationRoute)) {
+    failures.push("converted-trained source validation route was not requested");
+  }
+  const expectedRuntimeEvidenceRoute = `/evidence/${modelKey}/converted-trained.runtime`;
+  if (!networkIncludesPath(networkRequests, expectedRuntimeEvidenceRoute)) {
+    failures.push("converted-trained runtime smoke route was not requested");
+  }
+  const expectedEvalEvidenceRoute = `/evidence/${modelKey}/converted-trained.eval`;
+  if (!networkIncludesPath(networkRequests, expectedEvalEvidenceRoute)) {
+    failures.push("converted-trained eval evidence route was not requested");
+  }
+  const expectedAdmissionRoute = `/evidence/${modelKey}/converted-trained.admission`;
+  if (!networkIncludesPath(networkRequests, expectedAdmissionRoute)) {
+    failures.push("converted-trained admission evidence route was not requested");
+  }
+  const expectedModelRoute = expectedRouteForModel(modelKey);
+  if (expectedModelRoute && networkIncludesPath(networkRequests, expectedModelRoute)) {
+    failures.push("converted-trained model route was requested after admission drift");
+  }
+  const evalEvidenceIndex = networkRequests.findIndex((requestUrl) => requestUrlPathEquals(requestUrl, expectedEvalEvidenceRoute));
+  const admissionEvidenceIndex = networkRequests.findIndex((requestUrl) => requestUrlPathEquals(requestUrl, expectedAdmissionRoute));
+  if (evalEvidenceIndex >= 0 && admissionEvidenceIndex >= 0 && evalEvidenceIndex > admissionEvidenceIndex) {
+    failures.push("converted-trained admission evidence was requested before eval evidence");
   }
   const allowedOrigin = new URL(appUrl).origin;
   for (const requestUrl of networkRequests) {
@@ -7053,6 +7429,18 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
   if (snapshot.provenanceSourceReview !== "unavailable") {
     failures.push(`${prefix} provenance source review was ${snapshot.provenanceSourceReview}`);
   }
+  if (snapshot.provenanceSourceReviewRoutes !== "unavailable") {
+    failures.push(`${prefix} provenance source review routes were ${snapshot.provenanceSourceReviewRoutes}`);
+  }
+  if (snapshot.provenanceSourceReviewArtifacts !== "unavailable") {
+    failures.push(`${prefix} provenance source review artifacts were ${snapshot.provenanceSourceReviewArtifacts}`);
+  }
+  if (snapshot.provenanceSourceTokenizerImport !== "unavailable") {
+    failures.push(`${prefix} provenance source tokenizer import was ${snapshot.provenanceSourceTokenizerImport}`);
+  }
+  if (snapshot.provenanceSourceValidation !== "unavailable") {
+    failures.push(`${prefix} provenance source validation was ${snapshot.provenanceSourceValidation}`);
+  }
   if (snapshot.provenanceAdmission !== "accepted-for-runtime-smoke") {
     failures.push(`${prefix} provenance admission was ${snapshot.provenanceAdmission}`);
   }
@@ -7676,6 +8064,98 @@ function convertedTrainedRegistryManifestText() {
   ].join("\n");
 }
 
+// Builds the candidate-review report fetched before converted model bytes.
+function convertedTrainedSourceReviewText() {
+  return [
+    "tinyrustlm_safetensors_candidate_review_version=1",
+    "review_layout=safetensors-real-trained-candidate-review-v1",
+    `source_model_id=${convertedTrainedSourceReviewModelId()}`,
+    `source_model_sha=${convertedTrainedSourceReviewSha()}`,
+    "source_config_checksum=0x00000000000000c1",
+    "source_config_artifact_status=local-json-bound",
+    "source_config_artifact_kind=config-json",
+    "source_config_artifact_checksum=0x00000000000000c1",
+    "source_config_artifact_bytes=128",
+    "source_config_artifact_detail=model_type:llama;hidden_size:8",
+    "source_tokenizer_checksum=0x00000000000000c2",
+    "source_tokenizer_artifact_status=local-json-bound",
+    "source_tokenizer_artifact_kind=tokenizer-json",
+    "source_tokenizer_artifact_checksum=0x00000000000000c2",
+    "source_tokenizer_artifact_bytes=256",
+    "source_tokenizer_artifact_detail=tokenizer_version:1.0;model_type:BPE",
+    "source_tokenizer_import_status=not-imported",
+    "source_tokenizer_import_token_count=0",
+    "source_tokenizer_import_merge_count=0",
+    "source_tokenizer_import_checksum=0x0000000000000000",
+    "source_license_route=docs/report-intake/2026-06-30/Safetensors Browser Runtime Guide.md",
+    "source_license_artifact_status=local-text-bound",
+    "source_license_artifact_kind=license-text",
+    "source_license_artifact_checksum=0x00000000000000d1",
+    "source_license_artifact_bytes=64",
+    "source_license_artifact_detail=line_count:2",
+    "reference_prompt_route=fixtures/browser-smoke-reference-prompt.txt",
+    "reference_prompt_artifact_status=local-text-bound",
+    "reference_prompt_artifact_kind=reference-prompt-text",
+    "reference_prompt_artifact_checksum=0x00000000000000d2",
+    "reference_prompt_artifact_bytes=8",
+    "reference_prompt_artifact_detail=line_count:1",
+    "reference_output_checksum=0x00000000000000e1",
+    `eval_cases_route=${convertedTrainedEvalCasesRoute()}`,
+    "eval_cases_artifact_status=local-text-bound",
+    "eval_cases_artifact_kind=eval-cases-text",
+    "eval_cases_artifact_checksum=0x00000000000000d3",
+    "eval_cases_artifact_bytes=96",
+    "eval_cases_artifact_detail=scope:browser-smoke;case_count:1",
+    "target_model_shape=tiny-fixture",
+    "required_next_gate=extract-raw-f32-tensors",
+    ""
+  ].join("\n");
+}
+
+// Names the reviewed source candidate shown in converted-trained browser provenance.
+function convertedTrainedSourceReviewModelId() {
+  return "local/browser-smoke-reviewed-fixture";
+}
+
+// Supplies a SHA-shaped source revision for browser source-review validation.
+function convertedTrainedSourceReviewSha() {
+  return "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+}
+
+// Computes the review sidecar checksum reused by selector and source snapshot fixtures.
+function convertedTrainedSourceReviewChecksum() {
+  return textChecksumHex(convertedTrainedSourceReviewText());
+}
+
+// Builds a checksum-matched review sidecar whose source revision is not SHA-shaped.
+function convertedTrainedSourceReviewShaDriftText() {
+  return convertedTrainedSourceReviewText().replace(
+    `source_model_sha=${convertedTrainedSourceReviewSha()}`,
+    "source_model_sha=not-a-real-source-sha"
+  );
+}
+
+// Builds a checksum-matched review sidecar whose tokenizer import rows are contradictory.
+function convertedTrainedSourceReviewTokenizerImportDriftText() {
+  return convertedTrainedSourceReviewText().replace(
+    "source_tokenizer_import_checksum=0x0000000000000000",
+    "source_tokenizer_import_checksum=0x0000000000000001"
+  );
+}
+
+// Names the eval-case route that source review and eval sidecar must share.
+function convertedTrainedEvalCasesRoute() {
+  return "fixtures/browser-smoke-eval-cases.txt";
+}
+
+// Builds a checksum-matched review sidecar whose eval route differs from eval evidence.
+function convertedTrainedSourceReviewEvalRouteDriftText() {
+  return convertedTrainedSourceReviewText().replace(
+    `eval_cases_route=${convertedTrainedEvalCasesRoute()}`,
+    "eval_cases_route=fixtures/drifted-browser-smoke-eval-cases.txt"
+  );
+}
+
 // Builds the reviewed trained-source manifest body fetched before converted model bytes.
 function convertedTrainedSourceManifestText() {
   return [
@@ -7694,7 +8174,7 @@ function convertedTrainedSourceManifestText() {
     "source_training_summary=Deterministic source-weight fixture for conversion path validation",
     "source_review_kind=safetensors-candidate-review",
     "source_review_status=validated-before-extraction",
-    "source_review_checksum=0x00000000000000b1",
+    `source_review_checksum=${convertedTrainedSourceReviewChecksum()}`,
     "source_review_required_next_gate=extract-raw-f32-tensors",
     "tensor_count=12",
     ""
@@ -7712,9 +8192,97 @@ function convertedTrainedSourceIdentityDriftManifestText() {
 // Builds a checksum-matched source manifest whose review checksum disagrees with selector metadata.
 function convertedTrainedSourceReviewDriftManifestText() {
   return convertedTrainedSourceManifestText().replace(
-    "source_review_checksum=0x00000000000000b1",
+    `source_review_checksum=${convertedTrainedSourceReviewChecksum()}`,
     "source_review_checksum=0x00000000000000b2"
   );
+}
+
+// Builds a source snapshot that agrees with a checksum-matched but invalid review sidecar.
+function convertedTrainedSourceReviewShaDriftManifestText() {
+  return convertedTrainedSourceManifestText().replace(
+    `source_review_checksum=${convertedTrainedSourceReviewChecksum()}`,
+    `source_review_checksum=${textChecksumHex(convertedTrainedSourceReviewShaDriftText())}`
+  );
+}
+
+// Builds a source snapshot that agrees with a tokenizer-import drift review sidecar.
+function convertedTrainedSourceReviewTokenizerImportDriftManifestText() {
+  return convertedTrainedSourceManifestText().replace(
+    `source_review_checksum=${convertedTrainedSourceReviewChecksum()}`,
+    `source_review_checksum=${textChecksumHex(convertedTrainedSourceReviewTokenizerImportDriftText())}`
+  );
+}
+
+// Builds a source snapshot that agrees with a checksum-matched eval-route drift review sidecar.
+function convertedTrainedSourceReviewEvalRouteDriftManifestText() {
+  return convertedTrainedSourceManifestText().replace(
+    `source_review_checksum=${convertedTrainedSourceReviewChecksum()}`,
+    `source_review_checksum=${textChecksumHex(convertedTrainedSourceReviewEvalRouteDriftText())}`
+  );
+}
+
+// Builds the validate-source sidecar body fetched before runtime, eval, and model bytes.
+function convertedTrainedSourceValidationText() {
+  return [
+    "tinyrustlm_source_validation_version=1",
+    "source_validation_gate=validate-source",
+    "source_validation_status=pass",
+    "source_validation_decision=accepted-for-conversion",
+    "source_manifest_path=../evidence/converted-trained-q8/converted-trained.source.manifest",
+    `source_manifest_checksum=${textChecksumHex(convertedTrainedSourceManifestText())}`,
+    "source_kind=trained-source-fixture",
+    "source_id=tinyrustlm-local-source-fixture",
+    "model_shape=tiny-fixture",
+    "source_dtype=f32",
+    "tied_output=false",
+    "tensor_count=12",
+    `source_review_checksum=${convertedTrainedSourceReviewChecksum()}`,
+    "required_next_gate=convert-raw-f32-source-to-slm",
+    ""
+  ].join("\n");
+}
+
+// Builds a checksum-matched validate-source sidecar with a rejected status field.
+function convertedTrainedSourceValidationDriftText() {
+  return convertedTrainedSourceValidationText().replace(
+    "source_validation_status=pass",
+    "source_validation_status=fail"
+  );
+}
+
+// Builds validate-source evidence that follows the checksum-matched eval-route review drift.
+function convertedTrainedSourceReviewEvalRouteDriftValidationText() {
+  return convertedTrainedSourceValidationText()
+    .replace(
+      `source_manifest_checksum=${textChecksumHex(convertedTrainedSourceManifestText())}`,
+      `source_manifest_checksum=${textChecksumHex(convertedTrainedSourceReviewEvalRouteDriftManifestText())}`
+    )
+    .replace(
+      `source_review_checksum=${convertedTrainedSourceReviewChecksum()}`,
+      `source_review_checksum=${textChecksumHex(convertedTrainedSourceReviewEvalRouteDriftText())}`
+    );
+}
+
+// Builds the runtime-smoke sidecar body fetched before eval evidence and model bytes.
+function convertedTrainedRuntimeEvidenceText() {
+  return [
+    "tinyrustlm_runtime_smoke_version=1",
+    "gate=runtime-smoke",
+    "source_kind=converted-trained",
+    "model_path=tinyrustlm\\models\\converted-trained-q8.slm",
+    `manifest_checksum=${textChecksumHex(convertedTrainedRegistryManifestText())}`,
+    "slm_checksum=0x481f1037d57ebcd3",
+    "model_shape=vocab=260,hidden=8,layers=1,heads=2,kv_heads=2,head_dim=4,ffn=16,context=16",
+    "runtime_smoke_status=pass",
+    "runtime_smoke_decision=accepted-for-runtime-smoke",
+    "required_next_gate=promotion-eval-and-selector-admission",
+    ""
+  ].join("\n");
+}
+
+// Mutates runtime-smoke evidence while leaving the selector checksum pinned to the original text.
+function convertedTrainedRuntimeEvidenceDriftText() {
+  return `${convertedTrainedRuntimeEvidenceText()}runtime_smoke_drift=checksum-mismatch\n`;
 }
 
 // Builds the passed eval sidecar body fetched before converted model bytes.
@@ -7732,7 +8300,8 @@ function convertedTrainedEvalEvidenceText() {
     "quality_decision=accepted-for-assistant-quality",
     "quality_scope=tiny-fixture-runtime-eval-only",
     "evaluator=browser-smoke-fixture",
-    "eval_dataset=tinyrustlm/tests/fixtures/assistant-quality-eval-cases.txt",
+    `eval_dataset=${convertedTrainedEvalCasesRoute()}`,
+    `eval_cases_route=${convertedTrainedEvalCasesRoute()}`,
     "eval_summary=Fixture converted-trained route check",
     "quality_boundary=fixture-runtime-and-eval-plumbing-not-product-assistant-quality",
     "case_count=1",
@@ -7746,10 +8315,69 @@ function convertedTrainedEvalEvidenceText() {
   ].join("\n");
 }
 
+// Builds the selector admission sidecar verified after runtime/eval evidence and before model bytes.
+function convertedTrainedAdmissionText() {
+  const sourceManifestText = convertedTrainedSourceManifestText();
+  const sourceReviewText = convertedTrainedSourceReviewText();
+  const sourceValidationText = convertedTrainedSourceValidationText();
+  const runtimeEvidenceText = convertedTrainedRuntimeEvidenceText();
+  const evalEvidenceText = convertedTrainedEvalEvidenceText();
+  return [
+    "tinyrustlm_selector_admission_version=1",
+    "selector_id=browser-local-selector",
+    "candidate_id=converted-trained-q8",
+    "admission_path=../evidence/converted-trained-q8/converted-trained.admission",
+    "admission_status=admitted-for-browser-selector",
+    "promotion_status=runtime-smoke-and-eval-passed",
+    "candidate_artifact_path=tinyrustlm/models/converted-trained-q8.slm",
+    "candidate_artifact_bytes=8832",
+    "candidate_slm_checksum=0x481f1037d57ebcd3",
+    "candidate_model_shape=vocab=260,hidden=8,layers=1,heads=2,kv_heads=2,head_dim=4,ffn=16,context=16",
+    "candidate_quantization=q8_0",
+    "candidate_tokenizer_checksum=0x289d76790aca3acb",
+    "source_manifest_path=../evidence/converted-trained-q8/converted-trained.source.manifest",
+    `source_manifest_checksum=${textChecksumHex(sourceManifestText)}`,
+    "source_review_path=../evidence/converted-trained-q8/converted-trained.source.review",
+    `source_review_checksum=${textChecksumHex(sourceReviewText)}`,
+    "source_validation_path=../evidence/converted-trained-q8/converted-trained.source.validation",
+    `source_validation_checksum=${textChecksumHex(sourceValidationText)}`,
+    "runtime_smoke_path=../evidence/converted-trained-q8/converted-trained.runtime",
+    `runtime_smoke_manifest_checksum=${textChecksumHex(runtimeEvidenceText)}`,
+    "eval_path=../evidence/converted-trained-q8/converted-trained.eval",
+    `eval_manifest_checksum=${textChecksumHex(evalEvidenceText)}`,
+    `eval_case_evidence_checksum=${evalCaseEvidenceChecksumFromText(evalEvidenceText)}`,
+    "runtime_smoke_status=pass",
+    "eval_status=pass",
+    "quality_gate=assistant-quality",
+    "quality_scope=tiny-fixture-runtime-eval-only",
+    "quality_boundary=fixture-runtime-and-eval-plumbing-not-product-assistant-quality",
+    `eval_dataset=${convertedTrainedEvalCasesRoute()}`,
+    "cases_passed=1",
+    "cases_failed=0",
+    "promotion_decision=accepted-for-browser-selector",
+    "browser_selector_status=admitted",
+    "public_claim_status=bound-to-eval-scope",
+    "required_next_gate=browser-selector-loads-only-admission-record-artifacts",
+    ""
+  ].join("\n");
+}
+
+// Mutates a checksum-matched admission field so the browser rejects the sidecar contract.
+function convertedTrainedAdmissionDriftText() {
+  return convertedTrainedAdmissionText().replace(
+    "admission_status=admitted-for-browser-selector",
+    "admission_status=pending-selector-admission"
+  );
+}
+
 // Builds a compact selector registry that routes a local converted-trained q8 artifact.
 function convertedTrainedRegistryText() {
   const sourceManifestText = convertedTrainedSourceManifestText();
+  const sourceReviewText = convertedTrainedSourceReviewText();
+  const sourceValidationText = convertedTrainedSourceValidationText();
+  const runtimeEvidenceText = convertedTrainedRuntimeEvidenceText();
   const evalEvidenceText = convertedTrainedEvalEvidenceText();
+  const admissionText = convertedTrainedAdmissionText();
   return [
     "tinyrustlm_selector_registry_version=1",
     "selector_id=browser-local-selector",
@@ -7774,9 +8402,12 @@ function convertedTrainedRegistryText() {
     "entry.0.source_manifest_source_id=tinyrustlm-local-source-fixture",
     "entry.0.source_manifest_model_shape=tiny-fixture",
     "entry.0.source_review_kind=safetensors-candidate-review",
+    "entry.0.source_review_path=../evidence/converted-trained-q8/converted-trained.source.review",
     "entry.0.source_review_status=validated-before-extraction",
-    "entry.0.source_review_checksum=0x00000000000000b1",
+    `entry.0.source_review_checksum=${textChecksumHex(sourceReviewText)}`,
     "entry.0.source_review_required_next_gate=extract-raw-f32-tensors",
+    "entry.0.source_validation_path=../evidence/converted-trained-q8/converted-trained.source.validation",
+    `entry.0.source_validation_checksum=${textChecksumHex(sourceValidationText)}`,
     "entry.0.artifact_path=tinyrustlm/models/converted-trained-q8.slm",
     "entry.0.max_tokens=8",
     "entry.0.model_bytes=8832",
@@ -7814,16 +8445,18 @@ function convertedTrainedRegistryText() {
     "entry.0.heritable_artifact_strategy=selector-heritable-artifact-v1",
     "entry.0.heritable_artifact_status=served-artifact-bound",
     "entry.0.heritable_artifact_checksum=0x000000000000017f",
-    "entry.0.admission_checksum=0x0000000000000072",
+    "entry.0.admission_path=../evidence/converted-trained-q8/converted-trained.admission",
+    `entry.0.admission_checksum=${textChecksumHex(admissionText)}`,
     "entry.0.promotion_manifest_checksum=0x0000000000000073",
     "entry.0.provenance_manifest_checksum=0x0000000000000077",
-    "entry.0.runtime_smoke_manifest_checksum=0x0000000000000074",
+    "entry.0.runtime_smoke_path=../evidence/converted-trained-q8/converted-trained.runtime",
+    `entry.0.runtime_smoke_manifest_checksum=${textChecksumHex(runtimeEvidenceText)}`,
     "entry.0.eval_path=../evidence/converted-trained-q8/converted-trained.eval",
     `entry.0.eval_manifest_checksum=${textChecksumHex(evalEvidenceText)}`,
     `entry.0.eval_case_evidence_checksum=${evalCaseEvidenceChecksumFromText(evalEvidenceText)}`,
     "entry.0.quality_scope=tiny-fixture-runtime-eval-only",
     "entry.0.quality_boundary=fixture-runtime-and-eval-plumbing-not-product-assistant-quality",
-    "entry.0.eval_dataset=tinyrustlm/tests/fixtures/assistant-quality-eval-cases.txt",
+    `entry.0.eval_dataset=${convertedTrainedEvalCasesRoute()}`,
     "entry.0.cases_passed=1",
     "entry.0.fitness_vector_status=eval-bound",
     "entry.0.fitness_vector_checksum=0x0000000000000175",
@@ -7850,12 +8483,71 @@ function convertedTrainedSourceReviewDriftRegistryText() {
   );
 }
 
+// Recomputes selector checksums for a review sidecar whose SHA-shaped source revision drifted.
+function convertedTrainedSourceReviewShaDriftRegistryText() {
+  return convertedTrainedRegistryText()
+    .replace(
+      `entry.0.source_manifest_checksum=${textChecksumHex(convertedTrainedSourceManifestText())}`,
+      `entry.0.source_manifest_checksum=${textChecksumHex(convertedTrainedSourceReviewShaDriftManifestText())}`
+    )
+    .replace(
+      `entry.0.source_review_checksum=${convertedTrainedSourceReviewChecksum()}`,
+      `entry.0.source_review_checksum=${textChecksumHex(convertedTrainedSourceReviewShaDriftText())}`
+    );
+}
+
+// Builds a compact selector registry whose source-review checksum follows tokenizer import drift.
+function convertedTrainedSourceReviewTokenizerImportDriftRegistryText() {
+  return convertedTrainedRegistryText()
+    .replace(
+      `entry.0.source_manifest_checksum=${textChecksumHex(convertedTrainedSourceManifestText())}`,
+      `entry.0.source_manifest_checksum=${textChecksumHex(convertedTrainedSourceReviewTokenizerImportDriftManifestText())}`
+    )
+    .replace(
+      `entry.0.source_review_checksum=${convertedTrainedSourceReviewChecksum()}`,
+      `entry.0.source_review_checksum=${textChecksumHex(convertedTrainedSourceReviewTokenizerImportDriftText())}`
+    );
+}
+
+// Builds a compact selector registry whose source-review checksum follows eval-route drift.
+function convertedTrainedSourceReviewEvalRouteDriftRegistryText() {
+  return convertedTrainedRegistryText()
+    .replace(
+      `entry.0.source_manifest_checksum=${textChecksumHex(convertedTrainedSourceManifestText())}`,
+      `entry.0.source_manifest_checksum=${textChecksumHex(convertedTrainedSourceReviewEvalRouteDriftManifestText())}`
+    )
+    .replace(
+      `entry.0.source_review_checksum=${convertedTrainedSourceReviewChecksum()}`,
+      `entry.0.source_review_checksum=${textChecksumHex(convertedTrainedSourceReviewEvalRouteDriftText())}`
+    )
+    .replace(
+      `entry.0.source_validation_checksum=${textChecksumHex(convertedTrainedSourceValidationText())}`,
+      `entry.0.source_validation_checksum=${textChecksumHex(convertedTrainedSourceReviewEvalRouteDriftValidationText())}`
+    );
+}
+
 // Omits selector-carried source review fields while the fetched source manifest still contains them.
 function convertedTrainedSourceReviewOmittedRegistryText() {
   return convertedTrainedRegistryText()
     .split("\n")
     .filter((line) => !line.startsWith("entry.0.source_review_"))
     .join("\n");
+}
+
+// Recomputes selector validation checksum so the browser rejects the sidecar fields, not bytes.
+function convertedTrainedSourceValidationDriftRegistryText() {
+  return convertedTrainedRegistryText().replace(
+    `entry.0.source_validation_checksum=${textChecksumHex(convertedTrainedSourceValidationText())}`,
+    `entry.0.source_validation_checksum=${textChecksumHex(convertedTrainedSourceValidationDriftText())}`
+  );
+}
+
+// Recomputes the selector checksum for an admission sidecar whose status drifts.
+function convertedTrainedAdmissionDriftRegistryText() {
+  return convertedTrainedRegistryText().replace(
+    `entry.0.admission_checksum=${textChecksumHex(convertedTrainedAdmissionText())}`,
+    `entry.0.admission_checksum=${textChecksumHex(convertedTrainedAdmissionDriftText())}`
+  );
 }
 
 // Serves a local converted-trained model route by reusing the checked tiny q8 bytes with a converted-trained manifest.
@@ -7875,8 +8567,24 @@ function installConvertedTrainedRegistryInterceptor(client) {
         await fulfillTextRequest(client, params.requestId, convertedTrainedSourceManifestText());
         return;
       }
+      if (requestUrlPathEquals(requestUrl, "/evidence/converted-trained-q8/converted-trained.source.review")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceReviewText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/evidence/converted-trained-q8/converted-trained.source.validation")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceValidationText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/evidence/converted-trained-q8/converted-trained.runtime")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRuntimeEvidenceText());
+        return;
+      }
       if (requestUrlPathEquals(requestUrl, "/evidence/converted-trained-q8/converted-trained.eval")) {
         await fulfillTextRequest(client, params.requestId, convertedTrainedEvalEvidenceText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/evidence/converted-trained-q8/converted-trained.admission")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedAdmissionText());
         return;
       }
       if (requestUrlPathEquals(requestUrl, "/models/converted-trained-q8.slm")) {
@@ -7936,6 +8644,14 @@ function installConvertedTrainedSourceIdentityDriftInterceptor(client, modelKey)
         await fulfillTextRequest(client, params.requestId, convertedTrainedSourceIdentityDriftManifestText());
         return;
       }
+      if (requestUrlPathEquals(requestUrl, "/evidence/converted-trained-q8/converted-trained.source.review")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceReviewText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/evidence/converted-trained-q8/converted-trained.runtime")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRuntimeEvidenceText());
+        return;
+      }
       if (requestUrlPathEquals(requestUrl, "/evidence/converted-trained-q8/converted-trained.eval")) {
         await fulfillTextRequest(client, params.requestId, convertedTrainedEvalEvidenceText());
         return;
@@ -7973,7 +8689,159 @@ function installConvertedTrainedSourceReviewDriftInterceptor(client, modelKey) {
         await fulfillTextRequest(client, params.requestId, convertedTrainedSourceReviewDriftManifestText());
         return;
       }
+      if (requestUrlPathEquals(requestUrl, "/evidence/converted-trained-q8/converted-trained.source.review")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceReviewText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/evidence/converted-trained-q8/converted-trained.runtime")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRuntimeEvidenceText());
+        return;
+      }
       if (requestUrlPathEquals(requestUrl, "/evidence/converted-trained-q8/converted-trained.eval")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedEvalEvidenceText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/models/converted-trained-q8.slm")) {
+        const sourceUrl = new URL("/models/tiny-test-model-q8.slm", requestUrl).toString();
+        await fulfillBinaryRequest(client, params.requestId, await getBuffer(sourceUrl));
+        return;
+      }
+      await continuePausedRequest(client, params.requestId);
+    })().catch((error) => {
+      console.error(error);
+      continuePausedRequest(client, params.requestId).catch((continueError) => {
+        console.error(continueError);
+      });
+    });
+  });
+}
+
+// Serves a selector-matched source manifest but mutates the fetched review sidecar body.
+function installConvertedTrainedSourceReviewSidecarDriftInterceptor(client, modelKey) {
+  const sourceManifestRoute = `/evidence/${modelKey}/converted-trained.source.manifest`;
+  const sourceReviewRoute = `/evidence/${modelKey}/converted-trained.source.review`;
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    (async () => {
+      if (requestUrlPathEquals(requestUrl, "/models/selector.registry")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceReviewShaDriftRegistryText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/models/converted-trained-q8.slm.manifest")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRegistryManifestText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, sourceManifestRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceReviewShaDriftManifestText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, sourceReviewRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceReviewShaDriftText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/evidence/converted-trained-q8/converted-trained.runtime")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRuntimeEvidenceText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/evidence/converted-trained-q8/converted-trained.eval")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedEvalEvidenceText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/models/converted-trained-q8.slm")) {
+        const sourceUrl = new URL("/models/tiny-test-model-q8.slm", requestUrl).toString();
+        await fulfillBinaryRequest(client, params.requestId, await getBuffer(sourceUrl));
+        return;
+      }
+      await continuePausedRequest(client, params.requestId);
+    })().catch((error) => {
+      console.error(error);
+      continuePausedRequest(client, params.requestId).catch((continueError) => {
+        console.error(continueError);
+      });
+    });
+  });
+}
+
+// Serves a selector-matched review sidecar with invalid tokenizer import evidence.
+function installConvertedTrainedSourceReviewTokenizerImportDriftInterceptor(client, modelKey) {
+  const sourceManifestRoute = `/evidence/${modelKey}/converted-trained.source.manifest`;
+  const sourceReviewRoute = `/evidence/${modelKey}/converted-trained.source.review`;
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    (async () => {
+      if (requestUrlPathEquals(requestUrl, "/models/selector.registry")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceReviewTokenizerImportDriftRegistryText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/models/converted-trained-q8.slm.manifest")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRegistryManifestText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, sourceManifestRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceReviewTokenizerImportDriftManifestText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, sourceReviewRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceReviewTokenizerImportDriftText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/evidence/converted-trained-q8/converted-trained.runtime")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRuntimeEvidenceText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/evidence/converted-trained-q8/converted-trained.eval")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedEvalEvidenceText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/models/converted-trained-q8.slm")) {
+        const sourceUrl = new URL("/models/tiny-test-model-q8.slm", requestUrl).toString();
+        await fulfillBinaryRequest(client, params.requestId, await getBuffer(sourceUrl));
+        return;
+      }
+      await continuePausedRequest(client, params.requestId);
+    })().catch((error) => {
+      console.error(error);
+      continuePausedRequest(client, params.requestId).catch((continueError) => {
+        console.error(continueError);
+      });
+    });
+  });
+}
+
+// Serves a checksum-matched source review whose eval route disagrees with eval evidence.
+function installConvertedTrainedSourceReviewEvalRouteDriftInterceptor(client, modelKey) {
+  const sourceManifestRoute = `/evidence/${modelKey}/converted-trained.source.manifest`;
+  const sourceReviewRoute = `/evidence/${modelKey}/converted-trained.source.review`;
+  const sourceValidationRoute = `/evidence/${modelKey}/converted-trained.source.validation`;
+  const evalEvidenceRoute = `/evidence/${modelKey}/converted-trained.eval`;
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    (async () => {
+      if (requestUrlPathEquals(requestUrl, "/models/selector.registry")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceReviewEvalRouteDriftRegistryText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/models/converted-trained-q8.slm.manifest")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRegistryManifestText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, sourceManifestRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceReviewEvalRouteDriftManifestText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, sourceReviewRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceReviewEvalRouteDriftText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, sourceValidationRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceReviewEvalRouteDriftValidationText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/evidence/converted-trained-q8/converted-trained.runtime")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRuntimeEvidenceText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, evalEvidenceRoute)) {
         await fulfillTextRequest(client, params.requestId, convertedTrainedEvalEvidenceText());
         return;
       }
@@ -8010,7 +8878,117 @@ function installConvertedTrainedSourceReviewOmittedInterceptor(client, modelKey)
         await fulfillTextRequest(client, params.requestId, convertedTrainedSourceManifestText());
         return;
       }
+      if (requestUrlPathEquals(requestUrl, "/evidence/converted-trained-q8/converted-trained.runtime")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRuntimeEvidenceText());
+        return;
+      }
       if (requestUrlPathEquals(requestUrl, "/evidence/converted-trained-q8/converted-trained.eval")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedEvalEvidenceText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/models/converted-trained-q8.slm")) {
+        const sourceUrl = new URL("/models/tiny-test-model-q8.slm", requestUrl).toString();
+        await fulfillBinaryRequest(client, params.requestId, await getBuffer(sourceUrl));
+        return;
+      }
+      await continuePausedRequest(client, params.requestId);
+    })().catch((error) => {
+      console.error(error);
+      continuePausedRequest(client, params.requestId).catch((continueError) => {
+        console.error(continueError);
+      });
+    });
+  });
+}
+
+// Serves a checksum-matched validate-source sidecar whose status fails browser validation.
+function installConvertedTrainedSourceValidationDriftInterceptor(client, modelKey) {
+  const sourceManifestRoute = `/evidence/${modelKey}/converted-trained.source.manifest`;
+  const sourceReviewRoute = `/evidence/${modelKey}/converted-trained.source.review`;
+  const sourceValidationRoute = `/evidence/${modelKey}/converted-trained.source.validation`;
+  const runtimeEvidenceRoute = `/evidence/${modelKey}/converted-trained.runtime`;
+  const evalEvidenceRoute = `/evidence/${modelKey}/converted-trained.eval`;
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    (async () => {
+      if (requestUrlPathEquals(requestUrl, "/models/selector.registry")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceValidationDriftRegistryText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/models/converted-trained-q8.slm.manifest")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRegistryManifestText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, sourceManifestRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceManifestText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, sourceReviewRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceReviewText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, sourceValidationRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceValidationDriftText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, runtimeEvidenceRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRuntimeEvidenceText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, evalEvidenceRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedEvalEvidenceText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/models/converted-trained-q8.slm")) {
+        const sourceUrl = new URL("/models/tiny-test-model-q8.slm", requestUrl).toString();
+        await fulfillBinaryRequest(client, params.requestId, await getBuffer(sourceUrl));
+        return;
+      }
+      await continuePausedRequest(client, params.requestId);
+    })().catch((error) => {
+      console.error(error);
+      continuePausedRequest(client, params.requestId).catch((continueError) => {
+        console.error(continueError);
+      });
+    });
+  });
+}
+
+// Serves drifted runtime-smoke evidence while leaving the selector registry checksum untouched.
+function installConvertedTrainedRuntimeEvidenceDriftInterceptor(client, modelKey) {
+  const sourceManifestRoute = `/evidence/${modelKey}/converted-trained.source.manifest`;
+  const sourceReviewRoute = `/evidence/${modelKey}/converted-trained.source.review`;
+  const sourceValidationRoute = `/evidence/${modelKey}/converted-trained.source.validation`;
+  const runtimeEvidenceRoute = `/evidence/${modelKey}/converted-trained.runtime`;
+  const evalEvidenceRoute = `/evidence/${modelKey}/converted-trained.eval`;
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    (async () => {
+      if (requestUrlPathEquals(requestUrl, "/models/selector.registry")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRegistryText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/models/converted-trained-q8.slm.manifest")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRegistryManifestText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, sourceManifestRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceManifestText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, sourceReviewRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceReviewText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, sourceValidationRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceValidationText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, runtimeEvidenceRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRuntimeEvidenceDriftText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, evalEvidenceRoute)) {
         await fulfillTextRequest(client, params.requestId, convertedTrainedEvalEvidenceText());
         return;
       }
@@ -8031,16 +9009,107 @@ function installConvertedTrainedSourceReviewOmittedInterceptor(client, modelKey)
 
 // Serves drifted eval evidence while leaving the selector registry checksum untouched.
 function installConvertedTrainedEvalEvidenceDriftInterceptor(client, modelKey) {
+  const sourceManifestRoute = `/evidence/${modelKey}/converted-trained.source.manifest`;
+  const sourceReviewRoute = `/evidence/${modelKey}/converted-trained.source.review`;
+  const sourceValidationRoute = `/evidence/${modelKey}/converted-trained.source.validation`;
+  const runtimeEvidenceRoute = `/evidence/${modelKey}/converted-trained.runtime`;
   const evalEvidenceRoute = `/evidence/${modelKey}/converted-trained.eval`;
   client.on("Fetch.requestPaused", (params) => {
     const requestUrl = params.request && params.request.url ? params.request.url : "";
     (async () => {
+      if (requestUrlPathEquals(requestUrl, "/models/selector.registry")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRegistryText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/models/converted-trained-q8.slm.manifest")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRegistryManifestText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, sourceManifestRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceManifestText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, sourceReviewRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceReviewText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, sourceValidationRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceValidationText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, runtimeEvidenceRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRuntimeEvidenceText());
+        return;
+      }
       if (requestUrlPathEquals(requestUrl, evalEvidenceRoute)) {
         await fulfillTextRequest(
           client,
           params.requestId,
           `${convertedTrainedEvalEvidenceText()}case_drift=checksum-mismatch\n`
         );
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/models/converted-trained-q8.slm")) {
+        const sourceUrl = new URL("/models/tiny-test-model-q8.slm", requestUrl).toString();
+        await fulfillBinaryRequest(client, params.requestId, await getBuffer(sourceUrl));
+        return;
+      }
+      await continuePausedRequest(client, params.requestId);
+    })().catch((error) => {
+      console.error(error);
+      continuePausedRequest(client, params.requestId).catch((continueError) => {
+        console.error(continueError);
+      });
+    });
+  });
+}
+
+// Serves checksum-matched admission evidence with a rejected admission status.
+function installConvertedTrainedAdmissionDriftInterceptor(client, modelKey) {
+  const sourceManifestRoute = `/evidence/${modelKey}/converted-trained.source.manifest`;
+  const sourceReviewRoute = `/evidence/${modelKey}/converted-trained.source.review`;
+  const sourceValidationRoute = `/evidence/${modelKey}/converted-trained.source.validation`;
+  const runtimeEvidenceRoute = `/evidence/${modelKey}/converted-trained.runtime`;
+  const evalEvidenceRoute = `/evidence/${modelKey}/converted-trained.eval`;
+  const admissionRoute = `/evidence/${modelKey}/converted-trained.admission`;
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    (async () => {
+      if (requestUrlPathEquals(requestUrl, "/models/selector.registry")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedAdmissionDriftRegistryText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/models/converted-trained-q8.slm.manifest")) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRegistryManifestText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, sourceManifestRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceManifestText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, sourceReviewRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceReviewText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, sourceValidationRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedSourceValidationText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, runtimeEvidenceRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedRuntimeEvidenceText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, evalEvidenceRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedEvalEvidenceText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, admissionRoute)) {
+        await fulfillTextRequest(client, params.requestId, convertedTrainedAdmissionDriftText());
+        return;
+      }
+      if (requestUrlPathEquals(requestUrl, "/models/converted-trained-q8.slm")) {
+        const sourceUrl = new URL("/models/tiny-test-model-q8.slm", requestUrl).toString();
+        await fulfillBinaryRequest(client, params.requestId, await getBuffer(sourceUrl));
         return;
       }
       await continuePausedRequest(client, params.requestId);
@@ -9261,7 +10330,7 @@ async function main() {
     await client.send("Page.enable", {});
     await client.send("Runtime.enable", {});
     await client.send("Network.enable", {});
-    if (smokeMode === "model-error" || smokeMode === "missing-model" || convertedTrainedRegistrySmokeMode || convertedTrainedSourceManifestDriftSmokeMode || convertedTrainedSourceIdentityDriftSmokeMode || convertedTrainedSourceReviewDriftSmokeMode || convertedTrainedSourceReviewOmittedSmokeMode || convertedTrainedEvalEvidenceDriftSmokeMode || compactOperatorRegistrySmokeModes.has(smokeMode) || compactOperatorReceiptDriftSmokeModes.has(smokeMode) || generatedSelectorDriftSmokeModes.has(smokeMode) || smokeMode === "selector-budget" || smokeMode === "sidecar-budget-contract" || smokeMode === "runtime-manifest-drift" || smokeMode === "module-plan-profile-drift" || smokeMode === "module-plan-execution-profile-drift" || smokeMode === "module-plan-fetch-policy-drift" || smokeMode === "module-plan-origin-policy-drift" || smokeMode === "module-plan-wasm-memory-drift" || smokeMode === "module-plan-wasm-export-set-drift" || smokeMode === "module-plan-wasm-heap-drift" || smokeMode === "module-plan-context-token-drift" || smokeMode === "module-plan-sampler-cap-drift" || smokeMode === "module-plan-tokenizer-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-runtime-scratch-drift" || smokeMode === "module-plan-output-limit-drift" || smokeMode === "module-plan-prompt-limit-drift" || smokeMode === "module-plan-fetch-count-drift" || smokeMode === "module-plan-planned-fetch-count-drift" || smokeMode === "module-plan-route-set-algorithm-drift" || smokeMode === "module-plan-route-set-version-drift" || smokeMode === "module-plan-route-set-drift" || smokeMode === "module-plan-operator-receipt-drift" || smokeMode === "module-plan-kv-cache-drift" || smokeMode === "module-plan-adapter-stack-budget-drift" || smokeMode === "module-plan-total-budget-drift" || smokeMode === "module-plan-total-limit-drift" || smokeMode === "module-plan-count-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift" || smokeMode === "assembly-eval-case-drift" || smokeMode === "assembly-evidence-file-drift" || smokeMode === "adapter-family-receipt-drift" || smokeMode === "adapter-manifest-drift" || smokeMode === "source-backed-alr1-manifest-drift" || smokeMode === "adapter-artifact-drift" || smokeMode === "module-plan-payload-checksum-drift" || smokeMode === "adapter-stack-prefetch-drift" || smokeMode === "adapter-stack-rust-validate-drift" || smokeMode === "adapter-sidecar-registry-q8" || smokeMode === "adapter-sidecar-checksum-mismatch" || smokeMode === "adapter-manifest-budget") {
+    if (smokeMode === "model-error" || smokeMode === "missing-model" || convertedTrainedRegistrySmokeMode || convertedTrainedSourceManifestDriftSmokeMode || convertedTrainedSourceIdentityDriftSmokeMode || convertedTrainedSourceReviewDriftSmokeMode || convertedTrainedSourceReviewSidecarDriftSmokeMode || convertedTrainedSourceReviewTokenizerImportDriftSmokeMode || convertedTrainedSourceReviewEvalRouteDriftSmokeMode || convertedTrainedSourceReviewOmittedSmokeMode || convertedTrainedSourceValidationDriftSmokeMode || convertedTrainedRuntimeEvidenceDriftSmokeMode || convertedTrainedEvalEvidenceDriftSmokeMode || convertedTrainedAdmissionDriftSmokeMode || compactOperatorRegistrySmokeModes.has(smokeMode) || compactOperatorReceiptDriftSmokeModes.has(smokeMode) || generatedSelectorDriftSmokeModes.has(smokeMode) || smokeMode === "selector-budget" || smokeMode === "sidecar-budget-contract" || smokeMode === "runtime-manifest-drift" || smokeMode === "module-plan-profile-drift" || smokeMode === "module-plan-execution-profile-drift" || smokeMode === "module-plan-fetch-policy-drift" || smokeMode === "module-plan-origin-policy-drift" || smokeMode === "module-plan-wasm-memory-drift" || smokeMode === "module-plan-wasm-export-set-drift" || smokeMode === "module-plan-wasm-heap-drift" || smokeMode === "module-plan-context-token-drift" || smokeMode === "module-plan-sampler-cap-drift" || smokeMode === "module-plan-tokenizer-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-runtime-scratch-drift" || smokeMode === "module-plan-output-limit-drift" || smokeMode === "module-plan-prompt-limit-drift" || smokeMode === "module-plan-fetch-count-drift" || smokeMode === "module-plan-planned-fetch-count-drift" || smokeMode === "module-plan-route-set-algorithm-drift" || smokeMode === "module-plan-route-set-version-drift" || smokeMode === "module-plan-route-set-drift" || smokeMode === "module-plan-operator-receipt-drift" || smokeMode === "module-plan-kv-cache-drift" || smokeMode === "module-plan-adapter-stack-budget-drift" || smokeMode === "module-plan-total-budget-drift" || smokeMode === "module-plan-total-limit-drift" || smokeMode === "module-plan-count-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift" || smokeMode === "assembly-eval-case-drift" || smokeMode === "assembly-evidence-file-drift" || smokeMode === "adapter-family-receipt-drift" || smokeMode === "adapter-manifest-drift" || smokeMode === "source-backed-alr1-manifest-drift" || smokeMode === "adapter-artifact-drift" || smokeMode === "module-plan-payload-checksum-drift" || smokeMode === "adapter-stack-prefetch-drift" || smokeMode === "adapter-stack-rust-validate-drift" || smokeMode === "adapter-sidecar-registry-q8" || smokeMode === "adapter-sidecar-checksum-mismatch" || smokeMode === "adapter-manifest-budget") {
       if (smokeMode === "model-error") {
         installMalformedModelInterceptor(client);
       } else if (smokeMode === "missing-model") {
@@ -9366,10 +10435,22 @@ async function main() {
         installConvertedTrainedSourceIdentityDriftInterceptor(client, expectedModel);
       } else if (convertedTrainedSourceReviewDriftSmokeMode) {
         installConvertedTrainedSourceReviewDriftInterceptor(client, expectedModel);
+      } else if (convertedTrainedSourceReviewSidecarDriftSmokeMode) {
+        installConvertedTrainedSourceReviewSidecarDriftInterceptor(client, expectedModel);
+      } else if (convertedTrainedSourceReviewTokenizerImportDriftSmokeMode) {
+        installConvertedTrainedSourceReviewTokenizerImportDriftInterceptor(client, expectedModel);
+      } else if (convertedTrainedSourceReviewEvalRouteDriftSmokeMode) {
+        installConvertedTrainedSourceReviewEvalRouteDriftInterceptor(client, expectedModel);
       } else if (convertedTrainedSourceReviewOmittedSmokeMode) {
         installConvertedTrainedSourceReviewOmittedInterceptor(client, expectedModel);
+      } else if (convertedTrainedSourceValidationDriftSmokeMode) {
+        installConvertedTrainedSourceValidationDriftInterceptor(client, expectedModel);
+      } else if (convertedTrainedRuntimeEvidenceDriftSmokeMode) {
+        installConvertedTrainedRuntimeEvidenceDriftInterceptor(client, expectedModel);
       } else if (convertedTrainedEvalEvidenceDriftSmokeMode) {
         installConvertedTrainedEvalEvidenceDriftInterceptor(client, expectedModel);
+      } else if (convertedTrainedAdmissionDriftSmokeMode) {
+        installConvertedTrainedAdmissionDriftInterceptor(client, expectedModel);
       } else if (smokeMode === "selector-budget") {
         installSelectorBudgetRegistryInterceptor(client);
       } else if (smokeMode === "sidecar-budget-contract") {
@@ -9786,6 +10867,71 @@ async function main() {
       }
       assertConvertedTrainedSourceReviewDriftSmoke(result, expectedModel, networkRequests);
       result.networkRequests = networkRequests;
+    } else if (convertedTrainedSourceReviewSidecarDriftSmokeMode) {
+      networkRequests.length = 0;
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageModelErrorSmoke(client, expectedModel);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertConvertedTrainedSourceReviewDriftSmoke(
+        result,
+        expectedModel,
+        networkRequests,
+        "source review field source_model_sha",
+        true
+      );
+      result.networkRequests = networkRequests;
+    } else if (convertedTrainedSourceReviewTokenizerImportDriftSmokeMode) {
+      networkRequests.length = 0;
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageModelErrorSmoke(client, expectedModel);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertConvertedTrainedSourceReviewDriftSmoke(
+        result,
+        expectedModel,
+        networkRequests,
+        "source review tokenizer import not-imported row had imported evidence",
+        true
+      );
+      result.networkRequests = networkRequests;
+    } else if (convertedTrainedSourceReviewEvalRouteDriftSmokeMode) {
+      networkRequests.length = 0;
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageModelErrorSmoke(client, expectedModel);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertConvertedTrainedEvalEvidenceDriftSmoke(
+        result,
+        expectedModel,
+        networkRequests,
+        "eval evidence route field eval_cases_route"
+      );
+      result.networkRequests = networkRequests;
     } else if (convertedTrainedSourceReviewOmittedSmokeMode) {
       networkRequests.length = 0;
       await client.send("Page.reload", { ignoreCache: true });
@@ -9807,6 +10953,38 @@ async function main() {
         "source review identity missing from selector"
       );
       result.networkRequests = networkRequests;
+    } else if (convertedTrainedSourceValidationDriftSmokeMode) {
+      networkRequests.length = 0;
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageModelErrorSmoke(client, expectedModel);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertConvertedTrainedSourceValidationDriftSmoke(result, expectedModel, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (convertedTrainedRuntimeEvidenceDriftSmokeMode) {
+      networkRequests.length = 0;
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageModelErrorSmoke(client, expectedModel);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertConvertedTrainedRuntimeEvidenceDriftSmoke(result, expectedModel, networkRequests);
+      result.networkRequests = networkRequests;
     } else if (convertedTrainedEvalEvidenceDriftSmokeMode) {
       networkRequests.length = 0;
       await client.send("Page.reload", { ignoreCache: true });
@@ -9822,6 +11000,22 @@ async function main() {
         }
       }
       assertConvertedTrainedEvalEvidenceDriftSmoke(result, expectedModel, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (convertedTrainedAdmissionDriftSmokeMode) {
+      networkRequests.length = 0;
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageModelErrorSmoke(client, expectedModel);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertConvertedTrainedAdmissionDriftSmoke(result, expectedModel, networkRequests);
       result.networkRequests = networkRequests;
     } else if (convertedTrainedRegistryAnySmokeMode || compactOperatorRegistrySmokeModes.has(smokeMode) || smokeMode === "multi-parent-registry-file") {
       await client.send("Page.reload", { ignoreCache: true });

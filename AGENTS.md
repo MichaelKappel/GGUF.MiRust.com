@@ -11,7 +11,7 @@ Read these files before broad local memory loading or source edits:
 5. `.uai/long-term-memory.uai`
 6. `workspace.uai`
 
-This project uses UAIX Project Handoff together with an LLM Wiki/AIWikis long-memory path. Active dropped files live only in `agent-file-handoff/Content/` and `agent-file-handoff/Improvement/`. Do not create `agent-file-handoff/Archive/` as a default resting place. After a safe file is reviewed, used for real project work, and recorded in durable proof-of-use state, preserve the original in the configured AIWikis evidence path with checksums and a manifest, then remove the source-site copy unless the human explicitly keeps that named file active.
+This project uses UAIX Project Handoff together with an LLM Wiki/AIWikis long-memory path. Active dropped files live only in `agent-file-handoff/Content/` and `agent-file-handoff/Improvement/`. Do not create `agent-file-handoff/Archive/` as a default resting place. After a safe file is reviewed, used for real project work, and recorded in durable proof-of-use state, preserve a configured durable copy with checksums and a manifest, then remove the processed source-site copy from active intake. A completed pass leaves Content and Improvement empty or placeholder-only; keep-active is an exception only when the human explicitly asks to keep a named file active or a blocker is recorded.
 
 The LLM Wiki target is AIWikis.org under `/runtime-mirust/`. Local LLM Wiki source files live under `wiki/runtime-mirust/`; local raw evidence stubs live under `raw/runtime-mirust/`.
 

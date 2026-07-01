@@ -1,5 +1,5 @@
-profile: runtime-mirust.report-synthesis.v113
-updated_utc: 2026-06-30T17:58:41Z
+profile: runtime-mirust.report-synthesis.v129
+updated_utc: 2026-07-01T01:35:00Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/runtime-mirust/report-intake-2026-06-25/
@@ -7,6 +7,9 @@ source_authority:
   raw_evidence_2026_06_28: raw/runtime-mirust/report-intake-2026-06-28/
   raw_evidence_2026_06_29: raw/runtime-mirust/report-intake-2026-06-29/
   raw_evidence_2026_06_29_followup: raw/runtime-mirust/report-intake-2026-06-29-followup/
+  docs_report_intake_2026_06_30: docs/report-intake/2026-06-30/
+  docs_report_manifest_2026_06_30: docs/report-intake/2026-06-30/MANIFEST.md
+  docs_report_synthesis_2026_06_30: docs/report-intake/2026-06-30/runtime-mirust-report-synthesis-2026-06-30.md
   raw_manifest: raw/runtime-mirust/MANIFEST.md
   durable_index: wiki/runtime-mirust/reports/report-intake-index-2026-06-25.md
   durable_index_2026_06_26: wiki/runtime-mirust/reports/report-intake-index-2026-06-26.md
@@ -161,7 +164,7 @@ strategy_refresh_2026_06_27:
   site_voice_route: .uai/taboo.uai governs Model Breeding, mutualist, tiny-ecology, UAIX strategy, and public-copy wording for Runtime.MiRust.com.
 strategy_refresh_2026_06_28:
   setup_file_handoff_source: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
-  applied_memory_shape: Active buckets are intake, raw/wiki Markdown holds durable bodies, .uai files hold short routing and synthesis, short-term memory names current report/research routes, and long-term memory keeps checksum pointers.
+  applied_memory_shape: Active buckets are live intake queues, raw/wiki/docs Markdown holds durable bodies, .uai files hold short routing and synthesis, short-term memory names current report/research routes, long-term memory keeps checksum pointers, and processed source-site copies are removed unless a named keep-active exception or blocker exists.
   report_memory_shape: All current report pages stay in wiki/runtime-mirust/reports/, research pages stay in wiki/runtime-mirust/research/, and both route from short-term memory plus long-term checksum records.
   model_breeding_concept_lanes: The research page now includes heritable-artifact, mate-selection, phenotype-evidence, and speciation-and-fit lanes beside merge, sparse, adapter, population, local-update, browser-assembly, and UAIX strategy lanes.
   site_voice_route: .uai/taboo.uai carries the direct site voice rule; public copy should center proof, craft, lineage, fit, local agency, routes, and implementation evidence.
@@ -179,6 +182,14 @@ research_intake_2026_06_29_followup:
   raw_evidence: raw/runtime-mirust/report-intake-2026-06-29-followup/
   synthesis: Six follow-up Improvement research files route safetensors tensor-name aliases, tokenizer conversion, browser byte budgets, WASM hot loops, model-breeding schedule metadata, and reference-output fixture planning into current implementation work.
   applied_current_work: Safetensors planning should preserve local raw source names while accepting Hugging Face Llama aliases such as `model.embed_tokens.weight`, `model.norm.weight`, `lm_head.weight`, `model.layers.N.self_attn.q_proj.weight`, and `model.layers.N.mlp.gate_proj.weight`; direct conversion should still write and validate the raw source directory before emitting `.slm`.
+docs_report_intake_2026_06_30:
+  manifest: docs/report-intake/2026-06-30/MANIFEST.md
+  synthesis_route: docs/report-intake/2026-06-30/runtime-mirust-report-synthesis-2026-06-30.md
+  source_bucket: agent-file-handoff/Improvement/
+  source_count: 9
+  disposition: preserved-to-docs-and-source-site-copies-removed
+  synthesis: The batch routes zero-dependency Rust and no-crate CLI/runtime discipline, TinyLM architecture/training, safetensors browser-runtime inspection and admission, tokenizer/BPE evidence, browser byte budgets, Rust NuGet packaging, and Pydantic AI only as orchestration-design reference.
+  implementation_use: Use this docs batch before changing safetensors extraction/admission, tokenizer import, TinyLM candidate planning, browser byte-budget preference for q8/q4, zero-dependency Rust module boundaries, Visual Studio/.NET distribution, or typed orchestration tooling.
 dare_operator_2026_06_29:
   route: wiki/runtime-mirust/reports/dare-operator-memory-2026-06-29.md
   synthesis: DARE now has an offline `dare-candidate` and `validate-dare-candidate` receipt lane with signed task-delta weights, keep/drop ppm, dropout seed, mask checksum, raw delta checksum, rescaled delta checksum, focused parameter tests, and q8 CLI proof before downstream candidate manifests.
@@ -196,19 +207,19 @@ browser_converted_trained_all_route_2026_06_29:
   synthesis: `browser-converted-trained-bundle ... all` stages converted-trained f32, q8, and q4 artifacts under one q4-defaulted selector root, and `converted-trained-registry-file` proves real selector/model/manifest routes for all three entries.
 browser_converted_trained_source_evidence_2026_06_30:
   route: wiki/runtime-mirust/reports/browser-converted-trained-source-evidence-memory-2026-06-30.md
-  synthesis: Converted-trained browser bundle entries copy reviewed `source.manifest` into each evidence lane, selector entries carry source-manifest and optional `source_review_*` route fields, and browser smokes verify source/review checksums plus selector-review omission before selected model bytes.
+  synthesis: Converted-trained browser bundle entries copy reviewed `source.manifest` and optional candidate-review reports into each evidence lane, selector entries carry source-manifest/source-review/runtime-smoke routes, and browser smokes verify source-review model-id/SHA/config/tokenizer/license/reference/eval fields, visible Review Routes and Review Artifacts rows, runtime-evidence drift, and source-review/eval route mismatch before selected model bytes.
 browser_converted_trained_source_identity_2026_06_30:
   route: wiki/runtime-mirust/reports/browser-converted-trained-source-identity-memory-2026-06-30.md
   synthesis: Converted-trained selector entries carry source kind, source id, and source model shape from the reviewed source snapshot; app.js verifies fetched source identity before converted model bytes, safetensors bundle tests assert trained-export source identity, and source-identity drift stops q8 loading.
 browser_converted_trained_source_provenance_2026_06_30:
   route: wiki/runtime-mirust/reports/browser-converted-trained-source-provenance-memory-2026-06-30.md
-  synthesis: Browser Model Provenance now renders verified converted-trained source snapshot, source id, source shape, and Source Review rows; converted-trained-registry asserts fixture values and ui-audit asserts deterministic fallback.
+  synthesis: Browser Model Provenance renders verified converted-trained source snapshot, source id, source shape, checksum-bound Source Review, Review Routes, and Review Artifacts rows; converted-trained-registry asserts fixture values and ui-audit asserts deterministic fallback.
 browser_converted_trained_runtime_eval_2026_06_30:
   route: wiki/runtime-mirust/reports/browser-converted-trained-runtime-eval-memory-2026-06-30.md
-  synthesis: Converted-trained and safetensors browser bundles run native eval sidecars before selector admission, accept explicit eval-case files, and stop before admission when eval cases fail.
+  synthesis: Converted-trained and safetensors browser bundles route `converted-trained.runtime` through selector registry checksums, fetch runtime-smoke evidence before eval/model bytes, run native eval sidecars before selector admission, accept explicit eval-case files, and stop before admission when eval cases fail.
 browser_converted_trained_eval_evidence_2026_06_30:
   route: wiki/runtime-mirust/reports/browser-converted-trained-eval-evidence-memory-2026-06-30.md
-  synthesis: Converted-trained selector entries carry `eval_path`, app.js fetches and verifies `converted-trained.eval` plus the case-ledger digest before model bytes, and eval-evidence drift stops q8 loading.
+  synthesis: Converted-trained selector entries carry source-validation, runtime-smoke, and eval routes; app.js fetches and verifies `converted-trained.source.validation` before `converted-trained.runtime`, then verifies `converted-trained.eval`, recomputes the case-ledger digest, checks reviewed `eval_cases_route` against the fetched source review, and validation/runtime/eval-evidence/eval-route drift stops q8 loading before model bytes.
 safetensors_source_plan_2026_06_29:
   route: wiki/runtime-mirust/reports/safetensors-source-plan-memory-2026-06-29.md
   synthesis: `plan-safetensors-source` maps inspected safetensors tensor directories into supported raw f32 trained-source layouts, requiring exact tensor names/shapes, per-tensor copy/decode actions, raw file destinations, and mapping checksums before extraction.
@@ -220,10 +231,10 @@ safetensors_trained_conversion_2026_06_29:
   synthesis: `convert-safetensors-trained` accepts local TinyRustLM names or Hugging Face Llama aliases, optionally enforces the candidate review's `quantization_target`, preserves validated raw f32 source-review metadata, writes f32/q8_0/q4_0 `.slm` artifacts, and emits converted-trained manifests.
 safetensors_browser_bundle_2026_06_30:
   route: wiki/runtime-mirust/reports/safetensors-browser-bundle-memory-2026-06-30.md
-  synthesis: `browser-safetensors-trained-bundle` can enforce the candidate review's browser-preferred quantization or `all`, then stages converted-trained selector roots, manifests, source snapshots with `source_review_*`, runtime/eval/admission evidence, WASM manifest, and app shell from local safetensors input.
+  synthesis: `browser-safetensors-trained-bundle` can enforce the candidate review's q8-first browser-preferred quantization or `all`, bind browser eval evidence to a local reviewed `eval_cases_route`, reject explicit eval-route drift, append the reviewed route into eval sidecars, revalidate local license/reference/eval artifacts, advertise tested review-bound tails, then stage selector roots, source/review snapshots, source-validation/runtime-smoke/eval/admission route and checksum evidence, browser-visible Review Routes, Review Artifacts, Tokenizer Import, Source Validation, and Admission rows, and browser-validated source-review/source-validation/runtime/eval/admission route evidence from local safetensors input; a reviewed BPE test proves all-quant admission.
 safetensors_candidate_review_2026_06_30:
   route: wiki/runtime-mirust/reports/safetensors-candidate-review-memory-2026-06-30.md
-  synthesis: `review-safetensors-candidate` writes a pre-extraction real-checkpoint review tying safetensors metadata to source id/SHA, hex64 config/tokenizer/reference-output checksums, local config/tokenizer JSON artifact evidence with normalized detail rows when routed, required compatible BPE tokenizer JSON import into source-manifest rows, route-only and non-byte-fallback BPE rejection, exact imported-tokenizer byte estimates, browser preference, context/KV budgets, required next gate, and checksum-bound downstream enforcement.
+  synthesis: `review-safetensors-candidate` writes a pre-extraction real-checkpoint review tying safetensors metadata to source id and SHA-shaped source revision, hex64 config/tokenizer/reference-output checksums, local config/tokenizer JSON artifact evidence including tokenizer version/added-token/pipeline summaries, checksum-bound license/reference/eval artifacts, tested source config/tokenizer route tails, compatible BPE tokenizer import, exact imported-tokenizer byte estimates, q8-first browser preference, generated eval sidecar route echo, browser eval route enforcement, copied source-review sidecar routing, browser sidecar field validation, and downstream enforcement.
 research_intake_2026_06_28:
   route: wiki/runtime-mirust/research/modelbreeder-zero-dependency-reference-ideas-2026-06-28.md
   intake_index: wiki/runtime-mirust/reports/report-intake-index-2026-06-28.md

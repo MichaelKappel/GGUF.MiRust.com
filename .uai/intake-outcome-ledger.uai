@@ -1,12 +1,12 @@
-profile: runtime-mirust.intake-outcome-ledger.v11
-updated_utc: 2026-06-29T23:33:20Z
+profile: runtime-mirust.intake-outcome-ledger.v19
+updated_utc: 2026-06-30T23:58:00Z
 active_scan:
   content_bucket: agent-file-handoff/Content/
   improvement_bucket: agent-file-handoff/Improvement/
   content_non_placeholder_files: 0
   improvement_non_placeholder_files: 0
-  result: 2026_06_29_followup_processed_6_research_files_to_raw_wiki_hot_memory_and_cleared_active_sources
-  latest_scan_utc: 2026-06-29T23:33:20Z
+  result: 2026_06_30_docs_report_intake_preserved_9_reports_to_docs_hot_memory_and_removed_processed_source_site_copies
+  latest_scan_utc: 2026-06-30T23:58:00Z
   ide_adjacent_handoff_checked: E:\Source\WP\MikeKappel\agent-file-handoff\
   ide_adjacent_non_placeholder_files: 0
   attachment_scan_result: active_ide_attachment_path_absent_recent_attachment_material_2026_06_27_or_older_no_new_current_gguf_handoff_research
@@ -14,15 +14,83 @@ active_scan:
 post_processing_scan:
   content_non_placeholder_files: 0
   improvement_non_placeholder_files: 0
-  result: active_buckets_placeholder_only_after_removing_6_followup_research_copies
+  result: active_intake_clear_after_docs_preserved_report_processing
+uaix_cleanup_correction_2026_06_30:
+  source_reviewed: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
+  reviewed_utc: 2026-06-30T23:58:00Z
+  decision: preserved-to-durable-memory-and-source-site-removed
+  failure: Prior memory incorrectly treated `kept-active-with-reason` as the default and left processed originals in active intake.
+  correction: Source-site removal is the normal completion step after proof-of-use and durable preservation; keep-active requires a named human request or blocker.
+  proof: Content=0, Improvement=0; nine docs/report-intake/2026-06-30/ report copies are byte-identical to the removed active originals by SHA256.
+  next_agent_action: Process any future non-placeholder intake file through disposition, actual project work, durable evidence, hot-memory update, pointer ledger, checks, and source-site removal unless an explicit keep-active blocker is recorded.
 shared_disposition_context:
   disposition: preserved-to-durable-memory
-  actual_source_work: Processed 23 Improvement reports on 2026-06-25, 26 model-breeding Improvement reports on 2026-06-26, 4 ModelBreeder/zero-dependency research files on 2026-06-28, 7 tiny-model/runtime/memory research files on 2026-06-29, and 6 safetensors/tokenizer/budget/fixture follow-up files on 2026-06-29 into distributed long-term LLM Wiki memory, preserved exact originals under raw/runtime-mirust/, and updated report navigation.
+  actual_source_work: Processed 23 Improvement reports on 2026-06-25, 26 model-breeding Improvement reports on 2026-06-26, 4 ModelBreeder/zero-dependency research files on 2026-06-28, 7 tiny-model/runtime/memory research files on 2026-06-29, 6 safetensors/tokenizer/budget/fixture follow-up files on 2026-06-29, and 9 docs-preserved reports on 2026-06-30 into distributed long-term memory, preserved exact originals under raw/runtime-mirust/ or docs/report-intake/, and updated report navigation.
   hot_memory_update: .uai/short-term-memory.uai, .uai/report-synthesis.uai, .uai/file-handoff.uai, .uai/intake-outcome-ledger.uai, .uai/long-term-memory.uai, .uai/receiver-brief.uai, .uai/taboo.uai, workspace routing, and wiki/runtime-mirust routing files updated.
-  durable_preservation_evidence: raw/runtime-mirust/MANIFEST.md and report intake indexes for 2026-06-25, 2026-06-26, 2026-06-28, 2026-06-29, and 2026-06-29-followup record source files, checksums, duplicate relationships where present, and thematic synthesis routes.
-  checks: live bucket scan, raw copy counts 23, 26, 4, 7, and 6, source-to-raw SHA256 verification, report synthesis file creation, wiki route update, and report/research pointer audit pages=138 missing=0.
+  durable_preservation_evidence: raw/runtime-mirust/MANIFEST.md plus report intake indexes for 2026-06-25, 2026-06-26, 2026-06-28, 2026-06-29, and 2026-06-29-followup, plus docs/report-intake/2026-06-30/MANIFEST.md and docs/report-intake/2026-06-30/runtime-mirust-report-synthesis-2026-06-30.md, record source files, checksums, duplicate relationships where present, and thematic synthesis routes.
+  checks: live bucket scan, raw copy counts 23, 26, 4, 7, and 6, docs copy count 9, intake-time source-to-raw/docs SHA256 verification, report synthesis file creation, wiki/docs route update, and report/research/docs pointer audits.
   blockers: none_current
-  source_site_removal_or_keep_active_reason: Removed processed report copies from agent-file-handoff/Improvement/ after exact originals were preserved in raw evidence and durable synthesis records, hot routing, and pointer records were created.
+  source_site_removal_or_keep_active_reason: Processed source-site copies are removed from active intake after durable preservation; keep-active is exceptional and needs a named human request or blocker.
+report_intake_2026_06_30_docs:
+  source_bucket: agent-file-handoff/Improvement/
+  docs_evidence_path: docs/report-intake/2026-06-30/
+  durable_manifest: docs/report-intake/2026-06-30/MANIFEST.md
+  durable_synthesis: docs/report-intake/2026-06-30/runtime-mirust-report-synthesis-2026-06-30.md
+  source_count: 9
+  duplicate_groups: none_detected
+  disposition: preserved-to-durable-memory
+  actual_source_work: Preserved modular Rust, TinyLM creation, safetensors browser runtime, tokenizer, browser-fit, CLI/runtime, NuGet packaging, and orchestration-design reports as docs-side durable references.
+  hot_memory_update: Updated workspace route, workspace guidance, report synthesis, short-term memory, file handoff, intake ledger, operations, test plan, architecture, and long-term pointer routing.
+  durable_preservation_evidence: docs/report-intake/2026-06-30/MANIFEST.md and docs/report-intake/2026-06-30/runtime-mirust-report-synthesis-2026-06-30.md.
+  checks: docs copy count 9, checksum-bound byte-exact docs copies, docs manifest/synthesis creation, hot-memory route refresh, docs pointer audit, active source-site removal, and active bucket rescan content=0 improvement=0.
+  blockers: none_current
+  source_site_removal_or_keep_active_reason: Removed processed originals from agent-file-handoff/Improvement/ after byte-exact docs preservation and proof-of-use; durable docs copies remain checksum-bound under docs/report-intake/2026-06-30/.
+entries_2026_06_30_docs:
+  - source_path: agent-file-handoff/Improvement/Enterprise Rust Without Third Parties.md
+    docs_evidence_path: docs/report-intake/2026-06-30/Enterprise Rust Without Third Parties.md
+    disposition: preserved-to-durable-memory
+    durable_memory: docs/report-intake/2026-06-30/runtime-mirust-report-synthesis-2026-06-30.md
+    routing_summary: Routes agents to no-third-party Rust governance, workspaces, testing, dependency minimization, CI discipline, and native observability/error patterns.
+  - source_path: agent-file-handoff/Improvement/Safetensors Browser Runtime Guide.md
+    docs_evidence_path: docs/report-intake/2026-06-30/Safetensors Browser Runtime Guide.md
+    disposition: preserved-to-durable-memory
+    durable_memory: docs/report-intake/2026-06-30/runtime-mirust-report-synthesis-2026-06-30.md
+    routing_summary: Routes agents to safetensors header inspection, provenance, tensor mapping, browser memory alignment, WebGPU-adjacent planning, and quantized admission evidence.
+  - source_path: agent-file-handoff/Improvement/Sharing Rust Nuget Packages_ Best Practices.md
+    docs_evidence_path: docs/report-intake/2026-06-30/Sharing Rust Nuget Packages_ Best Practices.md
+    disposition: preserved-to-durable-memory
+    durable_memory: docs/report-intake/2026-06-30/runtime-mirust-report-synthesis-2026-06-30.md
+    routing_summary: Routes agents to Rust/.NET packaging, FFI safety, panic boundaries, RID native assets, and Visual Studio distribution planning.
+  - source_path: agent-file-handoff/Improvement/Small Language Model Browser Fit.md
+    docs_evidence_path: docs/report-intake/2026-06-30/Small Language Model Browser Fit.md
+    disposition: preserved-to-durable-memory
+    durable_memory: docs/report-intake/2026-06-30/runtime-mirust-report-synthesis-2026-06-30.md
+    routing_summary: Routes agents to sub-20M model feasibility, browser byte budgets, q8/q4 admission preference, candidate families, tokenizer portability, and KV-cache fit.
+  - source_path: agent-file-handoff/Improvement/Standard Rust CLI_Runtime Patterns.md
+    docs_evidence_path: docs/report-intake/2026-06-30/Standard Rust CLI_Runtime Patterns.md
+    disposition: preserved-to-durable-memory
+    durable_memory: docs/report-intake/2026-06-30/runtime-mirust-report-synthesis-2026-06-30.md
+    routing_summary: Routes agents to zero-dep CLI parsing, manual serialization, safetensors extraction, I/O patterns, module boundaries, tests, and WASM memory discipline.
+  - source_path: agent-file-handoff/Improvement/TinyLM Architecture and Training.md
+    docs_evidence_path: docs/report-intake/2026-06-30/TinyLM Architecture and Training.md
+    disposition: preserved-to-durable-memory
+    durable_memory: docs/report-intake/2026-06-30/runtime-mirust-report-synthesis-2026-06-30.md
+    routing_summary: Routes agents to minimal transformer design, parameter budgeting, safetensors key/config contracts, tokenizer tradeoffs, datasets, prompts, eval, and browser memory.
+  - source_path: agent-file-handoff/Improvement/Tokenizer Implementation Guide.md
+    docs_evidence_path: docs/report-intake/2026-06-30/Tokenizer Implementation Guide.md
+    disposition: preserved-to-durable-memory
+    durable_memory: docs/report-intake/2026-06-30/runtime-mirust-report-synthesis-2026-06-30.md
+    routing_summary: Routes agents to byte fallback, BPE merge tables, tokenizer checksum/admission, binary layout, browser-local streaming, and no-external-tokenizer boundaries.
+  - source_path: agent-file-handoff/Improvement/Understanding Pydantic AI Mechanics.md
+    docs_evidence_path: docs/report-intake/2026-06-30/Understanding Pydantic AI Mechanics.md
+    disposition: preserved-to-durable-memory
+    durable_memory: docs/report-intake/2026-06-30/runtime-mirust-report-synthesis-2026-06-30.md
+    routing_summary: Routes agents to typed orchestration concepts only; do not introduce Pydantic or Python runtime dependencies into TinyRustLM.
+  - source_path: agent-file-handoff/Improvement/Zero-Dependency Modular Rust Architecture.md
+    docs_evidence_path: docs/report-intake/2026-06-30/Zero-Dependency Modular Rust Architecture.md
+    disposition: preserved-to-durable-memory
+    durable_memory: docs/report-intake/2026-06-30/runtime-mirust-report-synthesis-2026-06-30.md
+    routing_summary: Routes agents to flat workspaces, lib/bin splits, native errors, FromStr parsing, byte protocol parsing, testing seams, and WASM abstractions without third-party crates.
 report_intake_2026_06_29_followup:
   source_bucket: agent-file-handoff/Improvement/
   raw_evidence_path: raw/runtime-mirust/report-intake-2026-06-29-followup/

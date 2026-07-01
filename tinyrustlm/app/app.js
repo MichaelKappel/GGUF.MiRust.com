@@ -176,6 +176,19 @@
   const registrySourceReviewKind = "safetensors-candidate-review";
   const registrySourceReviewStatus = "validated-before-extraction";
   const registrySourceReviewRequiredNextGate = "extract-raw-f32-tensors";
+  const registrySourceValidationGate = "validate-source";
+  const registrySourceValidationStatus = "pass";
+  const registrySourceValidationDecision = "accepted-for-conversion";
+  const registrySourceValidationRequiredNextGate = "convert-raw-f32-source-to-slm";
+  const registryAdmissionStatus = "admitted-for-browser-selector";
+  const registryAdmissionPromotionStatus = "runtime-smoke-and-eval-passed";
+  const registryAdmissionRuntimeSmokeStatus = "pass";
+  const registryAdmissionEvalStatus = "pass";
+  const registryAdmissionQualityGate = "assistant-quality";
+  const registryAdmissionPromotionDecision = "accepted-for-browser-selector";
+  const registryAdmissionBrowserSelectorStatus = "admitted";
+  const registryAdmissionPublicClaimStatus = "bound-to-eval-scope";
+  const registryAdmissionRequiredNextGate = "browser-selector-loads-only-admission-record-artifacts";
   const selectorModelByteBudget = 32 * 1024 * 1024;
   const selectorRegistryTextByteBudget = 256 * 1024;
   const manifestTextByteBudget = 64 * 1024;
@@ -329,6 +342,10 @@
     provenanceSourceId: document.getElementById("provenanceSourceId"),
     provenanceSourceShape: document.getElementById("provenanceSourceShape"),
     provenanceSourceReview: document.getElementById("provenanceSourceReview"),
+    provenanceSourceReviewRoutes: document.getElementById("provenanceSourceReviewRoutes"),
+    provenanceSourceReviewArtifacts: document.getElementById("provenanceSourceReviewArtifacts"),
+    provenanceSourceTokenizerImport: document.getElementById("provenanceSourceTokenizerImport"),
+    provenanceSourceValidation: document.getElementById("provenanceSourceValidation"),
     provenanceAdmission: document.getElementById("provenanceAdmission"),
     provenanceQualityClaim: document.getElementById("provenanceQualityClaim"),
     provenanceTrainedClaim: document.getElementById("provenanceTrainedClaim"),
@@ -834,6 +851,39 @@
     return isSafeAssemblyEvidencePath(value);
   }
 
+  function isSafeRegistrySourceReviewPath(candidateId, value) {
+    if (!isRegistrySlug(candidateId)) {
+      return false;
+    }
+    const expected = `../evidence/${candidateId}/converted-trained.source.review`;
+    if (value !== expected) {
+      return false;
+    }
+    return isSafeAssemblyEvidencePath(value);
+  }
+
+  function isSafeRegistrySourceValidationPath(candidateId, value) {
+    if (!isRegistrySlug(candidateId)) {
+      return false;
+    }
+    const expected = `../evidence/${candidateId}/converted-trained.source.validation`;
+    if (value !== expected) {
+      return false;
+    }
+    return isSafeAssemblyEvidencePath(value);
+  }
+
+  function isSafeRegistryAdmissionPath(candidateId, value) {
+    if (!isRegistrySlug(candidateId)) {
+      return false;
+    }
+    const expected = `../evidence/${candidateId}/converted-trained.admission`;
+    if (value !== expected) {
+      return false;
+    }
+    return isSafeAssemblyEvidencePath(value);
+  }
+
   function isSafeRegistryEvalEvidencePath(candidateId, value) {
     if (!isRegistrySlug(candidateId)) {
       return false;
@@ -845,8 +895,27 @@
     return isSafeAssemblyEvidencePath(value);
   }
 
+  function isSafeRegistryRuntimeSmokePath(candidateId, value) {
+    if (!isRegistrySlug(candidateId)) {
+      return false;
+    }
+    const expected = `../evidence/${candidateId}/converted-trained.runtime`;
+    if (value !== expected) {
+      return false;
+    }
+    return isSafeAssemblyEvidencePath(value);
+  }
+
   function isRegistryHex64(value) {
     return /^0x[0-9a-fA-F]{16}$/.test(value || "");
+  }
+
+  function isSourceModelSha(value) {
+    const text = String(value || "");
+    if (/^sha256:[0-9a-f]{64}$/i.test(text) || /^sha1:[0-9a-f]{40}$/i.test(text)) {
+      return true;
+    }
+    return /^[0-9a-f]{40}$/i.test(text) || /^[0-9a-f]{64}$/i.test(text);
   }
 
   function isRegistrySlug(value) {
@@ -933,6 +1002,73 @@
       throw new Error(`${source || "Receipt"} field ${key} was ${actual}`);
     }
     return actual;
+  }
+
+  function requireSourceModelShaManifestField(fields, key, source) {
+    const actual = requireManifestField(fields, key, source ? source.toLowerCase() : undefined);
+    if (!isSourceModelSha(actual)) {
+      throw new Error(`${source || "Receipt"} field ${key} was ${actual}`);
+    }
+    return actual;
+  }
+
+  function requireOptionalSourceReviewArtifact(fields, prefix) {
+    // Validates optional candidate-review artifact rows before showing them in provenance.
+    const status = fields[`${prefix}_artifact_status`];
+    if (!status) {
+      return null;
+    }
+    const kind = requireManifestField(fields, `${prefix}_artifact_kind`, "source review artifact");
+    const checksum = requireManifestField(fields, `${prefix}_artifact_checksum`, "source review artifact");
+    const bytesText = requireManifestField(fields, `${prefix}_artifact_bytes`, "source review artifact");
+    const detail = requireManifestField(fields, `${prefix}_artifact_detail`, "source review artifact");
+    if (status === "not-local") {
+      for (const [label, value] of [["kind", kind], ["checksum", checksum], ["bytes", bytesText], ["detail", detail]]) {
+        if (value !== "not-local") {
+          throw new Error(`source review artifact ${prefix} ${label} was ${value}`);
+        }
+      }
+      return { status, kind, checksum, bytesText, detail };
+    }
+    if (!/^[a-z0-9._-]+$/.test(status) || !/^[a-z0-9._-]+$/.test(kind)) {
+      throw new Error(`source review artifact ${prefix} identity was invalid`);
+    }
+    if (!isRegistryHex64(checksum)) {
+      throw new Error(`source review artifact ${prefix} checksum was ${checksum}`);
+    }
+    if (registryDecimalCount(bytesText) === null) {
+      throw new Error(`source review artifact ${prefix} bytes was ${bytesText}`);
+    }
+    if (!detail || detail.includes("\n") || detail.includes("\r")) {
+      throw new Error(`source review artifact ${prefix} detail was invalid`);
+    }
+    return { status, kind, checksum, bytesText, detail };
+  }
+
+  function requireSourceReviewTokenizerImport(fields) {
+    // Binds imported tokenizer rows to the fetched source-review sidecar.
+    const status = requireManifestField(fields, "source_tokenizer_import_status", "source review");
+    const tokenCountText = requireManifestField(fields, "source_tokenizer_import_token_count", "source review");
+    const mergeCountText = requireManifestField(fields, "source_tokenizer_import_merge_count", "source review");
+    const checksum = requireHex64ManifestField(fields, "source_tokenizer_import_checksum", "source review");
+    const tokenCount = registryDecimalIndex(tokenCountText);
+    const mergeCount = registryDecimalIndex(mergeCountText);
+    if (tokenCount === null || mergeCount === null) {
+      throw new Error(`source review tokenizer import counts were ${tokenCountText}/${mergeCountText}`);
+    }
+    if (status === "not-imported") {
+      if (tokenCount !== 0 || mergeCount !== 0 || checksum !== "0x0000000000000000") {
+        throw new Error("source review tokenizer import not-imported row had imported evidence");
+      }
+      return { status, tokenCount, mergeCount, checksum };
+    }
+    if (status !== "byte-fallback-bpe-compatible") {
+      throw new Error(`source review tokenizer import status was ${status}`);
+    }
+    if (tokenCount < 1 || mergeCount < 1 || checksum === "0x0000000000000000") {
+      throw new Error("source review tokenizer import compatible row was empty");
+    }
+    return { status, tokenCount, mergeCount, checksum };
   }
 
   // Keeps adapter kind and dtype coupled so source-backed ALR1 cannot masquerade as plain ALR1.
@@ -1513,6 +1649,24 @@
     };
   }
 
+  function registryRuntimeSmokeEvidenceEntry(fields, prefix, candidateId) {
+    // Reads an optional converted-trained runtime-smoke sidecar route for browser verification.
+    const path = fields[`${prefix}.runtime_smoke_path`] || "";
+    const manifestChecksum = fields[`${prefix}.runtime_smoke_manifest_checksum`] || "";
+    if (
+      (path && !isSafeRegistryRuntimeSmokePath(candidateId, path)) ||
+      !isRegistryHex64(manifestChecksum)
+    ) {
+      return null;
+    }
+    return {
+      path,
+      manifestChecksum,
+      verified: false,
+      fields: null
+    };
+  }
+
   function registrySourceManifestEntry(fields, prefix, candidateId) {
     // Reads selector-carried source snapshot identity so browser fetches can bind to it.
     const keys = [
@@ -1524,6 +1678,7 @@
       "source_manifest_source_id",
       "source_manifest_model_shape",
       "source_review_kind",
+      "source_review_path",
       "source_review_status",
       "source_review_checksum",
       "source_review_required_next_gate"
@@ -1541,6 +1696,7 @@
     const modelShape = fields[`${prefix}.source_manifest_model_shape`] || "";
     const reviewKeys = [
       "source_review_kind",
+      "source_review_path",
       "source_review_status",
       "source_review_checksum",
       "source_review_required_next_gate"
@@ -1549,12 +1705,14 @@
     let sourceReview = null;
     if (hasSourceReview) {
       const reviewKind = fields[`${prefix}.source_review_kind`] || "";
+      const reviewPath = fields[`${prefix}.source_review_path`] || "";
       const reviewStatus = fields[`${prefix}.source_review_status`] || "";
       const reviewChecksum = fields[`${prefix}.source_review_checksum`] || "";
       const reviewRequiredNextGate =
         fields[`${prefix}.source_review_required_next_gate`] || "";
       if (
         reviewKind !== registrySourceReviewKind ||
+        !isSafeRegistrySourceReviewPath(candidateId, reviewPath) ||
         reviewStatus !== registrySourceReviewStatus ||
         !isRegistryHex64(reviewChecksum) ||
         reviewRequiredNextGate !== registrySourceReviewRequiredNextGate
@@ -1563,6 +1721,7 @@
       }
       sourceReview = {
         kind: reviewKind,
+        path: reviewPath,
         status: reviewStatus,
         checksum: reviewChecksum,
         requiredNextGate: reviewRequiredNextGate
@@ -1580,6 +1739,42 @@
       return null;
     }
     return { path, checksum, kind, status, sourceKind, sourceId, modelShape, sourceReview };
+  }
+
+  function registrySourceValidationEntry(fields, prefix, candidateId) {
+    // Reads the converted-trained validate-source sidecar route when a registry entry exposes it.
+    const path = fields[`${prefix}.source_validation_path`] || "";
+    const checksum = fields[`${prefix}.source_validation_checksum`] || "";
+    if (!path && !checksum) {
+      return undefined;
+    }
+    if (!isSafeRegistrySourceValidationPath(candidateId, path) || !isRegistryHex64(checksum)) {
+      return null;
+    }
+    return {
+      path,
+      checksum,
+      verified: false,
+      fields: null
+    };
+  }
+
+  function registryAdmissionEvidenceEntry(fields, prefix, candidateId) {
+    // Reads the selector admission sidecar route when converted-trained entries expose it.
+    const path = fields[`${prefix}.admission_path`] || "";
+    const checksum = fields[`${prefix}.admission_checksum`] || "";
+    if (!path) {
+      return undefined;
+    }
+    if (!isSafeRegistryAdmissionPath(candidateId, path) || !isRegistryHex64(checksum)) {
+      return null;
+    }
+    return {
+      path,
+      checksum,
+      verified: false,
+      fields: null
+    };
   }
 
   function registryModulePlanEntry(
@@ -2162,6 +2357,14 @@
       if (sourceManifest === null) {
         return null;
       }
+      const sourceValidation = registrySourceValidationEntry(fields, prefix, candidateId);
+      if (sourceValidation === null) {
+        return null;
+      }
+      const admissionEvidence = registryAdmissionEvidenceEntry(fields, prefix, candidateId);
+      if (admissionEvidence === null) {
+        return null;
+      }
       const quantization = fields[`${prefix}.quantization`] || "";
       const adapters = registryAdapterEntries(fields, prefix, quantization);
       if (!adapters) {
@@ -2218,6 +2421,10 @@
       if (!heritableArtifact) {
         return null;
       }
+      const runtimeSmokeEvidence = registryRuntimeSmokeEvidenceEntry(fields, prefix, candidateId);
+      if (!runtimeSmokeEvidence) {
+        return null;
+      }
       const evalEvidence = registryEvalEvidenceEntry(fields, prefix, candidateId);
       if (!evalEvidence) {
         return null;
@@ -2243,6 +2450,8 @@
         label: fields[`${prefix}.display_name`] || candidateId,
         path: modelPath,
         modelBytes,
+        slmChecksum,
+        modelShape,
         maxTokens,
         contextTokenLimit,
         tokenizerChecksum,
@@ -2259,8 +2468,11 @@
         evolutionSchedule: evolutionSchedule || null,
         phenotypeEvidence,
         heritableArtifact,
+        admissionEvidence: admissionEvidence || null,
+        runtimeSmokeEvidence,
         evalEvidence,
         sourceManifest: sourceManifest || null,
+        sourceValidation: sourceValidation || null,
         assembly: assembly || null,
         modulePlan: modulePlan || null
       };
@@ -2457,6 +2669,7 @@
     const model = paths.models[state.activeModelKey] || null;
     const sourceManifest = model && model.sourceManifest ? model.sourceManifest : null;
     const sourceReview = sourceManifest && sourceManifest.sourceReview ? sourceManifest.sourceReview : null;
+    const sourceValidation = model && model.sourceValidation ? model.sourceValidation : null;
     const genome = model && model.genome ? model.genome : null;
     const species = model && model.species ? model.species : null;
     const novelty = model && model.novelty ? model.novelty : null;
@@ -2466,15 +2679,26 @@
     const evolutionSchedule = model && model.evolutionSchedule ? model.evolutionSchedule : null;
     const phenotypeEvidence = model && model.phenotypeEvidence ? model.phenotypeEvidence : null;
     const heritableArtifact = model && model.heritableArtifact ? model.heritableArtifact : null;
+    const admissionEvidence = model && model.admissionEvidence ? model.admissionEvidence : null;
     const evalEvidence = model && model.evalEvidence ? model.evalEvidence : null;
     el.provenanceSourceKind.textContent = manifestValue(fields, "source_kind");
     el.provenanceSourceSnapshot.textContent = sourceManifest ? sourceManifest.sourceKind : "unavailable";
     el.provenanceSourceId.textContent = sourceManifest ? sourceManifest.sourceId : "unavailable";
     el.provenanceSourceShape.textContent = sourceManifest ? sourceManifest.modelShape : "unavailable";
     el.provenanceSourceReview.textContent = sourceReview
-      ? `${sourceReview.status} / ${sourceReview.requiredNextGate} / ${sourceReview.checksum}`
+      ? [
+          sourceReview.status,
+          sourceReview.requiredNextGate,
+          sourceReview.checksum,
+          sourceReview.sourceModelId,
+          sourceReview.sourceModelSha
+        ].filter(Boolean).join(" / ")
       : "unavailable";
-    el.provenanceAdmission.textContent = manifestValue(fields, "admission_status");
+    el.provenanceSourceReviewRoutes.textContent = sourceReviewRouteSummary(sourceReview);
+    el.provenanceSourceReviewArtifacts.textContent = sourceReviewArtifactSummary(sourceReview);
+    el.provenanceSourceTokenizerImport.textContent = sourceReviewTokenizerImportSummary(sourceReview);
+    el.provenanceSourceValidation.textContent = sourceValidationSummary(sourceValidation);
+    el.provenanceAdmission.textContent = admissionEvidenceSummary(admissionEvidence, fields);
     el.provenanceQualityClaim.textContent = manifestValue(fields, "quality_claim");
     el.provenanceTrainedClaim.textContent = manifestValue(fields, "trained_quality_claim");
     el.provenanceGenome.textContent = genome ? genome.id : "unavailable";
@@ -2509,6 +2733,71 @@
     el.provenanceEvalChecksum.textContent = evalEvidence ? evalEvidence.checksum : "unavailable";
     el.provenanceChecksum.textContent = manifestValue(fields, "slm_checksum");
     el.provenanceNextGate.textContent = manifestValue(fields, "required_next_gate");
+  }
+
+  function sourceReviewRouteSummary(sourceReview) {
+    if (!sourceReview || !sourceReview.fields) {
+      return "unavailable";
+    }
+    return [
+      `license=${sourceReview.sourceLicenseRoute}`,
+      `prompt=${sourceReview.referencePromptRoute}`,
+      `reference=${sourceReview.referenceOutputChecksum}`,
+      `eval=${sourceReview.evalCasesRoute}`
+    ].join(" / ");
+  }
+
+  function sourceReviewArtifactSummary(sourceReview) {
+    if (!sourceReview || !sourceReview.artifacts) {
+      return "unavailable";
+    }
+    const parts = [];
+    for (const [label, artifact] of Object.entries(sourceReview.artifacts)) {
+      if (!artifact) {
+        continue;
+      }
+      if (artifact.status === "not-local") {
+        parts.push(`${label}=not-local`);
+      } else {
+        parts.push(`${label}=${artifact.status}@${artifact.checksum}`);
+      }
+    }
+    return parts.length > 0 ? parts.join(" / ") : "unavailable";
+  }
+
+  function sourceReviewTokenizerImportSummary(sourceReview) {
+    if (!sourceReview || !sourceReview.tokenizerImport) {
+      return "unavailable";
+    }
+    const tokenizerImport = sourceReview.tokenizerImport;
+    return [
+      tokenizerImport.status,
+      `tokens=${tokenizerImport.tokenCount}`,
+      `merges=${tokenizerImport.mergeCount}`,
+      tokenizerImport.checksum
+    ].join(" / ");
+  }
+
+  function sourceValidationSummary(sourceValidation) {
+    if (!sourceValidation || !sourceValidation.verified || !sourceValidation.fields) {
+      return "unavailable";
+    }
+    return [
+      sourceValidation.fields.source_validation_status,
+      sourceValidation.fields.required_next_gate,
+      sourceValidation.checksum
+    ].filter(Boolean).join(" / ");
+  }
+
+  function admissionEvidenceSummary(admissionEvidence, fields) {
+    if (!admissionEvidence || !admissionEvidence.verified || !admissionEvidence.fields) {
+      return manifestValue(fields, "admission_status");
+    }
+    return [
+      admissionEvidence.fields.admission_status,
+      admissionEvidence.fields.required_next_gate,
+      admissionEvidence.checksum
+    ].filter(Boolean).join(" / ");
   }
 
   function renderAssembly(status, fields, isError) {
@@ -4156,6 +4445,51 @@
     return fields;
   }
 
+  async function loadRuntimeSmokeEvidence(model) {
+    // Binds converted-trained selector runtime evidence to the fetched sidecar before model bytes.
+    const runtimeSmoke = model.runtimeSmokeEvidence;
+    if (!runtimeSmoke || !runtimeSmoke.path) {
+      return "runtime smoke evidence unavailable";
+    }
+    runtimeSmoke.verified = false;
+    runtimeSmoke.fields = null;
+    const text = await fetchTextWithinBudget(
+      runtimeSmoke.path,
+      evidenceTextByteBudget,
+      "runtime smoke evidence"
+    );
+    requireChecksumEqual(
+      textChecksumHex(text),
+      runtimeSmoke.manifestChecksum,
+      "runtime smoke evidence"
+    );
+    const fields = parseManifest(text);
+    requireManifestEqual(
+      fields,
+      "tinyrustlm_runtime_smoke_version",
+      "1",
+      "runtime smoke evidence"
+    );
+    requireManifestEqual(fields, "gate", "runtime-smoke", "runtime smoke evidence");
+    requireManifestEqual(fields, "source_kind", "converted-trained", "runtime smoke evidence");
+    requireManifestEqual(fields, "runtime_smoke_status", "pass", "runtime smoke evidence");
+    requireManifestEqual(
+      fields,
+      "runtime_smoke_decision",
+      "accepted-for-runtime-smoke",
+      "runtime smoke evidence"
+    );
+    requireManifestEqual(
+      fields,
+      "required_next_gate",
+      "promotion-eval-and-selector-admission",
+      "runtime smoke evidence"
+    );
+    runtimeSmoke.fields = fields;
+    runtimeSmoke.verified = true;
+    return "runtime smoke evidence verified";
+  }
+
   async function verifyAssemblyEvidenceFiles(model, fields) {
     const evidence = [];
     const operatorEvidencePrefix = assemblyEvidencePrefixFromOperatorPath(
@@ -4331,6 +4665,197 @@
     return "source manifest verified";
   }
 
+  async function loadSourceReviewEvidence(model) {
+    // Fetches the reviewed safetensors candidate report before model bytes are requested.
+    const sourceReview =
+      model.sourceManifest && model.sourceManifest.sourceReview
+        ? model.sourceManifest.sourceReview
+        : null;
+    if (!sourceReview) {
+      return "source review unavailable";
+    }
+    sourceReview.verified = false;
+    sourceReview.fields = null;
+    const text = await fetchTextWithinBudget(
+      sourceReview.path,
+      evidenceTextByteBudget,
+      "source review"
+    );
+    requireChecksumEqual(textChecksumHex(text), sourceReview.checksum, "source review");
+    const fields = parseManifest(text);
+    requireManifestEqual(
+      fields,
+      "tinyrustlm_safetensors_candidate_review_version",
+      "1",
+      "source review"
+    );
+    requireManifestEqual(
+      fields,
+      "review_layout",
+      "safetensors-real-trained-candidate-review-v1",
+      "source review"
+    );
+    requireManifestEqual(
+      fields,
+      "target_model_shape",
+      model.sourceManifest.modelShape,
+      "source review"
+    );
+    const sourceModelId = requireManifestField(fields, "source_model_id", "source review");
+    const sourceModelSha = requireSourceModelShaManifestField(
+      fields,
+      "source_model_sha",
+      "source review"
+    );
+    const sourceConfigChecksum = requireHex64ManifestField(fields, "source_config_checksum", "source review");
+    const sourceTokenizerChecksum = requireHex64ManifestField(fields, "source_tokenizer_checksum", "source review");
+    const sourceLicenseRoute = requireManifestField(fields, "source_license_route", "source review");
+    const referencePromptRoute = requireManifestField(fields, "reference_prompt_route", "source review");
+    const referenceOutputChecksum = requireHex64ManifestField(fields, "reference_output_checksum", "source review");
+    const evalCasesRoute = requireManifestField(fields, "eval_cases_route", "source review");
+    const artifacts = {
+      config: requireOptionalSourceReviewArtifact(fields, "source_config"),
+      tokenizer: requireOptionalSourceReviewArtifact(fields, "source_tokenizer"),
+      license: requireOptionalSourceReviewArtifact(fields, "source_license"),
+      prompt: requireOptionalSourceReviewArtifact(fields, "reference_prompt"),
+      eval: requireOptionalSourceReviewArtifact(fields, "eval_cases")
+    };
+    const tokenizerImport = requireSourceReviewTokenizerImport(fields);
+    if (artifacts.config && artifacts.config.status !== "not-local") {
+      requireChecksumEqual(artifacts.config.checksum, sourceConfigChecksum, "source config artifact");
+    }
+    if (artifacts.tokenizer && artifacts.tokenizer.status !== "not-local") {
+      requireChecksumEqual(artifacts.tokenizer.checksum, sourceTokenizerChecksum, "source tokenizer artifact");
+    }
+    requireManifestEqual(
+      fields,
+      "required_next_gate",
+      sourceReview.requiredNextGate,
+      "source review"
+    );
+    sourceReview.sourceModelId = sourceModelId;
+    sourceReview.sourceModelSha = sourceModelSha;
+    sourceReview.sourceConfigChecksum = sourceConfigChecksum;
+    sourceReview.sourceTokenizerChecksum = sourceTokenizerChecksum;
+    sourceReview.sourceLicenseRoute = sourceLicenseRoute;
+    sourceReview.referencePromptRoute = referencePromptRoute;
+    sourceReview.referenceOutputChecksum = referenceOutputChecksum;
+    sourceReview.evalCasesRoute = evalCasesRoute;
+    sourceReview.artifacts = artifacts;
+    sourceReview.tokenizerImport = tokenizerImport;
+    sourceReview.fields = fields;
+    sourceReview.verified = true;
+    return "source review verified";
+  }
+
+  async function loadSourceValidationEvidence(model) {
+    // Verifies the converted-trained validate-source gate before runtime smoke, eval, or model bytes.
+    const sourceValidation = model.sourceValidation;
+    if (!sourceValidation || !sourceValidation.path) {
+      return "source validation unavailable";
+    }
+    if (!model.sourceManifest || !model.sourceManifestVerified || !model.sourceManifestFields) {
+      throw new Error("source validation requires verified source manifest");
+    }
+    sourceValidation.verified = false;
+    sourceValidation.fields = null;
+    const text = await fetchTextWithinBudget(
+      sourceValidation.path,
+      evidenceTextByteBudget,
+      "source validation"
+    );
+    requireChecksumEqual(textChecksumHex(text), sourceValidation.checksum, "source validation");
+    const fields = parseManifest(text);
+    requireManifestEqual(
+      fields,
+      "tinyrustlm_source_validation_version",
+      "1",
+      "source validation"
+    );
+    requireManifestEqual(
+      fields,
+      "source_validation_gate",
+      registrySourceValidationGate,
+      "source validation"
+    );
+    requireManifestEqual(
+      fields,
+      "source_validation_status",
+      registrySourceValidationStatus,
+      "source validation"
+    );
+    requireManifestEqual(
+      fields,
+      "source_validation_decision",
+      registrySourceValidationDecision,
+      "source validation"
+    );
+    requireManifestEqual(
+      fields,
+      "source_manifest_path",
+      model.sourceManifest.path,
+      "source validation"
+    );
+    requireChecksumEqual(
+      requireManifestField(fields, "source_manifest_checksum", "source validation"),
+      model.sourceManifest.checksum,
+      "source validation source manifest"
+    );
+    requireManifestEqual(
+      fields,
+      "source_kind",
+      model.sourceManifest.sourceKind,
+      "source validation"
+    );
+    requireManifestEqual(
+      fields,
+      "source_id",
+      model.sourceManifest.sourceId,
+      "source validation"
+    );
+    requireManifestEqual(
+      fields,
+      "model_shape",
+      model.sourceManifest.modelShape,
+      "source validation"
+    );
+    requireManifestEqual(fields, "source_dtype", "f32", "source validation");
+    requireManifestEqual(
+      fields,
+      "tied_output",
+      requireManifestField(model.sourceManifestFields, "tied_output", "source manifest"),
+      "source validation"
+    );
+    requireManifestEqual(
+      fields,
+      "tensor_count",
+      requireManifestField(model.sourceManifestFields, "tensor_count", "source manifest"),
+      "source validation"
+    );
+    if (
+      registryDecimalCount(requireManifestField(fields, "tensor_count", "source validation")) ===
+      null
+    ) {
+      throw new Error("source validation tensor count mismatch");
+    }
+    if (model.sourceManifest.sourceReview) {
+      requireChecksumEqual(
+        requireManifestField(fields, "source_review_checksum", "source validation"),
+        model.sourceManifest.sourceReview.checksum,
+        "source validation source review"
+      );
+    }
+    requireManifestEqual(
+      fields,
+      "required_next_gate",
+      registrySourceValidationRequiredNextGate,
+      "source validation"
+    );
+    sourceValidation.fields = fields;
+    sourceValidation.verified = true;
+    return "source validation verified";
+  }
+
   async function loadEvalEvidence(model) {
     // Binds converted-trained provenance rows to the eval sidecar fetched by this browser load.
     if (!model.sourceManifest) {
@@ -4358,10 +4883,246 @@
     requireManifestEqual(fields, "quality_scope", evalEvidence.qualityScope, "eval evidence");
     requireManifestEqual(fields, "quality_boundary", evalEvidence.qualityBoundary, "eval evidence");
     requireManifestEqual(fields, "eval_dataset", evalEvidence.evalDataset, "eval evidence");
+    const sourceReview =
+      model.sourceManifest && model.sourceManifest.sourceReview
+        ? model.sourceManifest.sourceReview
+        : null;
+    if (sourceReview && sourceReview.verified) {
+      requireManifestEqual(
+        fields,
+        "eval_cases_route",
+        sourceReview.evalCasesRoute,
+        "eval evidence route"
+      );
+    }
     requireChecksumEqual(evalCaseEvidenceChecksum(fields), evalEvidence.checksum, "eval case evidence");
     evalEvidence.fields = fields;
     evalEvidence.verified = true;
     return "eval evidence verified";
+  }
+
+  function admissionArtifactMatchesModelPath(admissionArtifactPath, modelPath) {
+    // Compares local admission artifact paths with the served browser model route suffix.
+    if (!isSafeRegistryModelPath(modelPath)) {
+      return false;
+    }
+    const rest = modelPath.slice("../models/".length);
+    const normalized = String(admissionArtifactPath || "").replaceAll("\\", "/");
+    return normalized === `../models/${rest}` || normalized.endsWith(`tinyrustlm/models/${rest}`);
+  }
+
+  async function loadAdmissionEvidence(model) {
+    // Verifies the selector admission record after all referenced evidence and before model bytes.
+    const admission = model.admissionEvidence;
+    if (!admission || !admission.path) {
+      return "admission evidence unavailable";
+    }
+    if (model.sourceValidation && !model.sourceValidation.verified) {
+      throw new Error("admission evidence requires verified source validation");
+    }
+    if (!model.runtimeSmokeEvidence || !model.runtimeSmokeEvidence.verified) {
+      throw new Error("admission evidence requires verified runtime smoke evidence");
+    }
+    if (!model.evalEvidence || !model.evalEvidence.verified) {
+      throw new Error("admission evidence requires verified eval evidence");
+    }
+    admission.verified = false;
+    admission.fields = null;
+    const text = await fetchTextWithinBudget(
+      admission.path,
+      evidenceTextByteBudget,
+      "admission evidence"
+    );
+    requireChecksumEqual(textChecksumHex(text), admission.checksum, "admission evidence");
+    const fields = parseManifest(text);
+    requireManifestEqual(
+      fields,
+      "tinyrustlm_selector_admission_version",
+      "1",
+      "admission evidence"
+    );
+    requireManifestEqual(fields, "selector_id", "browser-local-selector", "admission evidence");
+    requireManifestEqual(fields, "candidate_id", model.candidateId, "admission evidence");
+    requireManifestEqual(fields, "admission_path", admission.path, "admission evidence");
+    requireManifestEqual(
+      fields,
+      "admission_status",
+      registryAdmissionStatus,
+      "admission evidence"
+    );
+    requireManifestEqual(
+      fields,
+      "promotion_status",
+      registryAdmissionPromotionStatus,
+      "admission evidence"
+    );
+    if (
+      !admissionArtifactMatchesModelPath(
+        requireManifestField(fields, "candidate_artifact_path", "admission evidence"),
+        model.path
+      )
+    ) {
+      throw new Error("admission evidence candidate artifact path mismatch");
+    }
+    requireManifestEqual(
+      fields,
+      "candidate_artifact_bytes",
+      String(model.modelBytes),
+      "admission evidence"
+    );
+    requireChecksumEqual(
+      requireManifestField(fields, "candidate_slm_checksum", "admission evidence"),
+      model.slmChecksum,
+      "admission evidence candidate"
+    );
+    requireManifestEqual(
+      fields,
+      "candidate_model_shape",
+      model.modelShape,
+      "admission evidence"
+    );
+    requireManifestEqual(
+      fields,
+      "candidate_quantization",
+      model.quantization,
+      "admission evidence"
+    );
+    requireChecksumEqual(
+      requireManifestField(fields, "candidate_tokenizer_checksum", "admission evidence"),
+      model.tokenizerChecksum,
+      "admission evidence tokenizer"
+    );
+    if (model.sourceManifest) {
+      requireManifestEqual(
+        fields,
+        "source_manifest_path",
+        model.sourceManifest.path,
+        "admission evidence"
+      );
+      requireChecksumEqual(
+        requireManifestField(fields, "source_manifest_checksum", "admission evidence"),
+        model.sourceManifest.checksum,
+        "admission evidence source manifest"
+      );
+      if (model.sourceManifest.sourceReview) {
+        requireManifestEqual(
+          fields,
+          "source_review_path",
+          model.sourceManifest.sourceReview.path,
+          "admission evidence"
+        );
+        requireChecksumEqual(
+          requireManifestField(fields, "source_review_checksum", "admission evidence"),
+          model.sourceManifest.sourceReview.checksum,
+          "admission evidence source review"
+        );
+      }
+    }
+    if (model.sourceValidation) {
+      requireManifestEqual(
+        fields,
+        "source_validation_path",
+        model.sourceValidation.path,
+        "admission evidence"
+      );
+      requireChecksumEqual(
+        requireManifestField(fields, "source_validation_checksum", "admission evidence"),
+        model.sourceValidation.checksum,
+        "admission evidence source validation"
+      );
+    }
+    requireManifestEqual(
+      fields,
+      "runtime_smoke_path",
+      model.runtimeSmokeEvidence.path,
+      "admission evidence"
+    );
+    requireChecksumEqual(
+      requireManifestField(fields, "runtime_smoke_manifest_checksum", "admission evidence"),
+      model.runtimeSmokeEvidence.manifestChecksum,
+      "admission evidence runtime smoke"
+    );
+    requireManifestEqual(fields, "eval_path", model.evalEvidence.path, "admission evidence");
+    requireChecksumEqual(
+      requireManifestField(fields, "eval_manifest_checksum", "admission evidence"),
+      model.evalEvidence.manifestChecksum,
+      "admission evidence eval"
+    );
+    requireChecksumEqual(
+      requireManifestField(fields, "eval_case_evidence_checksum", "admission evidence"),
+      model.evalEvidence.checksum,
+      "admission evidence eval cases"
+    );
+    requireManifestEqual(
+      fields,
+      "runtime_smoke_status",
+      registryAdmissionRuntimeSmokeStatus,
+      "admission evidence"
+    );
+    requireManifestEqual(
+      fields,
+      "eval_status",
+      registryAdmissionEvalStatus,
+      "admission evidence"
+    );
+    requireManifestEqual(
+      fields,
+      "quality_gate",
+      registryAdmissionQualityGate,
+      "admission evidence"
+    );
+    requireManifestEqual(
+      fields,
+      "quality_scope",
+      model.evalEvidence.qualityScope,
+      "admission evidence"
+    );
+    requireManifestEqual(
+      fields,
+      "quality_boundary",
+      model.evalEvidence.qualityBoundary,
+      "admission evidence"
+    );
+    requireManifestEqual(
+      fields,
+      "eval_dataset",
+      model.evalEvidence.evalDataset,
+      "admission evidence"
+    );
+    requireManifestEqual(
+      fields,
+      "cases_passed",
+      String(model.evalEvidence.casesPassed),
+      "admission evidence"
+    );
+    requireManifestEqual(fields, "cases_failed", "0", "admission evidence");
+    requireManifestEqual(
+      fields,
+      "promotion_decision",
+      registryAdmissionPromotionDecision,
+      "admission evidence"
+    );
+    requireManifestEqual(
+      fields,
+      "browser_selector_status",
+      registryAdmissionBrowserSelectorStatus,
+      "admission evidence"
+    );
+    requireManifestEqual(
+      fields,
+      "public_claim_status",
+      registryAdmissionPublicClaimStatus,
+      "admission evidence"
+    );
+    requireManifestEqual(
+      fields,
+      "required_next_gate",
+      registryAdmissionRequiredNextGate,
+      "admission evidence"
+    );
+    admission.fields = fields;
+    admission.verified = true;
+    return "admission evidence verified";
   }
 
   function setInteractive(enabled) {
@@ -4447,10 +5208,26 @@
     if (model.sourceManifest) {
       model.sourceManifestVerified = false;
       model.sourceManifestFields = null;
+      if (model.sourceManifest.sourceReview) {
+        model.sourceManifest.sourceReview.verified = false;
+        model.sourceManifest.sourceReview.fields = null;
+      }
+    }
+    if (model.sourceValidation) {
+      model.sourceValidation.verified = false;
+      model.sourceValidation.fields = null;
+    }
+    if (model.runtimeSmokeEvidence) {
+      model.runtimeSmokeEvidence.verified = false;
+      model.runtimeSmokeEvidence.fields = null;
     }
     if (model.evalEvidence) {
       model.evalEvidence.verified = false;
       model.evalEvidence.fields = null;
+    }
+    if (model.admissionEvidence) {
+      model.admissionEvidence.verified = false;
+      model.admissionEvidence.fields = null;
     }
     resetModulePlanActualFetchCount(model);
     renderAdapterOptions(model, "waiting");
@@ -4474,7 +5251,11 @@
     try {
       await loadModulePlanReceipt(model);
       await loadSourceManifest(model);
+      await loadSourceReviewEvidence(model);
+      await loadSourceValidationEvidence(model);
+      await loadRuntimeSmokeEvidence(model);
       await loadEvalEvidence(model);
+      await loadAdmissionEvidence(model);
       modelBytes = await fetchModulePlanBytes(model, modelPath, ".slm model", "model");
       if (Number.isSafeInteger(model.modelBytes) && modelBytes.length !== model.modelBytes) {
         throw new Error("Selector model byte count mismatch");

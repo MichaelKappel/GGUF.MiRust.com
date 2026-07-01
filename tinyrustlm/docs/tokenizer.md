@@ -30,7 +30,7 @@ Encoding adds BOS and EOS. Decoding ignores BOS, EOS, and PAD, emits `?` for UNK
 
 The native `.slm` admission validator accepts both `BTOK` and `BPE1`. For BPE, the tokenizer vocab must match the model header, every token id must be unique and inside the vocabulary, and every merge output must reference a token table entry.
 
-The trained-source validator also accepts `tokenizer=bpe-v1` for BPE source shapes. Source manifests must declare BPE token and merge counts, token ids, token bytes as hex, merge ids, and ranks; conversion serializes that metadata into the `.slm` `BPE1` section before native admission validation runs. BPE safetensors candidate review requires a checksum-matched compatible local tokenizer JSON artifact before making exact byte estimates, and review-bound extraction carries those rows into the source manifest.
+The trained-source validator also accepts `tokenizer=bpe-v1` for BPE source shapes. Source manifests must declare BPE token and merge counts, token ids, token bytes as hex, merge ids, and ranks; conversion serializes that metadata into the `.slm` `BPE1` section before native admission validation runs. BPE safetensors candidate review requires a checksum-matched compatible local tokenizer JSON artifact before making exact byte estimates, records tokenizer version, added-token count, normalizer/pre-tokenizer/decoder/post-processor summaries, and `source_tokenizer_import_*` status/count/checksum rows for the manifest-ready BPE rows; review-bound extraction rechecks those rows before carrying them into the source manifest.
 
 ## Current Runtime Proof
 
@@ -38,4 +38,4 @@ The checked-in `tiny-test-model-bpe.slm` fixture uses the `BPE1` section with a 
 
 ## Future Expansion Path
 
-Current BPE support is end-to-end for a deterministic tiny fixture, a converted source fixture, review-bound import of project-compatible local BPE tokenizer JSON, and TinyLM-16M BPE source-planning expectations. Byte-level BPE remapping and richer normalizer/pre-tokenizer semantics are intentionally rejected until the runtime implements them, so trained candidates should provide simple byte-fallback-compatible token and merge tables or stay behind the tokenizer conversion gate.
+Current BPE support is end-to-end for a deterministic tiny fixture, a converted source fixture, review-bound import of project-compatible local BPE tokenizer JSON, and TinyLM-16M BPE source-planning expectations. The review artifact now preserves tokenizer pipeline-shape evidence plus a checksum over the imported manifest BPE rows, but byte-level BPE remapping and richer normalizer/pre-tokenizer semantics are intentionally rejected until the runtime implements them, so trained candidates should provide simple byte-fallback-compatible token and merge tables or stay behind the tokenizer conversion gate.

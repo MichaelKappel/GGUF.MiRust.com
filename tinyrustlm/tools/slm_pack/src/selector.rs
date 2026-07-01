@@ -189,6 +189,7 @@ struct RegistryEntry {
     model_path: String,
     manifest_path: String,
     source_manifest: Option<RegistrySourceManifestRoute>,
+    source_validation: Option<RegistrySourceValidationRoute>,
     max_tokens: String,
     model_bytes: String,
     slm_checksum: String,
@@ -196,9 +197,11 @@ struct RegistryEntry {
     model_shape: String,
     quantization: String,
     output_contract: String,
+    admission_path: Option<String>,
     admission_checksum: String,
     promotion_manifest_checksum: String,
     provenance_manifest_checksum: String,
+    runtime_smoke_path: Option<String>,
     runtime_smoke_manifest_checksum: String,
     eval_path: Option<String>,
     eval_manifest_checksum: String,
@@ -237,9 +240,16 @@ struct RegistrySourceManifestRoute {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct RegistrySourceReviewRoute {
     kind: String,
+    path: String,
     status: String,
     checksum: String,
     required_next_gate: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct RegistrySourceValidationRoute {
+    path: String,
+    checksum: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -598,6 +608,11 @@ pub(crate) fn build_registry_text_with_module_plan_routes(
                 );
                 push_line(
                     &mut text,
+                    &format!("{prefix}.source_review_path"),
+                    &source_review.path,
+                );
+                push_line(
+                    &mut text,
                     &format!("{prefix}.source_review_status"),
                     &source_review.status,
                 );
@@ -612,6 +627,18 @@ pub(crate) fn build_registry_text_with_module_plan_routes(
                     &source_review.required_next_gate,
                 );
             }
+        }
+        if let Some(source_validation) = &entry.source_validation {
+            push_line(
+                &mut text,
+                &format!("{prefix}.source_validation_path"),
+                &source_validation.path,
+            );
+            push_line(
+                &mut text,
+                &format!("{prefix}.source_validation_checksum"),
+                &source_validation.checksum,
+            );
         }
         push_line(
             &mut text,
@@ -800,6 +827,13 @@ pub(crate) fn build_registry_text_with_module_plan_routes(
             &format!("{prefix}.heritable_artifact_checksum"),
             &registry_entry_heritable_artifact_checksum(entry),
         );
+        if let Some(admission_path) = &entry.admission_path {
+            push_line(
+                &mut text,
+                &format!("{prefix}.admission_path"),
+                admission_path,
+            );
+        }
         push_line(
             &mut text,
             &format!("{prefix}.admission_checksum"),
@@ -815,6 +849,13 @@ pub(crate) fn build_registry_text_with_module_plan_routes(
             &format!("{prefix}.provenance_manifest_checksum"),
             &entry.provenance_manifest_checksum,
         );
+        if let Some(runtime_smoke_path) = &entry.runtime_smoke_path {
+            push_line(
+                &mut text,
+                &format!("{prefix}.runtime_smoke_path"),
+                runtime_smoke_path,
+            );
+        }
         push_line(
             &mut text,
             &format!("{prefix}.runtime_smoke_manifest_checksum"),
@@ -1363,6 +1404,8 @@ fn entries_from_admissions(admission_texts: &[String]) -> io::Result<Vec<Registr
         let model_bytes = selector_model_bytes(require_key(&fields, "candidate_artifact_bytes")?)?;
         let tokenizer_checksum = require_key(&fields, "candidate_tokenizer_checksum")?.to_string();
         let source_manifest = registry_source_manifest_from_fields(&fields, &candidate_id)?;
+        let source_validation = registry_source_validation_from_fields(&fields, &candidate_id)?;
+        let runtime_smoke_path = registry_runtime_smoke_path_from_fields(&fields, &candidate_id)?;
         let eval_path = registry_eval_path_from_fields(&fields, &candidate_id)?;
         let operator_receipt = registry_operator_receipt_from_fields(&fields)?;
         let evolution_schedule =
@@ -1377,6 +1420,7 @@ fn entries_from_admissions(admission_texts: &[String]) -> io::Result<Vec<Registr
             model_path,
             manifest_path,
             source_manifest,
+            source_validation,
             max_tokens: default_max_tokens(&model_shape).to_string(),
             model_bytes: model_bytes.to_string(),
             slm_checksum,
@@ -1384,11 +1428,13 @@ fn entries_from_admissions(admission_texts: &[String]) -> io::Result<Vec<Registr
             model_shape,
             quantization: require_key(&fields, "candidate_quantization")?.to_string(),
             output_contract: require_key(&fields, "candidate_output_contract")?.to_string(),
+            admission_path: registry_admission_path_from_fields(&fields, &candidate_id)?,
             admission_checksum: hex64(provenance::text_checksum(admission_text.as_bytes())),
             promotion_manifest_checksum: require_key(&fields, "promotion_manifest_checksum")?
                 .to_string(),
             provenance_manifest_checksum: require_key(&fields, "provenance_manifest_checksum")?
                 .to_string(),
+            runtime_smoke_path,
             runtime_smoke_manifest_checksum: require_key(
                 &fields,
                 "runtime_smoke_manifest_checksum",
@@ -1450,6 +1496,7 @@ fn registry_source_manifest_from_fields(
         "source_manifest_source_id",
         "source_manifest_model_shape",
         "source_review_kind",
+        "source_review_path",
         "source_review_status",
         "source_review_checksum",
         "source_review_required_next_gate",
@@ -1488,7 +1535,7 @@ fn registry_source_manifest_from_fields(
     }
     validate_registry_slug(&source_id, "source_manifest_source_id")?;
     validate_registry_slug(&model_shape, "source_manifest_model_shape")?;
-    let source_review = registry_source_review_from_fields(fields)?;
+    let source_review = registry_source_review_from_fields(fields, candidate_id)?;
     Ok(Some(RegistrySourceManifestRoute {
         path,
         checksum,
@@ -1503,10 +1550,12 @@ fn registry_source_manifest_from_fields(
 
 fn registry_source_review_from_fields(
     fields: &HashMap<String, String>,
+    candidate_id: &str,
 ) -> io::Result<Option<RegistrySourceReviewRoute>> {
     // Copies the pre-extraction safetensors review identity into the browser registry when present.
     let keys = [
         "source_review_kind",
+        "source_review_path",
         "source_review_status",
         "source_review_checksum",
         "source_review_required_next_gate",
@@ -1515,12 +1564,18 @@ fn registry_source_review_from_fields(
         return Ok(None);
     }
     let kind = require_key(fields, "source_review_kind")?.to_string();
+    let path = require_key(fields, "source_review_path")?.to_string();
     let status = require_key(fields, "source_review_status")?.to_string();
     let checksum = require_key(fields, "source_review_checksum")?.to_string();
     let required_next_gate = require_key(fields, "source_review_required_next_gate")?.to_string();
     if kind != SOURCE_REVIEW_KIND {
         return Err(invalid("selector registry source_review_kind is invalid"));
     }
+    let expected_path = format!("../evidence/{candidate_id}/converted-trained.source.review");
+    if path != expected_path {
+        return Err(invalid("selector registry source_review_path is invalid"));
+    }
+    validate_registry_evidence_path(&path, "source_review_path")?;
     if status != SOURCE_REVIEW_STATUS {
         return Err(invalid("selector registry source_review_status is invalid"));
     }
@@ -1532,10 +1587,53 @@ fn registry_source_review_from_fields(
     }
     Ok(Some(RegistrySourceReviewRoute {
         kind,
+        path,
         status,
         checksum,
         required_next_gate,
     }))
+}
+
+fn registry_source_validation_from_fields(
+    fields: &HashMap<String, String>,
+    candidate_id: &str,
+) -> io::Result<Option<RegistrySourceValidationRoute>> {
+    // Preserves the validate-source sidecar only when it is scoped to the candidate evidence folder.
+    let keys = ["source_validation_path", "source_validation_checksum"];
+    if !keys.iter().any(|key| fields.contains_key(*key)) {
+        return Ok(None);
+    }
+    let path = require_key(fields, "source_validation_path")?.to_string();
+    let checksum = require_key(fields, "source_validation_checksum")?.to_string();
+    validate_registry_slug(candidate_id, "candidate_id")?;
+    let expected_path = format!("../evidence/{candidate_id}/converted-trained.source.validation");
+    if path != expected_path {
+        return Err(invalid(
+            "selector registry source_validation_path must stay inside candidate evidence",
+        ));
+    }
+    validate_registry_evidence_path(&path, "source_validation_path")?;
+    validate_hex64(&checksum, "source_validation_checksum")?;
+    Ok(Some(RegistrySourceValidationRoute { path, checksum }))
+}
+
+fn registry_admission_path_from_fields(
+    fields: &HashMap<String, String>,
+    candidate_id: &str,
+) -> io::Result<Option<String>> {
+    // Preserves the selector admission sidecar only when it is scoped to this candidate.
+    let Some(path) = fields.get("admission_path") else {
+        return Ok(None);
+    };
+    validate_registry_slug(candidate_id, "candidate_id")?;
+    let expected_path = format!("../evidence/{candidate_id}/converted-trained.admission");
+    if path != &expected_path {
+        return Err(invalid(
+            "selector registry admission_path must stay inside candidate evidence",
+        ));
+    }
+    validate_registry_evidence_path(path, "admission_path")?;
+    Ok(Some(path.clone()))
 }
 
 fn registry_eval_path_from_fields(
@@ -1554,6 +1652,25 @@ fn registry_eval_path_from_fields(
         ));
     }
     validate_registry_evidence_path(path, "eval_path")?;
+    Ok(Some(path.clone()))
+}
+
+fn registry_runtime_smoke_path_from_fields(
+    fields: &HashMap<String, String>,
+    candidate_id: &str,
+) -> io::Result<Option<String>> {
+    // Preserves a converted-trained runtime-smoke sidecar route only inside candidate evidence.
+    let Some(path) = fields.get("runtime_smoke_path") else {
+        return Ok(None);
+    };
+    validate_registry_slug(candidate_id, "candidate_id")?;
+    let expected_path = format!("../evidence/{candidate_id}/converted-trained.runtime");
+    if path != &expected_path {
+        return Err(invalid(
+            "selector registry runtime_smoke_path must stay inside candidate evidence",
+        ));
+    }
+    validate_registry_evidence_path(path, "runtime_smoke_path")?;
     Ok(Some(path.clone()))
 }
 
@@ -3979,6 +4096,7 @@ fn registry_entry_heritable_artifact_id(entry: &RegistryEntry) -> String {
             );
             if let Some(source_review) = &source_manifest.source_review {
                 push_line(&mut text, "source_review_kind", &source_review.kind);
+                push_line(&mut text, "source_review_path", &source_review.path);
                 push_line(&mut text, "source_review_status", &source_review.status);
                 push_line(&mut text, "source_review_checksum", &source_review.checksum);
                 push_line(
@@ -4251,8 +4369,18 @@ mod tests {
             registry.contains("entry.0.source_manifest_source_id=tinyrustlm-local-source-fixture")
         );
         assert!(registry.contains("entry.0.source_manifest_model_shape=tiny-fixture"));
+        assert!(registry.contains(
+            "entry.0.source_validation_path=../evidence/converted-trained-q8/converted-trained.source.validation"
+        ));
+        assert!(registry.contains("entry.0.source_validation_checksum=0x00000000000000f5"));
+        assert!(registry.contains(
+            "entry.0.runtime_smoke_path=../evidence/converted-trained-q8/converted-trained.runtime"
+        ));
         assert!(registry
             .contains("entry.0.eval_path=../evidence/converted-trained-q8/converted-trained.eval"));
+        assert!(registry.contains(
+            "entry.0.admission_path=../evidence/converted-trained-q8/converted-trained.admission"
+        ));
         validate_registry_text(&registry, &[admission]).unwrap();
     }
 
@@ -4273,6 +4401,22 @@ mod tests {
     }
 
     #[test]
+    fn rejects_selector_registry_source_validation_checksum_drift() {
+        let admission = fixture_admission_with_source_manifest_route(
+            "converted-trained-q8",
+            "tinyrustlm/models/converted-trained-q8.slm",
+        );
+        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
+            "entry.0.source_validation_checksum=0x00000000000000f5",
+            "entry.0.source_validation_checksum=0x00000000000000f6",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert!(error.to_string().contains("source_validation_checksum"));
+    }
+
+    #[test]
     fn writes_and_validates_selector_registry_source_review_route() {
         let admission = fixture_admission_with_source_review_route(
             "converted-trained-q8",
@@ -4281,6 +4425,9 @@ mod tests {
         let registry = build_registry_text(&[admission.clone()]).unwrap();
 
         assert!(registry.contains("entry.0.source_review_kind=safetensors-candidate-review"));
+        assert!(registry.contains(
+            "entry.0.source_review_path=../evidence/converted-trained-q8/converted-trained.source.review"
+        ));
         assert!(registry.contains("entry.0.source_review_status=validated-before-extraction"));
         assert!(registry.contains("entry.0.source_review_checksum=0x00000000000000f3"));
         assert!(
@@ -4303,6 +4450,70 @@ mod tests {
         let error = validate_registry_text(&registry, &[admission]).unwrap_err();
 
         assert!(error.to_string().contains("source_review_checksum"));
+    }
+
+    #[test]
+    fn rejects_selector_registry_source_review_path_outside_candidate_evidence() {
+        let admission = fixture_admission_with_source_review_route(
+            "converted-trained-q8",
+            "tinyrustlm/models/converted-trained-q8.slm",
+        )
+        .replace(
+            "source_review_path=../evidence/converted-trained-q8/converted-trained.source.review",
+            "source_review_path=../evidence/converted-trained-f32/converted-trained.source.review",
+        );
+
+        let error = build_registry_text(&[admission]).unwrap_err();
+
+        assert!(error.to_string().contains("source_review_path"));
+    }
+
+    #[test]
+    fn rejects_selector_registry_source_validation_route_outside_candidate_evidence() {
+        let admission = fixture_admission_with_source_manifest_route(
+            "converted-trained-q8",
+            "tinyrustlm/models/converted-trained-q8.slm",
+        )
+        .replace(
+            "source_validation_path=../evidence/converted-trained-q8/converted-trained.source.validation",
+            "source_validation_path=../evidence/converted-trained-f32/converted-trained.source.validation",
+        );
+
+        let error = build_registry_text(&[admission]).unwrap_err();
+
+        assert!(error.to_string().contains("source_validation_path"));
+    }
+
+    #[test]
+    fn rejects_selector_registry_admission_route_outside_candidate_evidence() {
+        let admission = fixture_admission_with_source_manifest_route(
+            "converted-trained-q8",
+            "tinyrustlm/models/converted-trained-q8.slm",
+        )
+        .replace(
+            "admission_path=../evidence/converted-trained-q8/converted-trained.admission",
+            "admission_path=../evidence/converted-trained-f32/converted-trained.admission",
+        );
+
+        let error = build_registry_text(&[admission]).unwrap_err();
+
+        assert!(error.to_string().contains("admission_path"));
+    }
+
+    #[test]
+    fn rejects_selector_registry_admission_path_drift() {
+        let admission = fixture_admission_with_source_manifest_route(
+            "converted-trained-q8",
+            "tinyrustlm/models/converted-trained-q8.slm",
+        );
+        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
+            "entry.0.admission_path=../evidence/converted-trained-q8/converted-trained.admission",
+            "entry.0.admission_path=../evidence/converted-trained-f32/converted-trained.admission",
+        );
+
+        let error = validate_registry_text(&registry, &[admission]).unwrap_err();
+
+        assert!(error.to_string().contains("admission_path"));
     }
 
     #[test]
@@ -4351,6 +4562,22 @@ mod tests {
         let error = build_registry_text(&[admission]).unwrap_err();
 
         assert!(error.to_string().contains("eval path"));
+    }
+
+    #[test]
+    fn rejects_selector_registry_runtime_smoke_route_outside_candidate_evidence() {
+        let admission = fixture_admission_with_source_manifest_route(
+            "converted-trained-q8",
+            "tinyrustlm/models/converted-trained-q8.slm",
+        )
+        .replace(
+            "runtime_smoke_path=../evidence/converted-trained-q8/converted-trained.runtime",
+            "runtime_smoke_path=../evidence/converted-trained-f32/converted-trained.runtime",
+        );
+
+        let error = build_registry_text(&[admission]).unwrap_err();
+
+        assert!(error.to_string().contains("runtime_smoke_path"));
     }
 
     #[test]
@@ -7139,6 +7366,11 @@ mod tests {
         let mut admission = fixture_admission(candidate_id, candidate_path);
         push_line(
             &mut admission,
+            "admission_path",
+            &format!("../evidence/{candidate_id}/converted-trained.admission"),
+        );
+        push_line(
+            &mut admission,
             "source_manifest_path",
             &format!("../evidence/{candidate_id}/converted-trained.source.manifest"),
         );
@@ -7170,6 +7402,21 @@ mod tests {
         );
         push_line(
             &mut admission,
+            "source_validation_path",
+            &format!("../evidence/{candidate_id}/converted-trained.source.validation"),
+        );
+        push_line(
+            &mut admission,
+            "source_validation_checksum",
+            "0x00000000000000f5",
+        );
+        push_line(
+            &mut admission,
+            "runtime_smoke_path",
+            &format!("../evidence/{candidate_id}/converted-trained.runtime"),
+        );
+        push_line(
+            &mut admission,
             "eval_path",
             &format!("../evidence/{candidate_id}/converted-trained.eval"),
         );
@@ -7184,6 +7431,11 @@ mod tests {
         let mut admission =
             fixture_admission_with_source_manifest_route(candidate_id, candidate_path);
         push_line(&mut admission, "source_review_kind", SOURCE_REVIEW_KIND);
+        push_line(
+            &mut admission,
+            "source_review_path",
+            &format!("../evidence/{candidate_id}/converted-trained.source.review"),
+        );
         push_line(&mut admission, "source_review_status", SOURCE_REVIEW_STATUS);
         push_line(
             &mut admission,
