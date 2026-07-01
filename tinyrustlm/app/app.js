@@ -496,7 +496,7 @@
     consolePaused: "slmcomposer.ui.consolePaused"
   };
 
-  const uiPreferenceVersion = "chat-first-source-options-v1";
+  const uiPreferenceVersion = "chat-first-source-options-v2";
 
   const starterProfiles = {
     fast: {

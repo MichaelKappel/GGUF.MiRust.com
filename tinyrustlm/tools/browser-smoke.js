@@ -1810,6 +1810,7 @@ async function runPageSourceOptionsSmoke(client) {
         promptVisible: visible(byId("prompt")),
         generateVisible: visible(byId("generateButton")),
         starterCardCount: document.querySelectorAll(".starter-action").length,
+        starterLabels: Array.from(document.querySelectorAll(".starter-action")).map((button) => button.textContent.replace(/\\s+/g, " ").trim()),
         modeButtonLabels: Array.from(document.querySelectorAll(".mode-button")).map((button) => button.textContent.replace(/\\s+/g, " ").trim()),
         sourceLabels: Array.from(document.querySelectorAll("[data-source-option]")).map((button) => button.textContent.replace(/\\s+/g, " ").trim()),
         status: byId("simpleDiscoveryStatus") ? byId("simpleDiscoveryStatus").textContent : ""
@@ -8119,8 +8120,13 @@ function assertSourceOptionsSmoke(result, networkRequests) {
     if (!result.initial.promptVisible || !result.initial.generateVisible) {
       failures.push("chat prompt and Generate were not visible in initial Simple Mode");
     }
-    if (result.initial.starterCardCount !== 0) {
-      failures.push(`starter cards were still present in initial Simple Mode: ${result.initial.starterCardCount}`);
+    if (result.initial.starterCardCount < 3) {
+      failures.push(`starter cards were missing in initial Simple Mode: ${result.initial.starterCardCount}`);
+    }
+    for (const label of ["Fast & Lightweight", "Everyday Chat", "Precise & Repeatable"]) {
+      if (!result.initial.starterLabels.some((text) => text.includes(label))) {
+        failures.push(`missing starter profile ${label}`);
+      }
     }
     if (!result.initial.modeButtonLabels.some((text) => text.includes("Advanced Tools"))) {
       failures.push(`Advanced Tools button label was missing: ${JSON.stringify(result.initial.modeButtonLabels)}`);

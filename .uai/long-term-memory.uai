@@ -87,8 +87,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before opening bulk reports, report-derived design guidance, or model-breeding research routes.
-    checksum_hash: sha256:088B0426F3842E10966E65D3FB5EE70E51D59588C28ED05ED1C932CED4E5A780
-    last_reviewed_utc: 2026-07-01T16:20:00Z
+    checksum_hash: sha256:C7AC4777F584D56FE688D7F64611A62C87844B9BC21478F53CD09806E12AB583
+    last_reviewed_utc: 2026-07-01T21:22:24Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; processed report synthesis lives in the target file.
   - stable_id: runtime_mirust_short_term_memory_uai
@@ -104,8 +104,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before resuming current work, locating latest report memory, or choosing next verification.
-    checksum_hash: sha256:9C2981A566DC6A01061BC78C45A1B1250139D7D36D70A12BB5DDAAD83051FE87
-    last_reviewed_utc: 2026-07-01T16:35:00Z
+    checksum_hash: sha256:600E96B8D691B82AA5C8807F2E24B2D591160C72A15235976E3C1841FFAF94F8
+    last_reviewed_utc: 2026-07-01T21:22:24Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; current state and routes live in the target file.
   - stable_id: runtime_mirust_startup_packet_uai
@@ -5221,8 +5221,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing SLMComposer Chat/Advanced Tools behavior, source option UI, diagnostics rail grouping, run history, local import copy, browser-smoke UI/source-option assertions, or public SLMComposer deploy status.
-    checksum_hash: sha256:FC1208B5B0B871DFAF0A9C851F9A7F953464D293F8BB13AAAE8737B76190BA6D
-    last_reviewed_utc: 2026-07-01T20:47:00Z
+    checksum_hash: sha256:2A6ED5EB69FC5954F177A205EC6CDB1541381E878D8B34800B87C5334A187307
+    last_reviewed_utc: 2026-07-01T21:22:24Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; progressive source UI report body lives in the target file.
   - stable_id: runtime_mirust_tinylm16_bpe_safetensors_plan_memory

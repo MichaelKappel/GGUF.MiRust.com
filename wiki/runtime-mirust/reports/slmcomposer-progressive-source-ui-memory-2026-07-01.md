@@ -7,7 +7,7 @@ This route records the SLMComposer app UI restructuring that turns the flat brow
 ## Implemented UI Boundary
 
 - First load defaults to Chat mode.
-- Chat mode shows the source chooser and chat surface first: Local Files, Hugging Face, P2P Exchange, prompt, response, Generate, and a collapsed Response Style disclosure.
+- Chat mode shows starter profiles, the source chooser, and the chat surface first: Fast & Lightweight, Everyday Chat, Precise & Repeatable, Local Files, Hugging Face, P2P Exchange, prompt, response, Generate, and a collapsed Response Style disclosure.
 - Chat mode hides raw generation parameters, provenance, assembly evidence, module plan, benchmark, token console, adapter controls, raw catalog URLs, raw Hugging Face search, and WASM/module checksum fields.
 - Advanced Tools exposes the existing model dropdown, local `.slm` import, MiniModel catalog URL and local JSON list import, Hugging Face search, adapter sidecar, raw generation parameters, Step Token, run history, and diagnostics.
 - A UI preference-version reset prevents older stored Advanced mode from reopening the expert dashboard after this chat-first redesign; `?mode=advanced` still opens Advanced Tools directly for pros.
@@ -27,7 +27,7 @@ All three source options converge on local `.slm` import. SLMComposer.com still 
 
 ## Browser Behavior
 
-- The previous starter-card layer was removed from first load because it added a second decision system before users reached chat.
+- Starter profiles are present on first load because the UI improvement report explicitly calls for novice starter cards that hide technical model names and sampling parameters.
 - `Choose Local .slm` is the primary call to action in Chat mode.
 - Simple source results are mirrored from the existing Advanced catalog and Hugging Face renderers; fetch/import logic remains shared.
 - Local import status is summarized in Simple Mode without exposing checksums there. Advanced Mode keeps raw byte counts and checksums.
@@ -47,7 +47,7 @@ All three source options converge on local `.slm` import. SLMComposer.com still 
 - `node tinyrustlm/tools/browser-smoke.js http://127.0.0.1:8098/app/ 9442 tinylm16q8 ui-audit`
 - `node tinyrustlm/tools/browser-smoke.js http://slmcomposer.com:8098/app/ 9443 tinylm16q8 public-local-only`
 
-The current `source-options-ui` smoke proves first-load Chat mode, visible source chooser, visible prompt and Generate button, zero starter cards, hidden Advanced controls, Local/Hugging Face/P2P source switching, Advanced source surface visibility after the mode toggle, and no Hugging Face or MiniModel network request before explicit search/catalog-load actions.
+The current `source-options-ui` smoke proves first-load Chat mode, visible starter profiles, visible source chooser, visible prompt and Generate button, hidden Advanced controls, Local/Hugging Face/P2P source switching, Advanced source surface visibility after the mode toggle, and no Hugging Face or MiniModel network request before explicit search/catalog-load actions.
 
 ## Deployment Status
 

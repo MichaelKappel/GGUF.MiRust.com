@@ -43,11 +43,35 @@
     </section>
 
     <section id="simpleExperience" class="simple-experience" aria-label="Chat mode setup">
+      <section id="starterSection" class="starter-section" aria-labelledby="starterHeading">
+        <div class="simple-setup-header">
+          <div>
+            <p class="eyebrow">Chat Mode</p>
+            <h2 id="starterHeading">Start With A Simple Profile</h2>
+          </div>
+          <p class="starter-note">Technical names stay in Advanced Tools.</p>
+        </div>
+        <div class="starter-grid" role="list" aria-label="Starter profiles">
+          <button class="starter-action" type="button" data-starter="fast">
+            <span>Fast & Lightweight</span>
+            <small>Shorter answers with the smallest browser memory footprint.</small>
+          </button>
+          <button class="starter-action" type="button" data-starter="balanced">
+            <span>Everyday Chat</span>
+            <small>Balanced responses for normal local prompting.</small>
+          </button>
+          <button class="starter-action" type="button" data-starter="precise">
+            <span>Precise & Repeatable</span>
+            <small>Focused output with repeatable settings for comparisons.</small>
+          </button>
+        </div>
+      </section>
+
       <section id="simpleDiscoveryPanel" class="simple-discovery simple-setup" aria-labelledby="simpleDiscoveryHeading">
         <div class="simple-setup-header">
           <div>
             <p class="eyebrow">Model Source</p>
-            <h2 id="simpleDiscoveryHeading">Pick Where The Model Comes From</h2>
+            <h2 id="simpleDiscoveryHeading">Choose The Source</h2>
           </div>
           <button id="simpleChooseLocalButton" class="simple-primary-action" type="button">Choose Local .slm</button>
         </div>

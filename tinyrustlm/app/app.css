@@ -4,6 +4,7 @@
   --surface: #181b20;
   --surface-2: #20252d;
   --surface-3: #111820;
+  --surface-warm: #1f1d19;
   --text: #f2f5f2;
   --muted: #aeb9b1;
   --line: #343b3a;
@@ -311,7 +312,10 @@ h3 {
 .simple-experience {
   display: grid;
   gap: 14px;
+  max-width: 1080px;
   margin-bottom: 14px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .section-heading p {
@@ -322,11 +326,15 @@ h3 {
 .starter-section {
   display: grid;
   gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(115, 224, 192, .08), rgba(216, 139, 210, .06)), var(--surface);
 }
 
 .starter-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(150px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -338,11 +346,11 @@ h3 {
   display: grid;
   gap: 7px;
   width: 100%;
-  min-height: 124px;
+  min-height: 116px;
   padding: 14px;
   color: var(--text);
   text-align: left;
-  background: var(--surface);
+  background: #10151a;
   border: 1px solid var(--line);
 }
 
@@ -360,6 +368,14 @@ h3 {
 .starter-action small {
   color: var(--muted);
   font-weight: 500;
+}
+
+.starter-note {
+  max-width: 280px;
+  margin: 0;
+  color: var(--muted);
+  text-align: right;
+  font-size: 13px;
 }
 
 .source-option-grid {
@@ -409,9 +425,9 @@ h3 {
 }
 
 .simple-setup {
-  padding: 0;
-  border: 0;
-  background: transparent;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
 }
 
 .simple-setup-header {
@@ -1006,5 +1022,10 @@ pre {
   .footnote span {
     display: block;
     margin-top: 6px;
+  }
+
+  .starter-note {
+    max-width: none;
+    text-align: left;
   }
 }
