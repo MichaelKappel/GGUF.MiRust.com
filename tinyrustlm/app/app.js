@@ -482,6 +482,7 @@
   };
 
   const uiStorageKeys = {
+    version: "slmcomposer.ui.version",
     mode: "slmcomposer.ui.mode",
     selectedStarter: "slmcomposer.ui.selectedStarter",
     simpleSourceOption: "slmcomposer.ui.simpleSourceOption",
@@ -494,6 +495,8 @@
     runHistory: "slmcomposer.ui.runHistory",
     consolePaused: "slmcomposer.ui.consolePaused"
   };
+
+  const uiPreferenceVersion = "chat-first-source-options-v1";
 
   const starterProfiles = {
     fast: {
@@ -553,6 +556,24 @@
     } catch (_error) {
       // UI preferences are best-effort only.
     }
+  }
+
+  function resetUiPreferencesForVersion() {
+    if (storageGet(uiStorageKeys.version, "") === uiPreferenceVersion) {
+      return;
+    }
+    storageRemove(uiStorageKeys.mode);
+    storageRemove(uiStorageKeys.selectedStarter);
+    storageRemove(uiStorageKeys.simpleSourceOption);
+    storageSet(uiStorageKeys.version, uiPreferenceVersion);
+  }
+
+  function initialAppMode() {
+    const search = new URLSearchParams(window.location.search);
+    if (search.get("mode") === "advanced") {
+      return "advanced";
+    }
+    return storageGet(uiStorageKeys.mode, "simple");
   }
 
   function selectedRadioValue(name, fallback) {
@@ -764,7 +785,7 @@
       panel.hidden = panel.dataset.sourcePanel !== nextOption;
     });
     storageSet(uiStorageKeys.simpleSourceOption, nextOption);
-    if (el.simpleDiscoveryStatus && reveal) {
+    if (el.simpleDiscoveryStatus) {
       const messages = {
         local: "Choose a trusted local .slm file. No network is needed.",
         huggingface: "Search Hugging Face metadata, then import or convert a trusted local .slm file.",
@@ -1016,7 +1037,8 @@
   }
 
   function initializeUiShell() {
-    setAppMode(storageGet(uiStorageKeys.mode, "simple"));
+    resetUiPreferencesForVersion();
+    setAppMode(initialAppMode());
     restoreSemanticPreferences();
     markStarterSelected(storageGet(uiStorageKeys.selectedStarter, ""));
     setSimpleSourceOption(storageGet(uiStorageKeys.simpleSourceOption, "local"), false);

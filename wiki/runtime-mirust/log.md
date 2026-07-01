@@ -182,5 +182,5 @@ reviewed_utc: 2026-06-29T23:40:00Z
 
 ## 2026-07-01
 
-- Added SLMComposer progressive source UI: first load defaults to Simple Mode, Advanced Mode keeps the full Rust/WASM diagnostics dashboard, source options are explicit as user local files, Hugging Face metadata, and future MiniModel P2P metadata/manifests, and all paths still converge on user-selected local `.slm` validation.
-- Added browser-smoke `source-options-ui` plus updated `ui-audit` selectors so tests cover the Simple/Advanced split, Local/Hugging Face/P2P source switching, no pre-action Hugging Face or MiniModel network requests, desktop/mobile dashboard layout, and deterministic Advanced generation.
+- Corrected SLMComposer progressive source UI after visual review: first load defaults to Chat mode with source choices, prompt, and Generate visible; starter cards and expert telemetry are removed from first load, Advanced Tools keeps the full Rust/WASM diagnostics dashboard, and older stored Advanced mode is reset by UI preference version.
+- Updated browser-smoke `source-options-ui` so tests cover Chat/Advanced Tools split, visible first-load Local/Hugging Face/P2P source chooser, zero starter cards, no pre-action Hugging Face or MiniModel network requests, desktop/mobile dashboard layout, and deterministic Advanced generation; live SLMComposer.com was confirmed stale until explicit-FTPS deploy credentials/profile are available.

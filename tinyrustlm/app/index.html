@@ -29,8 +29,8 @@
 
       <div class="masthead-controls" aria-label="Workspace controls">
         <div class="mode-toggle" role="group" aria-label="Interface mode">
-          <button id="simpleModeButton" class="mode-button" type="button" aria-pressed="true">Simple</button>
-          <button id="advancedModeButton" class="mode-button" type="button" aria-pressed="false">Advanced</button>
+          <button id="simpleModeButton" class="mode-button" type="button" aria-pressed="true">Chat</button>
+          <button id="advancedModeButton" class="mode-button" type="button" aria-pressed="false">Advanced Tools</button>
         </div>
         <p id="currentModelSummary" class="model-summary">No model loaded</p>
       </div>
@@ -42,79 +42,34 @@
       Model files may come from your computer or external sources you choose. Only load model files from sources you trust.
     </section>
 
-    <section id="simpleExperience" class="simple-experience" aria-label="Simple mode workspace">
-      <section class="starter-section" aria-labelledby="starterHeading">
-        <div class="section-heading">
-          <h2 id="starterHeading">Start With A Local Setup</h2>
-          <p>Choose a plain-language profile, then type a prompt and generate.</p>
-        </div>
-        <div class="starter-grid" role="list">
-          <article class="starter-card" role="listitem">
-            <button class="starter-action" type="button" data-starter="fast">
-              <span>Fast &amp; Lightweight Chat</span>
-              <small>Quick local responses optimized for speed and low memory use.</small>
-            </button>
-            <details class="technical-disclosure">
-              <summary>Technical details</summary>
-              <p>Prefers the q4_0 TinyLM route when it is available and uses balanced memory defaults.</p>
-            </details>
-          </article>
-          <article class="starter-card" role="listitem">
-            <button class="starter-action" type="button" data-starter="balanced">
-              <span>Balanced Local Chat</span>
-              <small>A general-purpose local chat setup with a balance of speed and quality.</small>
-            </button>
-            <details class="technical-disclosure">
-              <summary>Technical details</summary>
-              <p>Prefers the q8_0 TinyLM route when it is available and uses balanced sampling.</p>
-            </details>
-          </article>
-          <article class="starter-card" role="listitem">
-            <button class="starter-action" type="button" data-starter="precise">
-              <span>Precise Reasoning</span>
-              <small>More focused answers with less randomness.</small>
-            </button>
-            <details class="technical-disclosure">
-              <summary>Technical details</summary>
-              <p>Prefers the f32 TinyLM route when it is available and uses lower temperature settings.</p>
-            </details>
-          </article>
-          <article class="starter-card" role="listitem">
-            <button class="starter-action" type="button" data-starter="custom">
-              <span>Custom Local Model</span>
-              <small>Import your own trusted .slm model from this computer.</small>
-            </button>
-          </article>
-          <article class="starter-card" role="listitem">
-            <button class="starter-action" type="button" data-starter="external">
-              <span>Explore Model Sources</span>
-              <small>Use Hugging Face metadata, MiniModel P2P metadata, or your own local files.</small>
-            </button>
-          </article>
-        </div>
-      </section>
-
-      <section id="simpleDiscoveryPanel" class="simple-discovery" hidden aria-labelledby="simpleDiscoveryHeading">
-        <div class="section-heading">
-          <h2 id="simpleDiscoveryHeading">Choose A Model Source</h2>
-          <p>Every source ends at a local `.slm` file you choose. SLM Composer does not proxy, host, or run model bytes for you.</p>
+    <section id="simpleExperience" class="simple-experience" aria-label="Chat mode setup">
+      <section id="simpleDiscoveryPanel" class="simple-discovery simple-setup" aria-labelledby="simpleDiscoveryHeading">
+        <div class="simple-setup-header">
+          <div>
+            <p class="eyebrow">Model Source</p>
+            <h2 id="simpleDiscoveryHeading">Pick Where The Model Comes From</h2>
+          </div>
+          <button id="simpleChooseLocalButton" class="simple-primary-action" type="button">Choose Local .slm</button>
         </div>
         <div class="source-option-grid" role="list" aria-label="Model source options">
           <button id="simpleLocalSourceButton" class="source-option" type="button" data-source-option="local">
             <span>Your Local Files</span>
-            <small>Pick a trusted `.slm` from this computer.</small>
+            <small>Fastest path. No network needed.</small>
           </button>
           <button id="simpleHfSourceButton" class="source-option" type="button" data-source-option="huggingface">
             <span>Hugging Face</span>
-            <small>Search Hub metadata and model cards.</small>
+            <small>Find model cards and metadata.</small>
           </button>
           <button id="simpleP2pSourceButton" class="source-option" type="button" data-source-option="p2p">
             <span>P2P Exchange</span>
-            <small>Use MiniModel manifests and verified local import.</small>
+            <small>Use verified MiniModel manifests.</small>
           </button>
         </div>
         <div id="simpleLocalSourcePanel" class="source-panel" data-source-panel="local">
-          <p>Use the browser file picker to import a trusted `.slm` artifact. Rust/WASM validates the model before it runs.</p>
+          <p>Local `.slm` files stay on this device and are checked before they run.</p>
+          <div class="simple-discovery-actions">
+            <button id="simpleImportLocalModelButton" type="button">Import Selected .slm</button>
+          </div>
         </div>
         <div id="simpleHfSourcePanel" class="source-panel" data-source-panel="huggingface" hidden>
           <label for="simpleHfSearchInput">Hugging Face search</label>
@@ -125,15 +80,13 @@
           <ol id="simpleHfResults" class="model-results"></ol>
         </div>
         <div id="simpleP2pSourcePanel" class="source-panel" data-source-panel="p2p" hidden>
-          <p>P2P transfer is a later Rust-first path. Today this loads metadata-only MiniModel catalog entries, then asks you to import matching local `.slm` bytes.</p>
+          <p>P2P is metadata-first today. Model bytes still come from a local `.slm` file you choose.</p>
+          <div class="simple-discovery-actions">
+            <button id="simpleLoadCatalogButton" type="button">Load MiniModel Metadata</button>
+          </div>
           <ol id="simpleCatalogResults" class="model-results"></ol>
         </div>
-        <div class="simple-discovery-actions">
-          <button id="simpleChooseLocalButton" type="button">Choose Local .slm</button>
-          <button id="simpleImportLocalModelButton" type="button">Import Selected .slm</button>
-          <button id="simpleLoadCatalogButton" type="button">Load MiniModel Metadata</button>
-          <button id="simpleOpenAdvancedDiscoveryButton" type="button">Show Advanced Discovery</button>
-        </div>
+        <button id="simpleOpenAdvancedDiscoveryButton" class="text-link-button" type="button">Open source details in Advanced Tools</button>
         <div id="simpleDiscoveryStatus" class="helper-status" aria-live="polite">No external metadata loaded yet.</div>
       </section>
 
@@ -237,24 +190,27 @@
           <label for="prompt">Prompt</label>
           <textarea id="prompt" rows="7" autocomplete="off" spellcheck="true">hi</textarea>
 
-          <section class="simple-controls simple-only" aria-label="Response behavior">
-            <fieldset class="segmented-field">
-              <legend>Creativity</legend>
-              <label><input type="radio" name="simpleCreativity" value="focused"> Focused</label>
-              <label><input type="radio" name="simpleCreativity" value="balanced" checked> Balanced</label>
-              <label><input type="radio" name="simpleCreativity" value="creative"> Creative</label>
-            </fieldset>
-            <fieldset class="segmented-field">
-              <legend>Response length</legend>
-              <label><input type="radio" name="simpleLength" value="short"> Short</label>
-              <label><input type="radio" name="simpleLength" value="normal" checked> Normal</label>
-              <label><input type="radio" name="simpleLength" value="detailed"> Detailed</label>
-            </fieldset>
-            <label class="toggle-row" for="simpleRepeatable">
-              <input id="simpleRepeatable" type="checkbox">
-              <span>Repeatable</span>
-            </label>
-          </section>
+          <details class="simple-controls simple-tuning simple-only" aria-label="Response behavior">
+            <summary>Response Style</summary>
+            <div class="simple-tuning-body">
+              <fieldset class="segmented-field">
+                <legend>Creativity</legend>
+                <label><input type="radio" name="simpleCreativity" value="focused"> Focused</label>
+                <label><input type="radio" name="simpleCreativity" value="balanced" checked> Balanced</label>
+                <label><input type="radio" name="simpleCreativity" value="creative"> Creative</label>
+              </fieldset>
+              <fieldset class="segmented-field">
+                <legend>Length</legend>
+                <label><input type="radio" name="simpleLength" value="short"> Short</label>
+                <label><input type="radio" name="simpleLength" value="normal" checked> Normal</label>
+                <label><input type="radio" name="simpleLength" value="detailed"> Detailed</label>
+              </fieldset>
+              <label class="toggle-row" for="simpleRepeatable">
+                <input id="simpleRepeatable" type="checkbox">
+                <span>Repeatable</span>
+              </label>
+            </div>
+          </details>
 
           <details class="generation-parameters advanced-only" open data-panel-key="generation-parameters">
             <summary>Generation Parameters</summary>

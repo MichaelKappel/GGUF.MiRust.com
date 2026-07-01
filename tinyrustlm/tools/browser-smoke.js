@@ -1807,6 +1807,10 @@ async function runPageSourceOptionsSmoke(client) {
         catalogVisible: visible(byId("catalogUrlInput")),
         localImportVisible: visible(byId("localModelFile")),
         railVisible: visible(byId("diagnosticsRail")),
+        promptVisible: visible(byId("prompt")),
+        generateVisible: visible(byId("generateButton")),
+        starterCardCount: document.querySelectorAll(".starter-action").length,
+        modeButtonLabels: Array.from(document.querySelectorAll(".mode-button")).map((button) => button.textContent.replace(/\\s+/g, " ").trim()),
         sourceLabels: Array.from(document.querySelectorAll("[data-source-option]")).map((button) => button.textContent.replace(/\\s+/g, " ").trim()),
         status: byId("simpleDiscoveryStatus") ? byId("simpleDiscoveryStatus").textContent : ""
       }));
@@ -1817,7 +1821,7 @@ async function runPageSourceOptionsSmoke(client) {
         await sleep(100);
       }
       const initial = snapshot("initial");
-      document.querySelector("[data-starter='external']").click();
+      byId("simpleHfSourceButton").click();
       await sleep(50);
       const external = snapshot("external");
       byId("simpleP2pSourceButton").click();
@@ -8106,11 +8110,20 @@ function assertSourceOptionsSmoke(result, networkRequests) {
     if (result.initial.mode !== "simple") {
       failures.push(`initial mode was ${result.initial.mode}`);
     }
-    if (result.initial.discoveryVisible) {
-      failures.push("simple discovery panel was visible before user action");
+    if (!result.initial.discoveryVisible || !result.initial.localVisible) {
+      failures.push("simple source chooser was not visible on first load");
     }
     if (result.initial.maxTokensVisible || result.initial.advancedModelVisible || result.initial.railVisible) {
       failures.push("advanced controls were visible in initial Simple Mode");
+    }
+    if (!result.initial.promptVisible || !result.initial.generateVisible) {
+      failures.push("chat prompt and Generate were not visible in initial Simple Mode");
+    }
+    if (result.initial.starterCardCount !== 0) {
+      failures.push(`starter cards were still present in initial Simple Mode: ${result.initial.starterCardCount}`);
+    }
+    if (!result.initial.modeButtonLabels.some((text) => text.includes("Advanced Tools"))) {
+      failures.push(`Advanced Tools button label was missing: ${JSON.stringify(result.initial.modeButtonLabels)}`);
     }
     for (const label of requiredLabels) {
       if (!result.initial.sourceLabels.some((text) => text.includes(label))) {

@@ -17,7 +17,7 @@ reviewed_utc: 2026-06-29T23:40:00Z
 - Pointer ledger: `.uai/long-term-memory.uai`
 - UAIX File Handoff strategy dogfood: `docs/dogfood/uaix-file-handoff-memory-strategy-2026-06-26.md`
 - Runtime rebrand memory: `wiki/runtime-mirust/reports/runtime-rebrand-memory-2026-06-30.md` covers Runtime.MiRust.com site identity, namespace routes, publish-review naming, and remaining outer folder handoff.
-- SLMComposer progressive source UI memory: `wiki/runtime-mirust/reports/slmcomposer-progressive-source-ui-memory-2026-07-01.md` covers the Simple/Advanced app split, Local/Hugging Face/P2P source options, diagnostics rail grouping, source-option browser smoke, and local `.slm` import boundary.
+- SLMComposer progressive source UI memory: `wiki/runtime-mirust/reports/slmcomposer-progressive-source-ui-memory-2026-07-01.md` covers the Chat/Advanced Tools app split, first-load Local/Hugging Face/P2P source chooser, diagnostics rail grouping, source-option browser smoke, stale-live deploy status, and local `.slm` import boundary.
 - Report intake index: `wiki/runtime-mirust/reports/report-intake-index-2026-06-25.md`
 - Report intake index 2026-06-26: `wiki/runtime-mirust/reports/report-intake-index-2026-06-26.md`
 - Report intake index 2026-06-28: `wiki/runtime-mirust/reports/report-intake-index-2026-06-28.md`
@@ -187,7 +187,7 @@ reviewed_utc: 2026-06-29T23:40:00Z
 - Module-plan actual module checksums records browser-owned module checksum observations, Module Plan Actual Module Checksums rendering, observed-versus-receipt Ready gating, module-plan-payload-checksum-drift, and generated q4_0/q8_0/f32 combined-selector proof.
 - Module-plan route-set records route `module_plan_route_set_checksum`, Module Plan Route Set rendering, selector/receipt/ordered-route agreement, and drift smoke coverage before generated model fetch.
 - MiniModel source-option records route user-owned local files/lists, user-triggered Hugging Face metadata discovery, and future consent-based P2P transfer into the same local `.slm` verifier and SLMComposer browser file-picker boundary.
-- SLMComposer progressive source UI records first-load Simple Mode, explicit Local/Hugging Face/P2P source cards, Advanced dashboard panels, source-options smoke coverage, local-only import status copy, and no project-server user model bytes.
+- SLMComposer progressive source UI records first-load Chat mode, explicit Local/Hugging Face/P2P source choices, hidden expert telemetry until Advanced Tools, source-options smoke coverage, local-only import status copy, stale-live deploy status, and no project-server user model bytes.
 - Federated operator memory records base/local-update parent roles, `local_update_weight_ppm`, local-update counts, raw and weighted delta checksums, q8 validation, parameter tests, and CLI proof before downstream candidate manifests.
 - Weighted soup operator memory records parent-pool seed weights, direct weighted tensor averaging, parent order checksums, weighted-value checksums, changed-from-frontier density, focused drift tests, and CLI validation before downstream candidate manifests.
 - Multi-parent soup manifest memory records parent-pool operator-kind dispatch, sign-merge or soup receipt recomputation, `candidate_manifest_status=validated-parent-pool-operator-output`, soup metric preservation, and downstream multi-parent promotion/admission/selector/browser-bundle test coverage.

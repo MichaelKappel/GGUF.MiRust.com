@@ -229,7 +229,7 @@ slmcomposer_minimodel_catalog_import_2026_07_01:
   synthesis: SLMComposer now prepopulates the MiniModel.org metadata catalog URL, accepts metadata/local JSON model lists, verifies selected local `.slm` byte count plus SHA-256 before Rust/WASM import, and keeps public-host catalog loading user-triggered.
 slmcomposer_progressive_source_ui_2026_07_01:
   route: wiki/runtime-mirust/reports/slmcomposer-progressive-source-ui-memory-2026-07-01.md
-  synthesis: SLMComposer now opens in Simple mode with Local Files, Hugging Face, and P2P Exchange as explicit source options; Advanced keeps full Rust/WASM controls, catalog/Hugging Face discovery, diagnostics, and local `.slm` import while model bytes remain user-selected and browser-local.
+  synthesis: SLMComposer local source now opens in Chat mode with Local Files, Hugging Face, and P2P Exchange visible beside prompt/Generate while starter cards and expert telemetry are removed from first load; Advanced Tools keeps full Rust/WASM controls, catalog/Hugging Face discovery, diagnostics, and local `.slm` import. Live SLMComposer.com was confirmed stale after this correction and needs the existing explicit-FTPS deploy path before users see it.
 dare_operator_2026_06_29:
   route: wiki/runtime-mirust/reports/dare-operator-memory-2026-06-29.md
   synthesis: DARE now has an offline `dare-candidate` and `validate-dare-candidate` receipt lane with signed task-delta weights, keep/drop ppm, dropout seed, mask checksum, raw delta checksum, rescaled delta checksum, focused parameter tests, and q8 CLI proof before downstream candidate manifests.

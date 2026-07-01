@@ -295,9 +295,17 @@ h3 {
 }
 
 .app-shell[data-mode="simple"] .interaction-canvas {
-  max-width: 980px;
+  max-width: 1080px;
   width: 100%;
   margin: 0 auto;
+}
+
+.app-shell[data-mode="simple"] .conversation-panel {
+  min-height: 280px;
+}
+
+.app-shell[data-mode="simple"] .composer-panel {
+  gap: 12px;
 }
 
 .simple-experience {
@@ -398,6 +406,61 @@ h3 {
 .source-panel p {
   margin: 0;
   color: var(--muted);
+}
+
+.simple-setup {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.simple-setup-header {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+  justify-content: space-between;
+}
+
+.simple-setup-header h2 {
+  margin-bottom: 0;
+}
+
+.simple-primary-action {
+  min-height: 44px;
+  padding-inline: 16px;
+  color: #061310;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.text-link-button {
+  width: fit-content;
+  min-height: 0;
+  padding: 0;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+}
+
+.text-link-button:hover {
+  color: var(--accent-2);
+  background: transparent;
+  border: 0;
+}
+
+.simple-tuning {
+  padding: 10px 0 0;
+  border-top: 1px solid var(--line);
+}
+
+.simple-tuning summary {
+  width: fit-content;
+}
+
+.simple-tuning-body {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
 }
 
 .technical-disclosure {

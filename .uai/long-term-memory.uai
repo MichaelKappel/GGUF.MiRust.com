@@ -5214,15 +5214,15 @@ records:
     path: wiki/runtime-mirust/reports/slmcomposer-progressive-source-ui-memory-2026-07-01.md
     target_location: https://aiwikis.org/runtime-mirust/reports/slmcomposer-progressive-source-ui-memory-2026-07-01/
     label: Required For SLMComposer Progressive Source UI Memory
-    summary: Routes agents to SLMComposer Simple/Advanced UI split, Local/Hugging Face/P2P source options, diagnostics rail grouping, source-options smoke proof, and browser-local `.slm` import boundary.
+    summary: Routes agents to SLMComposer Chat/Advanced Tools UI split, first-load Local/Hugging Face/P2P source chooser, diagnostics rail grouping, source-options smoke proof, stale-live deployment note, and browser-local `.slm` import boundary.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local implementation report
     review_status: reviewed_current
     quarantine_status: reviewed_current
-    contextual_trigger: Read before changing SLMComposer Simple/Advanced mode behavior, source option UI, diagnostics rail grouping, run history, local import copy, or browser-smoke UI/source-option assertions.
-    checksum_hash: sha256:E5E4760FC7B6836FD86EF8DFA10A512DAF1F0DAA44EDD75C6CA5918628270BFA
-    last_reviewed_utc: 2026-07-01T20:11:00Z
+    contextual_trigger: Read before changing SLMComposer Chat/Advanced Tools behavior, source option UI, diagnostics rail grouping, run history, local import copy, browser-smoke UI/source-option assertions, or public SLMComposer deploy status.
+    checksum_hash: sha256:FC1208B5B0B871DFAF0A9C851F9A7F953464D293F8BB13AAAE8737B76190BA6D
+    last_reviewed_utc: 2026-07-01T20:47:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; progressive source UI report body lives in the target file.
   - stable_id: runtime_mirust_tinylm16_bpe_safetensors_plan_memory

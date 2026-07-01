@@ -62,7 +62,7 @@ For TinyLM-16M BPE safetensors planning, load `reports/tinylm16-bpe-safetensors-
 
 For MiniModel source-option work, load `research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md`, `research/minimodel-manifest-verifier-mvp-2026-07-01.md`, and `research/huggingface-api-source-options-2026-07-01.md` when local files/lists, Hugging Face discovery, P2P transfer, metadata-only catalogs, or no-server-model-byte boundaries are in scope.
 
-For SLMComposer progressive UI/source-option work, load `wiki/runtime-mirust/reports/slmcomposer-progressive-source-ui-memory-2026-07-01.md` when Simple/Advanced mode behavior, Local/Hugging Face/P2P source cards, diagnostics rail grouping, run history, source-options browser smoke, or local `.slm` import status copy is in scope.
+For SLMComposer progressive UI/source-option work, load `wiki/runtime-mirust/reports/slmcomposer-progressive-source-ui-memory-2026-07-01.md` when Chat/Advanced Tools mode behavior, Local/Hugging Face/P2P source choices, diagnostics rail grouping, run history, source-options browser smoke, local `.slm` import status copy, or stale-live deploy status is in scope.
 
 For first real tiny-model conversion planning, load `research/tiny-model-candidate-matrix-2026-06-29.md` when choosing Xenova 15M, Aurelius, StorySupra, Pythia, or a q4-only pressure route, or when adding converter fields for architecture, tokenizer, license route, byte budget, or first fixture proof.
 
