@@ -1,0 +1,4 @@
+RewriteEngine On
+RewriteRule ^$ /app/ [R=302,L]
+
+AddType application/wasm .wasm

@@ -1,5 +1,5 @@
-profile: runtime-mirust.short-term-memory.v163
-updated_utc: 2026-07-01T16:20:00Z
+profile: runtime-mirust.short-term-memory.v164
+updated_utc: 2026-07-01T16:35:00Z
 current_state:
   - 2026-07-01 project layout cleanup is complete: `E:\Source\Rust\SLMComposer.com` remains the active Rust/WASM app workspace, and Runtime.MiRust.com is the plain-PHP documentation site.
   - 2026-07-01 source-control cleanup is complete for the canonical source folders: MiniModel.org, MiRust.com, Runtime.MiRust.com, SLMComposer.com, and TinyRustLM.MiRust.com each have local git history; archive/package/staging material is outside the active source roots.
@@ -12,6 +12,7 @@ current_state:
   - 2026-07-01 SLMComposer MiniModel catalog import added: the app pre-populates `https://MiniModel.org/catalog/models.v0.json`, accepts metadata-only catalog/local-list entries, rejects project-server model-byte and server-execution claims, verifies local `.slm` byte count plus SHA-256 before Rust/WASM import, and records catalog identity in local provenance.
   - 2026-07-01 Hugging Face API source-option route added: Hugging Face Hub metadata may support user-triggered search/discovery, while `/resolve/`, Xet/CAS, Spaces, Inference Providers, and Inference Endpoints remain external byte/execution planes outside project servers.
   - MiniModel.org now publishes `catalog/models.v0.json` as a metadata-only endpoint with TinyRustLM fixture entries, no artifact URL, explicit no-server-byte/no-server-execution flags, local filename hints, SHA-256 hashes, and docs/license routes.
+  - 2026-07-01 live redeploy verification passed: `https://slmcomposer.com/` now returns HTTP 302 to `/app/`, `/app/` exposes the default MiniModel catalog URL plus local-list controls, `https://MiniModel.org/catalog/models.v0.json` is CORS-readable metadata only, live app/runtime/catalog hashes match local source, model-byte routes return 404, and live root `catalog-local-import` generated `e` from a user-selected local `.slm`.
   - Verification passed for catalog import: JS syntax checks, `catalog-local-import` browser smoke loaded a local JSON list plus local q8 `.slm` and generated `e`, and `public-local-only` proved the public host shows the MiniModel URL idle without `/models/`, MiniModel, or Hugging Face requests on load.
   - Verification passed for the SLMComposer public boundary: `node --check tinyrustlm/app/app.js`, `node --check tinyrustlm/tools/browser-smoke.js`, `cargo fmt --all -- --check`, Rust browser harness with 9 checks, `ui-audit` on `http://127.0.0.1:8080/app/`, `public-local-only` on `http://slmcomposer.com:8080/app/`, explicit-FTPS upload, and live HTTPS root/app/runtime checks.
   - 2026-07-01 added browser-routed selector admission sidecar evidence for converted-trained bundles: selector entries now carry `admission_path` plus checksum, generated admissions echo their own browser route, app.js verifies admission sidecars after source validation/runtime/eval evidence and before model bytes, and Model Provenance renders the verified admission status/next gate/checksum.

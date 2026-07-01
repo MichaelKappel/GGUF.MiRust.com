@@ -26,6 +26,14 @@ This route records the first MiniModel catalog-to-SLMComposer implementation sli
 - `node tinyrustlm/tools/browser-smoke.js http://127.0.0.1:8080/app/ 9223 tinylm16q8 catalog-local-import`
 - `node tinyrustlm/tools/browser-smoke.js http://slmcomposer.com:8080/app/ 9224 tinylm16q8 public-local-only`
 
+Live redeploy verification on 2026-07-01:
+
+- `https://slmcomposer.com/app/` contains `catalogUrlInput`, `localCatalogFile`, `catalogLoadButton`, `importLocalCatalogButton`, and the default `https://MiniModel.org/catalog/models.v0.json`.
+- `https://MiniModel.org/catalog/models.v0.json` returns `200`, `Access-Control-Allow-Origin: *`, `catalog_kind=minimodel.model_catalog`, two metadata entries, and `project_server_serves_model_bytes=false` plus `project_server_runs_model_bytes=false`.
+- Live hashes matched local source for `https://slmcomposer.com/app/app.js`, `https://slmcomposer.com/runtime/tinyrustlm.wasm`, and `https://MiniModel.org/catalog/models.v0.json`.
+- `https://slmcomposer.com/models/tinylm16-q8.slm`, `https://slmcomposer.com/models/selector.registry`, `https://MiniModel.org/models/tinylm16-q8.slm`, and `https://MiniModel.org/catalog/tiny-test-model-q8.slm` returned `404`.
+- `node tinyrustlm/tools/browser-smoke.js https://slmcomposer.com/ 9241 tinylm16q8 catalog-local-import` passed after the root HTTP redirect deploy; it imported a local catalog list, verified the local q8 `.slm`, and generated `e`.
+
 ## Follow-Up
 
 The next MiniModel implementation slice can move into `minimodel-core` and CLI verification for the same manifest/catalog contract: parse metadata, reject server-byte boundaries, verify user-supplied local `.slm` byte count and SHA-256, validate TinyRustLM fields, and write local import receipts before any peer transfer work.

@@ -40,6 +40,8 @@ The public deploy package contained six files: root `index.html`, `app/index.htm
 
 The package was uploaded to SLMComposer.com over explicit FTPS. Live HTTPS checks confirmed the root page redirects to `/app/`, `/app/` contains the SLM Composer local-only warning and Hugging Face discovery controls, `/runtime/tinyrustlm.wasm` serves with `application/wasm`, the runtime manifest checksum matches the package, and `/models/tinylm16-q8.slm` returns `404 Not Found`.
 
+The 2026-07-01 catalog redeploy added root `.htaccess` as a deployment file so `https://slmcomposer.com/` returns an HTTP `302` to `https://slmcomposer.com/app/` before browser JavaScript runs. Live root browser smoke from `https://slmcomposer.com/` then loaded the WASM runtime, imported a local catalog JSON list, verified the matching local `.slm` SHA-256, and generated `e` locally without any SLMComposer-hosted model-byte request.
+
 ## Next Route
 
 The next useful public tool is a local conversion/import wizard that helps users create `.slm` files from reviewed external model sources on their own machine, preserving the safetensors review, extraction, validation, conversion, eval, selector, and checksum-bound reporting path.

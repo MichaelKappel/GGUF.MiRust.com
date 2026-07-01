@@ -104,8 +104,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before resuming current work, locating latest report memory, or choosing next verification.
-    checksum_hash: sha256:2F7BFCDE19E20685FE6F94484E810BF65E50A213339B3F76DA2A3D7E164FDE39
-    last_reviewed_utc: 2026-07-01T16:20:00Z
+    checksum_hash: sha256:50DC7E83F28CA3F74BFC9694A96AA127D015808ECF6CFDE8E0582CD8B474F5EB
+    last_reviewed_utc: 2026-07-01T16:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; current state and routes live in the target file.
   - stable_id: runtime_mirust_startup_packet_uai
@@ -448,6 +448,23 @@ records:
     last_reviewed_utc: 2026-07-01T16:20:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; root handoff markup lives in the target file.
+  - stable_id: tinyrustlm_browser_root_htaccess
+    memory_domain: tinyrustlm.browser_app_source
+    pointer_type: local_htaccess
+    path: tinyrustlm/.htaccess
+    target_location: tinyrustlm/.htaccess
+    label: Required For SLMComposer Root HTTP Redirect
+    summary: Routes agents to the Apache/LiteSpeed root redirect from `/` to `/app/` plus WASM content-type declaration for static deployment.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed deployment source
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing SLMComposer public root routing, static host deployment files, or root browser smoke behavior.
+    checksum_hash: sha256:2CA9FCC9B83CE171DB6EABD3186CE1BE9D8AEF1FEA0C0B94B9A4081A8E1D534E
+    last_reviewed_utc: 2026-07-01T16:35:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; redirect behavior lives in the target file and live host config.
   - stable_id: tinyrustlm_browser_app_js
     memory_domain: tinyrustlm.browser_app_source
     pointer_type: local_js
@@ -5170,8 +5187,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before deploying SLMComposer.com, changing public host model loading, or adding model discovery/import behavior.
-    checksum_hash: sha256:43298D76C7FBD2B0545BCCE05AA4F9A3EB4A7D2CFA74AC55CF41FA56B1FED719
-    last_reviewed_utc: 2026-07-01T02:45:00Z
+    checksum_hash: sha256:AEEE83B008C83C24AA6D9282D1FDA72C46F394E42574EDD228DA1A5E6A163D5F
+    last_reviewed_utc: 2026-07-01T16:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; launch report body lives in the target file.
   - stable_id: slmcomposer_minimodel_catalog_import_memory
@@ -5187,8 +5204,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing SLMComposer catalog import, MiniModel metadata endpoint behavior, local `.slm` verification, or model-byte boundary claims.
-    checksum_hash: sha256:ABBC73C66EC6A6439CC7B897C5D949EF28B953BD1E500802399961F7E24BC9F6
-    last_reviewed_utc: 2026-07-01T15:40:02Z
+    checksum_hash: sha256:45D76F189C6834680950527B1C17DD4C3E6EEF43219CC5B328F3EE405D8267A7
+    last_reviewed_utc: 2026-07-01T16:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; catalog import report body lives in the target file.
   - stable_id: runtime_mirust_tinylm16_bpe_safetensors_plan_memory
