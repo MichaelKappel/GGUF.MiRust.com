@@ -33,6 +33,7 @@ Live redeploy verification on 2026-07-01:
 - Live hashes matched local source for `https://slmcomposer.com/app/app.js`, `https://slmcomposer.com/runtime/tinyrustlm.wasm`, and `https://MiniModel.org/catalog/models.v0.json`.
 - `https://slmcomposer.com/models/tinylm16-q8.slm`, `https://slmcomposer.com/models/selector.registry`, `https://MiniModel.org/models/tinylm16-q8.slm`, and `https://MiniModel.org/catalog/tiny-test-model-q8.slm` returned `404`.
 - `node tinyrustlm/tools/browser-smoke.js https://slmcomposer.com/ 9241 tinylm16q8 catalog-local-import` passed after the root HTTP redirect deploy; it imported a local catalog list, verified the local q8 `.slm`, and generated `e`.
+- A one-off live CDP smoke from `https://slmcomposer.com/` clicked the default MiniModel catalog Load button, fetched `https://minimodel.org/catalog/models.v0.json`, rendered two metadata entries, selected `tinyrustlm/tiny-test-model-q8`, imported the matching local `.slm`, verified SHA-256 `sha256:6af985853325eaa6d3eaaa8aadd3511da9596eb542fb2d03a9bc9dc1f4377adf`, and generated `e`; observed network requests were only SLMComposer app/runtime files plus the MiniModel catalog metadata URL.
 
 ## Follow-Up
 

@@ -104,7 +104,7 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before resuming current work, locating latest report memory, or choosing next verification.
-    checksum_hash: sha256:50DC7E83F28CA3F74BFC9694A96AA127D015808ECF6CFDE8E0582CD8B474F5EB
+    checksum_hash: sha256:9C2981A566DC6A01061BC78C45A1B1250139D7D36D70A12BB5DDAAD83051FE87
     last_reviewed_utc: 2026-07-01T16:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; current state and routes live in the target file.
@@ -5204,7 +5204,7 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing SLMComposer catalog import, MiniModel metadata endpoint behavior, local `.slm` verification, or model-byte boundary claims.
-    checksum_hash: sha256:45D76F189C6834680950527B1C17DD4C3E6EEF43219CC5B328F3EE405D8267A7
+    checksum_hash: sha256:3FCABB098D951660ED6CB2F482580A537FA2BDA0F17ADE5C2C1EDF2EA327D153
     last_reviewed_utc: 2026-07-01T16:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; catalog import report body lives in the target file.
