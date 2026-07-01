@@ -1,5 +1,5 @@
-profile: runtime-mirust.report-synthesis.v133
-updated_utc: 2026-07-01T16:20:00Z
+profile: runtime-mirust.report-synthesis.v134
+updated_utc: 2026-07-01T20:11:00Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/runtime-mirust/report-intake-2026-06-25/
@@ -13,6 +13,7 @@ source_authority:
   docs_report_intake_2026_07_01: docs/report-intake/2026-07-01/
   docs_report_manifest_2026_07_01: docs/report-intake/2026-07-01/MANIFEST.md
   docs_report_synthesis_2026_07_01: docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md
+  docs_report_slmcomposer_ui_plan_2026_07_01: docs/report-intake/2026-07-01/SLM Composer UI Improvement Plan.md
   raw_manifest: raw/runtime-mirust/MANIFEST.md
   durable_index: wiki/runtime-mirust/reports/report-intake-index-2026-06-25.md
   durable_index_2026_06_26: wiki/runtime-mirust/reports/report-intake-index-2026-06-26.md
@@ -23,6 +24,7 @@ source_authority:
     - wiki/runtime-mirust/reports/runtime-rebrand-memory-2026-06-30.md
     - wiki/runtime-mirust/reports/slmcomposer-public-local-launch-memory-2026-07-01.md
     - wiki/runtime-mirust/reports/slmcomposer-minimodel-catalog-import-memory-2026-07-01.md
+    - wiki/runtime-mirust/reports/slmcomposer-progressive-source-ui-memory-2026-07-01.md
     - wiki/runtime-mirust/reports/tinylm16-bpe-safetensors-plan-memory-2026-06-30.md
     - wiki/runtime-mirust/reports/enterprise-rust-governance-memory-2026-06-25.md
     - wiki/runtime-mirust/reports/browser-local-runtime-memory-2026-06-25.md
@@ -225,6 +227,9 @@ slmcomposer_public_local_launch_2026_07_01:
 slmcomposer_minimodel_catalog_import_2026_07_01:
   route: wiki/runtime-mirust/reports/slmcomposer-minimodel-catalog-import-memory-2026-07-01.md
   synthesis: SLMComposer now prepopulates the MiniModel.org metadata catalog URL, accepts metadata/local JSON model lists, verifies selected local `.slm` byte count plus SHA-256 before Rust/WASM import, and keeps public-host catalog loading user-triggered.
+slmcomposer_progressive_source_ui_2026_07_01:
+  route: wiki/runtime-mirust/reports/slmcomposer-progressive-source-ui-memory-2026-07-01.md
+  synthesis: SLMComposer now opens in Simple mode with Local Files, Hugging Face, and P2P Exchange as explicit source options; Advanced keeps full Rust/WASM controls, catalog/Hugging Face discovery, diagnostics, and local `.slm` import while model bytes remain user-selected and browser-local.
 dare_operator_2026_06_29:
   route: wiki/runtime-mirust/reports/dare-operator-memory-2026-06-29.md
   synthesis: DARE now has an offline `dare-candidate` and `validate-dare-candidate` receipt lane with signed task-delta weights, keep/drop ppm, dropout seed, mask checksum, raw delta checksum, rescaled delta checksum, focused parameter tests, and q8 CLI proof before downstream candidate manifests.

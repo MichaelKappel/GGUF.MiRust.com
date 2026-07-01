@@ -7,251 +7,508 @@
   <link rel="stylesheet" href="./app.css">
 </head>
 <body>
-  <main class="shell">
-    <header class="topbar">
-      <div>
+  <main class="app-shell" data-mode="simple">
+    <header class="masthead">
+      <div class="brand-block">
         <p class="eyebrow">Runtime.MiRust.com / TinyRustLM</p>
         <h1>SLM Composer</h1>
       </div>
-      <div class="status" id="runtimeStatus">Booting</div>
+
+      <div class="masthead-status" aria-live="polite">
+        <div class="status-card" aria-label="System status">
+          <span id="systemStatusDot" class="status-dot" aria-hidden="true"></span>
+          <div>
+            <span id="runtimeStatus" class="status-text">Booting</span>
+            <span id="statusDetail" class="status-detail">Preparing browser-local runtime</span>
+          </div>
+        </div>
+        <div class="privacy-badge" title="Prompts and model execution stay in this browser.">
+          Local inference: prompts stay in this browser
+        </div>
+      </div>
+
+      <div class="masthead-controls" aria-label="Workspace controls">
+        <div class="mode-toggle" role="group" aria-label="Interface mode">
+          <button id="simpleModeButton" class="mode-button" type="button" aria-pressed="true">Simple</button>
+          <button id="advancedModeButton" class="mode-button" type="button" aria-pressed="false">Advanced</button>
+        </div>
+        <p id="currentModelSummary" class="model-summary">No model loaded</p>
+      </div>
     </header>
 
-    <section class="notice">
+    <section class="notice privacy-panel">
       All inference runs locally in this browser. Prompts are not sent to a server.
-      SLMComposer.com does not serve runnable model weights; choose a local .slm file or an external source you trust.
+      SLMComposer.com does not serve runnable model weights.
+      Model files may come from your computer or external sources you choose. Only load model files from sources you trust.
     </section>
 
-    <section class="grid">
-      <form class="panel chat" id="chatForm">
-        <label for="prompt">Prompt</label>
-        <textarea id="prompt" rows="8" autocomplete="off" spellcheck="true">hi</textarea>
-        <div class="settings">
-          <label for="maxTokens">Max Tokens</label>
-          <input id="maxTokens" type="number" min="1" max="512" step="1" value="8">
+    <section id="simpleExperience" class="simple-experience" aria-label="Simple mode workspace">
+      <section class="starter-section" aria-labelledby="starterHeading">
+        <div class="section-heading">
+          <h2 id="starterHeading">Start With A Local Setup</h2>
+          <p>Choose a plain-language profile, then type a prompt and generate.</p>
         </div>
-        <fieldset class="decoding">
-          <legend>Decoding</legend>
-          <label for="temperature">Temperature</label>
-          <input id="temperature" type="number" min="0" max="5" step="0.05" value="0">
-          <label for="topK">Top K</label>
-          <input id="topK" type="number" min="1" max="1024" step="1" value="1">
-          <label for="topP">Top P</label>
-          <input id="topP" type="number" min="0.01" max="1" step="0.01" value="1">
-          <label for="seed">Seed</label>
-          <input id="seed" type="number" min="0" max="4294967295" step="1" value="1">
-        </fieldset>
-        <div class="actions">
-          <button id="generateButton" type="submit" disabled>Generate</button>
-          <button id="stepTokenButton" type="button" disabled>Step Token</button>
-          <button id="resetButton" type="button" disabled>Reset</button>
-          <button id="clearChatButton" type="button" disabled>Clear</button>
+        <div class="starter-grid" role="list">
+          <article class="starter-card" role="listitem">
+            <button class="starter-action" type="button" data-starter="fast">
+              <span>Fast &amp; Lightweight Chat</span>
+              <small>Quick local responses optimized for speed and low memory use.</small>
+            </button>
+            <details class="technical-disclosure">
+              <summary>Technical details</summary>
+              <p>Prefers the q4_0 TinyLM route when it is available and uses balanced memory defaults.</p>
+            </details>
+          </article>
+          <article class="starter-card" role="listitem">
+            <button class="starter-action" type="button" data-starter="balanced">
+              <span>Balanced Local Chat</span>
+              <small>A general-purpose local chat setup with a balance of speed and quality.</small>
+            </button>
+            <details class="technical-disclosure">
+              <summary>Technical details</summary>
+              <p>Prefers the q8_0 TinyLM route when it is available and uses balanced sampling.</p>
+            </details>
+          </article>
+          <article class="starter-card" role="listitem">
+            <button class="starter-action" type="button" data-starter="precise">
+              <span>Precise Reasoning</span>
+              <small>More focused answers with less randomness.</small>
+            </button>
+            <details class="technical-disclosure">
+              <summary>Technical details</summary>
+              <p>Prefers the f32 TinyLM route when it is available and uses lower temperature settings.</p>
+            </details>
+          </article>
+          <article class="starter-card" role="listitem">
+            <button class="starter-action" type="button" data-starter="custom">
+              <span>Custom Local Model</span>
+              <small>Import your own trusted .slm model from this computer.</small>
+            </button>
+          </article>
+          <article class="starter-card" role="listitem">
+            <button class="starter-action" type="button" data-starter="external">
+              <span>Explore Model Sources</span>
+              <small>Use Hugging Face metadata, MiniModel P2P metadata, or your own local files.</small>
+            </button>
+          </article>
         </div>
-      </form>
-
-      <section class="panel transcript">
-        <h2>Conversation</h2>
-        <ol id="conversation" class="messages" aria-live="polite"></ol>
       </section>
 
-      <section class="panel output">
-        <h2>Response</h2>
-        <pre id="response"></pre>
+      <section id="simpleDiscoveryPanel" class="simple-discovery" hidden aria-labelledby="simpleDiscoveryHeading">
+        <div class="section-heading">
+          <h2 id="simpleDiscoveryHeading">Choose A Model Source</h2>
+          <p>Every source ends at a local `.slm` file you choose. SLM Composer does not proxy, host, or run model bytes for you.</p>
+        </div>
+        <div class="source-option-grid" role="list" aria-label="Model source options">
+          <button id="simpleLocalSourceButton" class="source-option" type="button" data-source-option="local">
+            <span>Your Local Files</span>
+            <small>Pick a trusted `.slm` from this computer.</small>
+          </button>
+          <button id="simpleHfSourceButton" class="source-option" type="button" data-source-option="huggingface">
+            <span>Hugging Face</span>
+            <small>Search Hub metadata and model cards.</small>
+          </button>
+          <button id="simpleP2pSourceButton" class="source-option" type="button" data-source-option="p2p">
+            <span>P2P Exchange</span>
+            <small>Use MiniModel manifests and verified local import.</small>
+          </button>
+        </div>
+        <div id="simpleLocalSourcePanel" class="source-panel" data-source-panel="local">
+          <p>Use the browser file picker to import a trusted `.slm` artifact. Rust/WASM validates the model before it runs.</p>
+        </div>
+        <div id="simpleHfSourcePanel" class="source-panel" data-source-panel="huggingface" hidden>
+          <label for="simpleHfSearchInput">Hugging Face search</label>
+          <div class="search-row">
+            <input id="simpleHfSearchInput" type="search" value="tiny text-generation slm">
+            <button id="simpleHfSearchButton" type="button">Search</button>
+          </div>
+          <ol id="simpleHfResults" class="model-results"></ol>
+        </div>
+        <div id="simpleP2pSourcePanel" class="source-panel" data-source-panel="p2p" hidden>
+          <p>P2P transfer is a later Rust-first path. Today this loads metadata-only MiniModel catalog entries, then asks you to import matching local `.slm` bytes.</p>
+          <ol id="simpleCatalogResults" class="model-results"></ol>
+        </div>
+        <div class="simple-discovery-actions">
+          <button id="simpleChooseLocalButton" type="button">Choose Local .slm</button>
+          <button id="simpleImportLocalModelButton" type="button">Import Selected .slm</button>
+          <button id="simpleLoadCatalogButton" type="button">Load MiniModel Metadata</button>
+          <button id="simpleOpenAdvancedDiscoveryButton" type="button">Show Advanced Discovery</button>
+        </div>
+        <div id="simpleDiscoveryStatus" class="helper-status" aria-live="polite">No external metadata loaded yet.</div>
       </section>
 
-      <section class="panel">
-        <h2>Model Loading</h2>
-        <label for="modelSelect">Model</label>
-        <select id="modelSelect">
-          <option value="tinylm16q8" selected>TinyLM-16M q8_0</option>
-          <option value="tinylm16q4">TinyLM-16M q4_0</option>
-          <option value="tinylm16f32">TinyLM-16M f32</option>
-          <option value="tinyf32">Tiny Fixture f32</option>
-          <option value="tinytied">Tiny Fixture tied-output f32</option>
-          <option value="tinyq8">Tiny Fixture q8_0</option>
-          <option value="tinyq4">Tiny Fixture q4_0</option>
-          <option value="tinybpe">Tiny Fixture BPE f32</option>
-        </select>
-        <div class="local-import">
+      <section id="simpleErrorPanel" class="simple-error" hidden aria-live="polite">
+        <strong>Something needs attention.</strong>
+        <p id="simpleErrorMessage">Check the selected model and try again.</p>
+      </section>
+    </section>
+
+    <section class="workspace grid" aria-label="SLM Composer workspace">
+      <aside class="model-drawer advanced-only" aria-label="Model and source controls">
+        <details class="drawer-section" open data-panel-key="advanced-source-options">
+          <summary>Source Options</summary>
+          <p class="helper-text">Local `.slm` files are the load path. Hugging Face and MiniModel P2P are discovery and metadata routes until verified bytes are selected locally.</p>
+        </details>
+
+        <details class="drawer-section" open data-panel-key="advanced-model-selection">
+          <summary>Model Selection</summary>
+          <label for="modelSelect">Model</label>
+          <select id="modelSelect">
+            <option value="tinylm16q8" selected>TinyLM-16M q8_0</option>
+            <option value="tinylm16q4">TinyLM-16M q4_0</option>
+            <option value="tinylm16f32">TinyLM-16M f32</option>
+            <option value="tinyf32">Tiny Fixture f32</option>
+            <option value="tinytied">Tiny Fixture tied-output f32</option>
+            <option value="tinyq8">Tiny Fixture q8_0</option>
+            <option value="tinyq4">Tiny Fixture q4_0</option>
+            <option value="tinybpe">Tiny Fixture BPE f32</option>
+          </select>
+          <p id="modelHelperText" class="helper-text">Exact technical model names are shown in Advanced Mode.</p>
+        </details>
+
+        <details class="drawer-section" open data-panel-key="advanced-local-import">
+          <summary>Local Model Import</summary>
           <label for="localModelFile">Local .slm</label>
           <input id="localModelFile" type="file" accept=".slm,application/octet-stream">
           <div class="actions">
             <button id="importLocalModelButton" type="button">Import Local Model</button>
           </div>
           <p id="localModelState" class="inline-status">waiting</p>
-        </div>
-        <dl id="loadPanel">
-          <dt>WASM</dt><dd id="wasmState">waiting</dd>
-          <dt>Model</dt><dd id="modelState">waiting</dd>
-          <dt>Error</dt><dd id="errorState">none</dd>
-        </dl>
-      </section>
+        </details>
 
-      <section class="panel">
-        <h2>Model Catalog</h2>
-        <label for="catalogUrlInput">Catalog URL</label>
-        <div class="search-row">
-          <input id="catalogUrlInput" type="url" value="https://MiniModel.org/catalog/models.v0.json" autocomplete="off" spellcheck="false">
-          <button id="catalogLoadButton" type="button">Load</button>
-        </div>
-        <div class="local-import">
-          <label for="localCatalogFile">Local model list</label>
-          <input id="localCatalogFile" type="file" accept=".json,application/json">
-          <div class="actions">
-            <button id="importLocalCatalogButton" type="button">Import Local List</button>
+        <details class="drawer-section" open data-panel-key="advanced-catalog">
+          <summary>Model Catalog</summary>
+          <label for="catalogUrlInput">Catalog URL</label>
+          <div class="search-row">
+            <input id="catalogUrlInput" type="url" value="https://MiniModel.org/catalog/models.v0.json" autocomplete="off" spellcheck="false">
+            <button id="catalogLoadButton" type="button">Load</button>
           </div>
+          <div class="local-import">
+            <label for="localCatalogFile">Local model list</label>
+            <input id="localCatalogFile" type="file" accept=".json,application/json">
+            <div class="actions">
+              <button id="importLocalCatalogButton" type="button">Import Local List</button>
+            </div>
+          </div>
+          <p id="catalogStatus" class="inline-status">idle</p>
+          <ol id="catalogResults" class="model-results"></ol>
+        </details>
+
+        <details class="drawer-section" data-panel-key="advanced-discovery">
+          <summary>Model Discovery</summary>
+          <label for="hfSearchInput">Hugging Face</label>
+          <div class="search-row">
+            <input id="hfSearchInput" type="search" value="tiny text-generation slm">
+            <button id="hfSearchButton" type="button">Search</button>
+          </div>
+          <p id="hfStatus" class="inline-status">idle</p>
+          <ol id="hfResults" class="model-results"></ol>
+        </details>
+
+        <details class="drawer-section" data-panel-key="advanced-adapter">
+          <summary>Adapter Sidecar</summary>
+          <label for="adapterSelect">Adapter</label>
+          <select id="adapterSelect" disabled>
+            <option value="none" selected>None</option>
+          </select>
+          <div class="actions adapter-actions">
+            <button id="applyAdapterButton" type="button" disabled>Apply Adapter</button>
+          </div>
+          <dl id="adapterPanel" class="kv-list">
+            <dt>Status</dt><dd id="adapterState">waiting</dd>
+          </dl>
+        </details>
+      </aside>
+
+      <section class="interaction-canvas" aria-label="Prompt and response">
+        <section class="conversation-panel">
+          <div class="section-heading">
+            <h2>Conversation</h2>
+            <p class="simple-only">Load a trusted local model, enter a prompt, and generate in this browser.</p>
+          </div>
+          <ol id="conversation" class="messages" aria-live="polite"></ol>
+          <div class="response-shell">
+            <h2>Response</h2>
+            <div id="response" class="response-output" aria-live="polite"></div>
+          </div>
+        </section>
+
+        <form class="composer-panel" id="chatForm">
+          <label for="prompt">Prompt</label>
+          <textarea id="prompt" rows="7" autocomplete="off" spellcheck="true">hi</textarea>
+
+          <section class="simple-controls simple-only" aria-label="Response behavior">
+            <fieldset class="segmented-field">
+              <legend>Creativity</legend>
+              <label><input type="radio" name="simpleCreativity" value="focused"> Focused</label>
+              <label><input type="radio" name="simpleCreativity" value="balanced" checked> Balanced</label>
+              <label><input type="radio" name="simpleCreativity" value="creative"> Creative</label>
+            </fieldset>
+            <fieldset class="segmented-field">
+              <legend>Response length</legend>
+              <label><input type="radio" name="simpleLength" value="short"> Short</label>
+              <label><input type="radio" name="simpleLength" value="normal" checked> Normal</label>
+              <label><input type="radio" name="simpleLength" value="detailed"> Detailed</label>
+            </fieldset>
+            <label class="toggle-row" for="simpleRepeatable">
+              <input id="simpleRepeatable" type="checkbox">
+              <span>Repeatable</span>
+            </label>
+          </section>
+
+          <details class="generation-parameters advanced-only" open data-panel-key="generation-parameters">
+            <summary>Generation Parameters</summary>
+            <div class="settings">
+              <label for="maxTokens">Max Tokens</label>
+              <input id="maxTokens" type="number" min="1" max="512" step="1" value="8">
+            </div>
+            <fieldset class="decoding">
+              <legend>Decoding</legend>
+              <label for="temperature">Temperature</label>
+              <input id="temperature" type="number" min="0" max="5" step="0.05" value="0">
+              <label for="topK">Top K</label>
+              <input id="topK" type="number" min="1" max="1024" step="1" value="1">
+              <label for="topP">Top P</label>
+              <input id="topP" type="number" min="0.01" max="1" step="0.01" value="1">
+              <label for="seed">Seed</label>
+              <input id="seed" type="number" min="0" max="4294967295" step="1" value="1">
+            </fieldset>
+          </details>
+
+          <div class="actions primary-actions">
+            <button id="generateButton" type="submit" disabled>Generate</button>
+            <button id="stepTokenButton" class="advanced-only" type="button" disabled>Step Token</button>
+            <button id="resetButton" type="button" disabled>Reset</button>
+            <button id="clearChatButton" type="button" disabled>Clear Conversation</button>
+          </div>
+        </form>
+
+        <details class="run-history advanced-only" data-panel-key="run-history">
+          <summary>Run History / State Ledger</summary>
+          <label class="toggle-row" for="keepRunHistoryToggle">
+            <input id="keepRunHistoryToggle" type="checkbox">
+            <span>Keep run history on this device</span>
+          </label>
+          <div class="history-actions">
+            <button id="clearRunHistoryButton" type="button">Clear Run History</button>
+          </div>
+          <ol id="runHistoryList" class="run-history-list"></ol>
+        </details>
+      </section>
+
+      <aside id="diagnosticsRail" class="diagnostics-rail advanced-only" aria-label="Diagnostics rail">
+        <div class="rail-header">
+          <h2>Diagnostics</h2>
+          <button id="diagnosticsRailToggle" type="button" aria-expanded="true">Collapse</button>
         </div>
-        <p id="catalogStatus" class="inline-status">idle</p>
-        <ol id="catalogResults" class="model-results"></ol>
-      </section>
-
-      <section class="panel">
-        <h2>Model Discovery</h2>
-        <label for="hfSearchInput">Hugging Face</label>
-        <div class="search-row">
-          <input id="hfSearchInput" type="search" value="tiny text-generation slm">
-          <button id="hfSearchButton" type="button">Search</button>
+        <div class="tabs" role="tablist" aria-label="Diagnostics tabs">
+          <button id="tabRuntime" class="tab-button" type="button" role="tab" aria-selected="true" aria-controls="panelRuntime" data-tab="runtime">Runtime</button>
+          <button id="tabProvenance" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panelProvenance" data-tab="provenance">Provenance</button>
+          <button id="tabAssembly" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panelAssembly" data-tab="assembly">Assembly</button>
+          <button id="tabModulePlan" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panelModulePlan" data-tab="module">Module Plan</button>
+          <button id="tabBenchmark" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panelBenchmark" data-tab="benchmark">Benchmark</button>
+          <button id="tabConsole" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panelConsole" data-tab="console">Token Console</button>
+          <button id="tabTeleodynamic" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panelTeleodynamic" data-tab="teleodynamic">Teleodynamic</button>
         </div>
-        <p id="hfStatus" class="inline-status">idle</p>
-        <ol id="hfResults" class="model-results"></ol>
-      </section>
 
-      <section class="panel">
-        <h2>Adapter Sidecar</h2>
-        <label for="adapterSelect">Adapter</label>
-        <select id="adapterSelect" disabled>
-          <option value="none" selected>None</option>
-        </select>
-        <div class="actions adapter-actions">
-          <button id="applyAdapterButton" type="button" disabled>Apply Adapter</button>
-        </div>
-        <dl id="adapterPanel">
-          <dt>Status</dt><dd id="adapterState">waiting</dd>
-        </dl>
-      </section>
+        <section id="panelRuntime" class="tab-panel" role="tabpanel" aria-labelledby="tabRuntime">
+          <dl id="loadPanel" class="kv-list">
+            <dt>WASM</dt><dd id="wasmState">waiting</dd>
+            <dt>Model</dt><dd id="modelState">waiting</dd>
+            <dt>Error</dt><dd id="errorState">none</dd>
+          </dl>
+          <h3>Runtime Diagnostics</h3>
+          <pre id="diagnostics"></pre>
+          <h3>Developer Mode</h3>
+          <pre id="developer"></pre>
+        </section>
 
-      <section class="panel">
-        <h2>Model Provenance</h2>
-        <dl id="provenancePanel">
-          <dt>Manifest</dt><dd id="provenanceState">waiting</dd>
-          <dt>Source</dt><dd id="provenanceSourceKind">waiting</dd>
-          <dt>Source Snapshot</dt><dd id="provenanceSourceSnapshot">waiting</dd>
-          <dt>Source ID</dt><dd id="provenanceSourceId">waiting</dd>
-          <dt>Source Shape</dt><dd id="provenanceSourceShape">waiting</dd>
-          <dt>Source Review</dt><dd id="provenanceSourceReview">waiting</dd>
-          <dt>Review Routes</dt><dd id="provenanceSourceReviewRoutes">waiting</dd>
-          <dt>Review Artifacts</dt><dd id="provenanceSourceReviewArtifacts">waiting</dd>
-          <dt>Tokenizer Import</dt><dd id="provenanceSourceTokenizerImport">waiting</dd>
-          <dt>Source Validation</dt><dd id="provenanceSourceValidation">waiting</dd>
-          <dt>Admission</dt><dd id="provenanceAdmission">waiting</dd>
-          <dt>Quality</dt><dd id="provenanceQualityClaim">waiting</dd>
-          <dt>Trained</dt><dd id="provenanceTrainedClaim">waiting</dd>
-          <dt>Genome</dt><dd id="provenanceGenome">waiting</dd>
-          <dt>Species</dt><dd id="provenanceSpecies">waiting</dd>
-          <dt>Novelty</dt><dd id="provenanceNovelty">waiting</dd>
-          <dt>Population</dt><dd id="provenancePopulation">waiting</dd>
-          <dt>Mate Selection</dt><dd id="provenanceMateSelection">waiting</dd>
-          <dt>Operator</dt><dd id="provenanceOperator">waiting</dd>
-          <dt>Schedule</dt><dd id="provenanceSchedule">waiting</dd>
-          <dt>Phenotype</dt><dd id="provenancePhenotype">waiting</dd>
-          <dt>Artifact</dt><dd id="provenanceArtifact">waiting</dd>
-          <dt>Fitness</dt><dd id="provenanceFitness">waiting</dd>
-          <dt>Eval Cases</dt><dd id="provenanceEvalCases">waiting</dd>
-          <dt>Eval Checksum</dt><dd id="provenanceEvalChecksum">waiting</dd>
-          <dt>Checksum</dt><dd id="provenanceChecksum">waiting</dd>
-          <dt>Next Gate</dt><dd id="provenanceNextGate">waiting</dd>
-        </dl>
-      </section>
+        <section id="panelProvenance" class="tab-panel" role="tabpanel" aria-labelledby="tabProvenance" hidden>
+          <div id="provenancePanel" class="group-stack">
+            <details open data-panel-key="provenance-source">
+              <summary>Source</summary>
+              <dl class="kv-list">
+                <dt>Manifest</dt><dd id="provenanceState">waiting</dd>
+                <dt>Source</dt><dd id="provenanceSourceKind">waiting</dd>
+                <dt>Source Snapshot</dt><dd id="provenanceSourceSnapshot">waiting</dd>
+                <dt>Source ID</dt><dd id="provenanceSourceId" class="copyable">waiting</dd>
+                <dt>Source Shape</dt><dd id="provenanceSourceShape">waiting</dd>
+              </dl>
+            </details>
+            <details open data-panel-key="provenance-review">
+              <summary>Review</summary>
+              <dl class="kv-list">
+                <dt>Source Review</dt><dd id="provenanceSourceReview" class="copyable">waiting</dd>
+                <dt>Review Routes</dt><dd id="provenanceSourceReviewRoutes">waiting</dd>
+                <dt>Review Artifacts</dt><dd id="provenanceSourceReviewArtifacts">waiting</dd>
+                <dt>Tokenizer Import</dt><dd id="provenanceSourceTokenizerImport">waiting</dd>
+                <dt>Source Validation</dt><dd id="provenanceSourceValidation">waiting</dd>
+                <dt>Admission</dt><dd id="provenanceAdmission">waiting</dd>
+                <dt>Quality</dt><dd id="provenanceQualityClaim">waiting</dd>
+              </dl>
+            </details>
+            <details data-panel-key="provenance-lineage">
+              <summary>Lineage</summary>
+              <dl class="kv-list">
+                <dt>Trained</dt><dd id="provenanceTrainedClaim">waiting</dd>
+                <dt>Genome</dt><dd id="provenanceGenome">waiting</dd>
+                <dt>Species</dt><dd id="provenanceSpecies">waiting</dd>
+                <dt>Novelty</dt><dd id="provenanceNovelty">waiting</dd>
+                <dt>Population</dt><dd id="provenancePopulation">waiting</dd>
+                <dt>Mate Selection</dt><dd id="provenanceMateSelection">waiting</dd>
+                <dt>Operator</dt><dd id="provenanceOperator">waiting</dd>
+                <dt>Schedule</dt><dd id="provenanceSchedule">waiting</dd>
+                <dt>Phenotype</dt><dd id="provenancePhenotype">waiting</dd>
+              </dl>
+            </details>
+            <details data-panel-key="provenance-evaluation">
+              <summary>Evaluation</summary>
+              <dl class="kv-list">
+                <dt>Artifact</dt><dd id="provenanceArtifact">waiting</dd>
+                <dt>Fitness</dt><dd id="provenanceFitness">waiting</dd>
+                <dt>Eval Cases</dt><dd id="provenanceEvalCases">waiting</dd>
+                <dt>Eval Checksum</dt><dd id="provenanceEvalChecksum">waiting</dd>
+                <dt>Checksum</dt><dd id="provenanceChecksum" class="copyable">waiting</dd>
+                <dt>Next Gate</dt><dd id="provenanceNextGate">waiting</dd>
+              </dl>
+            </details>
+          </div>
+        </section>
 
-      <section class="panel">
-        <h2>Assembly Evidence</h2>
-        <dl id="assemblyPanel">
-          <dt>Receipt</dt><dd id="assemblyState">waiting</dd>
-          <dt>Kind</dt><dd id="assemblyKind">waiting</dd>
-          <dt>Parents</dt><dd id="assemblyParents">waiting</dd>
-          <dt>Operator</dt><dd id="assemblyOperator">waiting</dd>
-          <dt>Ledger</dt><dd id="assemblyLedger">waiting</dd>
-          <dt>Next Gate</dt><dd id="assemblyNextGate">waiting</dd>
-        </dl>
-      </section>
+        <section id="panelAssembly" class="tab-panel" role="tabpanel" aria-labelledby="tabAssembly" hidden>
+          <dl id="assemblyPanel" class="kv-list">
+            <dt>Receipt</dt><dd id="assemblyState" class="copyable">waiting</dd>
+            <dt>Kind</dt><dd id="assemblyKind">waiting</dd>
+            <dt>Parents</dt><dd id="assemblyParents">waiting</dd>
+            <dt>Operator</dt><dd id="assemblyOperator">waiting</dd>
+            <dt>Ledger</dt><dd id="assemblyLedger" class="copyable">waiting</dd>
+            <dt>Next Gate</dt><dd id="assemblyNextGate">waiting</dd>
+          </dl>
+        </section>
 
-      <section class="panel">
-        <h2>Module Plan</h2>
-        <dl id="modulePlanPanel">
-          <dt>Receipt</dt><dd id="modulePlanState">waiting</dd>
-          <dt>Kind</dt><dd id="modulePlanKind">waiting</dd>
-          <dt>Resource</dt><dd id="modulePlanResource">waiting</dd>
-          <dt>Execution</dt><dd id="modulePlanExecution">waiting</dd>
-          <dt>Fetch</dt><dd id="modulePlanFetch">waiting</dd>
-          <dt>Origin</dt><dd id="modulePlanOrigin">waiting</dd>
-          <dt>Fetch Limit</dt><dd id="modulePlanFetchLimit">waiting</dd>
-          <dt>Plan Fetches</dt><dd id="modulePlanPlannedFetchCount">waiting</dd>
-          <dt>Actual Fetches</dt><dd id="modulePlanActualFetchCount">waiting</dd>
-          <dt>Route Hash</dt><dd id="modulePlanRouteSetChecksumAlgorithm">waiting</dd>
-          <dt>Route Version</dt><dd id="modulePlanRouteSetVersion">waiting</dd>
-          <dt>Route Set</dt><dd id="modulePlanRouteSetChecksum">waiting</dd>
-          <dt>Actual Route Set</dt><dd id="modulePlanActualRouteSetChecksum">waiting</dd>
-          <dt>WASM Pages</dt><dd id="modulePlanWasmPages">waiting</dd>
-          <dt>WASM ABI</dt><dd id="modulePlanWasmExportSet">waiting</dd>
-          <dt>Transfer</dt><dd id="modulePlanWasmTransferStrategy">waiting</dd>
-          <dt>Release</dt><dd id="modulePlanModelReleaseStrategy">waiting</dd>
-          <dt>Reset</dt><dd id="modulePlanRuntimeResetStrategy">waiting</dd>
-          <dt>Validate</dt><dd id="modulePlanAdapterValidationStrategy">waiting</dd>
-          <dt>Validate Count</dt><dd id="modulePlanAdapterValidationCount">waiting</dd>
-          <dt>Apply Count</dt><dd id="modulePlanAdapterApplyCount">waiting</dd>
-          <dt>Heap Floor</dt><dd id="modulePlanWasmHeapMinBytes">waiting</dd>
-          <dt>Context</dt><dd id="modulePlanContextTokens">waiting</dd>
-          <dt>Sampler Cap</dt><dd id="modulePlanSamplerCap">waiting</dd>
-          <dt>Tokenizer</dt><dd id="modulePlanTokenizer">waiting</dd>
-          <dt>Modules</dt><dd id="modulePlanModules">waiting</dd>
-          <dt>Model Budget</dt><dd id="modulePlanModelBudget">waiting</dd>
-          <dt>Adapter Budget</dt><dd id="modulePlanAdapterBudget">waiting</dd>
-          <dt>Stack Budget</dt><dd id="modulePlanAdapterStackBudget">waiting</dd>
-          <dt>Scratch Budget</dt><dd id="modulePlanScratchBudget">waiting</dd>
-          <dt>Prompt Limit</dt><dd id="modulePlanPromptLimit">waiting</dd>
-          <dt>Output Limit</dt><dd id="modulePlanOutputLimit">waiting</dd>
-          <dt>KV Budget</dt><dd id="modulePlanKvCacheBudget">waiting</dd>
-          <dt>KV Pages</dt><dd id="modulePlanKvCachePages">waiting</dd>
-          <dt>Total Budget</dt><dd id="modulePlanTotalBudget">waiting</dd>
-          <dt>Total Limit</dt><dd id="modulePlanTotalLimit">waiting</dd>
-          <dt>Bytes</dt><dd id="modulePlanBytes">waiting</dd>
-          <dt>Actual Module Bytes</dt><dd id="modulePlanActualModuleBytes">waiting</dd>
-          <dt>Checksums</dt><dd id="modulePlanChecksums">waiting</dd>
-          <dt>Actual Module Checksums</dt><dd id="modulePlanActualModuleChecksums">waiting</dd>
-          <dt>Slots</dt><dd id="modulePlanSlots">waiting</dd>
-          <dt>Roles</dt><dd id="modulePlanRoles">waiting</dd>
-          <dt>Phases</dt><dd id="modulePlanPhases">waiting</dd>
-          <dt>Depends</dt><dd id="modulePlanDepends">waiting</dd>
-          <dt>Trace</dt><dd id="modulePlanTrace">waiting</dd>
-          <dt>Model</dt><dd id="modulePlanModel">waiting</dd>
-          <dt>Stack</dt><dd id="modulePlanStack">waiting</dd>
-        </dl>
-      </section>
+        <section id="panelModulePlan" class="tab-panel" role="tabpanel" aria-labelledby="tabModulePlan" hidden>
+          <div id="modulePlanPanel" class="group-stack">
+            <details open data-panel-key="module-identity">
+              <summary>Identity</summary>
+              <dl class="kv-list">
+                <dt>Receipt</dt><dd id="modulePlanState" class="copyable">waiting</dd>
+                <dt>Kind</dt><dd id="modulePlanKind">waiting</dd>
+                <dt>Resource</dt><dd id="modulePlanResource">waiting</dd>
+                <dt>Execution</dt><dd id="modulePlanExecution">waiting</dd>
+              </dl>
+            </details>
+            <details data-panel-key="module-fetch-origin">
+              <summary>Fetch And Origin</summary>
+              <dl class="kv-list">
+                <dt>Fetch</dt><dd id="modulePlanFetch">waiting</dd>
+                <dt>Origin</dt><dd id="modulePlanOrigin">waiting</dd>
+                <dt>Fetch Limit</dt><dd id="modulePlanFetchLimit">waiting</dd>
+                <dt>Plan Fetches</dt><dd id="modulePlanPlannedFetchCount">waiting</dd>
+                <dt>Actual Fetches</dt><dd id="modulePlanActualFetchCount">waiting</dd>
+              </dl>
+            </details>
+            <details data-panel-key="module-routes">
+              <summary>Routes</summary>
+              <dl class="kv-list">
+                <dt>Route Hash</dt><dd id="modulePlanRouteSetChecksumAlgorithm">waiting</dd>
+                <dt>Route Version</dt><dd id="modulePlanRouteSetVersion">waiting</dd>
+                <dt>Route Set</dt><dd id="modulePlanRouteSetChecksum" class="copyable">waiting</dd>
+                <dt>Actual Route Set</dt><dd id="modulePlanActualRouteSetChecksum" class="copyable">waiting</dd>
+              </dl>
+            </details>
+            <details data-panel-key="module-wasm-memory">
+              <summary>WASM And Memory</summary>
+              <dl class="kv-list">
+                <dt>WASM Pages</dt><dd id="modulePlanWasmPages">waiting</dd>
+                <dt>WASM ABI</dt><dd id="modulePlanWasmExportSet">waiting</dd>
+                <dt>Transfer</dt><dd id="modulePlanWasmTransferStrategy">waiting</dd>
+                <dt>Release</dt><dd id="modulePlanModelReleaseStrategy">waiting</dd>
+                <dt>Reset</dt><dd id="modulePlanRuntimeResetStrategy">waiting</dd>
+                <dt>Validate</dt><dd id="modulePlanAdapterValidationStrategy">waiting</dd>
+                <dt>Validate Count</dt><dd id="modulePlanAdapterValidationCount">waiting</dd>
+                <dt>Apply Count</dt><dd id="modulePlanAdapterApplyCount">waiting</dd>
+                <dt>Heap Floor</dt><dd id="modulePlanWasmHeapMinBytes">waiting</dd>
+                <dt>Context</dt><dd id="modulePlanContextTokens">waiting</dd>
+                <dt>Sampler Cap</dt><dd id="modulePlanSamplerCap">waiting</dd>
+                <dt>Tokenizer</dt><dd id="modulePlanTokenizer">waiting</dd>
+              </dl>
+            </details>
+            <details data-panel-key="module-budgets">
+              <summary>Budgets</summary>
+              <dl class="kv-list">
+                <dt>Modules</dt><dd id="modulePlanModules">waiting</dd>
+                <dt>Model Budget</dt><dd id="modulePlanModelBudget">waiting</dd>
+                <dt>Adapter Budget</dt><dd id="modulePlanAdapterBudget">waiting</dd>
+                <dt>Stack Budget</dt><dd id="modulePlanAdapterStackBudget">waiting</dd>
+                <dt>Scratch Budget</dt><dd id="modulePlanScratchBudget">waiting</dd>
+                <dt>Prompt Limit</dt><dd id="modulePlanPromptLimit">waiting</dd>
+                <dt>Output Limit</dt><dd id="modulePlanOutputLimit">waiting</dd>
+                <dt>KV Budget</dt><dd id="modulePlanKvCacheBudget">waiting</dd>
+                <dt>KV Pages</dt><dd id="modulePlanKvCachePages">waiting</dd>
+                <dt>Total Budget</dt><dd id="modulePlanTotalBudget">waiting</dd>
+                <dt>Total Limit</dt><dd id="modulePlanTotalLimit">waiting</dd>
+              </dl>
+            </details>
+            <details data-panel-key="module-bytes-checksums">
+              <summary>Bytes And Checksums</summary>
+              <dl class="kv-list">
+                <dt>Bytes</dt><dd id="modulePlanBytes">waiting</dd>
+                <dt>Actual Module Bytes</dt><dd id="modulePlanActualModuleBytes">waiting</dd>
+                <dt>Checksums</dt><dd id="modulePlanChecksums">waiting</dd>
+                <dt>Actual Module Checksums</dt><dd id="modulePlanActualModuleChecksums">waiting</dd>
+              </dl>
+            </details>
+            <details data-panel-key="module-execution-graph">
+              <summary>Execution Graph</summary>
+              <dl class="kv-list">
+                <dt>Slots</dt><dd id="modulePlanSlots">waiting</dd>
+                <dt>Roles</dt><dd id="modulePlanRoles">waiting</dd>
+                <dt>Phases</dt><dd id="modulePlanPhases">waiting</dd>
+                <dt>Depends</dt><dd id="modulePlanDepends">waiting</dd>
+                <dt>Trace</dt><dd id="modulePlanTrace">waiting</dd>
+                <dt>Model</dt><dd id="modulePlanModel">waiting</dd>
+                <dt>Stack</dt><dd id="modulePlanStack">waiting</dd>
+              </dl>
+            </details>
+          </div>
+        </section>
 
-      <section class="panel">
-        <h2>Benchmark</h2>
-        <dl>
-          <dt>Load</dt><dd id="benchLoadMs">waiting</dd>
-          <dt>Prompt</dt><dd id="benchPromptTokens">0 tokens</dd>
-          <dt>Generated</dt><dd id="benchGeneratedTokens">0 tokens</dd>
-          <dt>Speed</dt><dd id="benchTokensPerSecond">0.000 tok/s</dd>
-          <dt>Scratch</dt><dd id="benchScratch">0 bytes</dd>
-        </dl>
-      </section>
+        <section id="panelBenchmark" class="tab-panel" role="tabpanel" aria-labelledby="tabBenchmark" hidden>
+          <div class="benchmark-grid">
+            <div class="metric-card"><span>Load</span><strong id="benchLoadMs">waiting</strong></div>
+            <div class="metric-card"><span>Prompt tokens</span><strong id="benchPromptTokens">0 tokens</strong></div>
+            <div class="metric-card"><span>Generated tokens</span><strong id="benchGeneratedTokens">0 tokens</strong></div>
+            <div class="metric-card"><span>Speed</span><strong id="benchTokensPerSecond">0.000 tok/s</strong></div>
+            <div class="metric-card"><span>Scratch bytes</span><strong id="benchScratch">0 bytes</strong></div>
+          </div>
+          <p id="runSummary" class="helper-status">No generation run yet.</p>
+        </section>
 
-      <section class="panel">
-        <h2>Runtime Diagnostics</h2>
-        <pre id="diagnostics"></pre>
-      </section>
+        <section id="panelConsole" class="tab-panel" role="tabpanel" aria-labelledby="tabConsole" hidden>
+          <div class="console-actions">
+            <button id="clearConsoleButton" type="button">Clear Console</button>
+            <button id="copyConsoleButton" type="button">Copy Console</button>
+            <label class="toggle-row" for="pauseConsoleScroll">
+              <input id="pauseConsoleScroll" type="checkbox">
+              <span>Pause auto-scroll</span>
+            </label>
+          </div>
+          <pre id="console"></pre>
+        </section>
 
-      <section class="panel">
-        <h2>Token Generation Console</h2>
-        <pre id="console"></pre>
-      </section>
-
-      <section class="panel">
-        <h2>Developer Mode</h2>
-        <pre id="developer"></pre>
-      </section>
+        <section id="panelTeleodynamic" class="tab-panel" role="tabpanel" aria-labelledby="tabTeleodynamic" hidden>
+          <p class="empty-state">No teleodynamic event data available for this run.</p>
+          <div class="teleodynamic-grid">
+            <section><h3>Event Ledger</h3><p>No data.</p></section>
+            <section><h3>Endogenous Resource Coupling</h3><p>No data.</p></section>
+            <section><h3>Structural Candidates</h3><p>No data.</p></section>
+            <section><h3>Local Action Objective</h3><p>No data.</p></section>
+            <section><h3>Emergent Halt / Noop Detection</h3><p>No data.</p></section>
+            <section><h3>Phase Structure</h3><p>No data.</p></section>
+            <section><h3>Logical Rule Rendering</h3><p>No data.</p></section>
+          </div>
+        </section>
+      </aside>
     </section>
 
     <footer class="footnote" id="appFooter">

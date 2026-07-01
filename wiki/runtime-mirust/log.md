@@ -179,3 +179,8 @@ reviewed_utc: 2026-06-29T23:40:00Z
 - Added browser-owned module-plan actual fetch-count proof so the app counts accepted generated self-assembly route fetches, the Module Plan panel renders `Actual Fetches`, and generated Ready requires the observed count to match the planned count.
 - Added browser-observed module-plan route-set proof so the app records accepted generated route `{kind,path}` entries, the Module Plan panel renders `Actual Route Set`, and generated Ready requires the observed checksum to match the declared Route Set.
 - Added browser module-plan route-set proof so generated selector entries and `.module-plan.receipt` files carry `module_plan_route_set_checksum`, the Module Plan panel renders `Route Set`, and `module-plan-route-set-drift` stops before generated model bytes.
+
+## 2026-07-01
+
+- Added SLMComposer progressive source UI: first load defaults to Simple Mode, Advanced Mode keeps the full Rust/WASM diagnostics dashboard, source options are explicit as user local files, Hugging Face metadata, and future MiniModel P2P metadata/manifests, and all paths still converge on user-selected local `.slm` validation.
+- Added browser-smoke `source-options-ui` plus updated `ui-audit` selectors so tests cover the Simple/Advanced split, Local/Hugging Face/P2P source switching, no pre-action Hugging Face or MiniModel network requests, desktop/mobile dashboard layout, and deterministic Advanced generation.

@@ -1,5 +1,5 @@
-profile: runtime-mirust.long-term-memory-ledger.v163
-updated_utc: 2026-07-01T16:20:00Z
+profile: runtime-mirust.long-term-memory-ledger.v164
+updated_utc: 2026-07-01T20:11:00Z
 storage_mode: hybrid
 ledger_rule:
   pointer_only_not_context_free: true
@@ -5208,6 +5208,23 @@ records:
     last_reviewed_utc: 2026-07-01T16:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; catalog import report body lives in the target file.
+  - stable_id: slmcomposer_progressive_source_ui_memory
+    memory_domain: runtime-mirust.report_memory.progressive_source_ui
+    pointer_type: llmwiki_node
+    path: wiki/runtime-mirust/reports/slmcomposer-progressive-source-ui-memory-2026-07-01.md
+    target_location: https://aiwikis.org/runtime-mirust/reports/slmcomposer-progressive-source-ui-memory-2026-07-01/
+    label: Required For SLMComposer Progressive Source UI Memory
+    summary: Routes agents to SLMComposer Simple/Advanced UI split, Local/Hugging Face/P2P source options, diagnostics rail grouping, source-options smoke proof, and browser-local `.slm` import boundary.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local implementation report
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing SLMComposer Simple/Advanced mode behavior, source option UI, diagnostics rail grouping, run history, local import copy, or browser-smoke UI/source-option assertions.
+    checksum_hash: sha256:E5E4760FC7B6836FD86EF8DFA10A512DAF1F0DAA44EDD75C6CA5918628270BFA
+    last_reviewed_utc: 2026-07-01T20:11:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; progressive source UI report body lives in the target file.
   - stable_id: runtime_mirust_tinylm16_bpe_safetensors_plan_memory
     memory_domain: runtime-mirust.report_memory.safetensors_source_plan
     pointer_type: llmwiki_node

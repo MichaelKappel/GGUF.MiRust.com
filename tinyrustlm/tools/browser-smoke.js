@@ -1772,6 +1772,75 @@ async function runPagePublicLocalOnlySmoke(client) {
   return parseEvaluateValue(result);
 }
 
+async function runPageSourceOptionsSmoke(client) {
+  const expression = `
+    (async () => {
+      const byId = (id) => document.getElementById(id);
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const visible = (node) => {
+        if (!node || node.closest("[hidden]")) {
+          return false;
+        }
+        for (let current = node; current; current = current.parentElement) {
+          const style = window.getComputedStyle(current);
+          if (style.display === "none" || style.visibility === "hidden") {
+            return false;
+          }
+        }
+        return node.getClientRects().length > 0;
+      };
+      const activeSource = () => {
+        const button = document.querySelector("[data-source-option][aria-pressed='true']");
+        return button ? button.dataset.sourceOption : "";
+      };
+      const snapshot = (label) => JSON.parse(JSON.stringify({
+        label,
+        mode: document.querySelector(".app-shell") ? document.querySelector(".app-shell").dataset.mode : "",
+        activeSource: activeSource(),
+        discoveryVisible: visible(byId("simpleDiscoveryPanel")),
+        localVisible: visible(byId("simpleLocalSourcePanel")),
+        hfVisible: visible(byId("simpleHfSourcePanel")),
+        p2pVisible: visible(byId("simpleP2pSourcePanel")),
+        advancedModelVisible: visible(byId("modelSelect")),
+        maxTokensVisible: visible(byId("maxTokens")),
+        hfAdvancedVisible: visible(byId("hfSearchInput")),
+        catalogVisible: visible(byId("catalogUrlInput")),
+        localImportVisible: visible(byId("localModelFile")),
+        railVisible: visible(byId("diagnosticsRail")),
+        sourceLabels: Array.from(document.querySelectorAll("[data-source-option]")).map((button) => button.textContent.replace(/\\s+/g, " ").trim()),
+        status: byId("simpleDiscoveryStatus") ? byId("simpleDiscoveryStatus").textContent : ""
+      }));
+      for (let index = 0; index < 600; index += 1) {
+        if (byId("wasmState") && byId("wasmState").textContent !== "waiting") {
+          break;
+        }
+        await sleep(100);
+      }
+      const initial = snapshot("initial");
+      document.querySelector("[data-starter='external']").click();
+      await sleep(50);
+      const external = snapshot("external");
+      byId("simpleP2pSourceButton").click();
+      await sleep(50);
+      const p2p = snapshot("p2p");
+      byId("simpleLocalSourceButton").click();
+      await sleep(50);
+      const local = snapshot("local");
+      byId("advancedModeButton").click();
+      await sleep(50);
+      const advanced = snapshot("advanced");
+      return JSON.stringify({ initial, external, p2p, local, advanced });
+    })()
+  `;
+  const result = await client.send("Runtime.evaluate", {
+    expression,
+    awaitPromise: true,
+    returnByValue: true,
+    timeout: 90000
+  });
+  return parseEvaluateValue(result);
+}
+
 async function waitForDomSelector(client, selector, timeoutMs = 15000) {
   await client.send("DOM.enable", {});
   const deadline = Date.now() + timeoutMs;
@@ -3247,7 +3316,23 @@ async function runPageUiAudit(client) {
         return Number.isFinite(value) ? value : 0;
       };
       const textList = (selector) => Array.from(document.querySelectorAll(selector)).map((node) => node.textContent.trim());
-      const badRects = () => Array.from(document.querySelectorAll(".topbar,.notice,.panel,.footnote,button,textarea,select,input"))
+      const badRects = () => Array.from(document.querySelectorAll(".masthead,.notice,.workspace,.conversation-panel,.composer-panel,.model-drawer,.diagnostics-rail,.footnote,button,textarea,select,input"))
+        .filter((node) => {
+          if (node.closest("[hidden]")) {
+            return false;
+          }
+          const closedDetails = node.closest("details:not([open])");
+          if (closedDetails && !(node.tagName.toLowerCase() === "summary" || node.closest("summary"))) {
+            return false;
+          }
+          for (let current = node; current; current = current.parentElement) {
+            const style = window.getComputedStyle(current);
+            if (style.display === "none" || style.visibility === "hidden") {
+              return false;
+            }
+          }
+          return true;
+        })
         .map((node) => {
           const rect = node.getBoundingClientRect();
           return {
@@ -3269,7 +3354,7 @@ async function runPageUiAudit(client) {
           eyebrow: document.querySelector(".eyebrow") ? document.querySelector(".eyebrow").textContent.trim() : "",
           notice: document.querySelector(".notice") ? document.querySelector(".notice").textContent.trim() : "",
           footer: byId("appFooter") ? byId("appFooter").textContent.replace(/\\s+/g, " ").trim() : "",
-          headings: textList(".panel h2"),
+          headings: textList("h2, summary, .tab-button"),
           labels: textList("label"),
           modelOptions: Array.from(byId("modelSelect").options).map((option) => option.textContent.trim()),
           runtimeStatus: byId("runtimeStatus").textContent,
@@ -3386,7 +3471,7 @@ async function runPageUiAudit(client) {
           resetDisabled: byId("resetButton").disabled,
           clearChatDisabled: byId("clearChatButton").disabled,
           modelSelectDisabled: byId("modelSelect").disabled,
-          panelCount: document.querySelectorAll(".panel").length,
+          panelCount: document.querySelectorAll(".conversation-panel,.composer-panel,.model-drawer,.diagnostics-rail,.run-history,.drawer-section,.tab-panel").length,
           badRects: badRects(),
           viewportWidth: window.innerWidth,
           viewportHeight: window.innerHeight,
@@ -3404,6 +3489,12 @@ async function runPageUiAudit(client) {
         }
       };
       await waitReady();
+      byId("advancedModeButton").click();
+      await sleep(50);
+      byId("temperature").value = "0";
+      byId("topK").value = "1";
+      byId("topP").value = "1";
+      byId("seed").value = "1";
       const before = collect("ready");
       byId("response").textContent = "";
       byId("maxTokens").value = "1";
@@ -7573,17 +7664,24 @@ function assertPerformanceSoak(result, networkRequests) {
 function assertUiSnapshot(snapshot, phase, viewportName) {
   const failures = [];
   const requiredHeadings = [
+    "Source Options",
+    "Model Selection",
+    "Local Model Import",
+    "Model Catalog",
     "Conversation",
     "Response",
-    "Model Loading",
     "Model Discovery",
-    "Model Provenance",
-    "Assembly Evidence",
+    "Adapter Sidecar",
+    "Generation Parameters",
+    "Run History / State Ledger",
+    "Diagnostics",
+    "Runtime",
+    "Provenance",
+    "Assembly",
     "Module Plan",
     "Benchmark",
-    "Runtime Diagnostics",
-    "Token Generation Console",
-    "Developer Mode"
+    "Token Console",
+    "Teleodynamic"
   ];
   const requiredLabels = ["Prompt", "Max Tokens", "Temperature", "Top K", "Top P", "Seed", "Model", "Local .slm", "Hugging Face"];
   const requiredOptions = [
@@ -7992,6 +8090,60 @@ function assertUiAudit(result, networkRequests) {
     const origin = new URL(requestUrl).origin;
     if (origin !== allowedOrigin) {
       failures.push(`remote request observed: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertSourceOptionsSmoke(result, networkRequests) {
+  const failures = [];
+  const requiredLabels = ["Your Local Files", "Hugging Face", "P2P Exchange"];
+  if (!result || !result.initial || !result.external || !result.p2p || !result.local || !result.advanced) {
+    failures.push("source-option result was incomplete");
+  } else {
+    if (result.initial.mode !== "simple") {
+      failures.push(`initial mode was ${result.initial.mode}`);
+    }
+    if (result.initial.discoveryVisible) {
+      failures.push("simple discovery panel was visible before user action");
+    }
+    if (result.initial.maxTokensVisible || result.initial.advancedModelVisible || result.initial.railVisible) {
+      failures.push("advanced controls were visible in initial Simple Mode");
+    }
+    for (const label of requiredLabels) {
+      if (!result.initial.sourceLabels.some((text) => text.includes(label))) {
+        failures.push(`missing source option ${label}`);
+      }
+    }
+    if (result.external.mode !== "simple" || result.external.activeSource !== "huggingface" || !result.external.discoveryVisible || !result.external.hfVisible) {
+      failures.push(`external source state was ${JSON.stringify(result.external)}`);
+    }
+    if (result.p2p.activeSource !== "p2p" || !result.p2p.p2pVisible || result.p2p.hfVisible) {
+      failures.push(`p2p source state was ${JSON.stringify(result.p2p)}`);
+    }
+    if (result.local.activeSource !== "local" || !result.local.localVisible || result.local.p2pVisible) {
+      failures.push(`local source state was ${JSON.stringify(result.local)}`);
+    }
+    if (
+      result.advanced.mode !== "advanced" ||
+      !result.advanced.advancedModelVisible ||
+      !result.advanced.maxTokensVisible ||
+      !result.advanced.hfAdvancedVisible ||
+      !result.advanced.catalogVisible ||
+      !result.advanced.localImportVisible ||
+      !result.advanced.railVisible
+    ) {
+      failures.push(`advanced source state was ${JSON.stringify(result.advanced)}`);
+    }
+  }
+  for (const requestUrl of networkRequests) {
+    if (requestUrl.includes("huggingface.co")) {
+      failures.push(`Hugging Face search ran before explicit search: ${requestUrl}`);
+    }
+    if (requestUrl.includes("MiniModel.org") || requestUrl.includes("minimodel.org")) {
+      failures.push(`MiniModel catalog loaded before explicit catalog load: ${requestUrl}`);
     }
   }
   if (failures.length > 0) {
@@ -11096,6 +11248,21 @@ async function main() {
       }
       result = { desktop, mobile, networkRequests };
       assertUiAudit(result, networkRequests);
+    } else if (smokeMode === "source-options-ui") {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageSourceOptionsSmoke(client);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertSourceOptionsSmoke(result, networkRequests);
+      result.networkRequests = networkRequests;
     } else if (smokeMode === "step-token") {
       await client.send("Page.reload", { ignoreCache: true });
       for (let attempt = 0; attempt < 3; attempt += 1) {

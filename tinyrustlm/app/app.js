@@ -317,10 +317,46 @@
     catalogFetchAbort: null,
     hfSearchAbort: null,
     hasContext: false,
-    messages: []
+    messages: [],
+    runHistory: [],
+    latestDiagnostics: null,
+    latestSampling: null,
+    consoleAutoScroll: true,
+    simpleSourceOption: "local"
   };
 
   const el = {
+    appShell: document.querySelector(".app-shell"),
+    systemStatusDot: document.getElementById("systemStatusDot"),
+    statusDetail: document.getElementById("statusDetail"),
+    simpleModeButton: document.getElementById("simpleModeButton"),
+    advancedModeButton: document.getElementById("advancedModeButton"),
+    currentModelSummary: document.getElementById("currentModelSummary"),
+    simpleDiscoveryPanel: document.getElementById("simpleDiscoveryPanel"),
+    simpleLocalSourceButton: document.getElementById("simpleLocalSourceButton"),
+    simpleHfSourceButton: document.getElementById("simpleHfSourceButton"),
+    simpleP2pSourceButton: document.getElementById("simpleP2pSourceButton"),
+    simpleChooseLocalButton: document.getElementById("simpleChooseLocalButton"),
+    simpleImportLocalModelButton: document.getElementById("simpleImportLocalModelButton"),
+    simpleHfSearchInput: document.getElementById("simpleHfSearchInput"),
+    simpleHfSearchButton: document.getElementById("simpleHfSearchButton"),
+    simpleCatalogResults: document.getElementById("simpleCatalogResults"),
+    simpleHfResults: document.getElementById("simpleHfResults"),
+    simpleLoadCatalogButton: document.getElementById("simpleLoadCatalogButton"),
+    simpleOpenAdvancedDiscoveryButton: document.getElementById("simpleOpenAdvancedDiscoveryButton"),
+    simpleDiscoveryStatus: document.getElementById("simpleDiscoveryStatus"),
+    simpleErrorPanel: document.getElementById("simpleErrorPanel"),
+    simpleErrorMessage: document.getElementById("simpleErrorMessage"),
+    simpleRepeatable: document.getElementById("simpleRepeatable"),
+    keepRunHistoryToggle: document.getElementById("keepRunHistoryToggle"),
+    clearRunHistoryButton: document.getElementById("clearRunHistoryButton"),
+    runHistoryList: document.getElementById("runHistoryList"),
+    runSummary: document.getElementById("runSummary"),
+    diagnosticsRail: document.getElementById("diagnosticsRail"),
+    diagnosticsRailToggle: document.getElementById("diagnosticsRailToggle"),
+    clearConsoleButton: document.getElementById("clearConsoleButton"),
+    copyConsoleButton: document.getElementById("copyConsoleButton"),
+    pauseConsoleScroll: document.getElementById("pauseConsoleScroll"),
     runtimeStatus: document.getElementById("runtimeStatus"),
     wasmState: document.getElementById("wasmState"),
     modelState: document.getElementById("modelState"),
@@ -445,9 +481,725 @@
     modulePlanStack: document.getElementById("modulePlanStack")
   };
 
+  const uiStorageKeys = {
+    mode: "slmcomposer.ui.mode",
+    selectedStarter: "slmcomposer.ui.selectedStarter",
+    simpleSourceOption: "slmcomposer.ui.simpleSourceOption",
+    creativity: "slmcomposer.ui.creativity",
+    length: "slmcomposer.ui.length",
+    repeatable: "slmcomposer.ui.repeatable",
+    railCollapsed: "slmcomposer.ui.railCollapsed",
+    activeTab: "slmcomposer.ui.activeTab",
+    keepRunHistory: "slmcomposer.ui.keepRunHistory",
+    runHistory: "slmcomposer.ui.runHistory",
+    consolePaused: "slmcomposer.ui.consolePaused"
+  };
+
+  const starterProfiles = {
+    fast: {
+      modelKey: "tinylm16q4",
+      creativity: "balanced",
+      length: "short",
+      message: "Fast local profile selected. Import a trusted local model if this preset is unavailable."
+    },
+    balanced: {
+      modelKey: "tinylm16q8",
+      creativity: "balanced",
+      length: "normal",
+      message: "Balanced local profile selected."
+    },
+    precise: {
+      modelKey: "tinylm16f32",
+      creativity: "focused",
+      length: "normal",
+      repeatable: true,
+      message: "Precise profile selected with lower randomness."
+    }
+  };
+
+  const semanticSettings = {
+    creativity: {
+      focused: { temperature: "0", topK: "1", topP: "1" },
+      balanced: { temperature: "0.65", topK: "40", topP: "0.90" },
+      creative: { temperature: "1", topK: "80", topP: "0.95" }
+    },
+    length: {
+      short: "32",
+      normal: "80",
+      detailed: "160"
+    }
+  };
+
+  function storageGet(key, fallback) {
+    try {
+      const value = window.localStorage.getItem(key);
+      return value === null ? fallback : value;
+    } catch (_error) {
+      return fallback;
+    }
+  }
+
+  function storageSet(key, value) {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch (_error) {
+      // UI preferences are best-effort only.
+    }
+  }
+
+  function storageRemove(key) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch (_error) {
+      // UI preferences are best-effort only.
+    }
+  }
+
+  function selectedRadioValue(name, fallback) {
+    const checked = document.querySelector(`input[name="${name}"]:checked`);
+    return checked ? checked.value : fallback;
+  }
+
+  function setRadioValue(name, value) {
+    const input = document.querySelector(`input[name="${name}"][value="${value}"]`);
+    if (input) {
+      input.checked = true;
+    }
+  }
+
+  function copyText(text) {
+    const value = String(text || "");
+    if (!value) {
+      return;
+    }
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+      navigator.clipboard.writeText(value).catch(() => {});
+    }
+  }
+
+  function systemStateForText(text, isError) {
+    const value = String(text || "").toLowerCase();
+    if (isError || value.includes("failed") || value.includes("rejected") || value.includes("error")) {
+      return ["error", "Error"];
+    }
+    if (value.includes("generating")) {
+      return ["generating", "Generating"];
+    }
+    if (value.includes("catalog") || value.includes("metadata")) {
+      return ["fetching", "Fetching catalog"];
+    }
+    if (value.includes("import")) {
+      return ["importing", "Importing local model"];
+    }
+    if (value.includes("loading runtime")) {
+      return ["loading", "Compiling WASM"];
+    }
+    if (value.includes("loading") || value.includes("assembling") || value.includes("applying")) {
+      return ["loading", "Loading model"];
+    }
+    if (value === "ready") {
+      return ["ready", "Ready"];
+    }
+    if (value.includes("runtime ready") || value.includes("choose a local")) {
+      return ["waiting", "Waiting for model"];
+    }
+    return ["booting", "Booting"];
+  }
+
+  function updateSystemStatus(text, isError) {
+    if (!el.appShell) {
+      return;
+    }
+    const [stateName, detail] = systemStateForText(text, isError);
+    el.appShell.dataset.systemState = stateName;
+    if (el.statusDetail) {
+      el.statusDetail.textContent = detail;
+    }
+  }
+
+  function friendlyError(text) {
+    const value = String(text || "").trim();
+    if (!value || value === "none") {
+      return "";
+    }
+    if (value.toLowerCase().includes("catalog")) {
+      return "The model list could not be loaded. Check the URL or try a local JSON list.";
+    }
+    if (value.toLowerCase().includes("prompt byte limit")) {
+      return "The prompt is too large for this browser-local model. Try a shorter prompt.";
+    }
+    if (value.toLowerCase().includes("model")) {
+      return "The model could not be loaded. Try a smaller local model or check that the file is a valid .slm file.";
+    }
+    return "The local runtime could not finish that action. Advanced Mode has the raw technical detail.";
+  }
+
+  function renderSimpleError(text, isError) {
+    if (!el.simpleErrorPanel || !el.simpleErrorMessage) {
+      return;
+    }
+    const message = isError ? friendlyError(text) : "";
+    el.simpleErrorPanel.hidden = !message;
+    if (message) {
+      el.simpleErrorMessage.textContent = message;
+    }
+  }
+
+  function appendPlainResponse(container, text) {
+    if (text) {
+      container.append(document.createTextNode(text));
+    }
+  }
+
+  function renderResponse(container, text, isError) {
+    const value = String(text === undefined || text === null ? "" : text);
+    container.replaceChildren();
+    container.classList.toggle("error", Boolean(isError));
+    container.dataset.rawText = value;
+    if (!value) {
+      return;
+    }
+    const fencePattern = /```([A-Za-z0-9_-]+)?\n?([\s\S]*?)```/g;
+    let cursor = 0;
+    let match = fencePattern.exec(value);
+    while (match) {
+      appendPlainResponse(container, value.slice(cursor, match.index));
+      const block = document.createElement("div");
+      const copyButton = document.createElement("button");
+      const pre = document.createElement("pre");
+      const code = document.createElement("code");
+      block.className = "response-code-block";
+      copyButton.className = "copy-code-button";
+      copyButton.type = "button";
+      copyButton.setAttribute("aria-label", "Copy code block");
+      code.textContent = match[2] || "";
+      pre.append(code);
+      copyButton.addEventListener("click", () => copyText(code.textContent));
+      block.append(copyButton, pre);
+      container.append(block);
+      cursor = match.index + match[0].length;
+      match = fencePattern.exec(value);
+    }
+    appendPlainResponse(container, value.slice(cursor));
+  }
+
+  function ensureCopyButton(node) {
+    if (!node || !node.classList || !node.classList.contains("copyable")) {
+      return;
+    }
+    const raw = Array.from(node.childNodes)
+      .filter((child) => child.nodeType === Node.TEXT_NODE)
+      .map((child) => child.textContent)
+      .join("")
+      .trim();
+    if (!raw || raw === "waiting" || node.querySelector(".copy-field-button")) {
+      return;
+    }
+    const button = document.createElement("button");
+    button.className = "copy-field-button";
+    button.type = "button";
+    button.setAttribute("aria-label", "Copy field value");
+    button.addEventListener("click", () => copyText(raw));
+    node.append(button);
+  }
+
   function setText(node, text, isError) {
-    node.textContent = text;
-    node.classList.toggle("error", Boolean(isError));
+    if (!node) {
+      return;
+    }
+    if (node === el.response) {
+      renderResponse(node, text, isError);
+    } else {
+      node.textContent = text;
+      node.classList.toggle("error", Boolean(isError));
+      ensureCopyButton(node);
+    }
+    if (node === el.runtimeStatus) {
+      updateSystemStatus(text, isError);
+    }
+    if (node === el.errorState) {
+      renderSimpleError(text, isError);
+    }
+    if (node === el.modelState || node === el.localModelState) {
+      updateModelSummary();
+    }
+  }
+
+  function updateModelSummary() {
+    if (!el.currentModelSummary || !el.modelSelect) {
+      return;
+    }
+    const selected = el.modelSelect.selectedOptions && el.modelSelect.selectedOptions[0]
+      ? el.modelSelect.selectedOptions[0].textContent.trim()
+      : "No model selected";
+    const stateText = el.modelState ? el.modelState.textContent : "";
+    el.currentModelSummary.textContent = `${selected} / ${stateText || "waiting"}`;
+  }
+
+  function setAppMode(mode) {
+    const nextMode = mode === "advanced" ? "advanced" : "simple";
+    if (el.appShell) {
+      el.appShell.dataset.mode = nextMode;
+    }
+    if (el.simpleModeButton) {
+      el.simpleModeButton.setAttribute("aria-pressed", String(nextMode === "simple"));
+    }
+    if (el.advancedModeButton) {
+      el.advancedModeButton.setAttribute("aria-pressed", String(nextMode === "advanced"));
+    }
+    storageSet(uiStorageKeys.mode, nextMode);
+  }
+
+  function setSimpleSourceOption(option, reveal) {
+    const nextOption = option === "huggingface" || option === "p2p" ? option : "local";
+    state.simpleSourceOption = nextOption;
+    if (reveal && el.simpleDiscoveryPanel) {
+      el.simpleDiscoveryPanel.hidden = false;
+    }
+    document.querySelectorAll("[data-source-option]").forEach((button) => {
+      const selected = button.dataset.sourceOption === nextOption;
+      button.setAttribute("aria-pressed", String(selected));
+    });
+    document.querySelectorAll("[data-source-panel]").forEach((panel) => {
+      panel.hidden = panel.dataset.sourcePanel !== nextOption;
+    });
+    storageSet(uiStorageKeys.simpleSourceOption, nextOption);
+    if (el.simpleDiscoveryStatus && reveal) {
+      const messages = {
+        local: "Choose a trusted local .slm file. No network is needed.",
+        huggingface: "Search Hugging Face metadata, then import or convert a trusted local .slm file.",
+        p2p: "MiniModel P2P is a future verified-transfer route. Metadata can be reviewed now."
+      };
+      el.simpleDiscoveryStatus.textContent = messages[nextOption];
+      el.simpleDiscoveryStatus.classList.remove("error");
+    }
+  }
+
+  function syncSemanticControls(refreshSeed) {
+    const creativity = selectedRadioValue("simpleCreativity", "balanced");
+    const length = selectedRadioValue("simpleLength", "normal");
+    const repeatable = Boolean(el.simpleRepeatable && el.simpleRepeatable.checked);
+    const sampling = semanticSettings.creativity[creativity] || semanticSettings.creativity.balanced;
+    if (el.temperature) {
+      el.temperature.value = sampling.temperature;
+    }
+    if (el.topK) {
+      el.topK.value = sampling.topK;
+    }
+    if (el.topP) {
+      el.topP.value = sampling.topP;
+    }
+    if (el.maxTokens) {
+      el.maxTokens.value = semanticSettings.length[length] || semanticSettings.length.normal;
+    }
+    if (el.seed && (refreshSeed || repeatable)) {
+      el.seed.value = repeatable ? "1" : String(Math.floor(Math.random() * 4294967295));
+    }
+    storageSet(uiStorageKeys.creativity, creativity);
+    storageSet(uiStorageKeys.length, length);
+    storageSet(uiStorageKeys.repeatable, String(repeatable));
+  }
+
+  function restoreSemanticPreferences() {
+    setRadioValue("simpleCreativity", storageGet(uiStorageKeys.creativity, "balanced"));
+    setRadioValue("simpleLength", storageGet(uiStorageKeys.length, "normal"));
+    if (el.simpleRepeatable) {
+      el.simpleRepeatable.checked = storageGet(uiStorageKeys.repeatable, "false") === "true";
+    }
+    syncSemanticControls(false);
+  }
+
+  function selectModelIfAvailable(modelKey) {
+    if (!el.modelSelect || !modelKey) {
+      return false;
+    }
+    const option = Array.from(el.modelSelect.options).find((candidate) => candidate.value === modelKey && !candidate.disabled);
+    if (!option) {
+      return false;
+    }
+    el.modelSelect.value = modelKey;
+    el.modelSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    updateModelSummary();
+    return true;
+  }
+
+  function markStarterSelected(starter) {
+    document.querySelectorAll(".starter-action").forEach((button) => {
+      button.classList.toggle("is-selected", button.dataset.starter === starter);
+    });
+    if (starter) {
+      storageSet(uiStorageKeys.selectedStarter, starter);
+    }
+  }
+
+  function applyStarter(starter) {
+    markStarterSelected(starter);
+    if (starter === "custom") {
+      setSimpleSourceOption("local", true);
+      if (el.localModelFile) {
+        el.localModelFile.click();
+        el.localModelFile.focus();
+      }
+      setLocalModelStatus("Choose a trusted local .slm file", false);
+      return;
+    }
+    if (starter === "external") {
+      setSimpleSourceOption("huggingface", true);
+      return;
+    }
+    const profile = starterProfiles[starter];
+    if (!profile) {
+      return;
+    }
+    setRadioValue("simpleCreativity", profile.creativity);
+    setRadioValue("simpleLength", profile.length);
+    if (el.simpleRepeatable && Object.prototype.hasOwnProperty.call(profile, "repeatable")) {
+      el.simpleRepeatable.checked = Boolean(profile.repeatable);
+    }
+    syncSemanticControls(true);
+    if (!selectModelIfAvailable(profile.modelKey)) {
+      setLocalModelStatus(profile.message, false);
+    }
+  }
+
+  function setActiveTab(tabName) {
+    const targetTab = tabName || "runtime";
+    document.querySelectorAll(".tab-button").forEach((button) => {
+      const selected = button.dataset.tab === targetTab;
+      button.setAttribute("aria-selected", String(selected));
+      button.tabIndex = selected ? 0 : -1;
+    });
+    document.querySelectorAll(".tab-panel").forEach((panel) => {
+      const button = document.querySelector(`.tab-button[aria-controls="${panel.id}"]`);
+      panel.hidden = !(button && button.dataset.tab === targetTab);
+    });
+    storageSet(uiStorageKeys.activeTab, targetTab);
+  }
+
+  function setRailCollapsed(collapsed) {
+    if (!el.appShell) {
+      return;
+    }
+    el.appShell.dataset.railCollapsed = String(Boolean(collapsed));
+    if (el.diagnosticsRailToggle) {
+      el.diagnosticsRailToggle.textContent = collapsed ? "Expand" : "Collapse";
+      el.diagnosticsRailToggle.setAttribute("aria-expanded", String(!collapsed));
+    }
+    storageSet(uiStorageKeys.railCollapsed, String(Boolean(collapsed)));
+  }
+
+  function latestDiagnosticsSnapshot() {
+    try {
+      return el.diagnostics && el.diagnostics.textContent ? JSON.parse(el.diagnostics.textContent) : null;
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function runSnapshot(promptText, generatedText, isError) {
+    const diagnostics = latestDiagnosticsSnapshot();
+    return {
+      timestamp: new Date().toISOString(),
+      selectedModel: el.modelSelect && el.modelSelect.selectedOptions && el.modelSelect.selectedOptions[0]
+        ? el.modelSelect.selectedOptions[0].textContent.trim()
+        : "",
+      prompt: String(promptText || ""),
+      maxTokens: el.maxTokens ? el.maxTokens.value : "",
+      temperature: el.temperature ? el.temperature.value : "",
+      topK: el.topK ? el.topK.value : "",
+      topP: el.topP ? el.topP.value : "",
+      seed: el.seed ? el.seed.value : "",
+      adapterStatus: el.adapterState ? el.adapterState.textContent : "",
+      generatedTokenCount: diagnostics ? diagnostics.generated_token_count : 0,
+      speed: el.benchTokensPerSecond ? el.benchTokensPerSecond.textContent : "",
+      scratchBytes: diagnostics ? diagnostics.peak_scratch_arena_usage : 0,
+      errorStatus: isError ? String(generatedText || "") : (el.errorState ? el.errorState.textContent : ""),
+      routeHash: el.modulePlanRouteSetChecksum ? el.modulePlanRouteSetChecksum.textContent : "",
+      checksum: el.provenanceChecksum ? el.provenanceChecksum.textContent : ""
+    };
+  }
+
+  function persistRunHistory() {
+    if (el.keepRunHistoryToggle && el.keepRunHistoryToggle.checked) {
+      storageSet(uiStorageKeys.runHistory, JSON.stringify(state.runHistory.slice(0, 25)));
+      return;
+    }
+    storageRemove(uiStorageKeys.runHistory);
+  }
+
+  function runSummaryText(run) {
+    return [
+      `time=${run.timestamp}`,
+      `model=${run.selectedModel}`,
+      `max_tokens=${run.maxTokens}`,
+      `temperature=${run.temperature}`,
+      `top_k=${run.topK}`,
+      `top_p=${run.topP}`,
+      `seed=${run.seed}`,
+      `generated_tokens=${run.generatedTokenCount}`,
+      `speed=${run.speed}`,
+      `scratch_bytes=${run.scratchBytes}`,
+      `error=${run.errorStatus}`,
+      `route_hash=${run.routeHash}`,
+      `checksum=${run.checksum}`
+    ].join("\n");
+  }
+
+  function renderRunHistory() {
+    if (!el.runHistoryList) {
+      return;
+    }
+    el.runHistoryList.replaceChildren();
+    for (const [index, run] of state.runHistory.entries()) {
+      const item = document.createElement("li");
+      const title = document.createElement("strong");
+      const meta = document.createElement("p");
+      const actions = document.createElement("div");
+      item.className = "run-history-item";
+      actions.className = "run-history-actions";
+      title.textContent = `${new Date(run.timestamp).toLocaleString()} / ${run.selectedModel || "local model"}`;
+      meta.textContent = `${run.generatedTokenCount || 0} tokens / ${run.speed || "0 tok/s"} / ${run.errorStatus || "none"}`;
+      for (const [label, action] of [["Restore settings", "restore"], ["Duplicate run", "duplicate"], ["Copy run summary", "copy"]]) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = label;
+        button.dataset.runIndex = String(index);
+        button.dataset.runAction = action;
+        actions.append(button);
+      }
+      item.append(title, meta, actions);
+      el.runHistoryList.append(item);
+    }
+    if (el.runSummary) {
+      el.runSummary.textContent = state.runHistory[0]
+        ? runSummaryText(state.runHistory[0]).replace(/\n/g, " / ")
+        : "No generation run yet.";
+    }
+  }
+
+  function captureRun(promptText, generatedText, isError) {
+    state.runHistory.unshift(runSnapshot(promptText, generatedText, isError));
+    state.runHistory = state.runHistory.slice(0, 25);
+    persistRunHistory();
+    renderRunHistory();
+  }
+
+  function restoreRun(run, duplicatePrompt) {
+    if (!run) {
+      return;
+    }
+    if (el.maxTokens) el.maxTokens.value = run.maxTokens || el.maxTokens.value;
+    if (el.temperature) el.temperature.value = run.temperature || el.temperature.value;
+    if (el.topK) el.topK.value = run.topK || el.topK.value;
+    if (el.topP) el.topP.value = run.topP || el.topP.value;
+    if (el.seed) el.seed.value = run.seed || el.seed.value;
+    if (duplicatePrompt && el.prompt) {
+      el.prompt.value = run.prompt || el.prompt.value;
+      el.prompt.focus();
+    }
+  }
+
+  function restoreRunHistoryPreference() {
+    const keep = storageGet(uiStorageKeys.keepRunHistory, "false") === "true";
+    if (el.keepRunHistoryToggle) {
+      el.keepRunHistoryToggle.checked = keep;
+    }
+    if (keep) {
+      try {
+        const parsed = JSON.parse(storageGet(uiStorageKeys.runHistory, "[]"));
+        state.runHistory = Array.isArray(parsed) ? parsed.slice(0, 25) : [];
+      } catch (_error) {
+        state.runHistory = [];
+      }
+    }
+    renderRunHistory();
+  }
+
+  function initializeUiShell() {
+    setAppMode(storageGet(uiStorageKeys.mode, "simple"));
+    restoreSemanticPreferences();
+    markStarterSelected(storageGet(uiStorageKeys.selectedStarter, ""));
+    setSimpleSourceOption(storageGet(uiStorageKeys.simpleSourceOption, "local"), false);
+    setActiveTab(storageGet(uiStorageKeys.activeTab, "runtime"));
+    setRailCollapsed(storageGet(uiStorageKeys.railCollapsed, "false") === "true");
+    if (el.pauseConsoleScroll) {
+      el.pauseConsoleScroll.checked = storageGet(uiStorageKeys.consolePaused, "false") === "true";
+      state.consoleAutoScroll = !el.pauseConsoleScroll.checked;
+    }
+    document.querySelectorAll("details[data-panel-key]").forEach((panel) => {
+      const stored = storageGet(`slmcomposer.ui.panel.${panel.dataset.panelKey}`, null);
+      if (stored !== null) {
+        panel.open = stored === "true";
+      }
+      panel.addEventListener("toggle", () => {
+        storageSet(`slmcomposer.ui.panel.${panel.dataset.panelKey}`, String(panel.open));
+      });
+    });
+    restoreRunHistoryPreference();
+    updateSystemStatus(el.runtimeStatus ? el.runtimeStatus.textContent : "Booting", false);
+    updateModelSummary();
+  }
+
+  function installUiEventHandlers() {
+    if (el.simpleModeButton) {
+      el.simpleModeButton.addEventListener("click", () => setAppMode("simple"));
+    }
+    if (el.advancedModeButton) {
+      el.advancedModeButton.addEventListener("click", () => setAppMode("advanced"));
+    }
+    document.querySelectorAll(".starter-action").forEach((button) => {
+      button.addEventListener("click", () => applyStarter(button.dataset.starter));
+    });
+    document.querySelectorAll("[data-source-option]").forEach((button) => {
+      button.addEventListener("click", () => setSimpleSourceOption(button.dataset.sourceOption, true));
+    });
+    if (el.simpleChooseLocalButton) {
+      el.simpleChooseLocalButton.addEventListener("click", () => {
+        if (el.localModelFile) {
+          el.localModelFile.click();
+          el.localModelFile.focus();
+        }
+      });
+    }
+    if (el.simpleImportLocalModelButton) {
+      el.simpleImportLocalModelButton.addEventListener("click", () => {
+        importLocalModelFile().catch((error) => {
+          const text = errorMessage(error);
+          setLocalModelStatus(text, true);
+          setText(el.errorState, text, true);
+          if (state.exports) {
+            setControls(state.modelLoaded, true);
+          }
+        });
+      });
+    }
+    document.querySelectorAll('input[name="simpleCreativity"], input[name="simpleLength"]').forEach((input) => {
+      input.addEventListener("change", () => syncSemanticControls(true));
+    });
+    if (el.simpleRepeatable) {
+      el.simpleRepeatable.addEventListener("change", () => syncSemanticControls(true));
+    }
+    if (el.simpleLoadCatalogButton) {
+      el.simpleLoadCatalogButton.addEventListener("click", () => {
+        setSimpleSourceOption("p2p", true);
+        if (el.catalogLoadButton) {
+          el.catalogLoadButton.click();
+        }
+      });
+    }
+    if (el.simpleHfSearchButton) {
+      el.simpleHfSearchButton.addEventListener("click", () => {
+        setSimpleSourceOption("huggingface", true);
+        if (el.hfSearchInput && el.simpleHfSearchInput) {
+          el.hfSearchInput.value = el.simpleHfSearchInput.value;
+        }
+        if (el.hfSearchButton) {
+          el.hfSearchButton.click();
+        }
+      });
+    }
+    if (el.simpleHfSearchInput) {
+      el.simpleHfSearchInput.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") {
+          return;
+        }
+        event.preventDefault();
+        if (el.simpleHfSearchButton) {
+          el.simpleHfSearchButton.click();
+        }
+      });
+    }
+    if (el.simpleOpenAdvancedDiscoveryButton) {
+      el.simpleOpenAdvancedDiscoveryButton.addEventListener("click", () => {
+        setAppMode("advanced");
+        const panelKey = state.simpleSourceOption === "huggingface"
+          ? "advanced-discovery"
+          : state.simpleSourceOption === "local"
+            ? "advanced-local-import"
+            : "advanced-catalog";
+        const drawer = document.querySelector(`[data-panel-key="${panelKey}"]`);
+        if (drawer) {
+          drawer.open = true;
+          drawer.scrollIntoView({ block: "nearest" });
+        }
+      });
+    }
+    document.querySelectorAll(".tab-button").forEach((button, index, buttons) => {
+      button.addEventListener("click", () => setActiveTab(button.dataset.tab));
+      button.addEventListener("keydown", (event) => {
+        if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") {
+          return;
+        }
+        event.preventDefault();
+        const direction = event.key === "ArrowRight" ? 1 : -1;
+        const next = buttons[(index + direction + buttons.length) % buttons.length];
+        next.focus();
+        setActiveTab(next.dataset.tab);
+      });
+    });
+    if (el.diagnosticsRailToggle) {
+      el.diagnosticsRailToggle.addEventListener("click", () => {
+        setRailCollapsed(!(el.appShell && el.appShell.dataset.railCollapsed === "true"));
+      });
+    }
+    if (el.clearConsoleButton) {
+      el.clearConsoleButton.addEventListener("click", () => {
+        if (el.console) {
+          el.console.textContent = "";
+        }
+      });
+    }
+    if (el.copyConsoleButton) {
+      el.copyConsoleButton.addEventListener("click", () => copyText(el.console ? el.console.textContent : ""));
+    }
+    if (el.pauseConsoleScroll) {
+      el.pauseConsoleScroll.addEventListener("change", () => {
+        state.consoleAutoScroll = !el.pauseConsoleScroll.checked;
+        storageSet(uiStorageKeys.consolePaused, String(el.pauseConsoleScroll.checked));
+      });
+    }
+    if (el.keepRunHistoryToggle) {
+      el.keepRunHistoryToggle.addEventListener("change", () => {
+        storageSet(uiStorageKeys.keepRunHistory, String(el.keepRunHistoryToggle.checked));
+        persistRunHistory();
+      });
+    }
+    if (el.clearRunHistoryButton) {
+      el.clearRunHistoryButton.addEventListener("click", () => {
+        state.runHistory = [];
+        storageRemove(uiStorageKeys.runHistory);
+        renderRunHistory();
+      });
+    }
+    if (el.runHistoryList) {
+      el.runHistoryList.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-run-action]");
+        if (!button) {
+          return;
+        }
+        const run = state.runHistory[Number.parseInt(button.dataset.runIndex, 10)];
+        if (!run) {
+          return;
+        }
+        if (button.dataset.runAction === "copy") {
+          copyText(runSummaryText(run));
+        } else if (button.dataset.runAction === "duplicate") {
+          restoreRun(run, true);
+        } else {
+          restoreRun(run, false);
+        }
+      });
+    }
+  }
+
+  function observeCopyableFields() {
+    const observer = new MutationObserver(() => {
+      document.querySelectorAll("dd.copyable").forEach(ensureCopyButton);
+    });
+    document.querySelectorAll("dd.copyable").forEach((node) => {
+      observer.observe(node, { childList: true, characterData: true, subtree: true });
+      ensureCopyButton(node);
+    });
   }
 
   function memory() {
@@ -528,6 +1280,7 @@
     const diagnostics = readDiagnostics();
     el.diagnostics.textContent = diagnostics;
     el.developer.textContent = diagnostics;
+    state.latestDiagnostics = latestDiagnosticsSnapshot();
     renderBenchmark(diagnostics);
   }
 
@@ -552,6 +1305,11 @@
     el.benchGeneratedTokens.textContent = `${generatedTokens} tokens`;
     el.benchTokensPerSecond.textContent = `${speed.toFixed(3)} tok/s`;
     el.benchScratch.textContent = `${scratchBytes} bytes`;
+    if (el.runSummary && state.runHistory.length === 0) {
+      el.runSummary.textContent = generatedTokens > 0
+        ? `${generatedTokens} tokens / ${speed.toFixed(3)} tok/s / ${scratchBytes} scratch bytes`
+        : "No generation run yet.";
+    }
   }
 
   function renderConversation() {
@@ -599,6 +1357,9 @@
     el.console.textContent = el.console.textContent
       ? `${el.console.textContent}\n${text}`
       : text;
+    if (state.consoleAutoScroll) {
+      el.console.scrollTop = el.console.scrollHeight;
+    }
   }
 
   function errorMessage(error) {
@@ -793,6 +1554,7 @@
     }
     const defaultKey = state.selectorDefaultModelKey;
     el.modelSelect.value = models[selected] ? selected : (models[defaultKey] ? defaultKey : firstKey);
+    updateModelSummary();
   }
 
   function isPublicLocalOnlyHost() {
@@ -846,9 +1608,40 @@
     return (cleaned || "local-model.slm").slice(0, 96);
   }
 
+  function simpleLocalStatusText(text, isError) {
+    const value = String(text || "");
+    const lower = value.toLowerCase();
+    if (isError) {
+      return friendlyError(value);
+    }
+    if (lower.includes("selected")) {
+      return "Local file selected. Click Import Selected .slm to validate it.";
+    }
+    if (lower.includes("reading")) {
+      return "Reading local model file.";
+    }
+    if (lower.includes("choose")) {
+      return "Choose a trusted local .slm file from this computer.";
+    }
+    if (lower.includes("0x")) {
+      return "Local model imported and verified. You can generate now.";
+    }
+    if (lower.includes("sha256")) {
+      return "Metadata selected. Choose the matching local .slm file, then import it.";
+    }
+    return value || "Waiting for a local model file.";
+  }
+
   function setLocalModelStatus(text, isError) {
     if (el.localModelState) {
       setText(el.localModelState, text, isError);
+    }
+    if (el.simpleDiscoveryStatus && el.simpleDiscoveryPanel && !el.simpleDiscoveryPanel.hidden) {
+      el.simpleDiscoveryStatus.textContent = simpleLocalStatusText(text, isError);
+      el.simpleDiscoveryStatus.classList.toggle("error", Boolean(isError));
+    }
+    if (String(text || "").toLowerCase().includes("loading") || String(text || "").toLowerCase().includes("import")) {
+      updateSystemStatus("Importing local model", isError);
     }
   }
 
@@ -856,11 +1649,21 @@
     if (el.catalogStatus) {
       setText(el.catalogStatus, text, isError);
     }
+    if (el.simpleDiscoveryStatus && state.simpleSourceOption === "p2p") {
+      el.simpleDiscoveryStatus.textContent = text;
+      el.simpleDiscoveryStatus.classList.toggle("error", Boolean(isError));
+    }
+    if (String(text || "").toLowerCase().includes("loading") || String(text || "").toLowerCase().includes("metadata")) {
+      updateSystemStatus("Fetching catalog", isError);
+    }
   }
 
   function clearCatalogResults() {
     if (el.catalogResults) {
       el.catalogResults.replaceChildren();
+    }
+    if (el.simpleCatalogResults) {
+      el.simpleCatalogResults.replaceChildren();
     }
   }
 
@@ -1029,6 +1832,50 @@
       item.append(title, meta, actions);
       el.catalogResults.append(item);
     }
+    renderSimpleCatalogResults(entries);
+  }
+
+  function renderSimpleCatalogResults(entries) {
+    if (!el.simpleCatalogResults) {
+      return;
+    }
+    el.simpleCatalogResults.replaceChildren();
+    for (const entry of entries) {
+      const item = document.createElement("li");
+      item.className = "model-result";
+      const title = document.createElement("strong");
+      title.textContent = entry.displayName;
+      const meta = document.createElement("div");
+      meta.className = "model-result-meta";
+      meta.textContent = [
+        "MiniModel metadata",
+        formatByteCount(entry.artifactByteCount),
+        entry.sourceKind || "verified source pending"
+      ].join(" / ");
+      const actions = document.createElement("div");
+      actions.className = "model-result-actions";
+      const selectButton = document.createElement("button");
+      selectButton.type = "button";
+      selectButton.textContent = "Use Metadata";
+      selectButton.addEventListener("click", function () {
+        selectCatalogEntry(entry);
+      });
+      actions.append(selectButton);
+      for (const [label, route] of [["Model Card", entry.modelCardRoute], ["License", entry.licenseRoute], ["Manifest", entry.manifestRoute]]) {
+        const href = catalogRouteUrl(entry, route);
+        if (!href) {
+          continue;
+        }
+        const link = document.createElement("a");
+        link.href = href;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = label;
+        actions.append(link);
+      }
+      item.append(title, meta, actions);
+      el.simpleCatalogResults.append(item);
+    }
   }
 
   function selectCatalogEntry(entry) {
@@ -1192,11 +2039,18 @@
     if (el.hfStatus) {
       setText(el.hfStatus, text, isError);
     }
+    if (el.simpleDiscoveryStatus && state.simpleSourceOption === "huggingface") {
+      el.simpleDiscoveryStatus.textContent = text;
+      el.simpleDiscoveryStatus.classList.toggle("error", Boolean(isError));
+    }
   }
 
   function clearHfResults() {
     if (el.hfResults) {
       el.hfResults.replaceChildren();
+    }
+    if (el.simpleHfResults) {
+      el.simpleHfResults.replaceChildren();
     }
   }
 
@@ -1267,7 +2121,60 @@
       item.append(title, meta, actions);
       el.hfResults.append(item);
     }
+    renderSimpleHfResults(accepted);
     setHfStatus(`${accepted.length} external records`, false);
+  }
+
+  function renderSimpleHfResults(accepted) {
+    if (!el.simpleHfResults) {
+      return;
+    }
+    el.simpleHfResults.replaceChildren();
+    for (const entry of accepted) {
+      const item = document.createElement("li");
+      item.className = "model-result";
+      const title = document.createElement("strong");
+      title.textContent = entry.modelId;
+      const meta = document.createElement("div");
+      meta.className = "model-result-meta";
+      const downloads = Number.isFinite(entry.result.downloads) ? `${entry.result.downloads} downloads` : "downloads unavailable";
+      meta.textContent = `Hugging Face metadata / ${downloads} / local import still required`;
+      const actions = document.createElement("div");
+      actions.className = "model-result-actions";
+      const pageLink = document.createElement("a");
+      pageLink.href = hfModelUrl(entry.modelId);
+      pageLink.target = "_blank";
+      pageLink.rel = "noopener noreferrer";
+      pageLink.textContent = "Review Model Card";
+      actions.append(pageLink);
+      const slmFiles = hfSlmSiblings(entry.result);
+      for (const fileName of slmFiles) {
+        const slmLink = document.createElement("a");
+        slmLink.href = hfResolveUrl(entry.modelId, fileName);
+        slmLink.target = "_blank";
+        slmLink.rel = "noopener noreferrer";
+        slmLink.textContent = `Open ${safeLocalModelName(fileName)}`;
+        actions.append(slmLink);
+      }
+      const importButton = document.createElement("button");
+      importButton.type = "button";
+      importButton.textContent = "Import Local .slm";
+      importButton.addEventListener("click", () => {
+        if (el.localModelFile) {
+          el.localModelFile.click();
+          el.localModelFile.focus();
+        }
+      });
+      actions.append(importButton);
+      if (!slmFiles.length) {
+        const note = document.createElement("span");
+        note.className = "model-result-meta";
+        note.textContent = "Convert externally to .slm before importing.";
+        actions.append(note);
+      }
+      item.append(title, meta, actions);
+      el.simpleHfResults.append(item);
+    }
   }
 
   async function searchHuggingFaceModels() {
@@ -6305,16 +7212,21 @@
     if (!state.exports) {
       return;
     }
-    const bytes = state.encoder.encode(el.prompt.value);
+    if (el.appShell && el.appShell.dataset.mode === "simple") {
+      syncSemanticControls(true);
+    }
+    const promptText = el.prompt.value;
+    const bytes = state.encoder.encode(promptText);
     // Keeps prompt transfer bytes inside the same envelope declared by generated module plans.
     if (bytes.length > registryModulePlanPromptByteLimit) {
       const text = "prompt byte limit exceeded";
       setText(el.response, text, true);
       setText(el.errorState, text, true);
       el.console.textContent = text;
-      appendMessage("user", el.prompt.value, false);
+      appendMessage("user", promptText, false);
       appendMessage("assistant", text, true);
       renderDiagnostics();
+      captureRun(promptText, text, true);
       setControls(true, true);
       return;
     }
@@ -6330,24 +7242,30 @@
       setText(el.response, text, true);
       setText(el.errorState, text, true);
       el.console.textContent = text;
-      appendMessage("user", el.prompt.value, false);
+      appendMessage("user", promptText, false);
       appendMessage("assistant", text, true);
       renderDiagnostics();
+      captureRun(promptText, text, true);
       return;
     }
+    setControls(false, false);
+    setText(el.runtimeStatus, "Generating", false);
     const started = performance.now();
     const code = state.exports.generate(ptr, bytes.length, maxTokens);
     state.lastGenerateMs = Math.round(performance.now() - started);
     state.lastMeasuredTokens = 0;
+    state.latestSampling = sampling;
     release(ptr, bytes.length);
     const text = readLastResult();
     state.hasContext = code === 0;
     setText(el.response, text, code !== 0);
     el.console.textContent = `generate(max_new_tokens=${maxTokens}, temperature=${sampling.temperature}, top_k=${sampling.topK}, top_p=${sampling.topP}, seed=${sampling.seed}) -> ${code} in ${state.lastGenerateMs} ms\n${text}`;
     setText(el.errorState, code === 0 ? "none" : text, code !== 0);
-    appendMessage("user", el.prompt.value, false);
+    setText(el.runtimeStatus, code === 0 ? "Ready" : "Generate failed", code !== 0);
+    appendMessage("user", promptText, false);
     appendMessage("assistant", text, code !== 0);
     renderDiagnostics();
+    captureRun(promptText, text, code !== 0);
     setControls(true, true);
   });
 
@@ -6366,6 +7284,8 @@
       setControls(true, true);
       return;
     }
+    setControls(false, false);
+    setText(el.runtimeStatus, "Generating", false);
     const started = performance.now();
     const code = state.exports.generate_next_token();
     state.lastGenerateMs = Math.round(performance.now() - started);
@@ -6378,15 +7298,18 @@
     if (code === 0) {
       setText(el.response, `${el.response.textContent}${text}`, false);
       setText(el.errorState, "none", false);
+      setText(el.runtimeStatus, "Ready", false);
       extendAssistantMessage(text);
     } else {
       setText(el.errorState, resultText, true);
+      setText(el.runtimeStatus, "Step token failed", true);
       if (!el.response.textContent) {
         setText(el.response, resultText, true);
       }
       appendMessage("assistant", resultText, true);
     }
     renderDiagnostics();
+    captureRun(el.prompt ? el.prompt.value : "", resultText, code !== 0);
     setControls(true, true);
   });
 
@@ -6508,6 +7431,9 @@
   if (el.catalogUrlInput && !catalogText(el.catalogUrlInput.value)) {
     el.catalogUrlInput.value = defaultCatalogUrl;
   }
+  initializeUiShell();
+  installUiEventHandlers();
+  observeCopyableFields();
   renderConversation();
   boot();
 }());

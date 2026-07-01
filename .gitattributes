@@ -61,3 +61,8 @@
 #*.PDF   diff=astextplain
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
+
+###############################################################################
+# Raw report intake evidence is preserved byte-exact, including source whitespace.
+###############################################################################
+"docs/report-intake/2026-07-01/SLM Composer UI Improvement Plan.md" whitespace=-blank-at-eol,-blank-at-eof
