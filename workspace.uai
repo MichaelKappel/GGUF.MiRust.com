@@ -1,7 +1,7 @@
 profile: runtime-mirust.workspace.v121
 project_name: SLMComposer.com
 canonical_root: E:\Source\Rust\SLMComposer.com
-updated_utc: 2026-07-01T16:20:00Z
+updated_utc: 2026-07-01T20:46:46Z
 version_authority:
   current_version: 0.1.0
   next_version: 0.1.0
@@ -14,6 +14,18 @@ active_product:
   runtime_documentation_site: Runtime.MiRust.com
   model_documentation_site: TinyRustLM.MiRust.com
   public_site_boundary: SLMComposer.com loads the static app and WASM runtime, shows the default MiniModel.org metadata catalog URL, waits for user-selected local `.slm` files, and does not auto-admit or fetch hosted `/models/` bytes from the public host.
+deploy_gate:
+  instruction: Before every SLMComposer.com or TinyRustLM deploy, update the related documentation sites and public-safe exports so live docs match the app behavior being deployed.
+  related_documentation_sites:
+    - Runtime.MiRust.com
+    - TinyRustLM.MiRust.com
+    - MiniModel.org
+    - MiRust.com
+  requirements:
+    - Keep source-control folders as the deploy source of truth; do not deploy stale archived publish copies by accident.
+    - Update workspace.uai and affected .uai/public talisman exports when boundaries, live behavior, deployment access, source options, or verification claims change.
+    - Run relevant pointer audits and git diff --check before packaging or deployment.
+    - If deployment access is missing or live docs cannot be updated, record the blocker and do not claim the site is deployed.
 active_intake_state:
   scanned_utc: 2026-07-01T16:20:00Z
   status: processed_2026_07_01_minimodel_huggingface_batch
