@@ -20,6 +20,16 @@ This roadmap turns the 2026-07-01 MiniModel.org intake into a durable implementa
 4. Peer transfer app: a later Rust desktop app handles discovery, NAT traversal, resumable chunk transfer, peer reputation hints, local storage quotas, and user consent.
 5. Browser handoff: SLMComposer accepts local verified `.slm` files only; public SLMComposer hosts do not auto-admit catalog entries or fetch model bytes.
 
+## Source Options
+
+MiniModel and SLMComposer should expose three acquisition lanes without changing the local execution boundary:
+
+- User-owned local: a user picks a `.slm` file or local JSON metadata list from their own machine.
+- Hugging Face: a user-triggered external discovery path for Hub metadata, model cards, file hints, and source revisions; `/resolve/`, Xet/CAS, Spaces, Inference Providers, and Inference Endpoints remain outside project servers and outside SLMComposer execution.
+- MiniModel P2P: a future Rust-first transfer path where consenting peers exchange chunks that are verified by manifest byte counts, SHA-256, and Merkle data before local import.
+
+All three lanes must end in a user-controlled local `.slm` file, local verifier receipt, and SLMComposer browser file-picker import.
+
 ## Secure Manifest
 
 The first `minimodel.manifest` should bind:

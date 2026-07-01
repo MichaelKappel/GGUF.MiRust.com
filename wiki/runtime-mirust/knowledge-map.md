@@ -44,6 +44,7 @@ reviewed_utc: 2026-06-29T23:40:00Z
 - Safetensors trained conversion memory: `wiki/runtime-mirust/reports/safetensors-trained-conversion-memory-2026-06-29.md` covers `convert-safetensors-trained`, Hugging Face Llama aliases, preserved raw source output, q8/q4 conversion, and converted-trained manifests.
 - Safetensors browser bundle memory: `wiki/runtime-mirust/reports/safetensors-browser-bundle-memory-2026-06-30.md` covers `browser-safetensors-trained-bundle`, preserved raw source output, converted-trained browser selector roots, all-quant bundle staging, and runtime WASM manifest proof.
 - TinyLM-16M BPE safetensors plan memory: `wiki/runtime-mirust/reports/tinylm16-bpe-safetensors-plan-memory-2026-06-30.md` covers the `tinylm16-bpe` source shape, 39 untied TinyLM-16M tensors, manifest-native `BPE1` metadata, and sparse planner tests.
+- MiniModel source-option research: `wiki/runtime-mirust/research/huggingface-api-source-options-2026-07-01.md` covers local files/lists, Hugging Face discovery, future P2P, and no project-server byte or execution lanes.
 - Federated operator memory: `wiki/runtime-mirust/reports/federated-operator-memory-2026-06-29.md`
 - Weighted soup operator memory: `wiki/runtime-mirust/reports/weighted-soup-operator-memory-2026-06-29.md`
 - Multi-parent soup manifest memory: `wiki/runtime-mirust/reports/multi-parent-soup-manifest-memory-2026-06-29.md`
@@ -184,6 +185,7 @@ reviewed_utc: 2026-06-29T23:40:00Z
 - Module-plan actual module bytes records browser-owned module byte observations, Module Plan Actual Module Bytes rendering, observed-versus-receipt Ready gating, and generated q4_0/q8_0/f32 combined-selector proof.
 - Module-plan actual module checksums records browser-owned module checksum observations, Module Plan Actual Module Checksums rendering, observed-versus-receipt Ready gating, module-plan-payload-checksum-drift, and generated q4_0/q8_0/f32 combined-selector proof.
 - Module-plan route-set records route `module_plan_route_set_checksum`, Module Plan Route Set rendering, selector/receipt/ordered-route agreement, and drift smoke coverage before generated model fetch.
+- MiniModel source-option records route user-owned local files/lists, user-triggered Hugging Face metadata discovery, and future consent-based P2P transfer into the same local `.slm` verifier and SLMComposer browser file-picker boundary.
 - Federated operator memory records base/local-update parent roles, `local_update_weight_ppm`, local-update counts, raw and weighted delta checksums, q8 validation, parameter tests, and CLI proof before downstream candidate manifests.
 - Weighted soup operator memory records parent-pool seed weights, direct weighted tensor averaging, parent order checksums, weighted-value checksums, changed-from-frontier density, focused drift tests, and CLI validation before downstream candidate manifests.
 - Multi-parent soup manifest memory records parent-pool operator-kind dispatch, sign-merge or soup receipt recomputation, `candidate_manifest_status=validated-parent-pool-operator-output`, soup metric preservation, and downstream multi-parent promotion/admission/selector/browser-bundle test coverage.

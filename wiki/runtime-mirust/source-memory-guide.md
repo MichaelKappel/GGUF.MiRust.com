@@ -60,6 +60,8 @@ For safetensors browser bundle work, load `reports/safetensors-browser-bundle-me
 
 For TinyLM-16M BPE safetensors planning, load `reports/tinylm16-bpe-safetensors-plan-memory-2026-06-30.md` when `tinylm16-bpe`, manifest-native `BPE1` source metadata, 39-tensor TinyLM-16M planning, sparse planner fixtures, or source-template shape lists are in scope.
 
+For MiniModel source-option work, load `research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md`, `research/minimodel-manifest-verifier-mvp-2026-07-01.md`, and `research/huggingface-api-source-options-2026-07-01.md` when local files/lists, Hugging Face discovery, P2P transfer, metadata-only catalogs, or no-server-model-byte boundaries are in scope.
+
 For first real tiny-model conversion planning, load `research/tiny-model-candidate-matrix-2026-06-29.md` when choosing Xenova 15M, Aurelius, StorySupra, Pythia, or a q4-only pressure route, or when adding converter fields for architecture, tokenizer, license route, byte budget, or first fixture proof.
 
 For safetensors, tokenizer, browser budget, WASM hot-loop, model-breeding metadata, or reference-output fixture research from the 2026-06-29 follow-up intake, load `research/safetensors-tokenizer-budget-reference-ideas-2026-06-29.md`.

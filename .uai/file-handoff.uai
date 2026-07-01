@@ -1,5 +1,5 @@
 profile: runtime-mirust.file-handoff.v26
-updated_utc: 2026-07-01T14:50:00Z
+updated_utc: 2026-07-01T16:20:00Z
 handoff_root: agent-file-handoff/
 active_buckets:
   content: agent-file-handoff/Content/
@@ -42,6 +42,7 @@ strategy_refresh_2026_06_28:
   tiny_model_runtime_memory_reference_rule_2026_06_29: Tiny-model and Rust/WASM runtime research routes through raw/runtime-mirust/report-intake-2026-06-29/, wiki/runtime-mirust/reports/report-intake-index-2026-06-29.md, and wiki/runtime-mirust/research/tiny-model-runtime-memory-reference-ideas-2026-06-29.md before model-conversion, browser-runtime, or memory-strategy work.
   safetensors_tokenizer_budget_reference_rule_2026_06_29: Follow-up safetensors, tokenizer, browser byte-budget, WASM hot-loop, model-breeding metadata, and reference-output fixture research routes through raw/runtime-mirust/report-intake-2026-06-29-followup/, wiki/runtime-mirust/reports/report-intake-index-2026-06-29-followup.md, and wiki/runtime-mirust/research/safetensors-tokenizer-budget-reference-ideas-2026-06-29.md before conversion, tokenizer, budget, or fixture work.
   minimodel_p2p_docs_rule_2026_07_01: MiniModel.org P2P exchange research routes through docs/report-intake/2026-07-01/MANIFEST.md, docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md, and wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md; project servers never run or serve user model bytes, and SLMComposer remains browser-local.
+  huggingface_source_options_rule_2026_07_01: Hugging Face API option research routes through docs/report-intake/2026-07-01/Hugging Face API Endpoint Overview.md and wiki/runtime-mirust/research/huggingface-api-source-options-2026-07-01.md; use Hugging Face as user-triggered metadata/source discovery only, not project-server byte proxying or remote inference.
   voice_memory_rule: Public-copy voice routes through .uai/taboo.uai before model-breeding, mutualist, tiny-ecology, or UAIX strategy copy is published; use proof, craft, lineage, fit, local agency, routes, and implementation evidence.
 uaix_cleanup_correction_2026_06_30:
   source: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
@@ -52,13 +53,13 @@ uaix_cleanup_correction_2026_06_30:
   proof: Nine Improvement reports were copied byte-for-byte to docs/report-intake/2026-06-30/ with SHA256 verification, then removed from agent-file-handoff/Improvement/; current scan sees Content=0 and Improvement=0.
   next_agent_action: Treat non-placeholder files in Content/Improvement as pending intake; do not call handoff complete until each has disposition, proof-of-use, durable preservation when accepted, and source-site removal or a real keep-active blocker.
 current_scan:
-  scanned_utc: 2026-07-01T14:50:00Z
+  scanned_utc: 2026-07-01T16:20:00Z
   workspace_checked: E:\Source\Rust\SLMComposer.com
   content_bucket_non_placeholder_files: 0
   improvement_bucket_non_placeholder_files: 0
   misplaced_root_files: 0
-  status: processed_2026_07_01_minimodel_batch
-  action: User authorized intake processing; seven MiniModel.org Improvement reports were copied byte-exact to docs/report-intake/2026-07-01/, synthesized, routed into the MiniModel.org roadmap, and removed from active intake.
+  status: processed_2026_07_01_minimodel_huggingface_batch
+  action: User authorized intake processing; seven MiniModel.org Improvement reports plus one Hugging Face API option report were copied byte-exact to docs/report-intake/2026-07-01/, synthesized, routed into the MiniModel.org source-option roadmap, and removed from active intake.
   keep_active_reason: none
   durable_manifest: docs/report-intake/2026-07-01/MANIFEST.md
   durable_synthesis: docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md
@@ -79,6 +80,11 @@ current_scan:
       bytes: 70670
       sha256: 6ba29856f87f82c8c48745415e2ddd3dc9dd137763e0d0b7ea9754e146573f12
       route_hint: Hypercore/Holepunch, Rust Hyper, and cloud-service naming disambiguation.
+    - path: agent-file-handoff/Improvement/Hugging Face API Endpoint Overview.md
+      docs_copy: docs/report-intake/2026-07-01/Hugging Face API Endpoint Overview.md
+      bytes: 52443
+      sha256: a20c5d7908b30b562220f6bf8c94755da62b41f005ae3fbffd1650c586cd120c
+      route_hint: Hugging Face Hub metadata discovery, resolver/data-plane separation, token boundaries, and remote inference exclusion.
     - path: agent-file-handoff/Improvement/MiniModel.org P2P Architecture Research.md
       docs_copy: docs/report-intake/2026-07-01/MiniModel.org P2P Architecture Research.md
       bytes: 54552

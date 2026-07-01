@@ -1,5 +1,5 @@
-profile: runtime-mirust.report-synthesis.v132
-updated_utc: 2026-07-01T15:40:02Z
+profile: runtime-mirust.report-synthesis.v133
+updated_utc: 2026-07-01T16:20:00Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/runtime-mirust/report-intake-2026-06-25/
@@ -161,6 +161,7 @@ source_authority:
     - wiki/runtime-mirust/research/safetensors-tokenizer-budget-reference-ideas-2026-06-29.md
     - wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md
     - wiki/runtime-mirust/research/minimodel-manifest-verifier-mvp-2026-07-01.md
+    - wiki/runtime-mirust/research/huggingface-api-source-options-2026-07-01.md
   uaix_strategy_source: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
   uaix_strategy_dogfood: docs/dogfood/uaix-file-handoff-memory-strategy-2026-06-26.md
 strategy_refresh_2026_06_27:
@@ -201,11 +202,16 @@ docs_report_intake_2026_07_01:
   manifest: docs/report-intake/2026-07-01/MANIFEST.md
   synthesis_route: docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md
   roadmap_route: wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md
+  huggingface_source_options_route: wiki/runtime-mirust/research/huggingface-api-source-options-2026-07-01.md
   source_bucket: agent-file-handoff/Improvement/
-  source_count: 7
+  source_count: 8
   disposition: preserved-to-docs-and-source-site-copies-removed
-  synthesis: The batch routes MiniModel.org Rust-first P2P exchange, legal/liability boundary, checksum-bound manifest design, Pear/Bare/Hyper tradeoffs, tiny-model creation/import, and no-server-model-bytes rules.
-  implementation_use: Use this docs batch before MiniModel.org catalog, manifest, verifier, peer-transfer, legal-warning, or SLMComposer import work; keep SLMComposer browser-local and project servers metadata-only.
+  synthesis: The batch routes MiniModel.org Rust-first P2P exchange, legal/liability boundary, checksum-bound manifest design, Pear/Bare/Hyper tradeoffs, tiny-model creation/import, Hugging Face external discovery, and no-server-model-bytes rules.
+  implementation_use: Use this docs batch before MiniModel.org catalog, manifest, verifier, peer-transfer, legal-warning, Hugging Face discovery, source-option, or SLMComposer import work; keep SLMComposer browser-local and project servers metadata-only.
+huggingface_api_source_options_2026_07_01:
+  route: wiki/runtime-mirust/research/huggingface-api-source-options-2026-07-01.md
+  source_report: docs/report-intake/2026-07-01/Hugging Face API Endpoint Overview.md
+  synthesis: Hugging Face is an optional user-triggered metadata/source discovery lane beside local files and future P2P; Hub resolver/download and inference products remain external and must not become project-server byte or execution paths.
 minimodel_manifest_verifier_mvp_2026_07_01:
   route: wiki/runtime-mirust/research/minimodel-manifest-verifier-mvp-2026-07-01.md
   minimodel_docs:
