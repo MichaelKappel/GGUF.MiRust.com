@@ -11,6 +11,7 @@ const path = require("path");
 const appUrl = process.argv[2] || "http://127.0.0.1:8080/app/";
 const port = Number(process.argv[3] || 9223);
 const smokeMode = process.argv[5] || "single";
+const publicLocalOnlySmokeMode = smokeMode === "public-local-only";
 const combinedSelectorOperatorFamilyRouteSoakMode = smokeMode === "combined-selector-operator-family-route-soak";
 const combinedSelectorOperatorFamilyReloadSoakMode = smokeMode === "combined-selector-operator-family-reload-soak";
 const combinedSelectorRouteSoakMode = combinedSelectorOperatorFamilyRouteSoakMode || smokeMode === "combined-selector-route-soak" || smokeMode === "combined-selector-route-extended-soak" || smokeMode === "combined-selector-route-stress-soak";
@@ -1689,6 +1690,64 @@ async function runPageSmoke(client, modelKey) {
           label: option.textContent.trim()
         })),
         stepTokenDisabled: byId("stepTokenButton").disabled
+      });
+    })()
+  `;
+  const result = await client.send("Runtime.evaluate", {
+    expression,
+    awaitPromise: true,
+    returnByValue: true,
+    timeout: 90000
+  });
+  return parseEvaluateValue(result);
+}
+
+async function runPagePublicLocalOnlySmoke(client) {
+  const expression = `
+    (async () => {
+      const byId = (id) => document.getElementById(id);
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const waitFor = async (predicate, label) => {
+        for (let index = 0; index < 200; index += 1) {
+          if (predicate()) {
+            return;
+          }
+          await sleep(50);
+        }
+        throw new Error("timed out waiting for " + label);
+      };
+      await waitFor(
+        () => byId("wasmState") && byId("wasmState").textContent !== "waiting",
+        "runtime boot"
+      );
+      await waitFor(
+        () => byId("modelState") && byId("modelState").textContent !== "waiting",
+        "public model boundary"
+      );
+      return JSON.stringify({
+        title: document.title,
+        hostname: window.location.hostname,
+        h1: document.querySelector("h1") ? document.querySelector("h1").textContent.trim() : "",
+        eyebrow: document.querySelector(".eyebrow") ? document.querySelector(".eyebrow").textContent.trim() : "",
+        notice: document.querySelector(".notice") ? document.querySelector(".notice").textContent.trim() : "",
+        footer: byId("appFooter") ? byId("appFooter").textContent.trim().replace(/\\s+/g, " ") : "",
+        runtimeStatus: byId("runtimeStatus").textContent,
+        wasmState: byId("wasmState").textContent,
+        modelState: byId("modelState").textContent,
+        errorState: byId("errorState").textContent,
+        provenanceState: byId("provenanceState").textContent,
+        localModelState: byId("localModelState").textContent,
+        hfStatus: byId("hfStatus").textContent,
+        selectedModel: byId("modelSelect").value,
+        modelOptions: Array.from(byId("modelSelect").options).map((option) => ({
+          value: option.value,
+          text: option.textContent.trim(),
+          disabled: option.disabled
+        })),
+        generateDisabled: byId("generateButton").disabled,
+        resetDisabled: byId("resetButton").disabled,
+        modelSelectDisabled: byId("modelSelect").disabled,
+        importLocalModelDisabled: byId("importLocalModelButton").disabled
       });
     })()
   `;
@@ -7285,6 +7344,7 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
     "Conversation",
     "Response",
     "Model Loading",
+    "Model Discovery",
     "Model Provenance",
     "Assembly Evidence",
     "Module Plan",
@@ -7293,7 +7353,7 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
     "Token Generation Console",
     "Developer Mode"
   ];
-  const requiredLabels = ["Prompt", "Max Tokens", "Temperature", "Top K", "Top P", "Seed", "Model"];
+  const requiredLabels = ["Prompt", "Max Tokens", "Temperature", "Top K", "Top P", "Seed", "Model", "Local .slm", "Hugging Face"];
   const requiredOptions = [
     "TinyLM-16M q8_0",
     "TinyLM-16M q4_0",
@@ -7305,22 +7365,30 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
     "Tiny Fixture BPE f32"
   ];
   const prefix = `${viewportName} ${phase}`;
-  if (snapshot.title !== "TinyRustLM") {
+  if (snapshot.title !== "SLM Composer") {
     failures.push(`${prefix} title was ${snapshot.title}`);
   }
   if (snapshot.lang !== "en") {
     failures.push(`${prefix} lang was ${snapshot.lang}`);
   }
-  if (snapshot.h1 !== "TinyRustLM") {
+  if (snapshot.h1 !== "SLM Composer") {
     failures.push(`${prefix} h1 was ${snapshot.h1}`);
   }
-  if (snapshot.eyebrow !== "Runtime.MiRust.com") {
+  if (snapshot.eyebrow !== "Runtime.MiRust.com / TinyRustLM") {
     failures.push(`${prefix} eyebrow was ${snapshot.eyebrow}`);
   }
-  if (snapshot.notice !== "All inference runs locally in this browser. Prompts are not sent to a server.") {
+  if (
+    !snapshot.notice.includes("All inference runs locally in this browser. Prompts are not sent to a server.") ||
+    !snapshot.notice.includes("SLMComposer.com does not serve runnable model weights")
+  ) {
     failures.push(`${prefix} local-only notice was ${snapshot.notice}`);
   }
-  if (!snapshot.footer.includes("TinyRustLM") || !snapshot.footer.includes("Runtime.MiRust.com") || !snapshot.footer.includes("Rust/WASM")) {
+  if (
+    !snapshot.footer.includes("SLMComposer.com") ||
+    !snapshot.footer.includes("TinyRustLM") ||
+    !snapshot.footer.includes("Runtime.MiRust.com") ||
+    !snapshot.footer.includes("Rust/WASM")
+  ) {
     failures.push(`${prefix} footer did not expose product, site, and Rust/WASM identity`);
   }
   for (const heading of requiredHeadings) {
@@ -7423,7 +7491,7 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
   if (snapshot.provenanceSourceId !== "unavailable") {
     failures.push(`${prefix} provenance source id was ${snapshot.provenanceSourceId}`);
   }
-  if (snapshot.provenanceSourceShape !== "unavailable") {
+  if (snapshot.provenanceSourceShape !== "vocab=260,hidden=512,layers=4,heads=8,kv_heads=8,head_dim=64,ffn=2048,context=512") {
     failures.push(`${prefix} provenance source shape was ${snapshot.provenanceSourceShape}`);
   }
   if (snapshot.provenanceSourceReview !== "unavailable") {
@@ -7692,6 +7760,64 @@ function assertUiAudit(result, networkRequests) {
     const origin = new URL(requestUrl).origin;
     if (origin !== allowedOrigin) {
       failures.push(`remote request observed: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertPublicLocalOnlySmoke(result, networkRequests) {
+  const failures = [];
+  if (result.hostname !== "slmcomposer.com") {
+    failures.push(`hostname was ${result.hostname}`);
+  }
+  if (result.title !== "SLM Composer" || result.h1 !== "SLM Composer") {
+    failures.push(`public title/h1 were ${result.title}/${result.h1}`);
+  }
+  if (result.eyebrow !== "Runtime.MiRust.com / TinyRustLM") {
+    failures.push(`public eyebrow was ${result.eyebrow}`);
+  }
+  if (!String(result.notice || "").includes("SLMComposer.com does not serve runnable model weights")) {
+    failures.push(`public notice was ${result.notice}`);
+  }
+  if (!String(result.footer || "").includes("Local .slm models only")) {
+    failures.push(`public footer was ${result.footer}`);
+  }
+  if (result.wasmState !== "loaded") {
+    failures.push(`public WASM state was ${result.wasmState}`);
+  }
+  if (result.runtimeStatus !== "Runtime ready") {
+    failures.push(`public runtime status was ${result.runtimeStatus}`);
+  }
+  if (result.modelState !== "choose a local .slm file") {
+    failures.push(`public model state was ${result.modelState}`);
+  }
+  if (result.errorState !== "none") {
+    failures.push(`public error state was ${result.errorState}`);
+  }
+  if (result.provenanceState !== "choose a local .slm file") {
+    failures.push(`public provenance state was ${result.provenanceState}`);
+  }
+  if (result.localModelState !== "waiting" || result.hfStatus !== "idle") {
+    failures.push(`public local/HF state was ${result.localModelState}/${result.hfStatus}`);
+  }
+  if (!result.generateDisabled || !result.resetDisabled || !result.modelSelectDisabled) {
+    failures.push("public runtime controls were enabled before local import");
+  }
+  if (result.importLocalModelDisabled) {
+    failures.push("public local import button was disabled");
+  }
+  const options = Array.isArray(result.modelOptions) ? result.modelOptions : [];
+  if (options.length !== 1 || options[0].text !== "Choose a local .slm file" || options[0].value !== "") {
+    failures.push(`public model options were ${JSON.stringify(options)}`);
+  }
+  for (const requestUrl of networkRequests) {
+    if (requestUrl.includes("/models/")) {
+      failures.push(`public model route was requested: ${requestUrl}`);
+    }
+    if (requestUrl.includes("huggingface.co")) {
+      failures.push(`public external discovery ran before user action: ${requestUrl}`);
     }
   }
   if (failures.length > 0) {
@@ -10298,7 +10424,7 @@ async function main() {
   const browser = findBrowser();
   const profile = path.join(os.tmpdir(), `tinyrustlm-browser-smoke-${process.pid}`);
   await removeProfile(profile);
-  const browserProcess = childProcess.spawn(browser, [
+  const browserArgs = [
     "--headless=new",
     "--disable-gpu",
     "--disable-application-cache",
@@ -10311,9 +10437,13 @@ async function main() {
     "--no-default-browser-check",
     "--no-first-run",
     `--remote-debugging-port=${port}`,
-    `--user-data-dir=${profile}`,
-    appUrl
-  ], {
+    `--user-data-dir=${profile}`
+  ];
+  if (publicLocalOnlySmokeMode) {
+    browserArgs.push("--host-resolver-rules=MAP slmcomposer.com 127.0.0.1,MAP www.slmcomposer.com 127.0.0.1");
+  }
+  browserArgs.push(appUrl);
+  const browserProcess = childProcess.spawn(browser, browserArgs, {
     stdio: "ignore",
     windowsHide: true
   });
@@ -11318,6 +11448,21 @@ async function main() {
         }
       }
       assertPromptLimitSmoke(result, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (publicLocalOnlySmokeMode) {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPagePublicLocalOnlySmoke(client);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertPublicLocalOnlySmoke(result, networkRequests);
       result.networkRequests = networkRequests;
     } else {
       for (let attempt = 0; attempt < 3; attempt += 1) {

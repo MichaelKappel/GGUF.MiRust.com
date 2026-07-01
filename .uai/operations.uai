@@ -1,5 +1,5 @@
-profile: runtime-mirust.operations.v116
-updated_utc: 2026-07-01T01:35:00Z
+profile: runtime-mirust.operations.v117
+updated_utc: 2026-07-01T02:45:00Z
 local_development:
   active_product: TinyRustLM
   app_url: http://127.0.0.1:8080/app/
@@ -16,6 +16,7 @@ toolchain:
   rustup: C:\Users\AI\.cargo\bin\rustup.exe
   node: required_for_javascript_execution_smoke_tools_only
 current_verified_checks:
+  - 2026-07-01 slmcomposer_public_local_launch_verified: SLMComposer.com public-host boot waits for user local `.slm` import, skips selector-registry and `/models/` auto-fetch, keeps optional Hugging Face discovery user-triggered, and verification passed JS syntax checks, cargo fmt check, Rust browser harness 9 checks, source `ui-audit`, `public-local-only` smoke with no `/models/` or Hugging Face request before user action, explicit-FTPS upload of six public files with zero model artifacts, live HTTPS root/app/runtime checks, and `/models/tinylm16-q8.slm` 404 proof.
   - 2026-07-01 browser_converted_trained_admission_evidence_verified: generated converted-trained selector entries now carry `admission_path` plus checksum, app.js fetches `converted-trained.admission` after source-validation/runtime/eval evidence and before model bytes, Model Provenance renders verified Admission as status/next-gate/checksum, and verification passed cargo fmt check, JS syntax checks, selector focused tests with 106 passed, browser_bundle focused tests with 11 passed, full packer 411 tests, workspace tests, static browser harness 9 checks, compact positive converted-trained smoke on port 18830, and compact `converted-trained-admission-drift` stopping before model bytes.
   - 2026-06-30 browser_converted_trained_source_validation_verified: generated converted-trained selector entries now carry `source_validation_path` plus checksum, app.js fetches `converted-trained.source.validation` after source review and before runtime/eval/model bytes, Model Provenance renders Source Validation after validation passes, and verification passed cargo fmt check, JS syntax checks, selector focused tests with 104 passed, browser_bundle focused tests with 11 passed, full packer 409 tests, workspace tests, static browser harness 9 checks, compact positive converted-trained smoke on port 18814, compact `converted-trained-source-validation-drift` stopping before runtime/eval/model bytes, and eval-route/runtime-drift regressions after validation.
   - 2026-06-30 browser_source_review_routes_artifacts_verified: app.js now validates optional local config/tokenizer source-review artifact rows against reviewed checksums and renders Review Routes plus Review Artifacts rows; verification passed cargo fmt, JS syntax checks, static browser harness 9 checks, compact `converted-trained-registry` on port 18810 rendering route/artifact rows, and compact `converted-trained-source-review-sidecar-drift` stopping before runtime/eval/model bytes.

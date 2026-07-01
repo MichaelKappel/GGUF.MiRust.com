@@ -1,15 +1,25 @@
-profile: runtime-mirust.workspace.v118
-project_name: Runtime.MiRust.com
-canonical_root: E:\Source\Rust\Runtime.MiRust.com
-updated_utc: 2026-07-01T01:35:00Z
+profile: runtime-mirust.workspace.v119
+project_name: SLMComposer.com
+canonical_root: E:\Source\Rust\SLMComposer.com
+updated_utc: 2026-07-01T13:20:00Z
 version_authority:
   current_version: 0.1.0
   next_version: 0.1.0
   policy: Increment intentionally after real implementation milestones; source scaffolding does not imply runtime support.
 active_product:
-  name: TinyRustLM
+  name: SLM Composer / TinyRustLM
   root: tinyrustlm/
   purpose: Zero-dependency Rust/WASM browser-local SLM runtime and UI.
+  live_public_site: SLMComposer.com
+  runtime_documentation_site: Runtime.MiRust.com
+  model_documentation_site: TinyRustLM.MiRust.com
+  public_site_boundary: SLMComposer.com loads the static app and WASM runtime, waits for user-selected local `.slm` files, and does not auto-admit or fetch hosted `/models/` bytes from the public host.
+active_intake_state:
+  scanned_utc: 2026-07-01T13:24:00Z
+  status: pending_user_hold_until_reopen
+  content_bucket_non_placeholder_files: 0
+  improvement_bucket_non_placeholder_files: 7
+  instruction: Do not move or process the queued Improvement docs until the user authorizes intake processing; .uai/next-recursive-prompt.uai carries the next-goal prompt.
 memory_authority:
   hot_memory_root: .uai/
   llm_wiki_namespace: wiki/runtime-mirust/
@@ -20,6 +30,7 @@ memory_authority:
   report_storage_strategy: hot_uai_routes_current_state_and_synthesis; durable_reports_live_in_wiki_raw_evidence_and_pointer_ledgers
   research_reference_strategy: diverse_model_breeding_reference_bodies_live_in_wiki_research_and_route_through_short_term_memory_report_synthesis_and_long_term_checksum_pointers; lanes include compatible_merge_dare_dropout_rescaled_task_delta_sparse_lineage_adapter_ecology_with_trained_source_alr1_and_adp1_asp1_alr1_population_search_federated_local_update_browser_constrained_assembly_uaix_memory_strategy_heritable_artifacts_mate_selection_phenotype_evidence_speciation_fit_genome_fitness_novelty_and_zero_dependency_browser_runtime_guidance
   runtime_rebrand_2026_06_30: wiki/runtime-mirust/reports/runtime-rebrand-memory-2026-06-30.md routes Runtime.MiRust.com site identity, `runtime-mirust` wiki/raw namespaces, publish-review bundle naming, old-name audits, and outer folder handoff.
+  slmcomposer_public_local_launch_2026_07_01: wiki/runtime-mirust/reports/slmcomposer-public-local-launch-memory-2026-07-01.md routes SLMComposer.com live-site identity, local `.slm` file import, optional user-triggered Hugging Face discovery, and public-host proof with no `/models/` fetch before user action.
   tinylm16_bpe_safetensors_plan_2026_06_30: wiki/runtime-mirust/reports/tinylm16-bpe-safetensors-plan-memory-2026-06-30.md routes `tinylm16-bpe` source shape, 39 untied TinyLM-16M tensors, manifest-native BPE1 metadata, sparse safetensors planner proof, and docs/CLI shape lists.
   two_parent_operator_browser_provenance_2026_06_29: wiki/runtime-mirust/reports/two-parent-operator-browser-provenance-memory-2026-06-29.md routes compact browser Model Provenance Operator rendering and receipt byte-echo fallback for blend, task-delta, and sparse task-delta selector fixtures.
   crossover_operator_2026_06_29: wiki/runtime-mirust/reports/crossover-operator-memory-2026-06-29.md routes deterministic direct-parameter crossover commands, seed and parent0 keep fields, selection density, mask checksum, q8 validation, focused parameter tests, drift tests, CLI write/validate proof, browser Operator rendering, and crossover byte-echo fallback.

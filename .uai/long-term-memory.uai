@@ -1,5 +1,5 @@
-profile: runtime-mirust.long-term-memory-ledger.v155
-updated_utc: 2026-07-01T01:35:00Z
+profile: runtime-mirust.long-term-memory-ledger.v159
+updated_utc: 2026-07-01T13:25:00Z
 storage_mode: hybrid
 ledger_rule:
   pointer_only_not_context_free: true
@@ -12,15 +12,15 @@ records:
     path: workspace.uai
     target_location: workspace.uai
     label: Required For Workspace Authority And Current Boundary
-    summary: Routes agents to canonical root, active-clear intake completion, browser source-validation/runtime-smoke/eval/admission evidence binding, tested safetensors CLI tails, prompt/eval binding, BPE proof, and q8-first preference.
+    summary: Routes agents to SLMComposer active Rust root, Runtime PHP staging, public boundary, safetensors evidence binding, and current site-folder split.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before orienting project state, support boundaries, report routing, or public claim boundaries.
-    checksum_hash: sha256:085374C04B52D9C699453E678D70F004BBCF71671AA4EBC291B97962D85D293F
-    last_reviewed_utc: 2026-07-01T01:35:00Z
+    checksum_hash: sha256:B3F189F31C2582EA7B1BCD7EA226D8EBA08E4AAFAF647BF64807BCF78A54F68A
+    last_reviewed_utc: 2026-07-01T13:25:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; hot workspace state lives in the target file.
   - stable_id: runtime_mirust_workspace_guidance_uai
@@ -36,8 +36,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before broad memory loading, report strategy edits, or implementation boundary work.
-    checksum_hash: sha256:1F0F95521B4C6886014A7F20380AD5266540F748EDF45DAB32F95CDC6BEF11EA
-    last_reviewed_utc: 2026-07-01T01:35:00Z
+    checksum_hash: sha256:924C1AAC66B5A5913B4C67FD680372A37B029F744261351D898678D0B9F7CFA6
+    last_reviewed_utc: 2026-07-01T02:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; hot guidance lives in the target file.
   - stable_id: runtime_mirust_file_handoff_uai
@@ -46,15 +46,15 @@ records:
     path: .uai/file-handoff.uai
     target_location: .uai/file-handoff.uai
     label: Required For File Handoff Strategy
-    summary: Routes agents to UAIX active buckets, disposition gates, docs intake, durable preservation, pointer audits, source-site removal, and active-clear completion proof.
+    summary: Routes agents to UAIX buckets, disposition gates, pending user-held intake, queued MiniModel docs checksums, preservation rules, and source-site removal requirements.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before scanning, preserving, removing, or keeping active handoff files.
-    checksum_hash: sha256:469C4F97AC26B729299444E909D086B19304DB0ECBC844F7A04C04B690105327
-    last_reviewed_utc: 2026-06-30T23:05:00Z
+    checksum_hash: sha256:78DE0F5788E589F77B751F088E27F16D8AA08A5060B759F27AEF06733450D442
+    last_reviewed_utc: 2026-07-01T13:25:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; active handoff strategy lives in the target file.
   - stable_id: runtime_mirust_intake_outcome_ledger_uai
@@ -87,8 +87,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before opening bulk reports, report-derived design guidance, or model-breeding research routes.
-    checksum_hash: sha256:9233AB4065CAB721FB2E119C4ECF50453371060DFE80C563DC98883535D85778
-    last_reviewed_utc: 2026-07-01T01:35:00Z
+    checksum_hash: sha256:527E5E525282385C451838DB7CBB7D0E3F30CDBA7B4D4420536E4307E624B2FE
+    last_reviewed_utc: 2026-07-01T02:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; processed report synthesis lives in the target file.
   - stable_id: runtime_mirust_short_term_memory_uai
@@ -97,15 +97,15 @@ records:
     path: .uai/short-term-memory.uai
     target_location: .uai/short-term-memory.uai
     label: Required For Current State And Report Routes
-    summary: Routes agents to current state, active-clear docs intake, browser source-validation/runtime-smoke/eval/admission evidence binding, tested safetensors CLI tails, prompt/eval binding, BPE proof, and q8-first preference.
+    summary: Routes agents to current site split, SLMComposer active workspace, Runtime PHP staging, queued intake hold, next prompt route, and browser evidence binding.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before resuming current work, locating latest report memory, or choosing next verification.
-    checksum_hash: sha256:E26A3E5ACE93FBF6999ED555CABA44ABB37CFFE761F846322D68A45A0AEA6EBA
-    last_reviewed_utc: 2026-07-01T01:35:00Z
+    checksum_hash: sha256:63ED58847E17BA4A6FEA54FA9D5D15B5011FC00CC07D27B80BB400D05C6C44A5
+    last_reviewed_utc: 2026-07-01T13:25:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; current state and routes live in the target file.
   - stable_id: runtime_mirust_startup_packet_uai
@@ -138,8 +138,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before source edits, architecture changes, or model-breeding boundary work.
-    checksum_hash: sha256:E1B6A1C72EA1F778D2D9976C497BFAE030225E42B53C57299C664D7A47B79070
-    last_reviewed_utc: 2026-07-01T01:35:00Z
+    checksum_hash: sha256:8894977D29161464D1D3E169B933A94588A2088FA388434F7EB5CB9BF18A2881
+    last_reviewed_utc: 2026-07-01T02:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; architecture memory lives in the target file.
   - stable_id: runtime_mirust_coding_standards_uai
@@ -165,15 +165,15 @@ records:
     path: .uai/operations.uai
     target_location: .uai/operations.uai
     label: Required For Local Operations And Checks
-    summary: Routes agents to local commands, browser source-validation/runtime-smoke/eval/admission checks, safetensors CLI checks, active-clear intake checks, prompt/eval checks, and q8-first checks.
+    summary: Routes agents to local commands, SLMComposer FTPS deploy checks, browser source-validation/runtime-smoke/eval/admission checks, safetensors CLI checks, active-clear intake checks, and q8-first checks.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before running local servers, browser smokes, cargo checks, or cleanup.
-    checksum_hash: sha256:FE8913EA07C30875ABF302720CA595B69DD3FB882D30091993D403EF1C7427D8
-    last_reviewed_utc: 2026-07-01T01:35:00Z
+    checksum_hash: sha256:B00E32E6FBB1A01C08E0F6B8C1DB3161BCC77020A3AF9544D307A26B211F4EE9
+    last_reviewed_utc: 2026-07-01T02:45:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; operations memory lives in the target file.
   - stable_id: runtime_mirust_test_plan_uai
@@ -189,8 +189,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before planning or auditing verification for source changes.
-    checksum_hash: sha256:82F716973439F7766D4295EFFAC7890D8A40F797BC26899888E47E0B43DA8E8D
-    last_reviewed_utc: 2026-07-01T01:35:00Z
+    checksum_hash: sha256:103787849B6EA4CA2830D8DB3AA2DD6A306A72233EB5B9D325E3D6896BC1AA67
+    last_reviewed_utc: 2026-07-01T02:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; test plan lives in the target file.
   - stable_id: runtime_mirust_uai_index
@@ -199,17 +199,34 @@ records:
     path: .uai/index.uai
     target_location: .uai/index.uai
     label: Required For Hot Memory Index
-    summary: Routes agents to hot memory files and startup hints for converted-trained source provenance, operator proof, report synthesis, pointer audit, and site voice.
+    summary: Routes agents to hot memory files, talisman anchors, startup hints, converted-trained source provenance, operator proof, report synthesis, pointer audit, and site voice.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before choosing hot memory files for cold-start orientation.
-    checksum_hash: sha256:8FDF3CA1D5B249F900CC53A6E671ED2EBF54FB942BF24F6F77DE8EF20C3C5FCC
-    last_reviewed_utc: 2026-06-30T20:45:00Z
+    checksum_hash: sha256:97C52261ABFC8E46563A14151B171904537955ED2D67871FD8D1E5367EEBDCF1
+    last_reviewed_utc: 2026-07-01T03:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; file index lives in the target file.
+  - stable_id: runtime_mirust_next_recursive_prompt_uai
+    memory_domain: runtime-mirust.hot_memory.next_prompt
+    pointer_type: local_uai
+    path: .uai/next-recursive-prompt.uai
+    target_location: .uai/next-recursive-prompt.uai
+    label: Required For Reopen Goal Prompt
+    summary: Routes agents to the next folder-swap step, queued MiniModel intake hold, and authorized future intake processing criteria.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: human requested local hot memory
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before resuming after the IDE is reopened or before processing queued MiniModel intake.
+    checksum_hash: sha256:B1D66D5C2966E39D6B12D7009D2289FE5AAA5819DE87378E30A28FECC391ADC2
+    last_reviewed_utc: 2026-07-01T13:25:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; next prompt lives in the target file.
   - stable_id: runtime_mirust_receiver_brief_uai
     memory_domain: runtime-mirust.hot_memory.receiver_brief
     pointer_type: local_uai
@@ -386,15 +403,15 @@ records:
     path: tinyrustlm/docs/browser-runtime.md
     target_location: tinyrustlm/docs/browser-runtime.md
     label: Required For Browser Runtime Work
-    summary: Routes agents to Rust hosting, runtime manifests, selector intake, module-plan display, combined-selector assembly, ADP1/ASP1 sidecars, adapter stacks, and local-only rules.
+    summary: Routes agents to Rust hosting, runtime manifests, public SLMComposer local-file loading, user-triggered Hugging Face discovery, selector intake, module plans, adapters, and local-only rules.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed browser runtime doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing app.js, app.css, app HTML, local fetch paths, or browser diagnostics.
-    checksum_hash: sha256:8DDE334D27A44979124441E7221B68310F76A39195C6F9D73CA12E4D6597776C
-    last_reviewed_utc: 2026-06-28T11:25:34Z
+    checksum_hash: sha256:4238DFD3F403D248125C054453994E9AFDBAC4354BF3C19177C05DD9B8379F27
+    last_reviewed_utc: 2026-07-01T02:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; browser runtime detail lives in the target file.
   - stable_id: tinyrustlm_browser_app_html
@@ -403,15 +420,15 @@ records:
     path: tinyrustlm/app/index.html
     target_location: tinyrustlm/app/index.html
     label: Required For TinyRustLM Browser Shell Markup
-    summary: Routes agents to static UI structure for chat, adapters, provenance source snapshot/id/shape/review/validation rows, Assembly Evidence, Module Plan rows, and diagnostics.
+    summary: Routes agents to SLM Composer markup, local .slm import, Hugging Face discovery controls, chat, provenance, Assembly Evidence, Module Plan rows, and diagnostics.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed app source
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing visible browser panels, product shell, or static app layout.
-    checksum_hash: sha256:8EF09858338AD1F2F03B282D5F5770EE84555BB39756C1A1731CFB0536A0AC6E
-    last_reviewed_utc: 2026-07-01T00:55:00Z
+    checksum_hash: sha256:E52F8EC689F34286A3A870636B9EAFC94DDF385B853F7A4B1832051F9C1AEA4C
+    last_reviewed_utc: 2026-07-01T02:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; implementation lives in the target file.
   - stable_id: tinyrustlm_browser_app_js
@@ -420,15 +437,15 @@ records:
     path: tinyrustlm/app/app.js
     target_location: tinyrustlm/app/app.js
     label: Required For TinyRustLM Browser Host Logic
-    summary: Routes agents to browser UI, selector intake, source-manifest/review/validation checks, runtime-smoke and eval evidence, module plans, provenance, adapters, and local generation.
+    summary: Routes agents to browser UI, SLMComposer public local-only guard, local .slm loading, Hugging Face discovery, selector evidence, provenance, adapters, and local generation.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed app source
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing browser host behavior, local fetches, model selection, provenance rendering, or WASM calls.
-    checksum_hash: sha256:4B3BB547F8047FFF3EE52EE9EBC552E6D1C33053ED4D4A739B0338A02198B0B1
-    last_reviewed_utc: 2026-07-01T00:55:00Z
+    checksum_hash: sha256:8A27A2F8D2D3EDDE03641202991B9851486CDBFD087A7BF593894831B287F1F7
+    last_reviewed_utc: 2026-07-01T02:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; implementation lives in the target file.
   - stable_id: tinyrustlm_browser_app_css
@@ -437,15 +454,15 @@ records:
     path: tinyrustlm/app/app.css
     target_location: tinyrustlm/app/app.css
     label: Required For TinyRustLM Browser Shell Styling
-    summary: Routes agents to responsive dark UI styling, transcript message layout, wrapped action controls, panel layout, control sizing, mobile behavior, and manifest-value wrapping.
+    summary: Routes agents to responsive styling for SLM Composer, local import, Hugging Face discovery results, transcript layout, action controls, panels, mobile behavior, and manifest-value wrapping.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed app source
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing app layout, responsive behavior, or visible UI styling.
-    checksum_hash: sha256:23F9A7A9D555718DEB9DEDF4862935AAC811CC6FD90EEFFE9168FA5CBAF1FAFF
-    last_reviewed_utc: 2026-06-25T13:59:11Z
+    checksum_hash: sha256:6A0C8643C91AFC9B6665D526E07CC56DED54EAB008783F88B2487F3A384CC46D
+    last_reviewed_utc: 2026-07-01T02:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; implementation lives in the target file.
   - stable_id: tinyrustlm_diagnostics_source
@@ -699,7 +716,7 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing browser-converted-trained-bundle, browser-multi-parent-bundle staging, combined selector roots, generated ADP1/ASP1 sidecar staging, or file-backed browser smoke.
-    checksum_hash: sha256:FDBAB2036AB5F49933D68687CC894DC59FC4BB3980DAC832F099405121F340CB
+    checksum_hash: sha256:EEB50CF523F1EC2BB29288561A88A57C1230C31EB0E74EDE27ED03D1B8FCA757
     last_reviewed_utc: 2026-07-01T00:55:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; generated bundle implementation lives in the target file.
@@ -1141,7 +1158,7 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing selector registry generation, operator receipt fields, multi-parent admission schemas, model/text budget contracts, adapter auto-apply fields, browser admitted-route intake, optional adapter fields, mixed admission validation, or model-breeding promotion routing.
-    checksum_hash: sha256:80BDF6974FF94A7297E16D35961A2077E9FE8ED770994D92377ADFED75E44005
+    checksum_hash: sha256:D3907A5F52C41EDFAAAABAF0A3A7698B5D7495AB8DD4EAF3DDFCA2700EA06F32
     last_reviewed_utc: 2026-07-01T00:55:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; selector registry implementation lives in the target file.
@@ -1253,15 +1270,15 @@ records:
     path: tinyrustlm/tools/browser-smoke.js
     target_location: tinyrustlm/tools/browser-smoke.js
     label: Required For TinyRustLM Browser Smoke Verification
-    summary: Routes agents to browser smoke modes for selector intake, converted-trained source-validation/runtime/eval drift, model-id/SHA drift, module plans, adapters, and local-only requests.
+    summary: Routes agents to browser smoke modes for selector intake, SLMComposer public local-only guard, source-validation/runtime/eval drift, model-id/SHA drift, module plans, and adapters.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed test tool
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Run after app, WASM, server, adapter sidecar, registry, or model selector changes.
-    checksum_hash: sha256:98F0CAF84DD3C1B3AB7D4C6502CF9B9A1100061BC82A27E48073294712A20BAB
-    last_reviewed_utc: 2026-07-01T00:55:00Z
+    checksum_hash: sha256:25FA07EC5A02AC2F08788D66268CCD23BE0293418BBF0B2D434839F2FA6EDC50
+    last_reviewed_utc: 2026-07-01T02:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; executable test behavior lives in the target file.
   - stable_id: tinyrustlm_wasm_abi_smoke_tool
@@ -1355,15 +1372,15 @@ records:
     path: tinyrustlm/tools/browser_harness/src/main.rs
     target_location: tinyrustlm/tools/browser_harness/src/main.rs
     label: Required For TinyRustLM Rust Mini Browser Harness
-    summary: Routes agents to no-crate Rust mini browser harness for static contracts, runtime manifests, selector/module-plan/provenance source-validation ids, and loopback routes.
+    summary: Routes agents to no-crate Rust mini browser harness for SLMComposer static contracts, local import/Hugging Face ids, runtime manifests, provenance evidence ids, and loopback routes.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed development tool
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing app contract checks, local-only policy checks, model manifest route checks, or Visual Studio browser-harness gates.
-    checksum_hash: sha256:B297834D3D41BEA6AEC26E61D2B4C89A50FE4A6452B66DE3F3CD9740C85BE8C2
-    last_reviewed_utc: 2026-07-01T00:55:00Z
+    checksum_hash: sha256:D4FB77BEE6C558AFAE965646161C7653B9DBDA6DEA5B5FC39D512DB2AEA63435
+    last_reviewed_utc: 2026-07-01T02:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; executable harness behavior lives in the target file.
   - stable_id: tinyrustlm_tinylm16_f32_model
@@ -2120,15 +2137,15 @@ records:
     path: wiki/runtime-mirust/index.md
     target_location: https://aiwikis.org/runtime-mirust/
     label: Required For Runtime.MiRust.com LLM Wiki Index
-    summary: Routes agents to LLM Wiki index for research, source-review/runtime/eval evidence, q8-first safetensors evidence, converted-trained evidence, operators, and boundaries.
+    summary: Routes agents to LLM Wiki index for SLMComposer public-local boundary, research, source-review/runtime/eval evidence, q8-first safetensors evidence, converted-trained evidence, operators, and boundaries.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed LLM Wiki source
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before publishing or reorganizing the Runtime.MiRust.com LLM Wiki namespace.
-    checksum_hash: sha256:C9A1B39CB4C3289C6D72B4C9A5306AF22255086E97730211AA182C25F6878296
-    last_reviewed_utc: 2026-07-01T01:35:00Z
+    checksum_hash: sha256:ADE41725B5D8265E8095E88F28D39EDDEEAE07EC607375F8C8F69729136DED1D
+    last_reviewed_utc: 2026-07-01T02:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; durable index body lives in the target file.
   - stable_id: runtime_mirust_report_intake_index_2026_06_25
@@ -4426,6 +4443,40 @@ records:
     last_reviewed_utc: 2026-06-29T13:45:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; hot voice rules live in the target file.
+  - stable_id: runtime_mirust_totem_anchor_memory
+    memory_domain: runtime-mirust.talisman_client_anchor
+    pointer_type: local_uai
+    path: .uai/totem.uai
+    target_location: .uai/totem.uai
+    label: Required For Runtime.MiRust.com Positive Anchor
+    summary: Routes agents to Runtime.MiRust.com positive talisman anchor for documentation identity, zero-crate policy, checksum-bound memory, evidence gates, and SLMComposer separation.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: human requested talisman setup
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing Runtime.MiRust.com project identity, runtime evidence boundaries, or talisman client posture.
+    checksum_hash: sha256:EA514650858BE20B4EF761EA9F724E91E7696701F48D27B863409750922541C4
+    last_reviewed_utc: 2026-07-01T03:35:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; positive anchor lives in the target file.
+  - stable_id: runtime_mirust_talisman_anchor_memory
+    memory_domain: runtime-mirust.talisman_client_anchor
+    pointer_type: local_uai
+    path: .uai/talisman.uai
+    target_location: .uai/talisman.uai
+    label: Required For Runtime.MiRust.com Talisman Client Anchor
+    summary: Routes agents to Runtime.MiRust.com talisman-client relationship with MiRust.com, protected anchor behavior, no-op talk-back, and local enforcement boundary.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: human requested talisman setup
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing Runtime.MiRust.com talisman anchors, MiRust.com source relationship, or no-op talk-back behavior.
+    checksum_hash: sha256:CB844C6D8254482C55FD06794FDD2D1105CA55733044460EC73B430B10412603
+    last_reviewed_utc: 2026-07-01T03:35:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; talisman anchor lives in the target file.
   - stable_id: runtime_mirust_enterprise_rust_governance_memory
     memory_domain: runtime-mirust.report_memory.enterprise_governance
     pointer_type: llmwiki_node
@@ -4647,6 +4698,23 @@ records:
     last_reviewed_utc: 2026-06-30T01:08:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; rebrand memory body lives in the target file.
+  - stable_id: slmcomposer_public_local_launch_memory
+    memory_domain: runtime-mirust.report_memory.public_launch
+    pointer_type: llmwiki_node
+    path: wiki/runtime-mirust/reports/slmcomposer-public-local-launch-memory-2026-07-01.md
+    target_location: https://aiwikis.org/runtime-mirust/reports/slmcomposer-public-local-launch-memory-2026-07-01/
+    label: Required For SLMComposer Public Local Launch Memory
+    summary: Routes agents to SLMComposer.com public local-only launch, FTPS deployment, no model artifacts, local .slm import, user-triggered Hugging Face discovery, and MiniModel.org exchange naming.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local implementation report
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before deploying SLMComposer.com, changing public host model loading, or adding model discovery/import behavior.
+    checksum_hash: sha256:43298D76C7FBD2B0545BCCE05AA4F9A3EB4A7D2CFA74AC55CF41FA56B1FED719
+    last_reviewed_utc: 2026-07-01T02:45:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; launch report body lives in the target file.
   - stable_id: runtime_mirust_tinylm16_bpe_safetensors_plan_memory
     memory_domain: runtime-mirust.report_memory.safetensors_source_plan
     pointer_type: llmwiki_node

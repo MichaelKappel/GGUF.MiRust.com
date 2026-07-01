@@ -1,0 +1,13 @@
+profile: runtime-mirust.totem.v1
+updated_utc: 2026-07-01T03:10:00Z
+site: Runtime.MiRust.com
+role: positive_anchor
+mission: Preserve Runtime.MiRust.com as the project documentation and evidence site for TinyRustLM, the Rust/WASM browser-local small-model runtime.
+anchors:
+  - Runtime.MiRust.com branding only for project documentation.
+  - Zero-third-party-crate runtime and packer policy remains protected.
+  - `.uai` hot memory and wiki/runtime-mirust durable reports stay checksum-bound.
+  - Safetensors-to-browser evidence remains review-gated, source-bound, eval-bound, and selector-admitted.
+  - SLMComposer.com is the live usable local-run app; Runtime.MiRust.com remains documentation and evidence.
+talisman_source: MiRust.com
+agent_mutability: read_only_without_exact_human_artifact_and_operation_authorization

@@ -1,5 +1,5 @@
-profile: runtime-mirust.file-handoff.v24
-updated_utc: 2026-06-30T23:58:00Z
+profile: runtime-mirust.file-handoff.v25
+updated_utc: 2026-07-01T13:24:00Z
 handoff_root: agent-file-handoff/
 active_buckets:
   content: agent-file-handoff/Content/
@@ -50,14 +50,40 @@ uaix_cleanup_correction_2026_06_30:
   proof: Nine Improvement reports were copied byte-for-byte to docs/report-intake/2026-06-30/ with SHA256 verification, then removed from agent-file-handoff/Improvement/; current scan sees Content=0 and Improvement=0.
   next_agent_action: Treat non-placeholder files in Content/Improvement as pending intake; do not call handoff complete until each has disposition, proof-of-use, durable preservation when accepted, and source-site removal or a real keep-active blocker.
 current_scan:
-  scanned_utc: 2026-06-30T23:58:00Z
+  scanned_utc: 2026-07-01T13:24:00Z
+  workspace_checked: E:\Source\Rust\SLMComposer.com
   content_bucket_non_placeholder_files: 0
-  improvement_bucket_non_placeholder_files: 0
+  improvement_bucket_non_placeholder_files: 7
   misplaced_root_files: 0
-  ide_adjacent_handoff_checked: E:\Source\WP\MikeKappel\agent-file-handoff\
-  ide_adjacent_non_placeholder_files: 0
-  attachment_reference_checked: C:\Users\AI\.codex\attachments\pasted-text-attachments.json and recent pasted-text files
-  attachment_reference_found: no_current_gguf_handoff_research_latest_attachment_material_is_2026_06_27_or_older_and_not_new_gguf_research
-  e_drive_free_bytes_at_scan: not_rescanned_this_update
-  status: active_intake_clear_after_docs_preserved_report_processing
-  action: Nine Improvement reports were copied byte-for-byte to docs/report-intake/2026-06-30/, summarized by MANIFEST.md and runtime-mirust-report-synthesis-2026-06-30.md, routed through hot memory and long-term pointer records, SHA256-verified against the active originals, and removed from active intake.
+  status: active_intake_pending_user_hold
+  action: User requested a next-goal prompt based on the docs in intake but explicitly said not to move them yet; files were read for orientation only, not processed, preserved, moved, or removed.
+  keep_active_reason: user_hold_until_reopen
+  pending_improvement_files:
+    - path: agent-file-handoff/Improvement/Building Custom Tiny AI_ML Models.md
+      bytes: 58462
+      sha256: 5f4e05ca7cae2f5ebeaa20f4d4c6fe2976868357795bdac5a281275eb90b2f32
+      route_hint: tiny-model training, compression, deployment, and edge inference strategy.
+    - path: agent-file-handoff/Improvement/Exploring Minimal JavaScript Runtimes.md
+      bytes: 54322
+      sha256: 24eef4dd41fea19c7977bb9c74587c75375d4180e772e4c8f0bcdd91a6328b15
+      route_hint: Bare-style runtime architecture, embedding, modules, native bindings, and memory footprint.
+    - path: agent-file-handoff/Improvement/Exploring the Hyper Module Ecosystem.md
+      bytes: 70670
+      sha256: 6ba29856f87f82c8c48745415e2ddd3dc9dd137763e0d0b7ea9754e146573f12
+      route_hint: Hypercore/Holepunch, Rust Hyper, and cloud-service naming disambiguation.
+    - path: agent-file-handoff/Improvement/MiniModel.org P2P Architecture Research.md
+      bytes: 54552
+      sha256: d13d3c51436fbb3486be06a3fe8756154d028fd8ab08d5024e475e4463b1ca0e
+      route_hint: Rust-native P2P architecture, NAT traversal, chunk verification, identity, and MVP lifecycle.
+    - path: agent-file-handoff/Improvement/MiniModel.org_ P2P Tiny Model Exchange.md
+      bytes: 56723
+      sha256: 982cef0b2bdc3d8a70044691d50d21b7db7c136c4cdb70668d8b58bf0f7a8172
+      route_hint: decentralized exchange legal boundaries, liability minimization, metadata, UX, consent, and takedown flows.
+    - path: agent-file-handoff/Improvement/Secure Model Exchange Manifest Design.md
+      bytes: 48634
+      sha256: 924879b3dbed7824d4c3144b4e7fbc0251468221164bbfaf8ea5ad20f641eb66
+      route_hint: checksum-bound manifests, supply-chain trust, Sigstore-style identity, Merkle verification, and SLM predicates.
+    - path: agent-file-handoff/Improvement/Understanding Pear Runtime.md
+      bytes: 53868
+      sha256: f79b91088475585ef1cf91d271bdb7f1692e37a7369108ca89420661df019d42
+      route_hint: Pear/Bare/Holepunch runtime model, zero-infrastructure P2P app lifecycle, and Hypercore stack.
