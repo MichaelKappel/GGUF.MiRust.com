@@ -2,6 +2,7 @@
 "use strict";
 
 const childProcess = require("child_process");
+const crypto = require("crypto");
 const fs = require("fs");
 const http = require("http");
 const https = require("https");
@@ -12,6 +13,7 @@ const appUrl = process.argv[2] || "http://127.0.0.1:8080/app/";
 const port = Number(process.argv[3] || 9223);
 const smokeMode = process.argv[5] || "single";
 const publicLocalOnlySmokeMode = smokeMode === "public-local-only";
+const catalogLocalImportSmokeMode = smokeMode === "catalog-local-import";
 const combinedSelectorOperatorFamilyRouteSoakMode = smokeMode === "combined-selector-operator-family-route-soak";
 const combinedSelectorOperatorFamilyReloadSoakMode = smokeMode === "combined-selector-operator-family-reload-soak";
 const combinedSelectorRouteSoakMode = combinedSelectorOperatorFamilyRouteSoakMode || smokeMode === "combined-selector-route-soak" || smokeMode === "combined-selector-route-extended-soak" || smokeMode === "combined-selector-route-stress-soak";
@@ -1737,6 +1739,8 @@ async function runPagePublicLocalOnlySmoke(client) {
         errorState: byId("errorState").textContent,
         provenanceState: byId("provenanceState").textContent,
         localModelState: byId("localModelState").textContent,
+        catalogUrl: byId("catalogUrlInput").value,
+        catalogStatus: byId("catalogStatus").textContent,
         hfStatus: byId("hfStatus").textContent,
         selectedModel: byId("modelSelect").value,
         modelOptions: Array.from(byId("modelSelect").options).map((option) => ({
@@ -1758,6 +1762,186 @@ async function runPagePublicLocalOnlySmoke(client) {
     timeout: 90000
   });
   return parseEvaluateValue(result);
+}
+
+async function setFileInputFiles(client, selector, files) {
+  await client.send("DOM.enable", {});
+  const documentResult = await client.send("DOM.getDocument", {});
+  const queryResult = await client.send("DOM.querySelector", {
+    nodeId: documentResult.root.nodeId,
+    selector
+  });
+  if (!queryResult.nodeId) {
+    throw new Error(`Unable to find file input ${selector}`);
+  }
+  await client.send("DOM.setFileInputFiles", {
+    nodeId: queryResult.nodeId,
+    files
+  });
+}
+
+function writeCatalogLocalImportFixture() {
+  const modelPath = path.join(__dirname, "..", "models", "tiny-test-model-q8.slm");
+  const modelBytes = fs.readFileSync(modelPath);
+  const sha256 = crypto.createHash("sha256").update(modelBytes).digest("hex");
+  const catalog = {
+    catalog_version: 0,
+    catalog_kind: "minimodel.model_catalog",
+    catalog_id: "browser-smoke-local-catalog",
+    project_server_serves_model_bytes: false,
+    project_server_runs_model_bytes: false,
+    artifact_project_server_url: null,
+    entries: [
+      {
+        catalog_version: 0,
+        entry_kind: "minimodel.catalog_entry",
+        model_id: "tinyrustlm/tiny-test-model-q8",
+        display_name: "TinyRustLM Fixture q8_0",
+        publisher_id: "browser-smoke",
+        publisher_key_id: "browser-smoke-key",
+        manifest_route: "examples/minimodel.manifest.v0.example",
+        model_card_route: "docs/catalog-boundary.md",
+        license_route: "LICENSE.txt",
+        artifact_kind: "slm",
+        artifact_file_name: "tiny-test-model-q8.slm",
+        local_file_name_hint: "tiny-test-model-q8.slm",
+        artifact_byte_count: modelBytes.length,
+        artifact_sha256: `sha256:${sha256}`,
+        artifact_project_server_url: null,
+        project_server_serves_model_bytes: false,
+        project_server_runs_model_bytes: false,
+        peer_hint_status: "disabled",
+        execution_policy: "user-local-file-only",
+        source_kind: "deterministic-smoke",
+        slm_model_shape: "vocab=260,hidden=8,layers=1,heads=2,kv_heads=2,head_dim=4,ffn=16,context=16",
+        slm_quantization: "q8_0",
+        slm_checksum: "0xa338bbb579e3e971",
+        quality_claim: "runtime-execution-smoke-only",
+        trained_quality_claim: "not-claimed",
+        evidence_admission_status: "accepted-for-runtime-smoke",
+        required_next_gate: "user-local-file-import-and-rust-wasm-validation",
+        max_tokens: 16
+      }
+    ]
+  };
+  const catalogPath = path.join(os.tmpdir(), `tinyrustlm-catalog-local-import-${process.pid}.json`);
+  fs.writeFileSync(catalogPath, `${JSON.stringify(catalog, null, 2)}\n`, "utf8");
+  return { catalogPath, modelPath, sha256: `sha256:${sha256}`, modelBytes: modelBytes.length };
+}
+
+async function runPageCatalogLocalImportSmoke(client) {
+  const fixture = writeCatalogLocalImportFixture();
+  try {
+    const waitExpression = `
+      (async () => {
+        const byId = (id) => document.getElementById(id);
+        const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        for (let index = 0; index < 600; index += 1) {
+          if (byId("wasmState") && byId("wasmState").textContent === "loaded") {
+            return true;
+          }
+          await sleep(100);
+        }
+        throw new Error("runtime did not boot");
+      })()
+    `;
+    await client.send("Runtime.evaluate", {
+      expression: waitExpression,
+      awaitPromise: true,
+      returnByValue: true,
+      timeout: 90000
+    });
+    await setFileInputFiles(client, "#localCatalogFile", [fixture.catalogPath]);
+    const catalogExpression = `
+      (async () => {
+        const byId = (id) => document.getElementById(id);
+        const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        byId("localCatalogFile").dispatchEvent(new Event("change", { bubbles: true }));
+        byId("importLocalCatalogButton").click();
+        for (let index = 0; index < 200; index += 1) {
+          if (byId("catalogResults").querySelector("button")) {
+            byId("catalogResults").querySelector("button").click();
+            return true;
+          }
+          await sleep(50);
+        }
+        throw new Error("catalog entry did not render");
+      })()
+    `;
+    await client.send("Runtime.evaluate", {
+      expression: catalogExpression,
+      awaitPromise: true,
+      returnByValue: true,
+      timeout: 90000
+    });
+    await setFileInputFiles(client, "#localModelFile", [fixture.modelPath]);
+    const importExpression = `
+      (async () => {
+        const byId = (id) => document.getElementById(id);
+        const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        byId("localModelFile").dispatchEvent(new Event("change", { bubbles: true }));
+        byId("importLocalModelButton").click();
+        for (let index = 0; index < 600; index += 1) {
+          if (
+            byId("modelSelect").value === "__local_slm_file" &&
+            byId("localModelState").textContent.includes("loaded") &&
+            byId("runtimeStatus").textContent === "Ready" &&
+            !byId("generateButton").disabled
+          ) {
+            break;
+          }
+          await sleep(100);
+        }
+        byId("maxTokens").value = "1";
+        byId("prompt").value = "hi";
+        byId("generateButton").click();
+        for (let index = 0; index < 600; index += 1) {
+          if (byId("response").textContent.trim().length > 0) {
+            break;
+          }
+          await sleep(100);
+        }
+        return JSON.stringify({
+          runtimeStatus: byId("runtimeStatus").textContent,
+          wasmState: byId("wasmState").textContent,
+          modelState: byId("modelState").textContent,
+          errorState: byId("errorState").textContent,
+          catalogUrl: byId("catalogUrlInput").value,
+          catalogStatus: byId("catalogStatus").textContent,
+          catalogResults: Array.from(byId("catalogResults").querySelectorAll("li")).map((node) => node.textContent.trim().replace(/\\s+/g, " ")),
+          localModelState: byId("localModelState").textContent,
+          selectedModel: byId("modelSelect").value,
+          selectedModelLabel: byId("modelSelect").selectedOptions[0] ? byId("modelSelect").selectedOptions[0].textContent : "",
+          provenanceState: byId("provenanceState").textContent,
+          provenanceSourceKind: byId("provenanceSourceKind").textContent,
+          provenanceSourceId: byId("provenanceSourceId").textContent,
+          provenanceSourceShape: byId("provenanceSourceShape").textContent,
+          provenanceAdmission: byId("provenanceAdmission").textContent,
+          provenanceQualityClaim: byId("provenanceQualityClaim").textContent,
+          provenanceTrainedClaim: byId("provenanceTrainedClaim").textContent,
+          provenanceChecksum: byId("provenanceChecksum").textContent,
+          provenanceNextGate: byId("provenanceNextGate").textContent,
+          response: byId("response").textContent,
+          console: byId("console").textContent,
+          fixtureSha256: ${JSON.stringify(fixture.sha256)},
+          fixtureBytes: ${JSON.stringify(fixture.modelBytes)}
+        });
+      })()
+    `;
+    const result = await client.send("Runtime.evaluate", {
+      expression: importExpression,
+      awaitPromise: true,
+      returnByValue: true,
+      timeout: 90000
+    });
+    return parseEvaluateValue(result);
+  } finally {
+    try {
+      fs.unlinkSync(fixture.catalogPath);
+    } catch (_error) {
+      // Best effort cleanup only.
+    }
+  }
 }
 
 async function runPageStepTokenSmoke(client, modelKey) {
@@ -7802,6 +7986,9 @@ function assertPublicLocalOnlySmoke(result, networkRequests) {
   if (result.localModelState !== "waiting" || result.hfStatus !== "idle") {
     failures.push(`public local/HF state was ${result.localModelState}/${result.hfStatus}`);
   }
+  if (result.catalogUrl !== "https://MiniModel.org/catalog/models.v0.json" || result.catalogStatus !== "idle") {
+    failures.push(`public catalog state was ${result.catalogUrl}/${result.catalogStatus}`);
+  }
   if (!result.generateDisabled || !result.resetDisabled || !result.modelSelectDisabled) {
     failures.push("public runtime controls were enabled before local import");
   }
@@ -7818,6 +8005,83 @@ function assertPublicLocalOnlySmoke(result, networkRequests) {
     }
     if (requestUrl.includes("huggingface.co")) {
       failures.push(`public external discovery ran before user action: ${requestUrl}`);
+    }
+    if (requestUrl.includes("MiniModel.org") || requestUrl.includes("minimodel.org")) {
+      failures.push(`public catalog loaded before user action: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertCatalogLocalImportSmoke(result, networkRequests) {
+  const failures = [];
+  if (result.catalogUrl !== "https://MiniModel.org/catalog/models.v0.json") {
+    failures.push(`catalog default URL was ${result.catalogUrl}`);
+  }
+  if (result.catalogStatus !== "TinyRustLM Fixture q8_0 selected") {
+    failures.push(`catalog status was ${result.catalogStatus}`);
+  }
+  if (!Array.isArray(result.catalogResults) || result.catalogResults.length !== 1) {
+    failures.push(`catalog results were ${JSON.stringify(result.catalogResults)}`);
+  } else if (!String(result.catalogResults[0]).includes(result.fixtureSha256)) {
+    failures.push(`catalog result did not include fixture SHA-256: ${result.catalogResults[0]}`);
+  }
+  if (result.wasmState !== "loaded" || result.runtimeStatus !== "Ready") {
+    failures.push(`runtime state was ${result.wasmState}/${result.runtimeStatus}`);
+  }
+  if (!String(result.modelState || "").startsWith("loaded")) {
+    failures.push(`model state was ${result.modelState}`);
+  }
+  if (result.errorState !== "none") {
+    failures.push(`error state was ${result.errorState}`);
+  }
+  if (result.selectedModel !== "__local_slm_file") {
+    failures.push(`selected model was ${result.selectedModel}`);
+  }
+  if (!String(result.selectedModelLabel || "").includes("TinyRustLM Fixture q8_0")) {
+    failures.push(`selected model label was ${result.selectedModelLabel}`);
+  }
+  if (!String(result.localModelState || "").includes(result.fixtureSha256) || !String(result.localModelState || "").includes("loaded")) {
+    failures.push(`local model state was ${result.localModelState}`);
+  }
+  if (result.provenanceState !== "local file") {
+    failures.push(`provenance state was ${result.provenanceState}`);
+  }
+  if (result.provenanceSourceKind !== "deterministic-smoke") {
+    failures.push(`provenance source kind was ${result.provenanceSourceKind}`);
+  }
+  if (result.provenanceSourceId !== "tinyrustlm/tiny-test-model-q8") {
+    failures.push(`provenance source id was ${result.provenanceSourceId}`);
+  }
+  if (result.provenanceAdmission !== "accepted-for-runtime-smoke") {
+    failures.push(`provenance admission was ${result.provenanceAdmission}`);
+  }
+  if (result.provenanceQualityClaim !== "runtime-execution-smoke-only") {
+    failures.push(`quality claim was ${result.provenanceQualityClaim}`);
+  }
+  if (result.provenanceTrainedClaim !== "not-claimed") {
+    failures.push(`trained claim was ${result.provenanceTrainedClaim}`);
+  }
+  if (result.provenanceChecksum !== "0xa338bbb579e3e971") {
+    failures.push(`provenance checksum was ${result.provenanceChecksum}`);
+  }
+  if (result.provenanceNextGate !== "user-local-file-import-and-rust-wasm-validation") {
+    failures.push(`provenance next gate was ${result.provenanceNextGate}`);
+  }
+  if (!String(result.response || "").trim()) {
+    failures.push("response was empty");
+  }
+  if (!String(result.console || "").includes("generate(")) {
+    failures.push("console did not include generation");
+  }
+  for (const requestUrl of networkRequests) {
+    if (requestUrl.includes("MiniModel.org") || requestUrl.includes("minimodel.org")) {
+      failures.push(`default catalog was fetched unexpectedly: ${requestUrl}`);
+    }
+    if (requestUrl.includes("huggingface.co")) {
+      failures.push(`external discovery ran unexpectedly: ${requestUrl}`);
     }
   }
   if (failures.length > 0) {
@@ -11448,6 +11712,21 @@ async function main() {
         }
       }
       assertPromptLimitSmoke(result, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (catalogLocalImportSmokeMode) {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageCatalogLocalImportSmoke(client);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertCatalogLocalImportSmoke(result, networkRequests);
       result.networkRequests = networkRequests;
     } else if (publicLocalOnlySmokeMode) {
       await client.send("Page.reload", { ignoreCache: true });

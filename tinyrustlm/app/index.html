@@ -87,6 +87,24 @@
       </section>
 
       <section class="panel">
+        <h2>Model Catalog</h2>
+        <label for="catalogUrlInput">Catalog URL</label>
+        <div class="search-row">
+          <input id="catalogUrlInput" type="url" value="https://MiniModel.org/catalog/models.v0.json" autocomplete="off" spellcheck="false">
+          <button id="catalogLoadButton" type="button">Load</button>
+        </div>
+        <div class="local-import">
+          <label for="localCatalogFile">Local model list</label>
+          <input id="localCatalogFile" type="file" accept=".json,application/json">
+          <div class="actions">
+            <button id="importLocalCatalogButton" type="button">Import Local List</button>
+          </div>
+        </div>
+        <p id="catalogStatus" class="inline-status">idle</p>
+        <ol id="catalogResults" class="model-results"></ol>
+      </section>
+
+      <section class="panel">
         <h2>Model Discovery</h2>
         <label for="hfSearchInput">Hugging Face</label>
         <div class="search-row">

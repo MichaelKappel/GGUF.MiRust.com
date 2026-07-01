@@ -1,5 +1,5 @@
-profile: runtime-mirust.report-synthesis.v131
-updated_utc: 2026-07-01T15:30:00Z
+profile: runtime-mirust.report-synthesis.v132
+updated_utc: 2026-07-01T15:40:02Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/runtime-mirust/report-intake-2026-06-25/
@@ -22,6 +22,7 @@ source_authority:
   durable_synthesis:
     - wiki/runtime-mirust/reports/runtime-rebrand-memory-2026-06-30.md
     - wiki/runtime-mirust/reports/slmcomposer-public-local-launch-memory-2026-07-01.md
+    - wiki/runtime-mirust/reports/slmcomposer-minimodel-catalog-import-memory-2026-07-01.md
     - wiki/runtime-mirust/reports/tinylm16-bpe-safetensors-plan-memory-2026-06-30.md
     - wiki/runtime-mirust/reports/enterprise-rust-governance-memory-2026-06-25.md
     - wiki/runtime-mirust/reports/browser-local-runtime-memory-2026-06-25.md
@@ -215,6 +216,9 @@ minimodel_manifest_verifier_mvp_2026_07_01:
 slmcomposer_public_local_launch_2026_07_01:
   route: wiki/runtime-mirust/reports/slmcomposer-public-local-launch-memory-2026-07-01.md
   synthesis: SLMComposer.com is the live usable site, Runtime.MiRust.com remains project/docs identity, public-host boot skips selector-registry and `/models/` auto-fetch, local `.slm` file import transfers user-owned bytes to Rust/WASM validation, and Hugging Face discovery is user-triggered only.
+slmcomposer_minimodel_catalog_import_2026_07_01:
+  route: wiki/runtime-mirust/reports/slmcomposer-minimodel-catalog-import-memory-2026-07-01.md
+  synthesis: SLMComposer now prepopulates the MiniModel.org metadata catalog URL, accepts metadata/local JSON model lists, verifies selected local `.slm` byte count plus SHA-256 before Rust/WASM import, and keeps public-host catalog loading user-triggered.
 dare_operator_2026_06_29:
   route: wiki/runtime-mirust/reports/dare-operator-memory-2026-06-29.md
   synthesis: DARE now has an offline `dare-candidate` and `validate-dare-candidate` receipt lane with signed task-delta weights, keep/drop ppm, dropout seed, mask checksum, raw delta checksum, rescaled delta checksum, focused parameter tests, and q8 CLI proof before downstream candidate manifests.

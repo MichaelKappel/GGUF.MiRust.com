@@ -1,5 +1,5 @@
-profile: runtime-mirust.workspace-guidance.v121
-updated_utc: 2026-07-01T15:30:00Z
+profile: runtime-mirust.workspace-guidance.v122
+updated_utc: 2026-07-01T15:40:02Z
 canonical_root: E:\Source\Rust\SLMComposer.com
 startup_rule: Read AGENTS.md, workspace.uai, and local .uai startup files before broad loading.
 memory_strategy:
@@ -21,6 +21,7 @@ memory_strategy:
   research_reference_distribution_rule: Keep research/reference bodies in wiki/runtime-mirust/research/ and report syntheses in wiki/runtime-mirust/reports/; route them from short-term memory and checksum-bearing long-term pointers instead of inlining them into long-term memory.
   runtime_rebrand_2026_06_30: Route Runtime.MiRust.com site identity, `runtime-mirust` wiki/raw namespaces, publish-review bundle naming, old-name audits, and outer folder handoff through wiki/runtime-mirust/reports/runtime-rebrand-memory-2026-06-30.md.
   slmcomposer_public_local_launch_2026_07_01: Route SLMComposer.com live-site identity, local `.slm` file import, user-triggered Hugging Face discovery, and public-host no-`/models/` auto-fetch proof through wiki/runtime-mirust/reports/slmcomposer-public-local-launch-memory-2026-07-01.md.
+  slmcomposer_minimodel_catalog_import_2026_07_01: Route default MiniModel.org catalog metadata, local JSON model-list import, catalog boundary rejection, local `.slm` byte-count/SHA-256 verification, and Rust/WASM import proof through wiki/runtime-mirust/reports/slmcomposer-minimodel-catalog-import-memory-2026-07-01.md.
   model_breeding_reference_expansion_2026_06_28: Route kinship metrics, sparse-mask breadcrumbs, evolutionary merge recipes, adaptive search, multi-objective fitness, and low-rank adapter references through the durable research page and hot .uai boundaries; sparse masks, population objective vectors, parent relatedness, sparse ASP1 packages, low-rank ALR1 packages, trained low-rank adapter source bundles, and source-backed ALR1 manifests now have first typed receipt or manifest forms.
   model_breeding_diverse_reference_lanes_2026_06_28: Keep architecture-preserving merge, sparse-lineage, adapter-ecology including trained low-rank source bundles, source-backed ALR1, and ADP1/ASP1/ALR1, population-search, federated/local-update, browser-constrained-assembly, and UAIX-memory-strategy lanes in the research page; translate them into typed receipts or tests before implementation claims.
   model_breeding_concept_routes_2026_06_28: Add heritable-artifact, mate-selection, phenotype-evidence, and speciation-and-fit lanes to the research route; heritable-artifact now has selector fields, Model Provenance Artifact rows, and combined-selector proof, while future lanes should translate into typed fields, receipts/manifests, eval/provenance fields, or browser-smoke assertions before source claims.

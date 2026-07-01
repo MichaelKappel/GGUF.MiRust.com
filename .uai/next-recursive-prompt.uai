@@ -1,9 +1,9 @@
-profile: runtime-mirust.next-recursive-prompt.v6
-updated_utc: 2026-07-01T15:30:00Z
+profile: runtime-mirust.next-recursive-prompt.v7
+updated_utc: 2026-07-01T15:40:02Z
 prompt: >
-  Continue in E:\Source\Rust\SLMComposer.com as the active Rust workspace for SLMComposer.com / TinyRustLM, with E:\Source\Rust\MiniModel.org as the MiniModel.org site workspace. The site-folder split, source-control cleanup, MiniModel intake processing, roadmap, and first MiniModel implementation docs are complete. Start the next work by planning or scaffolding the local Rust verifier (`minimodel-core` plus CLI) from E:\Source\Rust\MiniModel.org\docs\manifest-v0.md and docs\verifier-mvp.md. Keep SLMComposer.com browser-local and keep project servers metadata-only: no server-side user model execution and no project-server user model bytes.
+  Continue in E:\Source\Rust\SLMComposer.com as the active Rust workspace for SLMComposer.com / TinyRustLM, with E:\Source\Rust\MiniModel.org as the MiniModel.org site workspace. The site-folder split, source-control cleanup, MiniModel intake processing, roadmap, first MiniModel implementation docs, metadata-only MiniModel catalog endpoint, and SLMComposer catalog-to-local-file import slice are complete. Start the next work by planning or scaffolding the local Rust verifier (`minimodel-core` plus CLI) from E:\Source\Rust\MiniModel.org\docs\manifest-v0.md and docs\verifier-mvp.md. Keep SLMComposer.com browser-local and keep project servers metadata-only: no server-side user model execution and no project-server user model bytes.
 primary_goal: >
-  Move from MiniModel.org schema/docs into the first local Rust verifier implementation path: manifest parsing, boundary rejection, artifact checksum verification, TinyRustLM compatibility checks, and local import receipts, before any peer networking.
+  Move from the browser catalog/import proof into the first local Rust verifier implementation path: manifest parsing, boundary rejection, artifact checksum verification, TinyRustLM compatibility checks, and local import receipts, before any peer networking.
 required_context:
   - E:\Source\Rust\workspace.uai
   - workspace.uai
@@ -17,15 +17,18 @@ required_context:
   - docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md
   - wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md
   - wiki/runtime-mirust/research/minimodel-manifest-verifier-mvp-2026-07-01.md
+  - wiki/runtime-mirust/reports/slmcomposer-minimodel-catalog-import-memory-2026-07-01.md
   - E:\Source\Rust\MiniModel.org\ROADMAP.md
   - E:\Source\Rust\MiniModel.org\docs\manifest-v0.md
   - E:\Source\Rust\MiniModel.org\docs\verifier-mvp.md
   - E:\Source\Rust\MiniModel.org\docs\catalog-boundary.md
+  - E:\Source\Rust\MiniModel.org\catalog\models.v0.json
 processed_intake_routes:
   docs_manifest: docs/report-intake/2026-07-01/MANIFEST.md
   docs_synthesis: docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md
   durable_roadmap: wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md
   manifest_verifier_mvp: wiki/runtime-mirust/research/minimodel-manifest-verifier-mvp-2026-07-01.md
+  slmcomposer_catalog_import: wiki/runtime-mirust/reports/slmcomposer-minimodel-catalog-import-memory-2026-07-01.md
   minimodel_site_roadmap: E:\Source\Rust\MiniModel.org\ROADMAP.md
   source_site_result: processed source-site copies removed from agent-file-handoff/Improvement/ after byte-exact preservation and pointer updates.
 roadmap_guardrails:
@@ -38,6 +41,7 @@ next_implementation_slice:
   - Stabilize the `key=value` manifest parser and duplicate-key rejection.
   - Reject project-server model-byte URLs and server-side execution claims before artifact checks.
   - Verify a user-supplied local `.slm` byte count and SHA256 before any SLMComposer handoff.
+  - Mirror the SLMComposer catalog-import proof: catalog metadata can name expectations, but local verifier artifacts must come from user-supplied local paths.
   - Write a local import receipt with manifest checksum, artifact checksum, validation result, and `user-selected-slmcomposer-local-file-open` next gate.
   - Keep peer transfer, DHTs, relays, and desktop UI out of the first verifier slice.
 success_criteria:

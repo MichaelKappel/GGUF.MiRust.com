@@ -1,5 +1,5 @@
-profile: runtime-mirust.long-term-memory-ledger.v161
-updated_utc: 2026-07-01T15:30:00Z
+profile: runtime-mirust.long-term-memory-ledger.v162
+updated_utc: 2026-07-01T15:40:02Z
 storage_mode: hybrid
 ledger_rule:
   pointer_only_not_context_free: true
@@ -12,15 +12,15 @@ records:
     path: workspace.uai
     target_location: workspace.uai
     label: Required For Workspace Authority And Current Boundary
-    summary: Routes agents to SLMComposer active Rust root, MiniModel manifest/verifier route, Runtime PHP docs site, processed intake, public boundary, and safetensors evidence binding.
+    summary: Routes agents to SLMComposer active Rust root, MiniModel catalog/verifier routes, Runtime PHP docs site, processed intake, public boundary, and safetensors evidence binding.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before orienting project state, support boundaries, report routing, or public claim boundaries.
-    checksum_hash: sha256:8C7854A69E05C2D8CA442E395485727CA86CF986DF13B41B3C5056F06254AE05
-    last_reviewed_utc: 2026-07-01T15:30:00Z
+    checksum_hash: sha256:D161C2189C2441552F837C2433E18215A777DD612EE61934E9D734A6E13DA80E
+    last_reviewed_utc: 2026-07-01T15:40:02Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; hot workspace state lives in the target file.
   - stable_id: runtime_mirust_workspace_guidance_uai
@@ -29,15 +29,15 @@ records:
     path: .uai/workspace-guidance.uai
     target_location: .uai/workspace-guidance.uai
     label: Required For Workspace Memory And Implementation Guidance
-    summary: Routes agents to memory strategy, SLMComposer active root, MiniModel manifest/verifier MVP, source-site removal, browser evidence binding, safetensors tails, and q8-first preference.
+    summary: Routes agents to memory strategy, SLMComposer active root, MiniModel catalog/verifier MVP, source-site removal, browser evidence binding, safetensors tails, and q8-first preference.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before broad memory loading, report strategy edits, or implementation boundary work.
-    checksum_hash: sha256:3DB76CC9AA2820987C969082D054A48DE52F9E4C4E1419801F2CB9468E7827B3
-    last_reviewed_utc: 2026-07-01T15:30:00Z
+    checksum_hash: sha256:14129605B4C26302C92856FFAC7CA9C37B383C6859689C9A4D688ADF9B6D003E
+    last_reviewed_utc: 2026-07-01T15:40:02Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; hot guidance lives in the target file.
   - stable_id: runtime_mirust_file_handoff_uai
@@ -80,15 +80,15 @@ records:
     path: .uai/report-synthesis.uai
     target_location: .uai/report-synthesis.uai
     label: Required For Processed Report Synthesis Routing
-    summary: Routes agents to processed reports, MiniModel manifest/verifier MVP, docs intake, browser source-validation/runtime-smoke/eval/admission binding, safetensors CLI tails, BPE proof, and q8-first preference.
+    summary: Routes agents to processed reports, MiniModel catalog/verifier MVP, docs intake, browser source-validation/runtime-smoke/eval/admission binding, safetensors CLI tails, BPE proof, and q8-first preference.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before opening bulk reports, report-derived design guidance, or model-breeding research routes.
-    checksum_hash: sha256:F595EDE1EAFBB9608CFEF9A9B9E359ADE1C9D285F08F021937CE63F10909B455
-    last_reviewed_utc: 2026-07-01T15:30:00Z
+    checksum_hash: sha256:3B107BFDDA3ED99800360E555FE4A7081651AC05F91DAF8466F3371EA7DD79A0
+    last_reviewed_utc: 2026-07-01T15:40:02Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; processed report synthesis lives in the target file.
   - stable_id: runtime_mirust_short_term_memory_uai
@@ -97,15 +97,15 @@ records:
     path: .uai/short-term-memory.uai
     target_location: .uai/short-term-memory.uai
     label: Required For Current State And Report Routes
-    summary: Routes agents to completed site split, SLMComposer active workspace, processed MiniModel intake, manifest/verifier MVP, next prompt route, and browser evidence binding.
+    summary: Routes agents to completed site split, SLMComposer active workspace, processed MiniModel intake, catalog/verifier MVP, next prompt route, and browser evidence binding.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before resuming current work, locating latest report memory, or choosing next verification.
-    checksum_hash: sha256:74314D260263149753032B68CD8F00D2CBEB0670CD3B894C7BBA321453788252
-    last_reviewed_utc: 2026-07-01T15:30:00Z
+    checksum_hash: sha256:F940816594BC88C49E2C55E5A58555F5113886291EE3DD57525E8683A50D255B
+    last_reviewed_utc: 2026-07-01T15:40:02Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; current state and routes live in the target file.
   - stable_id: runtime_mirust_startup_packet_uai
@@ -199,15 +199,15 @@ records:
     path: .uai/index.uai
     target_location: .uai/index.uai
     label: Required For Hot Memory Index
-    summary: Routes agents to hot memory files, startup hints, MiniModel manifest/verifier MVP, converted-trained source provenance, operator proof, report synthesis, pointer audit, and site voice.
+    summary: Routes agents to hot memory files, startup hints, MiniModel catalog/verifier MVP, converted-trained source provenance, operator proof, report synthesis, pointer audit, and site voice.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before choosing hot memory files for cold-start orientation.
-    checksum_hash: sha256:5AD0A3089430C20ACDC65365E47CBFD2908C32815789CFB472542E77D38774CC
-    last_reviewed_utc: 2026-07-01T15:30:00Z
+    checksum_hash: sha256:EA12B0715C5D69765BA1E85CA7B200C9CE5C03890FB49DB3ABF04D5FE961A263
+    last_reviewed_utc: 2026-07-01T15:40:02Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; file index lives in the target file.
   - stable_id: runtime_mirust_next_recursive_prompt_uai
@@ -216,15 +216,15 @@ records:
     path: .uai/next-recursive-prompt.uai
     target_location: .uai/next-recursive-prompt.uai
     label: Required For Reopen Goal Prompt
-    summary: Routes agents to local Rust verifier next steps, manifest docs, processed MiniModel routes, browser-local SLMComposer boundary, and no-server-model-bytes rules.
+    summary: Routes agents to local Rust verifier next steps, catalog import proof, manifest docs, processed MiniModel routes, browser-local SLMComposer boundary, and no-server-model-bytes rules.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before resuming after the IDE is reopened or before processing queued MiniModel intake.
-    checksum_hash: sha256:7738A50E0829E12E3CAA87256A1864C8F299695F4828E6B29DADFDBC16CF358F
-    last_reviewed_utc: 2026-07-01T15:30:00Z
+    checksum_hash: sha256:82611B9525F11349685032313114F5C476A8C963E56312046131C6541E563A3F
+    last_reviewed_utc: 2026-07-01T15:40:02Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; next prompt lives in the target file.
   - stable_id: runtime_mirust_receiver_brief_uai
@@ -420,15 +420,15 @@ records:
     path: tinyrustlm/app/index.html
     target_location: tinyrustlm/app/index.html
     label: Required For TinyRustLM Browser Shell Markup
-    summary: Routes agents to SLM Composer markup, local .slm import, Hugging Face discovery controls, chat, provenance, Assembly Evidence, Module Plan rows, and diagnostics.
+    summary: Routes agents to SLM Composer markup, MiniModel catalog controls, local .slm import, Hugging Face discovery controls, chat, provenance, module evidence, and diagnostics.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed app source
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing visible browser panels, product shell, or static app layout.
-    checksum_hash: sha256:E52F8EC689F34286A3A870636B9EAFC94DDF385B853F7A4B1832051F9C1AEA4C
-    last_reviewed_utc: 2026-07-01T02:30:00Z
+    checksum_hash: sha256:2D5C71140FF264204E6FC8052CEFD0D0FA6D9C9D854ED3A8F4370D31BC4EC336
+    last_reviewed_utc: 2026-07-01T15:40:02Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; implementation lives in the target file.
   - stable_id: tinyrustlm_browser_app_js
@@ -437,15 +437,15 @@ records:
     path: tinyrustlm/app/app.js
     target_location: tinyrustlm/app/app.js
     label: Required For TinyRustLM Browser Host Logic
-    summary: Routes agents to browser UI, SLMComposer public local-only guard, local .slm loading, Hugging Face discovery, selector evidence, provenance, adapters, and local generation.
+    summary: Routes agents to browser UI, MiniModel metadata catalog import, local .slm SHA-256 verification, public local-only guard, selector evidence, provenance, adapters, and generation.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed app source
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing browser host behavior, local fetches, model selection, provenance rendering, or WASM calls.
-    checksum_hash: sha256:8A27A2F8D2D3EDDE03641202991B9851486CDBFD087A7BF593894831B287F1F7
-    last_reviewed_utc: 2026-07-01T02:30:00Z
+    checksum_hash: sha256:36E6F21A03B5EF4772799E01C4256FA03D4CA56B09C8E74801BE8AE57C5DF62E
+    last_reviewed_utc: 2026-07-01T15:40:02Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; implementation lives in the target file.
   - stable_id: tinyrustlm_browser_app_css
@@ -454,15 +454,15 @@ records:
     path: tinyrustlm/app/app.css
     target_location: tinyrustlm/app/app.css
     label: Required For TinyRustLM Browser Shell Styling
-    summary: Routes agents to responsive styling for SLM Composer, local import, Hugging Face discovery results, transcript layout, action controls, panels, mobile behavior, and manifest-value wrapping.
+    summary: Routes agents to responsive styling for SLM Composer, catalog/local import, discovery results, transcript layout, action controls, panels, mobile behavior, and value wrapping.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed app source
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing app layout, responsive behavior, or visible UI styling.
-    checksum_hash: sha256:6A0C8643C91AFC9B6665D526E07CC56DED54EAB008783F88B2487F3A384CC46D
-    last_reviewed_utc: 2026-07-01T02:30:00Z
+    checksum_hash: sha256:1894A182943C84C6D169C3E39ADB45AE51C4DA42AAD837806C345BFAF21FCB83
+    last_reviewed_utc: 2026-07-01T15:40:02Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; implementation lives in the target file.
   - stable_id: tinyrustlm_diagnostics_source
@@ -1270,15 +1270,15 @@ records:
     path: tinyrustlm/tools/browser-smoke.js
     target_location: tinyrustlm/tools/browser-smoke.js
     label: Required For TinyRustLM Browser Smoke Verification
-    summary: Routes agents to browser smoke modes for selector intake, SLMComposer public local-only guard, source-validation/runtime/eval drift, model-id/SHA drift, module plans, and adapters.
+    summary: Routes agents to browser smoke modes for MiniModel catalog import, public local-only guard, selector intake, source/eval drift, module plans, and adapters.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed test tool
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Run after app, WASM, server, adapter sidecar, registry, or model selector changes.
-    checksum_hash: sha256:25FA07EC5A02AC2F08788D66268CCD23BE0293418BBF0B2D434839F2FA6EDC50
-    last_reviewed_utc: 2026-07-01T02:30:00Z
+    checksum_hash: sha256:9A43FD91EBFE49052833F43D61F492F0296F73206C2DB92F013936150610EF02
+    last_reviewed_utc: 2026-07-01T15:40:02Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; executable test behavior lives in the target file.
   - stable_id: tinyrustlm_wasm_abi_smoke_tool
@@ -2348,8 +2348,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before editing MiniModel.org public roadmap or implementation plan.
-    checksum_hash: sha256:D0F5DEDD13617F463FD45AF0411960A6D61756246B1733E8D86E5E29EBB72B05
-    last_reviewed_utc: 2026-07-01T15:30:00Z
+    checksum_hash: sha256:E8032BBC677EFC38B9FBFF52604CCA5572DE780F18FAFF8F9D35350AED59D1D0
+    last_reviewed_utc: 2026-07-01T15:40:02Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; public roadmap body lives in the target file.
   - stable_id: minimodel_org_manifest_v0_doc_2026_07_01
@@ -2443,17 +2443,51 @@ records:
     path: E:\Source\Rust\MiniModel.org\index.html
     target_location: E:\Source\Rust\MiniModel.org\index.html
     label: Required For MiniModel.org Public Site
-    summary: Routes agents to the MiniModel.org landing page, implementation docs links, roadmap, boundaries, and SLMComposer handoff link.
+    summary: Routes agents to the MiniModel.org landing page, catalog endpoint link, implementation docs links, roadmap, boundaries, and SLMComposer handoff link.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: MiniModel.org local site
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before editing MiniModel.org public page or docs navigation.
-    checksum_hash: sha256:CB83848886045949EE5F0A7F9781950946768FE6F3960C58BE44BC20570DEE3C
-    last_reviewed_utc: 2026-07-01T15:30:00Z
+    checksum_hash: sha256:66F8DF2CFD118DB487EFF91B79A0406CEEB4837B6E2E7C4944EF1C91ED769036
+    last_reviewed_utc: 2026-07-01T15:40:02Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; page body lives in the target file.
+  - stable_id: minimodel_org_catalog_models_v0_2026_07_01
+    memory_domain: minimodel.catalog_endpoint
+    pointer_type: local_json
+    path: E:\Source\Rust\MiniModel.org\catalog\models.v0.json
+    target_location: E:\Source\Rust\MiniModel.org\catalog\models.v0.json
+    label: Required For MiniModel Metadata Catalog Endpoint
+    summary: Routes agents to metadata-only TinyRustLM catalog entries with no artifact URL, local filename hints, SHA-256 hashes, docs/license routes, and server-byte rejection flags.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: MiniModel.org local catalog
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing default SLMComposer catalog metadata, model-list schema, or no-server-model-byte examples.
+    checksum_hash: sha256:D0F5A17C3C884D3C7F227EDE756E8AA2046C6E77B7511E5F251D530A8D506A41
+    last_reviewed_utc: 2026-07-01T15:40:02Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; catalog JSON body lives in the target file.
+  - stable_id: minimodel_org_catalog_htaccess_2026_07_01
+    memory_domain: minimodel.catalog_endpoint
+    pointer_type: local_config
+    path: E:\Source\Rust\MiniModel.org\catalog\.htaccess
+    target_location: E:\Source\Rust\MiniModel.org\catalog\.htaccess
+    label: Required For MiniModel Catalog Static Metadata Headers
+    summary: Routes agents to Apache-style JSON type and CORS hints for metadata-only catalog fetches from SLMComposer and other clients.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: MiniModel.org local catalog
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing MiniModel.org static catalog hosting headers or cross-origin metadata access.
+    checksum_hash: sha256:1E4E40D6C0A6AF76E591617B16FC4D2B6B1B32F1218F68157A42D65053A42751
+    last_reviewed_utc: 2026-07-01T15:40:02Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; catalog server hint lives in the target file.
   - stable_id: minimodel_org_styles_css
     memory_domain: minimodel.site
     pointer_type: local_css
@@ -5055,6 +5089,23 @@ records:
     last_reviewed_utc: 2026-07-01T02:45:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; launch report body lives in the target file.
+  - stable_id: slmcomposer_minimodel_catalog_import_memory
+    memory_domain: runtime-mirust.report_memory.catalog_import
+    pointer_type: llmwiki_node
+    path: wiki/runtime-mirust/reports/slmcomposer-minimodel-catalog-import-memory-2026-07-01.md
+    target_location: https://aiwikis.org/runtime-mirust/reports/slmcomposer-minimodel-catalog-import-memory-2026-07-01/
+    label: Required For SLMComposer MiniModel Catalog Import Memory
+    summary: Routes agents to MiniModel catalog URL/default metadata, local JSON model-list import, local `.slm` SHA-256 verification, no-server-byte boundaries, and browser smoke proof.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local implementation report
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing SLMComposer catalog import, MiniModel metadata endpoint behavior, local `.slm` verification, or model-byte boundary claims.
+    checksum_hash: sha256:ABBC73C66EC6A6439CC7B897C5D949EF28B953BD1E500802399961F7E24BC9F6
+    last_reviewed_utc: 2026-07-01T15:40:02Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; catalog import report body lives in the target file.
   - stable_id: runtime_mirust_tinylm16_bpe_safetensors_plan_memory
     memory_domain: runtime-mirust.report_memory.safetensors_source_plan
     pointer_type: llmwiki_node

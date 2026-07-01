@@ -167,7 +167,8 @@ select {
 
 input[type="number"],
 input[type="file"],
-input[type="search"] {
+input[type="search"],
+input[type="url"] {
   width: 100%;
   min-height: 38px;
   color: var(--text);
@@ -232,7 +233,8 @@ input[type="search"] {
   gap: 10px;
 }
 
-.model-result-actions a {
+.model-result-actions a,
+.model-result-actions button {
   min-height: 32px;
   padding: 5px 10px;
   border: 1px solid var(--line);
@@ -240,6 +242,11 @@ input[type="search"] {
   color: var(--text);
   background: var(--panel-strong);
   text-decoration: none;
+  font-weight: 700;
+}
+
+.model-result-actions button {
+  cursor: pointer;
 }
 
 .actions {

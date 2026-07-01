@@ -82,6 +82,9 @@
   const localModelKey = "__local_slm_file";
   const localModelMaxBytes = 128 * 1024 * 1024;
   const publicLocalOnlyHosts = new Set(["slmcomposer.com", "www.slmcomposer.com"]);
+  const defaultCatalogUrl = "https://MiniModel.org/catalog/models.v0.json";
+  const catalogTextByteBudget = 256 * 1024;
+  const catalogMaxEntries = 64;
   const hfDiscoveryScheme = "https";
   const hfDiscoveryHost = "huggingface.co";
   const hfSearchLimit = 8;
@@ -309,6 +312,9 @@
     selectorRegistry: null,
     selectorDefaultModelKey: "",
     localModel: null,
+    catalogEntries: [],
+    selectedCatalogEntry: null,
+    catalogFetchAbort: null,
     hfSearchAbort: null,
     hasContext: false,
     messages: []
@@ -334,6 +340,12 @@
     localModelFile: document.getElementById("localModelFile"),
     importLocalModelButton: document.getElementById("importLocalModelButton"),
     localModelState: document.getElementById("localModelState"),
+    catalogUrlInput: document.getElementById("catalogUrlInput"),
+    catalogLoadButton: document.getElementById("catalogLoadButton"),
+    localCatalogFile: document.getElementById("localCatalogFile"),
+    importLocalCatalogButton: document.getElementById("importLocalCatalogButton"),
+    catalogStatus: document.getElementById("catalogStatus"),
+    catalogResults: document.getElementById("catalogResults"),
     hfSearchInput: document.getElementById("hfSearchInput"),
     hfSearchButton: document.getElementById("hfSearchButton"),
     hfStatus: document.getElementById("hfStatus"),
@@ -840,6 +852,285 @@
     }
   }
 
+  function setCatalogStatus(text, isError) {
+    if (el.catalogStatus) {
+      setText(el.catalogStatus, text, isError);
+    }
+  }
+
+  function clearCatalogResults() {
+    if (el.catalogResults) {
+      el.catalogResults.replaceChildren();
+    }
+  }
+
+  function catalogText(value) {
+    return String(value === undefined || value === null ? "" : value).trim();
+  }
+
+  function catalogInteger(value) {
+    if (typeof value === "number" && Number.isSafeInteger(value)) {
+      return value;
+    }
+    const text = catalogText(value);
+    if (!/^[0-9]+$/.test(text)) {
+      return null;
+    }
+    const parsed = Number.parseInt(text, 10);
+    return Number.isSafeInteger(parsed) ? parsed : null;
+  }
+
+  function isCatalogModelId(value) {
+    return /^[A-Za-z0-9][A-Za-z0-9._/-]{0,179}$/.test(value || "");
+  }
+
+  function isCatalogSha256(value) {
+    return /^sha256:[0-9a-f]{64}$/i.test(value || "");
+  }
+
+  function normalizeCatalogSha256(value) {
+    const text = catalogText(value).toLowerCase();
+    return isCatalogSha256(text) ? text : "";
+  }
+
+  function catalogRouteUrl(entry, route) {
+    const text = catalogText(route);
+    if (!text || text.includes("\n") || text.includes("\r")) {
+      return "";
+    }
+    try {
+      return new URL(text, entry.catalogBaseUrl || window.location.href).toString();
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function assertMetadataOnlyCatalogBoundary(raw, label) {
+    if (raw && raw.project_server_serves_model_bytes === true) {
+      throw new Error(`${label} declares server-served model bytes`);
+    }
+    if (raw && raw.project_server_runs_model_bytes === true) {
+      throw new Error(`${label} declares server-side model execution`);
+    }
+    if (catalogText(raw && raw.artifact_project_server_url)) {
+      throw new Error(`${label} declares a project-server model URL`);
+    }
+  }
+
+  function catalogEntryFromRaw(raw, index, catalogBaseUrl) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+      throw new Error(`Catalog entry ${index + 1} was not an object`);
+    }
+    assertMetadataOnlyCatalogBoundary(raw, `Catalog entry ${index + 1}`);
+    const modelId = catalogText(raw.model_id || raw.id);
+    if (!isCatalogModelId(modelId)) {
+      throw new Error(`Catalog entry ${index + 1} model id was invalid`);
+    }
+    const artifactKind = catalogText(raw.artifact_kind || raw.kind).toLowerCase();
+    if (artifactKind !== "slm") {
+      throw new Error(`Catalog entry ${modelId} was not an .slm artifact`);
+    }
+    const artifactByteCount = catalogInteger(raw.artifact_byte_count || raw.artifact_bytes);
+    if (!artifactByteCount || artifactByteCount > localModelMaxBytes) {
+      throw new Error(`Catalog entry ${modelId} byte count was invalid`);
+    }
+    const artifactSha256 = normalizeCatalogSha256(raw.artifact_sha256 || raw.sha256);
+    if (!artifactSha256) {
+      throw new Error(`Catalog entry ${modelId} SHA-256 was invalid`);
+    }
+    const displayName = (catalogText(raw.display_name || raw.name) || modelId).slice(0, 96);
+    const maxTokens = catalogInteger(raw.max_tokens);
+    const fileNameHint = safeLocalModelName(
+      raw.local_file_name_hint ||
+      raw.artifact_file_name ||
+      `${modelId.split("/").pop()}.slm`
+    );
+    return {
+      raw,
+      catalogBaseUrl,
+      modelId,
+      displayName,
+      publisherId: catalogText(raw.publisher_id || raw.source_identity || raw.source_id),
+      publisherKeyId: catalogText(raw.publisher_key_id || raw.publisher_key || raw.key_id),
+      artifactKind,
+      artifactByteCount,
+      artifactSha256,
+      slmChecksum: catalogText(raw.slm_checksum),
+      modelShape: catalogText(raw.slm_model_shape || raw.model_shape),
+      quantization: catalogText(raw.slm_quantization || raw.quantization),
+      tokenizerChecksum: catalogText(raw.slm_tokenizer_checksum || raw.tokenizer_checksum),
+      configChecksum: catalogText(raw.slm_config_checksum || raw.config_checksum),
+      sourceKind: catalogText(raw.source_kind) || "catalog-local-file",
+      licenseRoute: catalogText(raw.license_route),
+      modelCardRoute: catalogText(raw.model_card_route),
+      manifestRoute: catalogText(raw.manifest_route),
+      evidenceRoute: catalogText(raw.evidence_admission_route || raw.admission_route || raw.eval_route),
+      admissionStatus: catalogText(raw.evidence_admission_status || raw.admission_status) || "catalog-metadata-only",
+      qualityClaim: catalogText(raw.quality_claim) || "not-endorsed-by-project",
+      trainedQualityClaim: catalogText(raw.trained_quality_claim) || "not-claimed",
+      requiredNextGate: catalogText(raw.required_next_gate) || "user-local-file-import",
+      fileNameHint,
+      maxTokens: maxTokens && maxTokens > 0 && maxTokens <= 512 ? maxTokens : 16
+    };
+  }
+
+  function catalogEntriesFromBody(body, sourceLabel, catalogBaseUrl) {
+    if (!body || typeof body !== "object") {
+      throw new Error(`${sourceLabel} was not a JSON object`);
+    }
+    assertMetadataOnlyCatalogBoundary(body, sourceLabel);
+    const rawEntries = Array.isArray(body) ? body : Array.isArray(body.entries) ? body.entries : [body];
+    if (rawEntries.length > catalogMaxEntries) {
+      throw new Error(`${sourceLabel} listed more than ${catalogMaxEntries} models`);
+    }
+    const entries = rawEntries.map((entry, index) => catalogEntryFromRaw(entry, index, catalogBaseUrl));
+    if (!entries.length) {
+      throw new Error(`${sourceLabel} did not list any models`);
+    }
+    return entries;
+  }
+
+  function renderCatalogResults(entries) {
+    clearCatalogResults();
+    for (const entry of entries) {
+      const item = document.createElement("li");
+      item.className = "model-result";
+      const title = document.createElement("strong");
+      title.textContent = entry.displayName;
+      const meta = document.createElement("div");
+      meta.className = "model-result-meta";
+      meta.textContent = [
+        entry.modelId,
+        formatByteCount(entry.artifactByteCount),
+        entry.artifactSha256,
+        entry.quantization || "quantization unavailable"
+      ].join(" / ");
+      const actions = document.createElement("div");
+      actions.className = "model-result-actions";
+      const selectButton = document.createElement("button");
+      selectButton.type = "button";
+      selectButton.textContent = "Select";
+      selectButton.addEventListener("click", function () {
+        selectCatalogEntry(entry);
+      });
+      actions.append(selectButton);
+      for (const [label, route] of [["Manifest", entry.manifestRoute], ["Model Card", entry.modelCardRoute], ["License", entry.licenseRoute]]) {
+        const href = catalogRouteUrl(entry, route);
+        if (!href) {
+          continue;
+        }
+        const link = document.createElement("a");
+        link.href = href;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = label;
+        actions.append(link);
+      }
+      item.append(title, meta, actions);
+      el.catalogResults.append(item);
+    }
+  }
+
+  function selectCatalogEntry(entry) {
+    state.selectedCatalogEntry = entry;
+    setCatalogStatus(`${entry.displayName} selected`, false);
+    setLocalModelStatus(
+      `${entry.fileNameHint} / ${formatByteCount(entry.artifactByteCount)} / ${entry.artifactSha256}`,
+      false
+    );
+    if (el.localModelFile) {
+      el.localModelFile.value = "";
+      el.localModelFile.focus();
+    }
+  }
+
+  async function loadCatalogFromUrl() {
+    const rawUrl = catalogText(el.catalogUrlInput && el.catalogUrlInput.value);
+    if (!rawUrl) {
+      throw new Error("Enter a catalog URL");
+    }
+    let url = null;
+    try {
+      url = new URL(rawUrl, window.location.href);
+    } catch (_error) {
+      throw new Error("Catalog URL was invalid");
+    }
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+      throw new Error("Catalog URL must use HTTP or HTTPS");
+    }
+    if (state.catalogFetchAbort) {
+      state.catalogFetchAbort.abort();
+    }
+    clearCatalogResults();
+    setCatalogStatus("loading metadata", false);
+    const controller = new AbortController();
+    state.catalogFetchAbort = controller;
+    const response = await fetch(url.toString(), {
+      cache: "no-store",
+      credentials: "omit",
+      signal: controller.signal
+    });
+    if (!response.ok) {
+      throw new Error(`Catalog request failed (${response.status})`);
+    }
+    const text = await response.text();
+    if (state.encoder.encode(text).length > catalogTextByteBudget) {
+      throw new Error("Catalog metadata exceeded browser budget");
+    }
+    const body = JSON.parse(text);
+    const entries = catalogEntriesFromBody(body, url.hostname, url.toString());
+    state.catalogEntries = entries;
+    renderCatalogResults(entries);
+    setCatalogStatus(`${entries.length} metadata entries`, false);
+  }
+
+  async function importLocalCatalogFile() {
+    const file = el.localCatalogFile && el.localCatalogFile.files ? el.localCatalogFile.files[0] : null;
+    if (!file) {
+      throw new Error("Choose a local model list");
+    }
+    if (!Number.isFinite(file.size) || file.size <= 0) {
+      throw new Error("Local model list is empty");
+    }
+    if (file.size > catalogTextByteBudget) {
+      throw new Error("Local model list exceeded browser budget");
+    }
+    clearCatalogResults();
+    setCatalogStatus(`reading ${safeLocalModelName(file.name)}`, false);
+    const text = await file.text();
+    const body = JSON.parse(text);
+    const entries = catalogEntriesFromBody(body, safeLocalModelName(file.name), "");
+    state.catalogEntries = entries;
+    renderCatalogResults(entries);
+    setCatalogStatus(`${entries.length} local metadata entries`, false);
+  }
+
+  async function sha256Hex(bytes) {
+    if (!window.crypto || !window.crypto.subtle) {
+      throw new Error("Browser SHA-256 verification is unavailable");
+    }
+    const digest = await window.crypto.subtle.digest("SHA-256", bytes);
+    const hex = Array.from(new Uint8Array(digest))
+      .map((value) => value.toString(16).padStart(2, "0"))
+      .join("");
+    return `sha256:${hex}`;
+  }
+
+  function validateCatalogArtifactMatch(entry, name, bytes, sha256) {
+    if (!entry) {
+      return;
+    }
+    if (bytes.length !== entry.artifactByteCount) {
+      throw new Error("Catalog byte count mismatch");
+    }
+    if (sha256 !== entry.artifactSha256) {
+      throw new Error("Catalog SHA-256 mismatch");
+    }
+    if (!/\.slm$/i.test(name)) {
+      throw new Error("Catalog artifact must be a local .slm file");
+    }
+  }
+
   async function importLocalModelFile() {
     const file = el.localModelFile && el.localModelFile.files ? el.localModelFile.files[0] : null;
     if (!file) {
@@ -857,21 +1148,26 @@
     }
     setLocalModelStatus(`reading ${name}`, false);
     const bytes = new Uint8Array(await file.arrayBuffer());
+    const sha256 = await sha256Hex(bytes);
+    validateCatalogArtifactMatch(state.selectedCatalogEntry, name, bytes, sha256);
     const checksum = bytesChecksumHex(bytes);
+    const catalogEntry = state.selectedCatalogEntry;
     state.localModel = {
-      label: `${name} (local file)`,
+      label: `${catalogEntry ? catalogEntry.displayName : name} (local file)`,
       path: `local-file:${name}`,
-      maxTokens: 64,
+      maxTokens: catalogEntry ? catalogEntry.maxTokens : 64,
       localFile: {
         name,
         bytes,
         byteLength: bytes.length,
-        checksum
+        checksum,
+        sha256,
+        catalogEntry
       }
     };
     paths.models = modelsWithLocalModel(paths.models);
     renderModelOptions(paths.models, false, localModelKey);
-    setLocalModelStatus(`${name} / ${formatByteCount(bytes.length)} / ${checksum}`, false);
+    setLocalModelStatus(`${name} / ${formatByteCount(bytes.length)} / ${sha256} / ${checksum}`, false);
     setText(el.errorState, "none", false);
     if (state.exports) {
       await loadSelectedModel();
@@ -4805,17 +5101,19 @@
 
   async function loadModelManifest(model) {
     if (model.localFile) {
+      const catalogEntry = model.localFile.catalogEntry || null;
       const fields = {
-        source_kind: "user-local-file",
-        source_id: model.localFile.name,
-        source_snapshot: "browser-file-picker",
-        model_shape: "runtime-validated-by-wasm",
-        quality_claim: "not-claimed",
-        trained_quality_claim: "not-claimed",
-        admission_status: "runtime-validated-local-file",
+        source_kind: catalogEntry ? catalogEntry.sourceKind : "user-local-file",
+        source_id: catalogEntry ? catalogEntry.modelId : model.localFile.name,
+        source_snapshot: catalogEntry ? "catalog-metadata-plus-browser-file-picker" : "browser-file-picker",
+        model_shape: catalogEntry ? catalogEntry.modelShape || "runtime-validated-by-wasm" : "runtime-validated-by-wasm",
+        quality_claim: catalogEntry ? catalogEntry.qualityClaim : "not-claimed",
+        trained_quality_claim: catalogEntry ? catalogEntry.trainedQualityClaim : "not-claimed",
+        admission_status: catalogEntry ? catalogEntry.admissionStatus : "runtime-validated-local-file",
         slm_checksum: model.localFile.checksum,
+        artifact_sha256: model.localFile.sha256,
         artifact_bytes: String(model.localFile.byteLength),
-        required_next_gate: "user-owned-local-review"
+        required_next_gate: catalogEntry ? catalogEntry.requiredNextGate : "user-owned-local-review"
       };
       state.modelManifest = fields;
       renderProvenance("local file", fields, false);
@@ -5623,7 +5921,7 @@
       }
       if (model.localFile) {
         setLocalModelStatus(
-          `${model.localFile.name} / ${formatByteCount(model.localFile.byteLength)} / ${model.localFile.checksum} / loaded`,
+          `${model.localFile.name} / ${formatByteCount(model.localFile.byteLength)} / ${model.localFile.sha256} / ${model.localFile.checksum} / loaded`,
           false
         );
       }
@@ -6122,7 +6420,42 @@
       return;
     }
     const name = safeLocalModelName(file.name);
-    setLocalModelStatus(`${name} / ${formatByteCount(file.size)} selected`, false);
+    const expected = state.selectedCatalogEntry
+      ? ` / expecting ${state.selectedCatalogEntry.displayName}`
+      : "";
+    setLocalModelStatus(`${name} / ${formatByteCount(file.size)} selected${expected}`, false);
+  });
+
+  el.catalogLoadButton.addEventListener("click", function () {
+    loadCatalogFromUrl().catch((error) => {
+      if (error && error.name === "AbortError") {
+        return;
+      }
+      setCatalogStatus(errorMessage(error), true);
+    });
+  });
+
+  el.catalogUrlInput.addEventListener("keydown", function (event) {
+    if (event.key !== "Enter") {
+      return;
+    }
+    event.preventDefault();
+    el.catalogLoadButton.click();
+  });
+
+  el.importLocalCatalogButton.addEventListener("click", function () {
+    importLocalCatalogFile().catch((error) => {
+      setCatalogStatus(errorMessage(error), true);
+    });
+  });
+
+  el.localCatalogFile.addEventListener("change", function () {
+    const file = el.localCatalogFile.files && el.localCatalogFile.files[0];
+    if (!file) {
+      setCatalogStatus("idle", false);
+      return;
+    }
+    setCatalogStatus(`${safeLocalModelName(file.name)} / ${formatByteCount(file.size)} selected`, false);
   });
 
   el.hfSearchButton.addEventListener("click", function () {
@@ -6172,6 +6505,9 @@
     renderConversation();
   });
 
+  if (el.catalogUrlInput && !catalogText(el.catalogUrlInput.value)) {
+    el.catalogUrlInput.value = defaultCatalogUrl;
+  }
   renderConversation();
   boot();
 }());
