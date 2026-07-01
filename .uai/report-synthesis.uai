@@ -1,5 +1,5 @@
-profile: runtime-mirust.report-synthesis.v129
-updated_utc: 2026-07-01T02:30:00Z
+profile: runtime-mirust.report-synthesis.v130
+updated_utc: 2026-07-01T14:50:00Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/runtime-mirust/report-intake-2026-06-25/
@@ -10,6 +10,9 @@ source_authority:
   docs_report_intake_2026_06_30: docs/report-intake/2026-06-30/
   docs_report_manifest_2026_06_30: docs/report-intake/2026-06-30/MANIFEST.md
   docs_report_synthesis_2026_06_30: docs/report-intake/2026-06-30/runtime-mirust-report-synthesis-2026-06-30.md
+  docs_report_intake_2026_07_01: docs/report-intake/2026-07-01/
+  docs_report_manifest_2026_07_01: docs/report-intake/2026-07-01/MANIFEST.md
+  docs_report_synthesis_2026_07_01: docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md
   raw_manifest: raw/runtime-mirust/MANIFEST.md
   durable_index: wiki/runtime-mirust/reports/report-intake-index-2026-06-25.md
   durable_index_2026_06_26: wiki/runtime-mirust/reports/report-intake-index-2026-06-26.md
@@ -155,6 +158,7 @@ source_authority:
     - wiki/runtime-mirust/research/tiny-model-runtime-memory-reference-ideas-2026-06-29.md
     - wiki/runtime-mirust/research/tiny-model-candidate-matrix-2026-06-29.md
     - wiki/runtime-mirust/research/safetensors-tokenizer-budget-reference-ideas-2026-06-29.md
+    - wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md
   uaix_strategy_source: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
   uaix_strategy_dogfood: docs/dogfood/uaix-file-handoff-memory-strategy-2026-06-26.md
 strategy_refresh_2026_06_27:
@@ -191,6 +195,15 @@ docs_report_intake_2026_06_30:
   disposition: preserved-to-docs-and-source-site-copies-removed
   synthesis: The batch routes zero-dependency Rust and no-crate CLI/runtime discipline, TinyLM architecture/training, safetensors browser-runtime inspection and admission, tokenizer/BPE evidence, browser byte budgets, Rust NuGet packaging, and Pydantic AI only as orchestration-design reference.
   implementation_use: Use this docs batch before changing safetensors extraction/admission, tokenizer import, TinyLM candidate planning, browser byte-budget preference for q8/q4, zero-dependency Rust module boundaries, Visual Studio/.NET distribution, or typed orchestration tooling.
+docs_report_intake_2026_07_01:
+  manifest: docs/report-intake/2026-07-01/MANIFEST.md
+  synthesis_route: docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md
+  roadmap_route: wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md
+  source_bucket: agent-file-handoff/Improvement/
+  source_count: 7
+  disposition: preserved-to-docs-and-source-site-copies-removed
+  synthesis: The batch routes MiniModel.org Rust-first P2P exchange, legal/liability boundary, checksum-bound manifest design, Pear/Bare/Hyper tradeoffs, tiny-model creation/import, and no-server-model-bytes rules.
+  implementation_use: Use this docs batch before MiniModel.org catalog, manifest, verifier, peer-transfer, legal-warning, or SLMComposer import work; keep SLMComposer browser-local and project servers metadata-only.
 slmcomposer_public_local_launch_2026_07_01:
   route: wiki/runtime-mirust/reports/slmcomposer-public-local-launch-memory-2026-07-01.md
   synthesis: SLMComposer.com is the live usable site, Runtime.MiRust.com remains project/docs identity, public-host boot skips selector-registry and `/models/` auto-fetch, local `.slm` file import transfers user-owned bytes to Rust/WASM validation, and Hugging Face discovery is user-triggered only.

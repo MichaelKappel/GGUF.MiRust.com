@@ -1,9 +1,9 @@
-profile: runtime-mirust.next-recursive-prompt.v4
-updated_utc: 2026-07-01T13:24:00Z
+profile: runtime-mirust.next-recursive-prompt.v5
+updated_utc: 2026-07-01T14:50:00Z
 prompt: >
-  Continue in E:\Source\Rust\SLMComposer.com as the active Rust workspace for SLMComposer.com / TinyRustLM. First finish the site-folder role split if Visual Studio has released E:\Source\Rust\Runtime.MiRust.com\TinyRustLM.sln: move the old Runtime.MiRust.com Rust copy aside, promote E:\Source\Rust\Runtime.MiRust.com-PlainPHP-Ready-20260701-061655 into E:\Source\Rust\Runtime.MiRust.com, and verify Runtime.MiRust.com is the plain-PHP documentation site while SLMComposer.com remains the active Rust/WASM app workspace. Then, only when the user authorizes intake processing, process the seven queued Improvement docs without losing checksums: preserve durable copies, synthesize MiniModel.org architecture/legal/manifest/runtime guidance, refresh .uai hot memory and long-term checksum pointers, then remove processed intake originals or record a concrete keep-active blocker. Do not move intake files before that authorization.
+  Continue in E:\Source\Rust\SLMComposer.com as the active Rust workspace for SLMComposer.com / TinyRustLM. The site-folder split and source-control cleanup are complete: Runtime.MiRust.com is the plain-PHP documentation site, SLMComposer.com is the Rust/WASM app workspace, and MiniModel.org has a local ROADMAP.md. The seven MiniModel.org Improvement intake reports were authorized, copied byte-exact into docs/report-intake/2026-07-01/, synthesized, routed into wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md, and removed from active intake. Start the next work from MiniModel.org roadmap implementation planning, keeping SLMComposer.com browser-local and keeping project servers metadata-only: no server-side user model execution and no project-server user model bytes.
 primary_goal: >
-  Turn the queued MiniModel.org/model-exchange research into an actionable roadmap for a Rust-first, peer-to-peer tiny model exchange that never runs user models from project servers and keeps SLMComposer.com browser-local.
+  Turn the MiniModel.org roadmap into an implementable Rust-first plan for checksum-bound manifests, local verification/import receipts, metadata-only catalog entries, and a later peer-transfer app without changing SLMComposer.com's browser-local trust boundary.
 required_context:
   - E:\Source\Rust\workspace.uai
   - workspace.uai
@@ -12,37 +12,26 @@ required_context:
   - .uai/short-term-memory.uai
   - .uai/report-synthesis.uai
   - .uai/long-term-memory.uai
-  - .uai/test-plan.uai
-  - .uai/operations.uai
-  - tinyrustlm/docs/browser-runtime.md
-  - wiki/runtime-mirust/index.md
-queued_intake_do_not_move_until_authorized:
-  - path: agent-file-handoff/Improvement/Building Custom Tiny AI_ML Models.md
-    sha256: 5f4e05ca7cae2f5ebeaa20f4d4c6fe2976868357795bdac5a281275eb90b2f32
-    use_for: Tiny-model creation, compression, distillation, quantization, and edge deployment constraints.
-  - path: agent-file-handoff/Improvement/Exploring Minimal JavaScript Runtimes.md
-    sha256: 24eef4dd41fea19c7977bb9c74587c75375d4180e772e4c8f0bcdd91a6328b15
-    use_for: Bare-style runtime tradeoffs, module systems, embedding, bindings, and memory footprint comparisons.
-  - path: agent-file-handoff/Improvement/Exploring the Hyper Module Ecosystem.md
-    sha256: 6ba29856f87f82c8c48745415e2ddd3dc9dd137763e0d0b7ea9754e146573f12
-    use_for: Hypercore/Holepunch vs Rust Hyper naming and stack disambiguation.
-  - path: agent-file-handoff/Improvement/MiniModel.org P2P Architecture Research.md
-    sha256: d13d3c51436fbb3486be06a3fe8756154d028fd8ab08d5024e475e4463b1ca0e
-    use_for: Rust P2P architecture, NAT traversal, chunking, verification, peer identity, MVP lifecycle, and resilience.
-  - path: agent-file-handoff/Improvement/MiniModel.org_ P2P Tiny Model Exchange.md
-    sha256: 982cef0b2bdc3d8a70044691d50d21b7db7c136c4cdb70668d8b58bf0f7a8172
-    use_for: Legal boundary, liability minimization, metadata, consent, UX, moderation, and takedown operations.
-  - path: agent-file-handoff/Improvement/Secure Model Exchange Manifest Design.md
-    sha256: 924879b3dbed7824d4c3144b4e7fbc0251468221164bbfaf8ea5ad20f641eb66
-    use_for: Checksum-bound manifest schema, model-card predicates, Merkle chunks, source trust, and supply-chain verification.
-  - path: agent-file-handoff/Improvement/Understanding Pear Runtime.md
-    sha256: f79b91088475585ef1cf91d271bdb7f1692e37a7369108ca89420661df019d42
-    use_for: Pear/Bare/Holepunch runtime concepts and zero-infrastructure P2P application tradeoffs.
+  - .uai/workspace-guidance.uai
+  - docs/report-intake/2026-07-01/MANIFEST.md
+  - docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md
+  - wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md
+  - E:\Source\Rust\MiniModel.org\ROADMAP.md
+processed_intake_routes:
+  docs_manifest: docs/report-intake/2026-07-01/MANIFEST.md
+  docs_synthesis: docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md
+  durable_roadmap: wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md
+  minimodel_site_roadmap: E:\Source\Rust\MiniModel.org\ROADMAP.md
+  source_site_result: processed source-site copies removed from agent-file-handoff/Improvement/ after byte-exact preservation and pointer updates.
+roadmap_guardrails:
+  - Rust-first P2P model exchange architecture; evaluate Pear/Bare/Hyper as tradeoffs, not core SLMComposer dependencies.
+  - Legal/liability boundaries must keep MiniModel.org as metadata/catalog guidance until legal review; no claims that third-party models are safe, legal, or endorsed.
+  - Secure manifests must be checksum-bound and route source identity, model cards, license, tokenizer/config, eval/admission evidence, chunk/Merkle data, and signatures.
+  - Tiny-model creation/import stays tied to TinyRustLM local review, conversion, validation, runtime-smoke, eval, admission, and local import receipts.
+  - Project servers never run user model bytes and never serve user model bytes.
 success_criteria:
-  - Runtime.MiRust.com local folder is plain PHP docs when the IDE lock is gone, with private .uai and intake routes denied and .well-known/uaix-talisman.txt public.
-  - SLMComposer.com remains the active Rust workspace and live browser-local app source.
-  - No project server serves user model bytes or runs user-selected models.
-  - MiniModel.org roadmap separates catalog metadata, peer-hosted bytes, user consent/import, manifest verification, and takedown/reporting responsibilities.
-  - Intake processing, when authorized, produces durable checksum-bound docs/wiki memory plus .uai pointer updates before source-site originals are removed.
+  - Active intake buckets remain empty or placeholder-only.
+  - SLMComposer.com remains browser-local and user-selected local `.slm` import remains the model byte boundary.
+  - MiniModel.org implementation work starts with schemas, verifier, local receipts, metadata-only catalog, and peer-transfer planning in that order.
   - Long-term memory remains pointer-based and checksum-bearing.
-  - Before claiming completion, run the relevant pointer audit for every changed durable report/research page and `git diff --check`.
+  - Before claiming completion, run relevant pointer audits and `git diff --check`.

@@ -1,12 +1,12 @@
-profile: runtime-mirust.intake-outcome-ledger.v19
-updated_utc: 2026-06-30T23:58:00Z
+profile: runtime-mirust.intake-outcome-ledger.v20
+updated_utc: 2026-07-01T14:50:00Z
 active_scan:
   content_bucket: agent-file-handoff/Content/
   improvement_bucket: agent-file-handoff/Improvement/
   content_non_placeholder_files: 0
   improvement_non_placeholder_files: 0
-  result: 2026_06_30_docs_report_intake_preserved_9_reports_to_docs_hot_memory_and_removed_processed_source_site_copies
-  latest_scan_utc: 2026-06-30T23:58:00Z
+  result: 2026_07_01_minimodel_docs_report_intake_preserved_7_reports_to_docs_hot_memory_and_removed_processed_source_site_copies
+  latest_scan_utc: 2026-07-01T14:50:00Z
   ide_adjacent_handoff_checked: E:\Source\WP\MikeKappel\agent-file-handoff\
   ide_adjacent_non_placeholder_files: 0
   attachment_scan_result: active_ide_attachment_path_absent_recent_attachment_material_2026_06_27_or_older_no_new_current_gguf_handoff_research
@@ -14,7 +14,7 @@ active_scan:
 post_processing_scan:
   content_non_placeholder_files: 0
   improvement_non_placeholder_files: 0
-  result: active_intake_clear_after_docs_preserved_report_processing
+  result: active_intake_clear_after_minimodel_docs_preserved_report_processing
 uaix_cleanup_correction_2026_06_30:
   source_reviewed: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
   reviewed_utc: 2026-06-30T23:58:00Z
@@ -25,12 +25,64 @@ uaix_cleanup_correction_2026_06_30:
   next_agent_action: Process any future non-placeholder intake file through disposition, actual project work, durable evidence, hot-memory update, pointer ledger, checks, and source-site removal unless an explicit keep-active blocker is recorded.
 shared_disposition_context:
   disposition: preserved-to-durable-memory
-  actual_source_work: Processed 23 Improvement reports on 2026-06-25, 26 model-breeding Improvement reports on 2026-06-26, 4 ModelBreeder/zero-dependency research files on 2026-06-28, 7 tiny-model/runtime/memory research files on 2026-06-29, 6 safetensors/tokenizer/budget/fixture follow-up files on 2026-06-29, and 9 docs-preserved reports on 2026-06-30 into distributed long-term memory, preserved exact originals under raw/runtime-mirust/ or docs/report-intake/, and updated report navigation.
-  hot_memory_update: .uai/short-term-memory.uai, .uai/report-synthesis.uai, .uai/file-handoff.uai, .uai/intake-outcome-ledger.uai, .uai/long-term-memory.uai, .uai/receiver-brief.uai, .uai/taboo.uai, workspace routing, and wiki/runtime-mirust routing files updated.
-  durable_preservation_evidence: raw/runtime-mirust/MANIFEST.md plus report intake indexes for 2026-06-25, 2026-06-26, 2026-06-28, 2026-06-29, and 2026-06-29-followup, plus docs/report-intake/2026-06-30/MANIFEST.md and docs/report-intake/2026-06-30/runtime-mirust-report-synthesis-2026-06-30.md, record source files, checksums, duplicate relationships where present, and thematic synthesis routes.
-  checks: live bucket scan, raw copy counts 23, 26, 4, 7, and 6, docs copy count 9, intake-time source-to-raw/docs SHA256 verification, report synthesis file creation, wiki/docs route update, and report/research/docs pointer audits.
+  actual_source_work: Processed prior Improvement batches plus 9 docs-preserved reports on 2026-06-30 and 7 MiniModel.org docs-preserved reports on 2026-07-01 into distributed long-term memory, preserved exact originals under raw/runtime-mirust/ or docs/report-intake/, and updated roadmap/report navigation.
+  hot_memory_update: .uai/short-term-memory.uai, .uai/report-synthesis.uai, .uai/file-handoff.uai, .uai/intake-outcome-ledger.uai, .uai/long-term-memory.uai, workspace.uai, .uai/index.uai, .uai/workspace-guidance.uai, .uai/next-recursive-prompt.uai, and MiniModel.org/ROADMAP.md updated.
+  durable_preservation_evidence: raw/runtime-mirust/MANIFEST.md plus report intake indexes for 2026-06-25 through 2026-06-29-followup, docs/report-intake/2026-06-30/, docs/report-intake/2026-07-01/MANIFEST.md, docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md, and wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md.
+  checks: live bucket scan, raw copy counts 23, 26, 4, 7, and 6, docs copy counts 9 and 7, intake-time source-to-docs SHA256 verification, report synthesis/roadmap creation, wiki/docs route update, and report/research/docs pointer audits.
   blockers: none_current
   source_site_removal_or_keep_active_reason: Processed source-site copies are removed from active intake after durable preservation; keep-active is exceptional and needs a named human request or blocker.
+report_intake_2026_07_01_docs:
+  source_bucket: agent-file-handoff/Improvement/
+  docs_evidence_path: docs/report-intake/2026-07-01/
+  durable_manifest: docs/report-intake/2026-07-01/MANIFEST.md
+  durable_synthesis: docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md
+  durable_roadmap: wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md
+  external_project_roadmap: E:\Source\Rust\MiniModel.org\ROADMAP.md
+  source_count: 7
+  duplicate_groups: none_detected
+  disposition: preserved-to-durable-memory
+  actual_source_work: Preserved MiniModel.org P2P exchange, secure manifest, legal boundary, Pear/Bare/Hyper ecosystem, minimal JavaScript runtime, and tiny-model creation/import reports as docs-side durable references and roadmap routes.
+  hot_memory_update: Updated workspace route, workspace guidance, report synthesis, short-term memory, file handoff, intake ledger, next prompt, index, and long-term pointer routing.
+  durable_preservation_evidence: docs/report-intake/2026-07-01/MANIFEST.md, docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md, and wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md.
+  checks: docs copy count 7, checksum-bound byte-exact docs copies, docs manifest/synthesis creation, MiniModel.org roadmap update, hot-memory route refresh, docs/research pointer audit, active source-site removal, and active bucket rescan content=0 improvement=0.
+  blockers: none_current
+  source_site_removal_or_keep_active_reason: Removed processed originals from agent-file-handoff/Improvement/ after byte-exact docs preservation and proof-of-use; durable docs copies remain checksum-bound under docs/report-intake/2026-07-01/.
+entries_2026_07_01_docs:
+  - source_path: agent-file-handoff/Improvement/Building Custom Tiny AI_ML Models.md
+    docs_evidence_path: docs/report-intake/2026-07-01/Building Custom Tiny AI_ML Models.md
+    disposition: preserved-to-durable-memory
+    durable_memory: docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md
+    routing_summary: Routes agents to tiny-model creation, distillation, quantization, pruning, deployment, edge inference, and browser-fit import constraints.
+  - source_path: agent-file-handoff/Improvement/Exploring Minimal JavaScript Runtimes.md
+    docs_evidence_path: docs/report-intake/2026-07-01/Exploring Minimal JavaScript Runtimes.md
+    disposition: preserved-to-durable-memory
+    durable_memory: docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md
+    routing_summary: Routes agents to Bare-style runtime tradeoffs, module systems, native bindings, embedders, and why MiniModel core stays Rust-first.
+  - source_path: agent-file-handoff/Improvement/Exploring the Hyper Module Ecosystem.md
+    docs_evidence_path: docs/report-intake/2026-07-01/Exploring the Hyper Module Ecosystem.md
+    disposition: preserved-to-durable-memory
+    durable_memory: docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md
+    routing_summary: Routes agents to Hypercore/Holepunch, Rust Hyper, Hyper.io naming disambiguation, and ecosystem tradeoffs.
+  - source_path: agent-file-handoff/Improvement/MiniModel.org P2P Architecture Research.md
+    docs_evidence_path: docs/report-intake/2026-07-01/MiniModel.org P2P Architecture Research.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md
+    routing_summary: Routes agents to Rust P2P architecture, NAT traversal, chunk verification, identity, peer lifecycle, and failure-mode planning.
+  - source_path: agent-file-handoff/Improvement/MiniModel.org_ P2P Tiny Model Exchange.md
+    docs_evidence_path: docs/report-intake/2026-07-01/MiniModel.org_ P2P Tiny Model Exchange.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md
+    routing_summary: Routes agents to legal/liability boundaries, metadata-only catalog design, consent, UX warnings, takedown handling, and no-server-model-bytes rules.
+  - source_path: agent-file-handoff/Improvement/Secure Model Exchange Manifest Design.md
+    docs_evidence_path: docs/report-intake/2026-07-01/Secure Model Exchange Manifest Design.md
+    disposition: preserved-to-durable-memory
+    durable_memory: wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md
+    routing_summary: Routes agents to checksum-bound manifests, Merkle chunks, signature envelopes, model-card predicates, local verification, and SLMComposer import receipts.
+  - source_path: agent-file-handoff/Improvement/Understanding Pear Runtime.md
+    docs_evidence_path: docs/report-intake/2026-07-01/Understanding Pear Runtime.md
+    disposition: preserved-to-durable-memory
+    durable_memory: docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md
+    routing_summary: Routes agents to Pear/Bare/Holepunch runtime concepts, Hypercore stack patterns, and zero-infrastructure P2P app tradeoffs.
 report_intake_2026_06_30_docs:
   source_bucket: agent-file-handoff/Improvement/
   docs_evidence_path: docs/report-intake/2026-06-30/

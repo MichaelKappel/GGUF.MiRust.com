@@ -1,11 +1,11 @@
-profile: runtime-mirust.short-term-memory.v159
-updated_utc: 2026-07-01T13:24:00Z
+profile: runtime-mirust.short-term-memory.v160
+updated_utc: 2026-07-01T14:50:00Z
 current_state:
-  - 2026-07-01 local site-folder role split is partially complete: `E:\Source\Rust\SLMComposer.com` is now the active Rust workspace copy with preserved `.git` state, while the former static SLMComposer package is preserved at `E:\Source\Rust\SLMComposer.com-SitePackage-20260701-061544`.
-  - 2026-07-01 Runtime.MiRust.com plain-PHP docs site is staged at `E:\Source\Rust\Runtime.MiRust.com-PlainPHP-Ready-20260701-061655` with `.uai`, root `workspace.uai`, and `agent-file-handoff` denied publicly and `.well-known/uaix-talisman.txt` exposed; final exact-folder swap is blocked until Visual Studio releases the old `E:\Source\Rust\Runtime.MiRust.com\TinyRustLM.sln` handle.
-  - 2026-07-01 active intake hold: seven Improvement reports are present under `agent-file-handoff/Improvement/` and were read only for next-goal prompt shaping; user explicitly requested not to move or process them yet.
-  - Queued intake themes are MiniModel.org Rust P2P exchange architecture, legal/liability boundary design, secure checksum-bound model manifests, Pear/Bare/Hyper ecosystem options, minimal JavaScript runtime considerations, and tiny-model build/import strategy.
-  - Next prompt route: `.uai/next-recursive-prompt.uai` now asks the next agent to finish the folder swap after the IDE releases the old path, then process the seven queued intake docs into durable memory only when the user reopens/authorizes processing; until then intake remains kept-active-with-reason `user_hold_until_reopen`.
+  - 2026-07-01 project layout cleanup is complete: `E:\Source\Rust\SLMComposer.com` remains the active Rust/WASM app workspace, and Runtime.MiRust.com is the plain-PHP documentation site.
+  - 2026-07-01 source-control cleanup is complete for the canonical source folders: MiniModel.org, MiRust.com, Runtime.MiRust.com, SLMComposer.com, and TinyRustLM.MiRust.com each have local git history; archive/package/staging material is outside the active source roots.
+  - 2026-07-01 MiniModel.org intake is processed after user authorization: seven Improvement reports were copied byte-exact to `docs/report-intake/2026-07-01/`, synthesized, routed into a MiniModel.org P2P roadmap, and removed from active intake.
+  - MiniModel.org roadmap routes Rust-first P2P model exchange, legal/liability boundary design, secure checksum-bound manifests, Pear/Bare/Hyper ecosystem tradeoffs, tiny-model creation/import strategy, and the rule that project servers never run or serve user model bytes.
+  - Next prompt route: `.uai/next-recursive-prompt.uai` now starts from the cleaned layout and processed intake, then moves into MiniModel.org roadmap implementation planning while keeping SLMComposer.com browser-local.
   - 2026-07-01 SLMComposer.com is deployed live over explicit FTPS as the usable browser-local surface: the public package contains only the app shell and Rust/WASM runtime files, with zero `.slm` or model artifact uploads, and live HTTPS checks show `/models/tinylm16-q8.slm` returns 404.
   - 2026-07-01 SLMComposer.com public local launch boundary added: the app now brands the live usable site as SLM Composer, keeps Runtime.MiRust.com/TinyRustLM as project/runtime provenance, imports user-selected local `.slm` files through Rust/WASM `load_model`, allows only user-triggered Hugging Face discovery, and skips selector-registry plus `/models/` auto-fetches on the public host.
   - Verification passed for the SLMComposer public boundary: `node --check tinyrustlm/app/app.js`, `node --check tinyrustlm/tools/browser-smoke.js`, `cargo fmt --all -- --check`, Rust browser harness with 9 checks, `ui-audit` on `http://127.0.0.1:8080/app/`, `public-local-only` on `http://slmcomposer.com:8080/app/`, explicit-FTPS upload, and live HTTPS root/app/runtime checks.
@@ -854,12 +854,18 @@ current_state:
 active_handoff_state:
   content_bucket_non_placeholder_files: 0
   improvement_bucket_non_placeholder_files: 0
-  disposition: all prior processed reports plus 6 follow-up 2026-06-29 Improvement research files are preserved to durable raw/wiki memory; nine 2026-06-30 Improvement reports are preserved to docs/report-intake/2026-06-30/ and active source-site copies were removed after byte-exact checksum preservation.
+  disposition: all prior processed reports plus 6 follow-up 2026-06-29 Improvement research files are preserved to durable raw/wiki memory; nine 2026-06-30 Improvement reports and seven 2026-07-01 MiniModel.org reports are preserved to docs/report-intake/ and active source-site copies were removed after byte-exact checksum preservation.
 current_report_routes:
   strategy_source: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
-  active_bucket_scan: agent-file-handoff/Content/ contains no non-placeholder files; agent-file-handoff/Improvement/ contains no non-placeholder files after source-site removal of the processed 2026-06-30 docs-preserved report originals.
+  active_bucket_scan: agent-file-handoff/Content/ contains no non-placeholder files; agent-file-handoff/Improvement/ contains no non-placeholder files after source-site removal of the processed 2026-07-01 MiniModel docs-preserved report originals.
   uaix_strategy_dogfood: docs/dogfood/uaix-file-handoff-memory-strategy-2026-06-26.md
-  report_pointer_audit: All current wiki/runtime-mirust/reports/*.md, wiki/runtime-mirust/research/*.md, and docs/report-intake/2026-06-30/*.md pages must be represented in .uai/long-term-memory.uai before final pointer audit.
+  report_pointer_audit: All current wiki/runtime-mirust/reports/*.md, wiki/runtime-mirust/research/*.md, docs/report-intake/2026-06-30/*.md, and docs/report-intake/2026-07-01/*.md pages must be represented in .uai/long-term-memory.uai before final pointer audit.
+  docs_preserved_report_intake_2026_07_01:
+    manifest: docs/report-intake/2026-07-01/MANIFEST.md
+    synthesis: docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md
+    roadmap: wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md
+    source_bucket: agent-file-handoff/Improvement/
+    cleanup_result: active source-site copies removed after exact docs preservation and pointer audit; active intake is empty or placeholder-only
   docs_preserved_report_intake_2026_06_30:
     manifest: docs/report-intake/2026-06-30/MANIFEST.md
     synthesis: docs/report-intake/2026-06-30/runtime-mirust-report-synthesis-2026-06-30.md
