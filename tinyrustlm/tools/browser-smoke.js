@@ -2067,6 +2067,18 @@ async function runPageHfSearchUiSmoke(client) {
       const actionTextsAfterSearch = textList("#simpleHfResults button, #simpleHfResults a, #simpleHfResults .compatibility-pill, #simpleHfResults .model-result-meta");
       const primaryActionTextsAfterSearch = textList("#simpleHfResults .primary-result-action");
       const p2pWarningCount = document.querySelectorAll("#simpleHfP2pWarning").length;
+      byId("simpleP2pSourceButton").click();
+      await sleep(50);
+      if (byId("simplePeerBaseUrlInput")) {
+        byId("simplePeerBaseUrlInput").value = "http://127.0.0.1:8123/";
+      }
+      if (byId("simpleSavePeerUrlButton")) {
+        byId("simpleSavePeerUrlButton").click();
+      }
+      await sleep(50);
+      const peerUrlStatusAfterSet = byId("simplePeerUrlStatus") ? byId("simplePeerUrlStatus").textContent : "";
+      byId("simpleHfSourceButton").click();
+      await sleep(50);
       const p2pImportButton = Array.from(document.querySelectorAll("#simpleHfResults .primary-result-action"))
         .find((button) => button.textContent.includes("P2P Import"));
       if (p2pImportButton) {
@@ -2124,6 +2136,7 @@ async function runPageHfSearchUiSmoke(client) {
         hfStatusAfterSearch,
         p2pStatusAfterSearch,
         p2pWarningVisibleAfterSearch,
+        peerUrlStatusAfterSet,
         actionTextsAfterSearch,
         primaryActionTextsAfterSearch,
         p2pWarningCount,
@@ -8717,6 +8730,9 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     if (!resultText.includes("P2P proof ready") || !resultText.includes("consenting peer URL required")) {
       failures.push(`peer-ready Hugging Face result did not explain proof/peer URL state: ${resultText}`);
     }
+    if (!String(result.peerUrlStatusAfterSet || "").includes("http://127.0.0.1:8123/")) {
+      failures.push(`known peer URL was not saved before P2P Import: ${result.peerUrlStatusAfterSet}`);
+    }
     if (!simpleActionTextAfterSearch.includes("Start Conversion")) {
       failures.push(`unmatched Hugging Face result did not offer Start Conversion: ${simpleActionTextAfterSearch}`);
     }
@@ -8747,8 +8763,8 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       if (!Array.isArray(peerRequest.local_peer_piece_contract.rust_commands) || !peerRequest.local_peer_piece_contract.rust_commands.some((command) => command.includes("fetch-peer-pieces"))) {
         failures.push(`P2P import request did not include fetch-peer-pieces command: ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
       }
-      if (!peerRequest.local_peer_piece_contract.expected_peer_base_url) {
-        failures.push(`P2P import request did not include expected peer base URL placeholder: ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
+      if (peerRequest.local_peer_piece_contract.expected_peer_base_url !== "http://127.0.0.1:8123/") {
+        failures.push(`P2P import request did not include the saved peer base URL: ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
       }
       if (!Array.isArray(peerRequest.local_peer_piece_contract.rust_commands) || !peerRequest.local_peer_piece_contract.rust_commands.some((command) => command.includes("assemble-peer-pieces"))) {
         failures.push(`P2P import request did not include assemble-peer-pieces command: ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
@@ -8758,7 +8774,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       }
     }
     const peerScriptText = String(result.peerImportScriptText || "");
-    for (const required of ["fetch-peer-pieces", "assemble-peer-pieces", "serve-peer-pieces", "verify-artifact", "write-import-receipt", "does not download model bytes", "$PeerBaseUrl"]) {
+    for (const required of ["fetch-peer-pieces", "assemble-peer-pieces", "serve-peer-pieces", "verify-artifact", "write-import-receipt", "does not download model bytes from MiniModel.org", "$PeerBaseUrl", "http://127.0.0.1:8123/"]) {
       if (!peerScriptText.includes(required)) {
         failures.push(`P2P import script missing ${required}: ${peerScriptText}`);
       }

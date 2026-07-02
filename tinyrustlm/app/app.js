@@ -89,6 +89,20 @@
   const hfDiscoveryScheme = "https";
   const hfDiscoveryHost = "huggingface.co";
   const hfSearchLimit = 8;
+  const blockedPeerHosts = new Set([
+    "minimodel.org",
+    "www.minimodel.org",
+    "tinyrustlm.com",
+    "www.tinyrustlm.com",
+    "slmcomposer.com",
+    "www.slmcomposer.com",
+    "lmcomposer.com",
+    "www.lmcomposer.com",
+    "runtime.mirust.com",
+    "tinyrustlm.mirust.com",
+    "huggingface.co",
+    "www.huggingface.co"
+  ]);
 
   const registryAdapterApplyStatus = "runtime-f32-compatible-or-fuse-to-slm";
   const registryQuantizedAdapterApplyStatus = "runtime-q8-q4-compatible-or-fuse-to-slm";
@@ -327,6 +341,7 @@
     simpleSourceOption: "local",
     modelPopoverHoldUntil: 0,
     p2pEnabled: true,
+    peerBaseUrl: "",
     hfLastAccepted: [],
     defaultCatalogCheckedForAvailability: false
   };
@@ -349,6 +364,9 @@
     simpleHfP2pToggle: document.getElementById("simpleHfP2pToggle"),
     simpleHfP2pStatus: document.getElementById("simpleHfP2pStatus"),
     simpleHfP2pWarning: document.getElementById("simpleHfP2pWarning"),
+    simplePeerBaseUrlInput: document.getElementById("simplePeerBaseUrlInput"),
+    simpleSavePeerUrlButton: document.getElementById("simpleSavePeerUrlButton"),
+    simplePeerUrlStatus: document.getElementById("simplePeerUrlStatus"),
     simpleCatalogResults: document.getElementById("simpleCatalogResults"),
     simpleHfResults: document.getElementById("simpleHfResults"),
     simpleLoadCatalogButton: document.getElementById("simpleLoadCatalogButton"),
@@ -507,6 +525,7 @@
     selectedStarter: "slmcomposer.ui.selectedStarter",
     simpleSourceOption: "slmcomposer.ui.simpleSourceOption",
     p2pEnabled: "slmcomposer.ui.p2pEnabled",
+    peerBaseUrl: "slmcomposer.ui.peerBaseUrl",
     creativity: "slmcomposer.ui.creativity",
     length: "slmcomposer.ui.length",
     repeatable: "slmcomposer.ui.repeatable",
@@ -1003,6 +1022,53 @@
     }
   }
 
+  function normalizedPeerBaseUrl(value) {
+    const raw = String(value || "").trim();
+    if (!raw) {
+      return "";
+    }
+    let parsed;
+    try {
+      parsed = new URL(raw);
+    } catch (_error) {
+      throw new Error("Enter a full consenting peer URL, for example http://127.0.0.1:8123/");
+    }
+    if (parsed.protocol !== "http:") {
+      throw new Error("Known-peer import uses direct http:// peer URLs only in this prototype.");
+    }
+    const host = parsed.hostname.toLowerCase();
+    if (!host || blockedPeerHosts.has(host)) {
+      throw new Error("That host is not a peer. Project, docs, and Hugging Face hosts cannot serve model bytes.");
+    }
+    parsed.hash = "";
+    parsed.search = "";
+    if (!parsed.pathname.endsWith("/")) {
+      parsed.pathname = `${parsed.pathname}/`;
+    }
+    return parsed.href;
+  }
+
+  function updatePeerUrlStatus(message, isError = false) {
+    if (el.simplePeerBaseUrlInput && el.simplePeerBaseUrlInput.value !== state.peerBaseUrl) {
+      el.simplePeerBaseUrlInput.value = state.peerBaseUrl || "";
+    }
+    if (el.simplePeerUrlStatus) {
+      const peerText = state.peerBaseUrl
+        ? `Known peer set: ${state.peerBaseUrl}`
+        : "Enter the consenting peer URL once; P2P imports will use it.";
+      el.simplePeerUrlStatus.textContent = message || peerText;
+      el.simplePeerUrlStatus.classList.toggle("error", Boolean(isError));
+    }
+  }
+
+  function setPeerBaseUrl(value) {
+    const normalized = normalizedPeerBaseUrl(value);
+    state.peerBaseUrl = normalized;
+    storageSet(uiStorageKeys.peerBaseUrl, normalized);
+    updatePeerUrlStatus(normalized ? `Known peer set: ${normalized}` : "", false);
+    return normalized;
+  }
+
   function setHfP2pEnabled(enabled) {
     state.p2pEnabled = Boolean(enabled);
     storageSet(uiStorageKeys.p2pEnabled, String(state.p2pEnabled));
@@ -1252,7 +1318,9 @@
   function initializeUiShell() {
     resetUiPreferencesForVersion();
     state.p2pEnabled = storageGet(uiStorageKeys.p2pEnabled, "true") !== "false";
+    state.peerBaseUrl = storageGet(uiStorageKeys.peerBaseUrl, "");
     updateHfP2pStatus();
+    updatePeerUrlStatus();
     setAppMode(initialAppMode());
     restoreSemanticPreferences();
     markStarterSelected(storageGet(uiStorageKeys.selectedStarter, ""));
@@ -1409,6 +1477,35 @@
         saveShareMetadata().catch((error) => {
           setShareMetadataStatus(errorMessage(error), true);
         });
+      });
+    }
+    if (el.simpleSavePeerUrlButton) {
+      el.simpleSavePeerUrlButton.addEventListener("click", () => {
+        try {
+          setPeerBaseUrl(el.simplePeerBaseUrlInput ? el.simplePeerBaseUrlInput.value : "");
+          holdModelPopoverOpen(2000);
+        } catch (error) {
+          updatePeerUrlStatus(errorMessage(error), true);
+          holdModelPopoverOpen(2500);
+        }
+      });
+    }
+    if (el.simplePeerBaseUrlInput) {
+      el.simplePeerBaseUrlInput.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") {
+          return;
+        }
+        event.preventDefault();
+        if (el.simpleSavePeerUrlButton) {
+          el.simpleSavePeerUrlButton.click();
+        }
+      });
+      el.simplePeerBaseUrlInput.addEventListener("change", () => {
+        try {
+          setPeerBaseUrl(el.simplePeerBaseUrlInput.value);
+        } catch (error) {
+          updatePeerUrlStatus(errorMessage(error), true);
+        }
       });
     }
     if (el.simpleHfSearchButton) {
@@ -2845,9 +2942,13 @@
     return conversionFileStem(modelId || "minimodel-peer-import");
   }
 
-  function peerImportRequest(match) {
+  function peerImportRequest(match, peerBaseUrl = state.peerBaseUrl) {
     const manifestUrl = catalogRouteUrl(match, match.manifestRoute);
     const peerOfferUrl = catalogRouteUrl(match, match.peerOfferRoute);
+    const normalizedPeerUrl = normalizedPeerBaseUrl(peerBaseUrl);
+    if (!normalizedPeerUrl) {
+      throw new Error("Set a known consenting peer URL before starting P2P Import.");
+    }
     return {
       request_kind: "minimodel.peer_import_request.v0",
       request_version: 0,
@@ -2884,8 +2985,8 @@
       },
       local_peer_piece_contract: {
         expected_piece_set_kind: "minimodel.peer_piece_set.v0",
-        expected_peer_base_url: "EDIT_ME_http_peer_base_url",
-        expected_piece_dir: "EDIT_ME_peer_pieces_from_consenting_peer",
+        expected_peer_base_url: normalizedPeerUrl,
+        expected_piece_dir: `${peerImportFileStem(match.modelId)}-peer-pieces`,
         assembled_output_slm: match.fileNameHint,
         peer_side_commands: [
           "minimodel export-peer-pieces <manifest> <artifact.slm> <piece-dir>",
@@ -2909,14 +3010,15 @@
     };
   }
 
-  function peerImportScript(match) {
+  function peerImportScript(match, peerBaseUrl = state.peerBaseUrl) {
     const stem = peerImportFileStem(match.modelId);
-    const request = peerImportRequest(match);
+    const request = peerImportRequest(match, peerBaseUrl);
+    const peerUrl = request.local_peer_piece_contract.expected_peer_base_url;
     const lines = [
       "# MiniModel peer import handoff",
       `# Model: ${match.displayName} (${match.modelId})`,
       "#",
-      "# This script does not download model bytes.",
+      "# This script does not download model bytes from MiniModel.org, TinyRustLM.com, or Hugging Face.",
       "# It fetches peer pieces only from the consenting peer URL you enter below.",
       "# MiniModel rejects project-server peer hosts and verifies every piece before assembly.",
       "# Rust then assembles and revalidates the .slm before TinyRustLM imports it.",
@@ -2924,10 +3026,10 @@
       "",
       "$ErrorActionPreference = \"Stop\"",
       "",
-      "# Edit these values before running.",
+      "# Edit the workspace and manifest paths before running.",
       "$MiniModelWorkspace = \"EDIT_ME\\\\MiniModel.org\"",
       "$Manifest = \"EDIT_ME\\\\model.minimodel.manifest.v0\"",
-      "$PeerBaseUrl = \"http://127.0.0.1:8123/\"",
+      `$PeerBaseUrl = ${powerShellDoubleQuote(peerUrl)}`,
       `$PeerPiecesDir = ${powerShellSingleQuote(`${stem}-peer-pieces`)}`,
       `$OutputSlm = ${powerShellSingleQuote(match.fileNameHint || `${stem}.slm`)}`,
       `$Receipt = ${powerShellSingleQuote(`${stem}.minimodel-receipt`)}`,
@@ -2955,10 +3057,18 @@
 
   function savePeerImportHandoff(match) {
     const stem = peerImportFileStem(match.modelId);
-    const request = peerImportRequest(match);
+    let request;
+    try {
+      request = peerImportRequest(match);
+    } catch (error) {
+      updatePeerUrlStatus(errorMessage(error), true);
+      setSimpleSourceOption("p2p", true);
+      holdModelPopoverOpen(3000);
+      return;
+    }
     downloadTextFile(`${stem}.minimodel-peer-import-request.json`, `${JSON.stringify(request, null, 2)}\n`);
-    downloadTextFile(`${stem}.minimodel-peer-import.ps1`, peerImportScript(match), "text/plain");
-    setHfStatus(`${match.displayName} P2P import request saved; waiting for peer pieces and Rust reverify`, false);
+    downloadTextFile(`${stem}.minimodel-peer-import.ps1`, peerImportScript(match, request.local_peer_piece_contract.expected_peer_base_url), "text/plain");
+    setHfStatus(`${match.displayName} P2P import request saved for ${request.local_peer_piece_contract.expected_peer_base_url}; waiting for Rust reverify`, false);
     holdModelPopoverOpen(2500);
   }
 
@@ -3160,6 +3270,10 @@
 
   function powerShellSingleQuote(value) {
     return `'${String(value || "").replace(/'/g, "''")}'`;
+  }
+
+  function powerShellDoubleQuote(value) {
+    return `"${String(value || "").replace(/[`"$]/g, "`$&")}"`;
   }
 
   function conversionFileStem(modelId) {

@@ -159,6 +159,12 @@
         </div>
         <div id="simpleP2pSourcePanel" class="source-panel" data-source-panel="p2p" hidden>
           <p>Load MiniModel metadata to find proof-ready peer imports, or save share metadata after you import a verified local `.slm`.</p>
+          <label for="simplePeerBaseUrlInput">Known peer URL</label>
+          <div class="search-row">
+            <input id="simplePeerBaseUrlInput" type="url" inputmode="url" placeholder="http://127.0.0.1:8123/">
+            <button id="simpleSavePeerUrlButton" type="button">Use Peer</button>
+          </div>
+          <p id="simplePeerUrlStatus" class="inline-status">Enter the consenting peer URL once; P2P imports will use it.</p>
           <button id="simpleLoadCatalogButton" class="secondary-action" type="button">Load MiniModel Metadata</button>
           <button id="simpleSaveShareMetadataButton" class="secondary-action" type="button">Save Share Metadata</button>
           <p id="simpleShareMetadataStatus" class="inline-status">import a local .slm first</p>
@@ -505,6 +511,6 @@
       <span id="currentModelSummary" class="model-summary">No model loaded</span>
     </footer>
   </main>
-  <script src="./app.js?v=20260702-peerfetch"></script>
+  <script src="./app.js?v=20260702-peerurl"></script>
 </body>
 </html>

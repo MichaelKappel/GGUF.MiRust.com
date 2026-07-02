@@ -29,31 +29,16 @@ function send(request, response, code, body, type) {
   response.end(body);
 }
 
-function redirect(request, response, location) {
-  response.writeHead(302, {
-    "location": location,
-    "content-type": "text/plain; charset=utf-8",
-    "content-length": request.method === "HEAD" ? 0 : Buffer.byteLength("redirect\n")
-  });
-  if (request.method === "HEAD") {
-    response.end();
-    return;
-  }
-  response.end("redirect\n");
-}
-
 const server = http.createServer((request, response) => {
   if (request.method !== "GET" && request.method !== "HEAD") {
     send(request, response, 405, "method not allowed");
     return;
   }
   const url = new URL(request.url, "http://127.0.0.1");
-  if (url.pathname === "/") {
-    redirect(request, response, "/app/");
-    return;
-  }
   let relative = decodeURIComponent(url.pathname);
-  if (relative.endsWith("/")) {
+  if (relative === "/") {
+    relative = "/index.html";
+  } else if (relative.endsWith("/")) {
     relative += "index.html";
   }
   const file = path.resolve(path.join(root, relative));
@@ -92,5 +77,5 @@ server.on("error", (error) => {
 });
 
 server.listen(port, "127.0.0.1", () => {
-  process.stdout.write(`TinyRustLM static server listening at http://127.0.0.1:${port}/app/\n`);
+  process.stdout.write(`TinyRustLM static server listening at http://127.0.0.1:${port}/\n`);
 });
