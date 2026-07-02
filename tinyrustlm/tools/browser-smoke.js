@@ -9086,7 +9086,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       }
     }
     const peerScriptText = String(result.peerImportScriptText || "");
-    for (const required of ["import-peer-request", "serve-peer-pieces", "does not download model bytes from MiniModel.org", "$PeerImportRequest", "$ImportDir", "$ExpectedPeerBaseUrl", "http://127.0.0.1:8123/"]) {
+    for (const required of ["import-peer-request", "serve-peer-pieces", "does not download model bytes from MiniModel.org", "metadata manifest", "$PeerImportRequest", "$ManifestUrl", "$ImportDir", "$ExpectedPeerBaseUrl", "http://127.0.0.1:8123/"]) {
       if (!peerScriptText.includes(required)) {
         failures.push(`P2P import script missing ${required}: ${peerScriptText}`);
       }
@@ -9126,7 +9126,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     if (!String(result.statusAfterSearch || "").includes("2 external records") || !String(result.hfStatusAfterSearch || "").includes("2 external records")) {
       failures.push(`Hugging Face status after search was ${result.statusAfterSearch}/${result.hfStatusAfterSearch}`);
     }
-    if (!String(result.status || "").includes("conversion started") || !String(result.hfStatus || "").includes("conversion started")) {
+    if (!String(result.status || "").includes("conversion kit saved") || !String(result.hfStatus || "").includes("conversion kit saved")) {
       failures.push(`Hugging Face status after Start Conversion was ${result.status}/${result.hfStatus}`);
     }
     if (!Array.isArray(result.conversionDownloadNames) || result.conversionDownloadNames.length < 2) {

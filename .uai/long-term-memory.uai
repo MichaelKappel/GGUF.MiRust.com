@@ -257,7 +257,7 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before building, testing, serving, or claiming TinyRustLM runtime support.
-    checksum_hash: sha256:BFDA010AAC5174B9DE57586675A8556DB7612CE14A81453285BD7283C1841235
+    checksum_hash: sha256:0F89BAB55A434FCC7A9EC3F186E73254457A33CF46ECA99D385EC11D2E13B307
     last_reviewed_utc: 2026-07-02T22:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; durable build detail lives in the target file.
@@ -410,7 +410,7 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing app.js, app.css, app HTML, local fetch paths, or browser diagnostics.
-    checksum_hash: sha256:880DB02300C9A095D1B3047EB97D676020670705FF1E98A8053109B6D8D182BE
+    checksum_hash: sha256:C0181395531F270F5DE68FF0E7F0129FE5BC030AFD3FD0C91111AE23A0273AAE
     last_reviewed_utc: 2026-07-03T00:50:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; browser runtime detail lives in the target file.
@@ -427,7 +427,7 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing visible browser panels, product shell, or static app layout.
-    checksum_hash: sha256:37E2074567BB9AF86E2FCB6198D767F5D6B95EE57D10F7460706539534E04CA9
+    checksum_hash: sha256:2CFE4354F8D2268871BCC4BB49B6A8605A04CC35ECB69732C5732E21D83AC66A
     last_reviewed_utc: 2026-07-02T22:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; implementation lives in the target file.
@@ -444,7 +444,7 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing public root routing, deployment layout, static host entrypoints, or SLMComposer.com launch behavior.
-    checksum_hash: sha256:B2715258E3584F5B2BE3A32B7847368AE0ED9184DF31460EFE984E150BA60442
+    checksum_hash: sha256:2ECFB1341CC61EDDFC44AF71D20B7E4A9F6B8013297E4151A98B4E4ED8B368AC
     last_reviewed_utc: 2026-07-02T22:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; root app markup lives in the target file.
@@ -478,7 +478,7 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing browser host behavior, local fetches, model selection, provenance rendering, or WASM calls.
-    checksum_hash: sha256:90C2470B36D288D37046BF6EBEE342A39C05B7F6BC37F4D0366CC2C5089247A8
+    checksum_hash: sha256:62A5CAF1CD63B198973CB27F88095DC37D638178990D02FCFCE793853242E165
     last_reviewed_utc: 2026-07-02T22:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; implementation lives in the target file.
@@ -1311,7 +1311,7 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Run after app, WASM, server, adapter sidecar, registry, or model selector changes.
-    checksum_hash: sha256:7343CC77305C5C0D56E21C8225E2010CF1A2D8BE980596647FDE9F716E9F9970
+    checksum_hash: sha256:8E2B911E0180EC45B3CEA857565BA908C5BD66A33947C4E4F0A091EBD3C37C04
     last_reviewed_utc: 2026-07-02T22:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; executable test behavior lives in the target file.

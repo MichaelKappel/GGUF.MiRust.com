@@ -3526,11 +3526,13 @@
     const stem = peerImportFileStem(match.modelId);
     const request = peerImportRequest(match, peerBaseUrl);
     const peerUrl = request.local_peer_piece_contract.expected_peer_base_url;
+    const manifestUrl = request.minimodel_metadata.manifest_url || "";
     const lines = [
       "# MiniModel peer import handoff",
       `# Model: ${match.displayName} (${match.modelId})`,
       "#",
       "# This script does not download model bytes from MiniModel.org, TinyRustLM.com, or Hugging Face.",
+      "# It may download the MiniModel manifest metadata if the catalog supplied a manifest URL.",
       "# It fetches peer pieces only from the consenting peer URL you enter below.",
       "# MiniModel rejects project-server peer hosts and verifies every piece before assembly.",
       "# Rust then fetches pieces, assembles, verifies, and writes an import receipt.",
@@ -3541,9 +3543,18 @@
       "# Edit the workspace, request, manifest, and output directory before running.",
       "$MiniModelWorkspace = \"EDIT_ME\\\\MiniModel.org\"",
       `$PeerImportRequest = ${powerShellSingleQuote(`${stem}.minimodel-peer-import-request.json`)}`,
-      "$Manifest = \"EDIT_ME\\\\model.minimodel.manifest.v0\"",
+      `$Manifest = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${stem}.minimodel.manifest.v0`)}`,
+      `$ManifestUrl = ${powerShellDoubleQuote(manifestUrl)}`,
       `$ImportDir = ${powerShellSingleQuote(`${stem}-peer-import`)}`,
       `$ExpectedPeerBaseUrl = ${powerShellDoubleQuote(peerUrl)}`,
+      "",
+      "if ($ManifestUrl.Trim().Length -gt 0 -and !(Test-Path -LiteralPath $Manifest)) {",
+      "  Write-Host \"Downloading MiniModel metadata manifest:\" $ManifestUrl",
+      "  Invoke-WebRequest -UseBasicParsing -Uri $ManifestUrl -OutFile $Manifest",
+      "}",
+      "if (!(Test-Path -LiteralPath $Manifest)) {",
+      "  throw \"MiniModel manifest missing. Put the metadata manifest at $Manifest or set `$ManifestUrl before running.\"",
+      "}",
       "",
       "Set-Location $MiniModelWorkspace",
       "Write-Host \"Expected consenting peer:\" $ExpectedPeerBaseUrl",
@@ -3586,7 +3597,7 @@
     const stem = conversionFileStem(entry.modelId);
     downloadTextFile(`${stem}.minimodel-conversion-request.json`, `${JSON.stringify(request, null, 2)}\n`);
     downloadTextFile(`${stem}.tinyrustlm-convert.ps1`, hfConversionScript(entry, matches), "text/plain");
-    setHfStatus("conversion started: local Rust request and script saved", false);
+    setHfStatus("conversion kit saved: run the local Rust script after reviewing the source file", false);
     holdModelPopoverOpen(2500);
   }
 
@@ -3680,7 +3691,7 @@
 
   function hfSimpleFallbackNote(view) {
     if (view.p2pMatch) {
-      return "P2P Import saves a peer-piece request and Rust fetch/verify script. Project servers never provide model bytes.";
+      return "Already converted by a listed peer. P2P Import saves a Rust fetch/verify kit; project servers never provide model bytes.";
     }
     if (view.matches.length && state.p2pEnabled === false) {
       return "P2P is disabled for this list, so conversion will use local/manual source files and may take a while.";
@@ -3688,7 +3699,7 @@
     if (view.hasPeerOffer) {
       return "MiniModel has a peer-offer proof. Enter one consenting peer URL in P2P Exchange to import without repeating source conversion.";
     }
-    return "This is a model-card result. Convert locally, save peer-offer proof, then publish metadata for future P2P reuse.";
+    return "No converted peer is listed yet. Create a local conversion kit, then publish peer-source metadata so future users see a peer-ready import action.";
   }
 
   function appendHfSlmFileNotes(actions, slmFiles, actionWord) {
@@ -3717,7 +3728,7 @@
       actions.append(elementWithText(
         "span",
         "model-result-meta",
-        `Source file listed: ${safeLocalModelName(file.file_name)}${size}. Download/review locally; Start Conversion will not fetch it.`
+        `Source file listed: ${safeLocalModelName(file.file_name)}${size}. Download/review locally; the conversion kit will not fetch it.`
       ));
     }
     if (safetensorsFiles.length > 2) {
@@ -3978,7 +3989,7 @@
       "New-Item -ItemType Directory -Force -Path $WorkDir | Out-Null",
       "Set-Location $TinyRustLMWorkspace",
       "",
-      "# Start Conversion saved this request JSON beside this script.",
+      "# The browser saved this request JSON beside this script.",
       "# Rust performs inspect, plan, convert, validate, manifest validation, and receipt writing.",
       "cargo run -p tinyrustlm-slm-pack -- convert-huggingface-request $ConversionRequest $SourceSafetensors $WorkDir $SourceShape $Quantization",
       "",
