@@ -9120,10 +9120,30 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       }
     }
     const peerScriptText = String(result.peerImportScriptText || "");
-    for (const required of ["import-peer-request", "serve-peer-pieces", "does not download model bytes from MiniModel.org", "metadata manifest", "$PeerImportRequest", "$ManifestUrl", "$ImportDir", "$ExpectedPeerBaseUrl", "http://127.0.0.1:8123/"]) {
+    for (const required of [
+      "import-peer-request",
+      "serve-peer-pieces",
+      "does not download model bytes from MiniModel.org",
+      "metadata manifest",
+      "Resolve-ExistingPath",
+      "MINIMODEL_WORKSPACE",
+      "$CandidateMiniModelWorkspaces",
+      "$PeerImportRequest = Join-Path $PSScriptRoot",
+      "$ManifestUrl",
+      "$ImportDir = Join-Path $PSScriptRoot",
+      "$ExpectedPeerBaseUrl",
+      "MiniModel workspace:",
+      "Peer import request:",
+      "MiniModel manifest:",
+      "Verified output directory:",
+      "http://127.0.0.1:8123/"
+    ]) {
       if (!peerScriptText.includes(required)) {
         failures.push(`P2P import script missing ${required}: ${peerScriptText}`);
       }
+    }
+    if (peerScriptText.includes("EDIT_ME\\\\MiniModel.org")) {
+      failures.push(`P2P import script still required placeholder MiniModel workspace edit: ${peerScriptText}`);
     }
     if (!String(result.statusAfterP2pImport || "").includes("P2P import request saved") || !String(result.hfStatusAfterP2pImport || "").includes("P2P import request saved")) {
       failures.push(`P2P Import status was ${result.statusAfterP2pImport}/${result.hfStatusAfterP2pImport}`);

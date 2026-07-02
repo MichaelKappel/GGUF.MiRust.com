@@ -1,5 +1,5 @@
-profile: runtime-mirust.long-term-memory-ledger.v191
-updated_utc: 2026-07-03T05:05:00Z
+profile: runtime-mirust.long-term-memory-ledger.v192
+updated_utc: 2026-07-03T05:35:00Z
 storage_mode: hybrid
 ledger_rule:
   pointer_only_not_context_free: true
@@ -12,15 +12,15 @@ records:
     path: workspace.uai
     target_location: workspace.uai
     label: Required For Workspace Authority And Current Boundary
-    summary: Routes agents to TinyRustLM root, source options, safe `.safetensors` hints, local `models.v0.json`, peer-source announcements, catalog announcement feeds, import requests, and deploy gate.
+    summary: Routes agents to TinyRustLM root, source options, local catalogs, peer-source announcements, catalog feeds, self-locating import kits, no-byte boundaries, and deploy gate.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before orienting project state, support boundaries, report routing, or public claim boundaries.
-    checksum_hash: sha256:07F63042B8EF2AA3D965E425AA6243A2AF5C431B95B8DBAA7AB1C788EAF5542C
-    last_reviewed_utc: 2026-07-02T22:30:00Z
+    checksum_hash: sha256:5C438CC0ACC50BA863587776A0BADAC7CBCB7372749A4D565D32048C9D4DAF77
+    last_reviewed_utc: 2026-07-03T05:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; hot workspace state lives in the target file.
   - stable_id: runtime_mirust_workspace_guidance_uai
@@ -29,15 +29,15 @@ records:
     path: .uai/workspace-guidance.uai
     target_location: .uai/workspace-guidance.uai
     label: Required For Workspace Memory And Implementation Guidance
-    summary: Routes agents to memory strategy, TinyRustLM active root, MiniModel source options, peer-offer proof, known-peer serving, browser evidence binding, and safetensors tails.
+    summary: Routes agents to memory strategy, TinyRustLM active root, MiniModel source options, peer proof, self-locating peer import, browser evidence, and safetensors tails.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before broad memory loading, report strategy edits, or implementation boundary work.
-    checksum_hash: sha256:3EC3746D33D07B51AFEBE3AB2C1D8437A1801E3A00C7A84E8F5C2AB7D4F4C866
-    last_reviewed_utc: 2026-07-03T03:45:00Z
+    checksum_hash: sha256:7F468C5BD8CBC6ACC30645962D5EB985C6775C3FDAA4294A85F6E9C5ADFC2E27
+    last_reviewed_utc: 2026-07-03T05:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; hot guidance lives in the target file.
   - stable_id: runtime_mirust_file_handoff_uai
@@ -80,15 +80,15 @@ records:
     path: .uai/report-synthesis.uai
     target_location: .uai/report-synthesis.uai
     label: Required For Processed Report Synthesis Routing
-    summary: Routes agents to processed reports, Model Setup sidebar memory, self-locating conversion kits, MiniModel source options, peer-source announcements, catalog feeds, docs intake, and browser evidence.
+    summary: Routes agents to processed reports, Model Setup sidebar memory, self-locating conversion/import kits, MiniModel source options, peer-source announcements, catalog feeds, docs intake, and evidence.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before opening bulk reports, report-derived design guidance, or model-breeding research routes.
-    checksum_hash: sha256:1BB4369D3D4C6C50982A89D633FF6233DCAB486099C884BD4971FC6F42B66470
-    last_reviewed_utc: 2026-07-03T05:05:00Z
+    checksum_hash: sha256:B2D06C88919F0854FBCCF4272E5B9A55B85BB579D6CF25C6158353B28642FA96
+    last_reviewed_utc: 2026-07-03T05:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; processed report synthesis lives in the target file.
   - stable_id: runtime_mirust_short_term_memory_uai
@@ -97,15 +97,15 @@ records:
     path: .uai/short-term-memory.uai
     target_location: .uai/short-term-memory.uai
     label: Required For Current State And Report Routes
-    summary: Routes agents to site split, Model Setup sidebar memory, self-locating conversion kits, safe `.safetensors` hints, peer-source announcements, catalog feeds, P2P imports, and browser evidence.
+    summary: Routes agents to site split, Model Setup memory, self-locating conversion/import kits, safe `.safetensors` hints, peer-source announcements, catalog feeds, P2P imports, and evidence.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before resuming current work, locating latest report memory, or choosing next verification.
-    checksum_hash: sha256:78407139755B5B2265D74EA048955C15102382C42A2E39830A05054FED9F0032
-    last_reviewed_utc: 2026-07-03T05:05:00Z
+    checksum_hash: sha256:C24255ADE0BC717F1F1B936E789E1C5682D52AD482DD4688791B7BFAFDAB390C
+    last_reviewed_utc: 2026-07-03T05:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; current state and routes live in the target file.
   - stable_id: runtime_mirust_startup_packet_uai
@@ -216,15 +216,15 @@ records:
     path: .uai/next-recursive-prompt.uai
     target_location: .uai/next-recursive-prompt.uai
     label: Required For Reopen Goal Prompt
-    summary: Routes agents to TinyRustLM root deployment, Model Setup sidebar, self-locating conversion kits, source-option quality, peer-source announcements, catalog feeds, P2P handoff, and no-server-model-bytes rules.
+    summary: Routes agents to TinyRustLM root deployment, Model Setup sidebar, self-locating conversion/import kits, source quality, peer-source announcements, catalog feeds, P2P handoff, and no-byte rules.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before resuming after the IDE is reopened or before processing queued MiniModel intake.
-    checksum_hash: sha256:F6C082277B771F7B1FCCE8233DEE143CBD67936318F93566EB192430AEE78526
-    last_reviewed_utc: 2026-07-03T05:05:00Z
+    checksum_hash: sha256:C2CB9447C98E7AB418399A6D34C28C22F56508F4726BE81A5B54A7ED82B87F41
+    last_reviewed_utc: 2026-07-03T05:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; next prompt lives in the target file.
   - stable_id: runtime_mirust_receiver_brief_uai
@@ -250,15 +250,15 @@ records:
     path: tinyrustlm/README.md
     target_location: tinyrustlm/README.md
     label: Required For TinyRustLM Build And Run Instructions
-    summary: Routes agents to TinyRustLM commands, Model Setup sidebar behavior, shared source-row helpers, root/app parity, safe `.safetensors` hints, local `models.v0.json`, catalog announcement feeds, CLI tails, bundles, and registries.
+    summary: Routes agents to TinyRustLM commands, Model Setup sidebar, shared source rows, self-locating import kits, local catalogs, catalog feeds, CLI tails, bundles, and registries.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed implementation doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before building, testing, serving, or claiming TinyRustLM runtime support.
-    checksum_hash: sha256:EAAEA185F70B2352ACBC34DB5429A03D6C8CD19E10A2F0F561FFE9B001360CA0
-    last_reviewed_utc: 2026-07-03T05:05:00Z
+    checksum_hash: sha256:80EC05DE363D3C88E7E3889A35596096666530C084802A4C1798A4A2E0DAB9B5
+    last_reviewed_utc: 2026-07-03T05:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; durable build detail lives in the target file.
   - stable_id: runtime_mirust_root_readme
@@ -403,15 +403,15 @@ records:
     path: tinyrustlm/docs/browser-runtime.md
     target_location: tinyrustlm/docs/browser-runtime.md
     label: Required For Browser Runtime Work
-    summary: Routes agents to Rust hosting, Model Setup routing, local `.slm` loading, self-locating conversion kits, Hugging Face helpers, local `models.v0.json`, peer imports, selectors, and local-only rules.
+    summary: Routes agents to Rust hosting, Model Setup routing, local `.slm`, self-locating conversion/import kits, Hugging Face helpers, local catalogs, peer imports, and local-only rules.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed browser runtime doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing app.js, app.css, app HTML, local fetch paths, or browser diagnostics.
-    checksum_hash: sha256:49FC7EEFA56D35B74531ACFC340A259A7476584EFF2770644CC09937AB085027
-    last_reviewed_utc: 2026-07-03T05:05:00Z
+    checksum_hash: sha256:156C338CDBEFE5BEB7D812FAA873F2DED3357AD774C6C5A3C079CFD8360E707C
+    last_reviewed_utc: 2026-07-03T05:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; browser runtime detail lives in the target file.
   - stable_id: tinyrustlm_browser_app_html
@@ -427,8 +427,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing visible browser panels, product shell, or static app layout.
-    checksum_hash: sha256:EFDE7D1D3506508CFEFE31D809D4035855F3E1BFAABFD494F82040659FA7BCD7
-    last_reviewed_utc: 2026-07-03T05:05:00Z
+    checksum_hash: sha256:C223EB291B4A08641ED60B62762537DA59FF39FF16A68BB982E8A51C1E9B7D72
+    last_reviewed_utc: 2026-07-03T05:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; implementation lives in the target file.
   - stable_id: tinyrustlm_browser_root_handoff_html
@@ -444,8 +444,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing public root routing, deployment layout, static host entrypoints, or SLMComposer.com launch behavior.
-    checksum_hash: sha256:275E70FBF980A886630604339B77F25FF4B854AED861D45F8A770CBD74C72CE6
-    last_reviewed_utc: 2026-07-03T05:05:00Z
+    checksum_hash: sha256:8B3ED037EA57D451163E5A399668A306F69D03C64201523C47F5AECCCC2505F1
+    last_reviewed_utc: 2026-07-03T05:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; root app markup lives in the target file.
   - stable_id: tinyrustlm_browser_root_htaccess
@@ -471,15 +471,15 @@ records:
     path: tinyrustlm/app/app.js
     target_location: tinyrustlm/app/app.js
     label: Required For TinyRustLM Browser Host Logic
-    summary: Routes agents to dashboard interactions, Model Setup actions, Hugging Face rows, self-locating conversion kits, local `models.v0.json`, peer-source announcements, import requests, and generation.
+    summary: Routes agents to dashboard interactions, Model Setup, Hugging Face rows, self-locating conversion/import kits, local catalogs, peer-source announcements, import requests, and generation.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed app source
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing browser host behavior, local fetches, model selection, provenance rendering, or WASM calls.
-    checksum_hash: sha256:A98C7698CCB275868E2B9FB53247AEACCC4445BFDE2A8730413F788A3F7A86F0
-    last_reviewed_utc: 2026-07-03T05:05:00Z
+    checksum_hash: sha256:C944A2303A2FD1382BF01FE327A7119270FA142538576D90DA0E09353AD2D601
+    last_reviewed_utc: 2026-07-03T05:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; implementation lives in the target file.
   - stable_id: tinyrustlm_browser_app_css
@@ -1304,15 +1304,15 @@ records:
     path: tinyrustlm/tools/browser-smoke.js
     target_location: tinyrustlm/tools/browser-smoke.js
     label: Required For TinyRustLM Browser Smoke Verification
-    summary: Routes agents to browser smoke modes for Model Setup routing, source-row parity, self-locating conversion kit assertions, local catalogs, peer-source announcements, feed routes, and local-only guard.
+    summary: Routes agents to browser smoke modes for Model Setup routing, source-row parity, self-locating conversion/import kit assertions, local catalogs, peer-source announcements, feeds, and local-only guard.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed test tool
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Run after app, WASM, server, adapter sidecar, registry, or model selector changes.
-    checksum_hash: sha256:98CA603E05AF741AD815114226F23A8FB8872B4BC1F341C7BF385C90FF9402CD
-    last_reviewed_utc: 2026-07-03T05:05:00Z
+    checksum_hash: sha256:DEC8287A90AB8E5AA2F8A707CC650BF46CF9C62C22099B82FEF1E9BC67D0754C
+    last_reviewed_utc: 2026-07-03T05:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; executable test behavior lives in the target file.
   - stable_id: tinyrustlm_wasm_abi_smoke_tool
@@ -1865,15 +1865,15 @@ records:
     path: wiki/runtime-mirust/source-memory-guide.md
     target_location: https://aiwikis.org/runtime-mirust/source-memory-guide/
     label: Required For Runtime.MiRust.com Source Memory Routing
-    summary: Routes agents to hot memory, durable wiki files, MiniModel source options, self-locating conversion kit memory, peer-source announcements, batch publication, safetensors research, and boundaries.
+    summary: Routes agents to hot memory, durable wiki files, MiniModel source options, self-locating import memories, peer-source announcements, batch publication, safetensors research, and boundaries.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed LLM Wiki source
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before loading durable project memory or processing handoff intake.
-    checksum_hash: sha256:0013018C1F164B8721066628E2E61B6098CB89F76ADA94895BDB664EBF98E335
-    last_reviewed_utc: 2026-07-03T05:05:00Z
+    checksum_hash: sha256:D05C530C985B1C58EACBEC3010837552904385AC21A4D0AD5F77D4D8DE57742E
+    last_reviewed_utc: 2026-07-03T05:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; durable source guide body lives in the target file.
   - stable_id: runtime_mirust_knowledge_map
@@ -5582,6 +5582,23 @@ records:
     last_reviewed_utc: 2026-07-03T05:05:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; self-locating conversion kit report body lives in the target file.
+  - stable_id: tinyrustlm_self_locating_peer_import_kit_memory
+    memory_domain: runtime-mirust.report_memory.self_locating_peer_import_kit
+    pointer_type: llmwiki_node
+    path: wiki/runtime-mirust/reports/tinyrustlm-self-locating-peer-import-kit-memory-2026-07-02.md
+    target_location: https://aiwikis.org/runtime-mirust/reports/tinyrustlm-self-locating-peer-import-kit-memory-2026-07-02/
+    label: Required For TinyRustLM Self-Locating Peer Import Kit Memory
+    summary: Routes agents to generated `.minimodel-peer-import.ps1` workspace discovery, request/manifest/output paths beside the script, resolved verifier output, and placeholder-path regression tests.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local implementation report
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing P2P Import scripts, MiniModel receiver handoffs, peer-import path discovery, or hf-search-ui peer-import script assertions.
+    checksum_hash: sha256:FBEFF2451314F5CDA43707F0DE8C5350CDA7ED4F658CD696D8CEC88503B288D5
+    last_reviewed_utc: 2026-07-03T05:35:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; self-locating peer-import kit report body lives in the target file.
   - stable_id: tinyrustlm_huggingface_p2p_source_flow_memory
     memory_domain: runtime-mirust.report_memory.huggingface_p2p_source_flow
     pointer_type: llmwiki_node
