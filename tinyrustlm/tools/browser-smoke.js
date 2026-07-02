@@ -8830,11 +8830,14 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "convert-safetensors-trained",
       "validate-manifest",
       "prepare-peer-share",
+      "write-catalog-snapshot",
       "serve-peer-pieces",
       "EDIT_ME\\\\model.safetensors",
       "EDIT_ME\\\\SLMComposer.com",
       "EDIT_ME\\\\MiniModel.org",
       "KnownPeerBaseUrl",
+      "MiniModelCatalogSnapshot",
+      "models.v0.json",
       "TinyRustLM.com"
     ]) {
       if (!scriptText.includes(required)) {

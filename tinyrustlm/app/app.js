@@ -3329,6 +3329,7 @@
         required_local_input: "A user-selected .safetensors file already present on this machine.",
         command_shape: `cargo run -p tinyrustlm-slm-pack -- convert-safetensors-trained <input.safetensors> ${defaultShape} <output-source-dir> <output.slm> ${defaultQuantization}`,
         peer_share_shape: "cargo run -p minimodel -- prepare-peer-share <output.slm> <share-dir> <minimodel-model-id> [source-huggingface-model-id] [known-peer-base-url]",
+        catalog_snapshot_shape: "cargo run -p minimodel -- write-catalog-snapshot <models.v0.json> <catalog-entry-json>...",
         compatibility_rule: "The Rust planner/converter must accept the safetensors tensor names and exact TinyRustLM shape before a .slm is usable. MiniModel prepare-peer-share then writes the manifest, peer-offer proof, local peer pieces, and catalog entry from the verified .slm."
       },
       conversion_gates: [
@@ -3338,6 +3339,7 @@
         "local conversion to .slm",
         "tinyrustlm-slm-pack validate",
         "MiniModel prepare-peer-share",
+        "MiniModel write-catalog-snapshot",
         "runtime smoke proof",
         "eval/admission evidence",
         "MiniModel manifest signature",
@@ -3420,6 +3422,8 @@
       "$SourceDir = Join-Path $WorkDir \"source\"",
       `$OutputSlm = Join-Path $WorkDir ${powerShellSingleQuote(`${stem}.${quantization}.slm`)}`,
       "$MiniModelShareDir = Join-Path $WorkDir \"minimodel-peer-share\"",
+      `$MiniModelCatalogEntry = Join-Path $MiniModelShareDir ${powerShellSingleQuote(`${stem}.${quantization}.catalog-entry.v0.json`)}`,
+      "$MiniModelCatalogSnapshot = Join-Path $WorkDir \"models.v0.json\"",
       "$InspectReport = Join-Path $WorkDir \"source.inspect\"",
       "$PlanReport = Join-Path $WorkDir \"source.plan\"",
       "",
@@ -3440,8 +3444,13 @@
       "if ($KnownPeerBaseUrl.Trim().Length -gt 0) { $PrepareArgs += $KnownPeerBaseUrl }",
       "& cargo @PrepareArgs",
       "",
+      "# Build a metadata-only catalog snapshot from the generated entry.",
+      "# This is safe to share as catalog metadata; it still does not include or host model bytes.",
+      "cargo run -p minimodel -- write-catalog-snapshot $MiniModelCatalogSnapshot $MiniModelCatalogEntry",
+      "",
       "Write-Host \"Converted .slm:\" $OutputSlm",
       "Write-Host \"MiniModel share directory:\" $MiniModelShareDir",
+      "Write-Host \"MiniModel catalog snapshot:\" $MiniModelCatalogSnapshot",
       "Write-Host \"If you consent to serve pieces, run the serve-peer-pieces command printed by MiniModel from your own machine.\"",
       "Write-Host \"Next: open TinyRustLM.com, choose Your Local Files, and import the converted .slm.\"",
       ""
