@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TinyRustLM</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="./app.css?v=20260701-hfsearchfix">
+  <link rel="stylesheet" href="./app.css?v=20260701-realmodelpath">
 </head>
 <body>
   <svg class="icon-sprite" aria-hidden="true" focusable="false">
@@ -58,15 +58,9 @@
       <section class="recent-section" aria-labelledby="recentChatsHeading">
         <div class="sidebar-section-header">
           <h2 id="recentChatsHeading">Recent Chats</h2>
-          <button class="icon-button" type="button" aria-label="Search recent chats"><svg><use href="#icon-search"></use></svg></button>
         </div>
         <ol class="recent-list">
-          <li><button type="button"><svg><use href="#icon-chat"></use></svg><span>Market research summary</span><time>2m ago</time></button></li>
-          <li><button type="button"><svg><use href="#icon-chat"></use></svg><span>Explain this Python code</span><time>1h ago</time></button></li>
-          <li><button type="button"><svg><use href="#icon-chat"></use></svg><span>Rewrite for clarity</span><time>Yesterday</time></button></li>
-          <li><button type="button"><svg><use href="#icon-chat"></use></svg><span>Generate JSON schema</span><time>2d ago</time></button></li>
-          <li><button type="button"><svg><use href="#icon-chat"></use></svg><span>Ideas for a blog post</span><time>3d ago</time></button></li>
-          <li><button type="button"><svg><use href="#icon-chat"></use></svg><span>SQL query optimization</span><time>4d ago</time></button></li>
+          <li class="recent-empty">No saved chats yet.</li>
         </ol>
       </section>
 
@@ -156,7 +150,7 @@
           <ol id="simpleHfResults" class="model-results"></ol>
         </div>
         <div id="simpleP2pSourcePanel" class="source-panel" data-source-panel="p2p" hidden>
-          <p>P2P is metadata-first today. Model bytes still come from a local `.slm` file you choose.</p>
+          <p>MiniModel is metadata-first today. Converted `.slm` artifacts can be advertised for future P2P transfer after admission.</p>
           <button id="simpleLoadCatalogButton" class="secondary-action" type="button">Load MiniModel Metadata</button>
           <ol id="simpleCatalogResults" class="model-results"></ol>
         </div>
@@ -493,6 +487,6 @@
       <span id="currentModelSummary" class="model-summary">No model loaded</span>
     </footer>
   </main>
-  <script src="./app.js?v=20260701-hfsearchfix"></script>
+  <script src="./app.js?v=20260701-realmodelpath"></script>
 </body>
 </html>

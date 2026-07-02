@@ -1,7 +1,7 @@
-profile: tinyrustlm.source-workspace.v124
+profile: tinyrustlm.source-workspace.v125
 project_name: TinyRustLM
 canonical_root: E:\Source\Rust\SLMComposer.com
-updated_utc: 2026-07-02T00:12:07Z
+updated_utc: 2026-07-02T03:45:00Z
 version_authority:
   current_version: 0.1.0
   next_version: 0.1.0
@@ -15,7 +15,7 @@ active_product:
   runtime_documentation_site: TinyRustLM.MiRust.com/developer-portal/
   retired_runtime_documentation_site: Runtime.MiRust.com
   model_documentation_site: TinyRustLM.MiRust.com
-  public_site_boundary: TinyRustLM.com loads the static app and WASM runtime, shows the default MiniModel.org metadata catalog URL, waits for user-selected local `.slm` files, and does not auto-admit or fetch hosted `/models/` bytes from the public host. SLMComposer.com is no longer canonical and may redirect or be deleted by the human.
+  public_site_boundary: TinyRustLM.com loads the static app and WASM runtime, shows the default MiniModel.org metadata catalog URL, waits for user-selected local `.slm` files, and does not auto-admit or fetch hosted `/models/` bytes from the public host. Hugging Face results are external metadata only; the app checks MiniModel metadata for admitted `.slm` records and otherwise saves a local conversion request for the review/conversion/admission/future-P2P path. SLMComposer.com is no longer canonical and may redirect or be deleted by the human.
 deploy_gate:
   instruction: Before every TinyRustLM deploy or SLMComposer.com retirement/redirect change, update the related documentation sites and public-safe exports so live docs match the app behavior being deployed.
   related_documentation_sites:
@@ -46,7 +46,7 @@ memory_authority:
   slmcomposer_public_local_launch_2026_07_01: wiki/runtime-mirust/reports/slmcomposer-public-local-launch-memory-2026-07-01.md routes SLMComposer.com live-site identity, local `.slm` file import, optional user-triggered Hugging Face discovery, and public-host proof with no `/models/` fetch before user action.
   slmcomposer_minimodel_catalog_import_2026_07_01: wiki/runtime-mirust/reports/slmcomposer-minimodel-catalog-import-memory-2026-07-01.md routes the default MiniModel.org catalog URL, metadata/local-list model selection, local `.slm` SHA-256 verification, and browser-local Rust/WASM import proof.
   slmcomposer_local_ai_dashboard_2026_07_01: wiki/runtime-mirust/reports/slmcomposer-local-ai-dashboard-memory-2026-07-01.md routes the high-fidelity dark dashboard redesign, beginner starter cards, left navigation, desktop/mobile Advanced Options, source popover, and local-only model byte boundary.
-  huggingface_api_source_options_2026_07_01: wiki/runtime-mirust/research/huggingface-api-source-options-2026-07-01.md routes Hugging Face as a user-triggered external metadata/source option beside user-local files and future P2P, without project-server byte proxying or remote inference.
+  huggingface_api_source_options_2026_07_01: wiki/runtime-mirust/research/huggingface-api-source-options-2026-07-01.md routes Hugging Face as a user-triggered external metadata/source option beside user-local files and future P2P, without project-server byte proxying or remote inference; TinyRustLM now treats those rows as non-runnable source metadata unless MiniModel metadata identifies an admitted `.slm`, and can save a local `minimodel.huggingface_conversion_request.v0` handoff.
   tinylm16_bpe_safetensors_plan_2026_06_30: wiki/runtime-mirust/reports/tinylm16-bpe-safetensors-plan-memory-2026-06-30.md routes `tinylm16-bpe` source shape, 39 untied TinyLM-16M tensors, manifest-native BPE1 metadata, sparse safetensors planner proof, and docs/CLI shape lists.
   two_parent_operator_browser_provenance_2026_06_29: wiki/runtime-mirust/reports/two-parent-operator-browser-provenance-memory-2026-06-29.md routes compact browser Model Provenance Operator rendering and receipt byte-echo fallback for blend, task-delta, and sparse task-delta selector fixtures.
   crossover_operator_2026_06_29: wiki/runtime-mirust/reports/crossover-operator-memory-2026-06-29.md routes deterministic direct-parameter crossover commands, seed and parent0 keep fields, selection density, mask checksum, q8 validation, focused parameter tests, drift tests, CLI write/validate proof, browser Operator rendering, and crossover byte-echo fallback.

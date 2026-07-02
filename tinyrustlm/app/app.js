@@ -323,7 +323,8 @@
     latestDiagnostics: null,
     latestSampling: null,
     consoleAutoScroll: true,
-    simpleSourceOption: "local"
+    simpleSourceOption: "local",
+    defaultCatalogCheckedForAvailability: false
   };
 
   const el = {
@@ -613,6 +614,17 @@
     }
   }
 
+  function downloadTextFile(fileName, text, mimeType = "application/json") {
+    const blob = new Blob([text], { type: `${mimeType}; charset=utf-8` });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = safeLocalModelName(fileName);
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 0);
+  }
+
   function systemStateForText(text, isError) {
     const value = String(text || "").toLowerCase();
     if (isError || value.includes("failed") || value.includes("rejected") || value.includes("error")) {
@@ -844,8 +856,8 @@
     if (el.simpleDiscoveryStatus) {
       const messages = {
         local: "Choose a trusted local .slm file. No network is needed.",
-        huggingface: "Search Hugging Face metadata. Convert a compatible model to .slm, then import it locally.",
-        p2p: "MiniModel P2P is a future verified-transfer route. Metadata can be reviewed now."
+        huggingface: "Search Hugging Face metadata. Save a conversion request or choose an admitted local .slm.",
+        p2p: "Load MiniModel metadata to find converted .slm records. Peer transfer comes after admission and P2P implementation."
       };
       el.simpleDiscoveryStatus.textContent = messages[nextOption];
       el.simpleDiscoveryStatus.classList.remove("error");
@@ -1572,49 +1584,10 @@
   function renderConversation() {
     el.conversation.replaceChildren();
     if (state.messages.length === 0) {
-      const examples = [
-        {
-          role: "You",
-          avatar: "You",
-          text: "Can you explain the benefits of edge computing in simple terms?",
-          time: "10:24 AM",
-          assistant: false
-        },
-        {
-          role: "TinyRustLM",
-          avatar: "",
-          text: "Edge computing processes data closer to where it\u2019s generated\u2014like on your device or nearby servers\u2014instead of sending it to a distant data center. This reduces latency, saves bandwidth, and improves reliability, especially for real-time applications like IoT, gaming, and autonomous systems.",
-          time: "10:24 AM",
-          assistant: true
-        }
-      ];
-      for (const example of examples) {
-        const item = document.createElement("li");
-        const avatar = document.createElement("div");
-        const content = document.createElement("div");
-        const role = document.createElement("div");
-        const text = document.createElement("div");
-        const time = document.createElement("time");
-        item.className = `preview-message${example.assistant ? " assistant" : ""}`;
-        avatar.className = example.assistant ? "assistant-avatar" : "message-avatar";
-        avatar.textContent = example.avatar;
-        if (example.assistant) {
-          const icon = document.createElementNS(svgNamespace, "svg");
-          const use = document.createElementNS(svgNamespace, "use");
-          use.setAttribute("href", "#icon-cube");
-          icon.append(use);
-          avatar.append(icon);
-        }
-        role.className = "message-role";
-        role.textContent = example.role;
-        text.className = "message-text";
-        text.textContent = example.text;
-        time.className = "message-time";
-        time.textContent = example.time;
-        content.append(role, text);
-        item.append(avatar, content, time);
-        el.conversation.append(item);
-      }
+      const item = document.createElement("li");
+      item.className = "empty-message";
+      item.textContent = "No messages yet. Import a verified local .slm file, then send the first prompt.";
+      el.conversation.append(item);
       el.clearChatButton.disabled = true;
       return;
     }
@@ -2084,6 +2057,11 @@
       tokenizerChecksum: catalogText(raw.slm_tokenizer_checksum || raw.tokenizer_checksum),
       configChecksum: catalogText(raw.slm_config_checksum || raw.config_checksum),
       sourceKind: catalogText(raw.source_kind) || "catalog-local-file",
+      sourceIdentity: catalogText(raw.source_identity || raw.source_id),
+      sourceModelId: catalogText(raw.source_model_id || raw.upstream_model_id || raw.upstream_source_id),
+      sourceHuggingFaceModelId: catalogText(raw.source_huggingface_model_id || raw.huggingface_model_id || raw.hf_model_id),
+      sourceUrl: catalogText(raw.source_url || raw.huggingface_url || raw.upstream_url),
+      peerHintStatus: catalogText(raw.peer_hint_status || raw.p2p_status || raw.transfer_status) || "disabled",
       licenseRoute: catalogText(raw.license_route),
       modelCardRoute: catalogText(raw.model_card_route),
       manifestRoute: catalogText(raw.manifest_route),
@@ -2247,6 +2225,7 @@
     const body = JSON.parse(text);
     const entries = catalogEntriesFromBody(body, url.hostname, url.toString());
     state.catalogEntries = entries;
+    state.defaultCatalogCheckedForAvailability = rawUrl === defaultCatalogUrl;
     renderCatalogResults(entries);
     setCatalogStatus(`${entries.length} metadata entries`, false);
   }
@@ -2388,6 +2367,118 @@
       .slice(0, 3);
   }
 
+  function normalizeModelIdentity(value) {
+    return String(value || "")
+      .trim()
+      .replace(/^https:\/\/huggingface\.co\//i, "")
+      .replace(/^http:\/\/huggingface\.co\//i, "")
+      .replace(/^hf:\/\//i, "")
+      .replace(/\/+$/g, "")
+      .toLowerCase();
+  }
+
+  function catalogEntryMatchesHfModel(entry, modelId) {
+    const target = normalizeModelIdentity(modelId);
+    if (!target || !entry) {
+      return false;
+    }
+    const raw = entry.raw || {};
+    const candidates = [
+      entry.sourceHuggingFaceModelId,
+      entry.sourceModelId,
+      entry.sourceIdentity,
+      entry.sourceUrl,
+      raw.source_huggingface_model_id,
+      raw.huggingface_model_id,
+      raw.hf_model_id,
+      raw.source_model_id,
+      raw.upstream_model_id,
+      raw.source_url
+    ].map(normalizeModelIdentity).filter(Boolean);
+    return candidates.some((candidate) => candidate === target);
+  }
+
+  function hfP2pMatches(modelId) {
+    return state.catalogEntries.filter((entry) => catalogEntryMatchesHfModel(entry, modelId));
+  }
+
+  async function ensureDefaultCatalogForHfAvailability() {
+    if (state.catalogEntries.length || state.defaultCatalogCheckedForAvailability) {
+      return;
+    }
+    state.defaultCatalogCheckedForAvailability = true;
+    try {
+      const response = await fetch(defaultCatalogUrl, {
+        cache: "no-store",
+        credentials: "omit"
+      });
+      if (!response.ok) {
+        return;
+      }
+      const text = await response.text();
+      if (state.encoder.encode(text).length > catalogTextByteBudget) {
+        return;
+      }
+      const body = JSON.parse(text);
+      state.catalogEntries = catalogEntriesFromBody(body, "MiniModel.org", defaultCatalogUrl);
+    } catch (_error) {
+      state.catalogEntries = [];
+    }
+  }
+
+  function hfConversionRequest(entry, matches) {
+    const slmFiles = hfSlmSiblings(entry.result);
+    return {
+      request_kind: "minimodel.huggingface_conversion_request.v0",
+      generated_at: new Date().toISOString(),
+      source: {
+        kind: "huggingface_model",
+        model_id: entry.modelId,
+        model_url: hfModelUrl(entry.modelId),
+        downloads: Number.isFinite(entry.result.downloads) ? entry.result.downloads : null,
+        likes: Number.isFinite(entry.result.likes) ? entry.result.likes : null,
+        discovered_slm_files: slmFiles
+      },
+      requested_artifact: {
+        kind: "slm",
+        preferred_quantization_order: ["q8_0", "q4_0", "f32"],
+        runtime_target: "TinyRustLM Rust/WASM browser-local runtime",
+        browser_import_rule: "User imports the converted .slm with the browser file picker; project servers do not serve model bytes."
+      },
+      conversion_gates: [
+        "source license and model-card review",
+        "config/tokenizer checksum capture",
+        "safetensors/source artifact checksum capture",
+        "local conversion to .slm",
+        "tinyrustlm-slm-pack validate",
+        "runtime smoke proof",
+        "eval/admission evidence",
+        "MiniModel manifest signature",
+        "P2P peer availability metadata"
+      ],
+      existing_minimodel_matches: matches.map((match) => ({
+        model_id: match.modelId,
+        display_name: match.displayName,
+        artifact_sha256: match.artifactSha256,
+        artifact_byte_count: match.artifactByteCount,
+        peer_hint_status: match.peerHintStatus,
+        required_next_gate: match.requiredNextGate
+      })),
+      boundary: {
+        project_server_runs_model_bytes: false,
+        project_server_serves_model_bytes: false,
+        p2p_goal: "Convert once, publish checksum-bound metadata, then let peers transfer verified .slm bytes when P2P is implemented."
+      }
+    };
+  }
+
+  function saveHfConversionRequest(entry, matches) {
+    const request = hfConversionRequest(entry, matches);
+    const fileName = `${entry.modelId.replace(/[\\/]+/g, "__")}.minimodel-conversion-request.json`;
+    downloadTextFile(fileName, `${JSON.stringify(request, null, 2)}\n`);
+    setHfStatus("conversion request saved locally", false);
+  }
+
   function renderHfResults(results) {
     clearHfResults();
     const accepted = [];
@@ -2405,6 +2496,7 @@
       return;
     }
     for (const entry of accepted) {
+      const matches = hfP2pMatches(entry.modelId);
       const item = document.createElement("li");
       item.className = "model-result";
       const title = document.createElement("strong");
@@ -2413,7 +2505,9 @@
       meta.className = "model-result-meta";
       const downloads = Number.isFinite(entry.result.downloads) ? `${entry.result.downloads} downloads` : "downloads unavailable";
       const likes = Number.isFinite(entry.result.likes) ? `${entry.result.likes} likes` : "likes unavailable";
-      meta.textContent = `${downloads} / ${likes}`;
+      meta.textContent = matches.length
+        ? `${downloads} / ${likes} / converted .slm metadata found`
+        : `${downloads} / ${likes} / conversion request needed`;
       const actions = document.createElement("div");
       actions.className = "model-result-actions";
       const pageLink = document.createElement("a");
@@ -2422,6 +2516,21 @@
       pageLink.rel = "noopener noreferrer";
       pageLink.textContent = "Model Page";
       actions.append(pageLink);
+      if (matches.length) {
+        for (const match of matches.slice(0, 2)) {
+          const useButton = document.createElement("button");
+          useButton.type = "button";
+          useButton.textContent = "Use MiniModel Metadata";
+          useButton.addEventListener("click", () => selectCatalogEntry(match));
+          actions.append(useButton);
+        }
+      } else {
+        const requestButton = document.createElement("button");
+        requestButton.type = "button";
+        requestButton.textContent = "Save Conversion Request";
+        requestButton.addEventListener("click", () => saveHfConversionRequest(entry, matches));
+        actions.append(requestButton);
+      }
       const slmFiles = hfSlmSiblings(entry.result);
       if (slmFiles.length) {
         for (const fileName of slmFiles) {
@@ -2451,6 +2560,7 @@
     }
     el.simpleHfResults.replaceChildren();
     for (const entry of accepted) {
+      const matches = hfP2pMatches(entry.modelId);
       const item = document.createElement("li");
       item.className = "model-result";
       const title = document.createElement("strong");
@@ -2458,7 +2568,9 @@
       const meta = document.createElement("div");
       meta.className = "model-result-meta";
       const downloads = Number.isFinite(entry.result.downloads) ? `${entry.result.downloads} downloads` : "downloads unavailable";
-      meta.textContent = `Hugging Face metadata / ${downloads} / not runnable here until .slm conversion`;
+      meta.textContent = matches.length
+        ? `Hugging Face metadata / ${downloads} / converted .slm metadata found`
+        : `Hugging Face metadata / ${downloads} / not runnable here until .slm conversion`;
       const actions = document.createElement("div");
       actions.className = "model-result-actions";
       const pageLink = document.createElement("a");
@@ -2469,9 +2581,22 @@
       actions.append(pageLink);
       const slmFiles = hfSlmSiblings(entry.result);
       const compatibility = document.createElement("span");
-      compatibility.className = slmFiles.length ? "compatibility-pill candidate" : "compatibility-pill convert";
-      compatibility.textContent = slmFiles.length ? ".slm candidate found" : "conversion required";
+      compatibility.className = matches.length || slmFiles.length ? "compatibility-pill candidate" : "compatibility-pill convert";
+      compatibility.textContent = matches.length
+        ? "MiniModel metadata found"
+        : slmFiles.length
+          ? ".slm candidate found"
+          : "conversion required";
       actions.append(compatibility);
+      if (matches.length) {
+        for (const match of matches.slice(0, 2)) {
+          const useButton = document.createElement("button");
+          useButton.type = "button";
+          useButton.textContent = "Use MiniModel Metadata";
+          useButton.addEventListener("click", () => selectCatalogEntry(match));
+          actions.append(useButton);
+        }
+      }
       for (const fileName of slmFiles) {
         const slmLink = document.createElement("a");
         slmLink.href = hfResolveUrl(entry.modelId, fileName);
@@ -2480,6 +2605,11 @@
         slmLink.textContent = `Review ${safeLocalModelName(fileName)}`;
         actions.append(slmLink);
       }
+      const requestButton = document.createElement("button");
+      requestButton.type = "button";
+      requestButton.textContent = "Save Conversion Request";
+      requestButton.addEventListener("click", () => saveHfConversionRequest(entry, matches));
+      actions.append(requestButton);
       const importButton = document.createElement("button");
       importButton.type = "button";
       importButton.textContent = "Choose converted .slm";
@@ -2493,7 +2623,9 @@
       if (!slmFiles.length) {
         const note = document.createElement("span");
         note.className = "model-result-meta";
-        note.textContent = "Use the converter path first, then import the local .slm.";
+        note.textContent = matches.length
+          ? "Choose the matching local .slm when you already have it; P2P transfer is a later phase."
+          : "Convert once, then publish checksum-bound metadata for future P2P reuse.";
         actions.append(note);
       }
       item.append(title, meta, actions);
@@ -2513,6 +2645,7 @@
     setHfStatus("searching external index", false);
     const controller = new AbortController();
     state.hfSearchAbort = controller;
+    const catalogAvailability = ensureDefaultCatalogForHfAvailability();
     const url = new URL(`${hfOrigin()}/api/models`);
     url.searchParams.set("search", query);
     url.searchParams.set("filter", "text-generation");
@@ -2532,6 +2665,7 @@
     if (!Array.isArray(results)) {
       throw new Error("External model search returned an unexpected body");
     }
+    await catalogAvailability;
     renderHfResults(results);
   }
 

@@ -13,6 +13,7 @@ const appUrl = process.argv[2] || "http://127.0.0.1:8080/app/";
 const port = Number(process.argv[3] || 9223);
 const smokeMode = process.argv[5] || "single";
 const publicLocalOnlySmokeMode = smokeMode === "public-local-only";
+const hfSearchUiSmokeMode = smokeMode === "hf-search-ui";
 const catalogLocalImportSmokeMode = smokeMode === "catalog-local-import";
 const combinedSelectorOperatorFamilyRouteSoakMode = smokeMode === "combined-selector-operator-family-route-soak";
 const combinedSelectorOperatorFamilyReloadSoakMode = smokeMode === "combined-selector-operator-family-reload-soak";
@@ -1504,6 +1505,21 @@ function fulfillTextRequest(client, requestId, text) {
   });
 }
 
+function fulfillJsonRequest(client, requestId, value) {
+  const body = Buffer.from(JSON.stringify(value), "utf8");
+  return client.send("Fetch.fulfillRequest", {
+    requestId,
+    responseCode: 200,
+    responseHeaders: [
+      { name: "content-type", value: "application/json; charset=utf-8" },
+      { name: "access-control-allow-origin", value: "*" },
+      { name: "access-control-allow-headers", value: "*" },
+      { name: "content-length", value: String(body.length) }
+    ],
+    body: body.toString("base64")
+  });
+}
+
 function fulfillBinaryRequest(client, requestId, body) {
   return client.send("Fetch.fulfillRequest", {
     requestId,
@@ -1532,6 +1548,83 @@ async function continuePausedRequest(client, requestId) {
   }
 }
 
+function installHfSearchUiInterceptor(client) {
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    (async () => {
+      if (/^https?:\/\/huggingface\.co\/api\/models\b/i.test(requestUrl)) {
+        await fulfillJsonRequest(client, params.requestId, [
+          {
+            modelId: "example-org/tiny-source-model",
+            downloads: 123,
+            likes: 7,
+            siblings: [
+              { rfilename: "config.json" },
+              { rfilename: "model.safetensors" },
+              { rfilename: "tokenizer.json" }
+            ]
+          },
+          {
+            modelId: "example-org/tiny-ready-slm",
+            downloads: 42,
+            likes: 3,
+            siblings: [
+              { rfilename: "tiny-ready.slm" },
+              { rfilename: "README.md" }
+            ]
+          }
+        ]);
+        return;
+      }
+      if (/^https?:\/\/minimodel\.org\/catalog\/models\.v0\.json\b/i.test(requestUrl)) {
+        await fulfillJsonRequest(client, params.requestId, {
+          catalog_version: 0,
+          catalog_kind: "minimodel.model_catalog",
+          project_server_serves_model_bytes: false,
+          project_server_runs_model_bytes: false,
+          artifact_project_server_url: null,
+          entries: [
+            {
+              catalog_version: 0,
+              entry_kind: "minimodel.catalog_entry",
+              model_id: "minimodel/example-tiny-ready-slm",
+              display_name: "Example Tiny Ready SLM",
+              publisher_id: "minimodel.org",
+              publisher_key_id: "minimodel-test-key",
+              artifact_kind: "slm",
+              artifact_file_name: "tiny-ready.slm",
+              local_file_name_hint: "tiny-ready.slm",
+              artifact_byte_count: 4096,
+              artifact_sha256: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+              artifact_project_server_url: null,
+              project_server_serves_model_bytes: false,
+              project_server_runs_model_bytes: false,
+              peer_hint_status: "metadata-only",
+              execution_policy: "user-local-file-only",
+              source_kind: "huggingface-hub",
+              source_huggingface_model_id: "example-org/tiny-ready-slm",
+              source_identity: "https://huggingface.co/example-org/tiny-ready-slm",
+              model_card_route: "../docs/catalog-boundary.md",
+              license_route: "../LICENSE.txt",
+              manifest_route: "../examples/minimodel.manifest.v0.example",
+              evidence_admission_status: "metadata-only",
+              required_next_gate: "user-local-file-import-and-rust-wasm-validation",
+              max_tokens: 16
+            }
+          ]
+        });
+        return;
+      }
+      await continuePausedRequest(client, params.requestId);
+    })().catch((error) => {
+      console.error(error);
+      continuePausedRequest(client, params.requestId).catch((continueError) => {
+        console.error(continueError);
+      });
+    });
+  });
+}
+
 function parseEvaluateValue(result) {
   if (result && result.exceptionDetails) {
     const details = result.exceptionDetails;
@@ -1555,13 +1648,29 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function targetMatchesAppUrl(targetUrl) {
+  if (!targetUrl) {
+    return false;
+  }
+  if (targetUrl.includes("/app/")) {
+    return true;
+  }
+  try {
+    const target = new URL(targetUrl);
+    const expected = new URL(appUrl);
+    return target.origin === expected.origin && target.pathname === expected.pathname;
+  } catch (_error) {
+    return false;
+  }
+}
+
 async function waitForTarget() {
   const endpoint = `http://127.0.0.1:${port}/json/list`;
   let fallbackTarget = null;
   for (let attempt = 0; attempt < 120; attempt += 1) {
     try {
       const targets = JSON.parse(await get(endpoint));
-      const appTarget = targets.find((target) => target.url && target.url.includes("/app/"));
+      const appTarget = targets.find((target) => targetMatchesAppUrl(target.url));
       if (appTarget) {
         return appTarget;
       }
@@ -1845,6 +1954,90 @@ async function runPageSourceOptionsSmoke(client) {
       await sleep(50);
       const advanced = snapshot("advanced");
       return JSON.stringify({ initial, external, p2p, local, advanced });
+    })()
+  `;
+  const result = await client.send("Runtime.evaluate", {
+    expression,
+    awaitPromise: true,
+    returnByValue: true,
+    timeout: 90000
+  });
+  return parseEvaluateValue(result);
+}
+
+async function runPageHfSearchUiSmoke(client) {
+  await client.send("Emulation.setDeviceMetricsOverride", {
+    width: 1280,
+    height: 900,
+    deviceScaleFactor: 1,
+    mobile: false
+  });
+  const expression = `
+    (async () => {
+      const byId = (id) => document.getElementById(id);
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const visible = (node) => {
+        if (!node || node.closest("[hidden]")) {
+          return false;
+        }
+        for (let current = node; current; current = current.parentElement) {
+          const style = window.getComputedStyle(current);
+          if (style.display === "none" || style.visibility === "hidden") {
+            return false;
+          }
+        }
+        return node.getClientRects().length > 0;
+      };
+      const textList = (selector) => Array.from(document.querySelectorAll(selector)).map((node) => node.textContent.replace(/\\s+/g, " ").trim());
+      for (let index = 0; index < 600; index += 1) {
+        if (byId("wasmState") && byId("wasmState").textContent !== "waiting") {
+          break;
+        }
+        await sleep(100);
+      }
+      for (let index = 0; index < 300; index += 1) {
+        if (byId("modelEditButton") && byId("simpleHfSourceButton") && byId("simpleHfSearchButton")) {
+          break;
+        }
+        await sleep(100);
+      }
+      if (!byId("modelEditButton") || !byId("simpleHfSourceButton") || !byId("simpleHfSearchButton")) {
+        throw new Error("Hugging Face search controls were missing from the loaded page");
+      }
+      const initiallyOpen = visible(byId("simpleDiscoveryPanel"));
+      byId("modelEditButton").click();
+      await sleep(50);
+      byId("simpleHfSourceButton").click();
+      await sleep(50);
+      byId("simpleHfSearchInput").value = "tiny";
+      byId("simpleHfSearchButton").click();
+      for (let index = 0; index < 120; index += 1) {
+        const status = byId("simpleDiscoveryStatus") ? byId("simpleDiscoveryStatus").textContent : "";
+        if (document.querySelectorAll("#simpleHfResults li").length >= 2 && status.includes("external records")) {
+          break;
+        }
+        await sleep(100);
+      }
+      const panel = byId("simpleDiscoveryPanel");
+      const simpleTexts = textList("#simpleHfResults li");
+      const advancedTexts = textList("#hfResults li");
+      const actionTexts = textList("#simpleHfResults button, #simpleHfResults a, #simpleHfResults .compatibility-pill, #simpleHfResults .model-result-meta");
+      return JSON.stringify({
+        initiallyOpen,
+        panelOpen: visible(panel),
+        panelHidden: panel ? panel.hidden : true,
+        hfVisible: visible(byId("simpleHfSourcePanel")),
+        localVisible: visible(byId("simpleLocalSourcePanel")),
+        p2pVisible: visible(byId("simpleP2pSourcePanel")),
+        status: byId("simpleDiscoveryStatus") ? byId("simpleDiscoveryStatus").textContent : "",
+        hfStatus: byId("hfStatus") ? byId("hfStatus").textContent : "",
+        resultCount: document.querySelectorAll("#simpleHfResults li").length,
+        advancedResultCount: document.querySelectorAll("#hfResults li").length,
+        simpleTexts,
+        advancedTexts,
+        actionTexts,
+        bodyText: document.body ? document.body.textContent.replace(/\\s+/g, " ").trim() : ""
+      });
     })()
   `;
   const result = await client.send("Runtime.evaluate", {
@@ -7719,7 +7912,7 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
   if (snapshot.h1 !== "TinyRustLM") {
     failures.push(`${prefix} h1 was ${snapshot.h1}`);
   }
-  if (snapshot.eyebrow !== "Browser-local Rust/WASM tiny models") {
+  if (snapshot.eyebrow !== "Private Rust/WASM") {
     failures.push(`${prefix} eyebrow was ${snapshot.eyebrow}`);
   }
   const localOnlyCopy = `${snapshot.privacyBadge} ${snapshot.notice} ${snapshot.footer}`;
@@ -7739,7 +7932,7 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
   if (!snapshot.hasLeftSidebar || !snapshot.hasMainWorkspace || !snapshot.hasAdvancedOptionsPanel) {
     failures.push(`${prefix} three-region dashboard flags were ${snapshot.hasLeftSidebar}/${snapshot.hasMainWorkspace}/${snapshot.hasAdvancedOptionsPanel}`);
   }
-  for (const toolbarText of ["Llama 3 8B Instruct Q4_K_M", "Loaded locally", "WASM ready", "4096 context", "Edit Model"]) {
+  for (const toolbarText of ["TinyLM-16M q8_0", "Loaded locally", "WASM ready", "8 max tokens", "Edit Model"]) {
     if (!snapshot.modelToolbar.includes(toolbarText)) {
       failures.push(`${prefix} model toolbar was missing ${toolbarText}`);
     }
@@ -8199,6 +8392,67 @@ function assertSourceOptionsSmoke(result, networkRequests) {
   }
 }
 
+function assertHfSearchUiSmoke(result, networkRequests) {
+  const failures = [];
+  if (!result || typeof result !== "object") {
+    failures.push("Hugging Face search result was missing");
+  } else {
+    if (result.initiallyOpen) {
+      failures.push("model source popover was open before the user requested it");
+    }
+    if (!result.panelOpen || result.panelHidden) {
+      failures.push(`Hugging Face search closed the source popover: ${JSON.stringify(result)}`);
+    }
+    if (!result.hfVisible || result.localVisible || result.p2pVisible) {
+      failures.push(`Hugging Face source panel state was ${JSON.stringify(result)}`);
+    }
+    if (result.resultCount !== 2 || result.advancedResultCount !== 2) {
+      failures.push(`Hugging Face result counts were ${result.resultCount}/${result.advancedResultCount}`);
+    }
+    const resultText = [
+      ...(Array.isArray(result.simpleTexts) ? result.simpleTexts : []),
+      ...(Array.isArray(result.advancedTexts) ? result.advancedTexts : []),
+      ...(Array.isArray(result.actionTexts) ? result.actionTexts : [])
+    ].join(" ");
+    if (!resultText.includes("conversion required")) {
+      failures.push(`unmatched Hugging Face result did not show conversion required: ${resultText}`);
+    }
+    if (!resultText.includes("Save Conversion Request")) {
+      failures.push(`unmatched Hugging Face result did not offer conversion request: ${resultText}`);
+    }
+    if (!resultText.includes("Choose converted .slm")) {
+      failures.push(`Hugging Face result did not route to local .slm import: ${resultText}`);
+    }
+    if (!resultText.includes("MiniModel metadata found")) {
+      failures.push(`matched Hugging Face result did not show MiniModel metadata: ${resultText}`);
+    }
+    if (!resultText.includes("Use MiniModel Metadata")) {
+      failures.push(`matched Hugging Face result did not offer MiniModel metadata: ${resultText}`);
+    }
+    if (resultText.includes("Import Local .slm")) {
+      failures.push(`Hugging Face result still used fake import wording: ${resultText}`);
+    }
+    if (!String(result.status || "").includes("2 external records") || !String(result.hfStatus || "").includes("2 external records")) {
+      failures.push(`Hugging Face status was ${result.status}/${result.hfStatus}`);
+    }
+  }
+  const requests = networkRequests.filter((requestUrl) => requestUrl.startsWith("http://") || requestUrl.startsWith("https://"));
+  if (!requests.some((requestUrl) => requestUrl.includes("huggingface.co/api/models"))) {
+    failures.push(`Hugging Face API metadata request was not observed: ${JSON.stringify(requests)}`);
+  }
+  if (!requests.some((requestUrl) => requestUrl.toLowerCase().includes("minimodel.org/catalog/models.v0.json"))) {
+    failures.push(`MiniModel catalog metadata request was not observed: ${JSON.stringify(requests)}`);
+  }
+  for (const requestUrl of requests) {
+    if (requestUrl.includes("/resolve/")) {
+      failures.push(`Hugging Face model bytes were requested: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
 function assertPublicLocalOnlySmoke(result, networkRequests) {
   const failures = [];
   if (result.hostname !== "tinyrustlm.com") {
@@ -8207,7 +8461,7 @@ function assertPublicLocalOnlySmoke(result, networkRequests) {
   if (result.title !== "TinyRustLM" || result.h1 !== "TinyRustLM") {
     failures.push(`public title/h1 were ${result.title}/${result.h1}`);
   }
-  if (result.eyebrow !== "Browser-local Rust/WASM tiny models") {
+  if (result.eyebrow !== "Private Rust/WASM") {
     failures.push(`public eyebrow was ${result.eyebrow}`);
   }
   if (!String(result.notice || "").includes("TinyRustLM.com does not serve runnable model weights")) {
@@ -11128,6 +11382,17 @@ async function main() {
         ]
       });
     }
+    if (hfSearchUiSmokeMode) {
+      installHfSearchUiInterceptor(client);
+      await client.send("Fetch.enable", {
+        patterns: [
+          {
+            urlPattern: "*",
+            requestStage: "Request"
+          }
+        ]
+      });
+    }
     if (smokeMode === "module-plan-wasm-transfer-drift") {
       installModulePlanWasmTransferDriftInterceptor(client, expectedModel);
       await client.send("Fetch.enable", {
@@ -11310,6 +11575,21 @@ async function main() {
         }
       }
       assertSourceOptionsSmoke(result, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (smokeMode === "hf-search-ui") {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageHfSearchUiSmoke(client);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertHfSearchUiSmoke(result, networkRequests);
       result.networkRequests = networkRequests;
     } else if (smokeMode === "step-token") {
       await client.send("Page.reload", { ignoreCache: true });
