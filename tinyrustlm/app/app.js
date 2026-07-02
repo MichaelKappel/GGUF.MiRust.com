@@ -502,7 +502,7 @@
     consolePaused: "slmcomposer.ui.consolePaused"
   };
 
-  const uiPreferenceVersion = "local-ai-dashboard-v1";
+  const uiPreferenceVersion = "local-ai-dashboard-v2";
 
   const starterProfiles = {
     fast: {
@@ -579,6 +579,7 @@
     storageRemove(uiStorageKeys.mode);
     storageRemove(uiStorageKeys.selectedStarter);
     storageRemove(uiStorageKeys.simpleSourceOption);
+    storageRemove(uiStorageKeys.sidebarCollapsed);
     storageSet(uiStorageKeys.version, uiPreferenceVersion);
   }
 
@@ -959,6 +960,7 @@
     if (button) {
       button.setAttribute("aria-expanded", String(!collapsed));
       button.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
+      button.title = collapsed ? "Expand sidebar" : "Collapse sidebar";
     }
     storageSet(uiStorageKeys.sidebarCollapsed, String(Boolean(collapsed)));
   }
