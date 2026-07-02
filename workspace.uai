@@ -1,7 +1,7 @@
-profile: tinyrustlm.source-workspace.v128
+profile: tinyrustlm.source-workspace.v129
 project_name: TinyRustLM
 canonical_root: E:\Source\Rust\SLMComposer.com
-updated_utc: 2026-07-02T05:38:09Z
+updated_utc: 2026-07-02T06:15:00Z
 version_authority:
   current_version: 0.1.0
   next_version: 0.1.0
@@ -48,6 +48,7 @@ memory_authority:
   slmcomposer_local_ai_dashboard_2026_07_01: wiki/runtime-mirust/reports/slmcomposer-local-ai-dashboard-memory-2026-07-01.md routes the high-fidelity dark dashboard redesign, beginner starter cards, left navigation, desktop/mobile Advanced Options, source popover, and local-only model byte boundary.
   tinyrustlm_huggingface_conversion_script_2026_07_02: wiki/runtime-mirust/reports/tinyrustlm-huggingface-conversion-script-memory-2026-07-02.md routes Hugging Face Metadata Search wording, conversion-required versus MiniModel-metadata-found result states, local conversion script handoff, and source chooser open-state smoke proof; SHA256 65C25BC60631C525D8F7346387ECEFC1DA512A4AEE7AA4CFE6F1AD3BFB9097CD.
   tinyrustlm_peer_offer_source_clarity_2026_07_02: wiki/runtime-mirust/reports/tinyrustlm-peer-offer-source-clarity-memory-2026-07-02.md routes Rust `peer-offer`/`validate-peer-offer`, `.minimodel-peer-offer` proof, clarified Hugging Face compatibility labels, Search Metadata open-state proof, and MiniModel peer-offer catalog fields; SHA256 B9A7200F6AA1B8F0A328502E46FFD980E419E7E66AA8E943066AF1FCBC9E7BBF.
+  minimodel_local_verifier_implementation_2026_07_02: E:\Source\Rust\MiniModel.org\docs\verifier-mvp.md routes implemented `minimodel-core`/`minimodel` verifier, real q8 fixture manifest, local artifact SHA256/byte checks, TinyRustLM `.slm` structural validation, chunk/Merkle verification, and basename-only receipts; verifier doc SHA256 D02A2A5471E2D0806261CC4563B1E561793E1D1FB6CA503792FC5BEB2FA60C0F.
   huggingface_api_source_options_2026_07_01: wiki/runtime-mirust/research/huggingface-api-source-options-2026-07-01.md routes Hugging Face as a user-triggered external metadata/source option beside user-local files and future P2P, without project-server byte proxying or remote inference; TinyRustLM now treats those rows as non-runnable source metadata unless MiniModel metadata identifies an admitted `.slm`, and can save a local `minimodel.huggingface_conversion_request.v0` handoff.
   tinylm16_bpe_safetensors_plan_2026_06_30: wiki/runtime-mirust/reports/tinylm16-bpe-safetensors-plan-memory-2026-06-30.md routes `tinylm16-bpe` source shape, 39 untied TinyLM-16M tensors, manifest-native BPE1 metadata, sparse safetensors planner proof, and docs/CLI shape lists.
   two_parent_operator_browser_provenance_2026_06_29: wiki/runtime-mirust/reports/two-parent-operator-browser-provenance-memory-2026-06-29.md routes compact browser Model Provenance Operator rendering and receipt byte-echo fallback for blend, task-delta, and sparse task-delta selector fixtures.

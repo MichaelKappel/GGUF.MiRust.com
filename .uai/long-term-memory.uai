@@ -19,7 +19,7 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before orienting project state, support boundaries, report routing, or public claim boundaries.
-    checksum_hash: sha256:326266975C3D46828C3F3D9E97B66D51E3332C31D469526F3ABC245C0EC489B6
+    checksum_hash: sha256:521719CC08B392FF9414E49366B2A999299A9CDA31A4582F5FCB6BC573646269
     last_reviewed_utc: 2026-07-02T05:38:09Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; hot workspace state lives in the target file.
@@ -104,7 +104,7 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before resuming current work, locating latest report memory, or choosing next verification.
-    checksum_hash: sha256:1474F5C0B798FB2814ADFC5D3D3157BD7A95A730AA522C94F83E58F7F0A5573D
+    checksum_hash: sha256:4F03D86A69E082E2F7DBF84C3D89441F4E6B959AAF94A238880B1289E1DDA830
     last_reviewed_utc: 2026-07-02T05:38:09Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; current state and routes live in the target file.
@@ -223,7 +223,7 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before resuming after the IDE is reopened or before processing queued MiniModel intake.
-    checksum_hash: sha256:39016503609D1B1D490142599D016DDDCAD4F953F29F61495A3CBD7E728EFAF5
+    checksum_hash: sha256:220263C34477B10CE00BECAC689E52E28E6E8D270FDD223654EAF3350A63C5F8
     last_reviewed_utc: 2026-07-02T05:38:09Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; next prompt lives in the target file.
@@ -2501,7 +2501,7 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before editing MiniModel.org site, workspace policy, or public/private route boundaries.
-    checksum_hash: sha256:6FB86CA4964C32247168777EA3FCBEB48EB4E82E30F8BF256A7CBD412A3417B2
+    checksum_hash: sha256:FDE36DA07947A370CF0C4D550FD709CE363B881501E27DE139A592E97C348BCB
     last_reviewed_utc: 2026-07-02T05:38:09Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; workspace state lives in the target file.
@@ -2518,7 +2518,7 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before resuming MiniModel.org site, docs, or source-option work.
-    checksum_hash: sha256:AC923F77628C448A88B6D0388B81D9B10088984B116677A752F3606A7E8198DD
+    checksum_hash: sha256:CAB8CE8F87A9A545D7E1BC0DC522955E938384F6F1FFFD273DF31F830799D010
     last_reviewed_utc: 2026-07-01T16:20:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; short-term memory lives in the target file.
@@ -2552,7 +2552,7 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before editing MiniModel.org public roadmap or implementation plan.
-    checksum_hash: sha256:51F524EAF97FC74B6BCD4BB57DFE05B8C88D04C48536A2194CB90BDFFB17C72F
+    checksum_hash: sha256:33A091FD0F60AB933EB34B1F25FB0FAFFF105D723017802F3CA36DDB12C1AC07
     last_reviewed_utc: 2026-07-02T05:38:09Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; public roadmap body lives in the target file.
@@ -2569,7 +2569,7 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before implementing manifest parsing, validation, schema fields, boundary rejection, or signature/chunk planning.
-    checksum_hash: sha256:05D9DBD4F31BA6AFFEB9B4B70672636C296F9D584056F7ADD9CCC0FC02153CF4
+    checksum_hash: sha256:88D7CAD2D0B02C67D43C353A5B478C9DEB64D2CA2804F38A445361F4A50EE85E
     last_reviewed_utc: 2026-07-02T05:38:09Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; manifest draft body lives in the target file.
@@ -2586,7 +2586,7 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before implementing minimodel-core, verifier CLI, import receipts, or drift tests.
-    checksum_hash: sha256:3B413517BAC90216568BD0A681935F0ADDF2D014B18EC5D660FE8A405D8FB946
+    checksum_hash: sha256:D02A2A5471E2D0806261CC4563B1E561793E1D1FB6CA503792FC5BEB2FA60C0F
     last_reviewed_utc: 2026-07-02T05:38:09Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; verifier plan body lives in the target file.
@@ -2654,7 +2654,7 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before editing MiniModel.org public page or docs navigation.
-    checksum_hash: sha256:448F7B7602E24C32B3C14AA6845DEFA24702D8ABBE28607B503AECDBFAC882A3
+    checksum_hash: sha256:EF352238097EF001CA5F9C7D9418B4468EBB54EA2EEC9DA8F6CBD6620A6101F0
     last_reviewed_utc: 2026-07-02T05:38:09Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; page body lives in the target file.
@@ -2671,7 +2671,7 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing default SLMComposer catalog metadata, model-list schema, or no-server-model-byte examples.
-    checksum_hash: sha256:84A63D367FBA90B281B47DE1AEE6C9EC04BF08CB17BDD4FF9723192DADD719B0
+    checksum_hash: sha256:0A5AF04425E6E47E20874D6223AEFD10F802568127428B4AFF1ACB90C792857E
     last_reviewed_utc: 2026-07-02T05:38:09Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; catalog JSON body lives in the target file.
@@ -5378,6 +5378,74 @@ records:
     last_reviewed_utc: 2026-07-02T05:38:09Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; peer-offer source-clarity report body lives in the target file.
+  - stable_id: minimodel_local_verifier_mvp_doc
+    memory_domain: minimodel.local_verifier.implementation
+    pointer_type: local_md
+    path: E:\Source\Rust\MiniModel.org\docs\verifier-mvp.md
+    target_location: E:\Source\Rust\MiniModel.org\docs\verifier-mvp.md
+    label: Required For MiniModel Local Verifier MVP
+    summary: Routes agents to implemented `minimodel-core` and `minimodel` verifier commands, local artifact checks, TinyRustLM `.slm` validation, chunk/Merkle verification, and receipt fields.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local MiniModel.org implementation docs
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing MiniModel manifest/artifact verification, receipt fields, or peer-transfer trust gates.
+    checksum_hash: sha256:D02A2A5471E2D0806261CC4563B1E561793E1D1FB6CA503792FC5BEB2FA60C0F
+    last_reviewed_utc: 2026-07-02T06:15:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; verifier implementation details live in the target file.
+  - stable_id: minimodel_manifest_v0_doc
+    memory_domain: minimodel.manifest.schema
+    pointer_type: local_md
+    path: E:\Source\Rust\MiniModel.org\docs\manifest-v0.md
+    target_location: E:\Source\Rust\MiniModel.org\docs\manifest-v0.md
+    label: Required For MiniModel Manifest v0
+    summary: Routes agents to manifest v0 fields, local artifact boundary, source lanes, evidence pairs, chunk/Merkle fields, and signature placeholders.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local MiniModel.org schema docs
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing MiniModel manifests, catalog routes, source discovery fields, or local verifier parser behavior.
+    checksum_hash: sha256:88D7CAD2D0B02C67D43C353A5B478C9DEB64D2CA2804F38A445361F4A50EE85E
+    last_reviewed_utc: 2026-07-02T06:15:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; schema details live in the target file.
+  - stable_id: minimodel_q8_fixture_manifest
+    memory_domain: minimodel.manifest.fixture
+    pointer_type: local_manifest
+    path: E:\Source\Rust\MiniModel.org\examples\tiny-test-model-q8.minimodel.manifest.v0
+    target_location: E:\Source\Rust\MiniModel.org\examples\tiny-test-model-q8.minimodel.manifest.v0
+    label: Required For MiniModel q8 Fixture Manifest
+    summary: Routes agents to the real q8 fixture metadata binding artifact SHA256, `.slm` checksum, tokenizer checksum, tensor-layout checksum, peer-offer route, chunk-list SHA256, and Merkle root without hosting model bytes.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local MiniModel.org example manifest
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing fixture catalog entries, CLI verifier smokes, or peer-offer proof examples.
+    checksum_hash: sha256:D26A7E3A445F30F2C7FF3493E50F95BB7798D07546D357DAE7F930BA861F5EAB
+    last_reviewed_utc: 2026-07-02T06:15:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Metadata only; matching `.slm` artifact bytes are not hosted by MiniModel.org.
+  - stable_id: minimodel_metadata_catalog_v0
+    memory_domain: minimodel.catalog.metadata
+    pointer_type: local_json
+    path: E:\Source\Rust\MiniModel.org\catalog\models.v0.json
+    target_location: E:\Source\Rust\MiniModel.org\catalog\models.v0.json
+    label: Required For MiniModel Metadata Catalog v0
+    summary: Routes agents to metadata-only catalog entries, q8 fixture manifest route, peer-offer proof route, no artifact URL, and no server model-byte/execution flags.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local MiniModel.org catalog
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing MiniModel catalog endpoint fields, TinyRustLM catalog import expectations, or public metadata deploys.
+    checksum_hash: sha256:0A5AF04425E6E47E20874D6223AEFD10F802568127428B4AFF1ACB90C792857E
+    last_reviewed_utc: 2026-07-02T06:15:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Catalog metadata only; no MiniModel project-hosted model bytes.
   - stable_id: runtime_mirust_tinylm16_bpe_safetensors_plan_memory
     memory_domain: runtime-mirust.report_memory.safetensors_source_plan
     pointer_type: llmwiki_node
