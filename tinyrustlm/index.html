@@ -166,6 +166,9 @@
           </div>
           <p id="simplePeerUrlStatus" class="inline-status">Enter the consenting peer URL once; P2P imports will use it.</p>
           <button id="simpleLoadCatalogButton" class="secondary-action" type="button">Load MiniModel Metadata</button>
+          <label for="simplePeerAnnouncementFile">Peer-source announcement JSON</label>
+          <input id="simplePeerAnnouncementFile" type="file" accept=".json,application/json">
+          <button id="simpleApplyPeerAnnouncementButton" class="secondary-action" type="button">Apply Peer Announcement</button>
           <button id="simpleSaveShareMetadataButton" class="secondary-action" type="button">Save Share Metadata</button>
           <p id="simpleShareMetadataStatus" class="inline-status">import a local .slm first</p>
           <ol id="simpleCatalogResults" class="model-results"></ol>
@@ -314,6 +317,9 @@
             <label for="localCatalogFile">Local models.v0.json</label>
             <input id="localCatalogFile" type="file" accept=".json,application/json">
             <button id="importLocalCatalogButton" class="secondary-action" type="button">Load Local Catalog</button>
+            <label for="peerAnnouncementFile">Peer-source announcement JSON</label>
+            <input id="peerAnnouncementFile" type="file" accept=".json,application/json">
+            <button id="applyPeerAnnouncementButton" class="secondary-action" type="button">Apply Peer Announcement</button>
             <p id="catalogStatus" class="inline-status">idle</p>
             <ol id="catalogResults" class="model-results"></ol>
 

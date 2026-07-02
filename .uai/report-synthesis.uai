@@ -1,5 +1,5 @@
-profile: runtime-mirust.report-synthesis.v139
-updated_utc: 2026-07-03T02:45:00Z
+profile: runtime-mirust.report-synthesis.v140
+updated_utc: 2026-07-03T03:30:00Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/runtime-mirust/report-intake-2026-06-25/
@@ -225,11 +225,12 @@ docs_report_intake_2026_07_02:
   add_peer_source_route: wiki/runtime-mirust/reports/tinyrustlm-minimodel-add-peer-source-intake-memory-2026-07-02.md
   peer_source_announcement_route: wiki/runtime-mirust/reports/tinyrustlm-minimodel-peer-source-announcement-memory-2026-07-02.md
   batch_announcement_snapshot_route: wiki/runtime-mirust/reports/tinyrustlm-minimodel-batch-announcement-snapshot-memory-2026-07-02.md
+  peer_source_announcement_overlay_route: wiki/runtime-mirust/reports/tinyrustlm-peer-source-announcement-overlay-memory-2026-07-02.md
   source_bucket: E:\Source\Rust\TinyRustLM.com\agent-file-handoff\Improvement\
   source_count: 6
   disposition: preserved-to-docs-and-source-site-copies-removed
   synthesis: The batch routes local-first TinyRustLM UX, Hugging Face metadata plus local conversion, `.slm` format documentation pressure, MiniModel metadata-only P2P, direct known-peer Rust handoffs, Iroh/libp2p/Pear/Bare/Hyper as roadmap tradeoffs, and no-server-model-byte boundaries.
-  implementation_use: Use this docs batch before changing Hugging Face conversion handoffs, MiniModel peer-source metadata, batch catalog publication, P2P-ready catalog claims, beginner source UX, `.slm` documentation, or legal/security copy; keep broad DHT/relay/browser seeding claims as roadmap until implemented.
+  implementation_use: Use this docs batch before changing Hugging Face conversion handoffs, MiniModel peer-source metadata, local peer-source announcement overlays, batch catalog publication, P2P-ready catalog claims, beginner source UX, `.slm` documentation, or legal/security copy; keep broad DHT/relay/browser seeding claims as roadmap until implemented.
 huggingface_api_source_options_2026_07_01:
   route: wiki/runtime-mirust/research/huggingface-api-source-options-2026-07-01.md
   source_report: docs/report-intake/2026-07-01/Hugging Face API Endpoint Overview.md

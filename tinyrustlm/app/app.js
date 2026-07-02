@@ -370,6 +370,8 @@
     simpleCatalogResults: document.getElementById("simpleCatalogResults"),
     simpleHfResults: document.getElementById("simpleHfResults"),
     simpleLoadCatalogButton: document.getElementById("simpleLoadCatalogButton"),
+    simplePeerAnnouncementFile: document.getElementById("simplePeerAnnouncementFile"),
+    simpleApplyPeerAnnouncementButton: document.getElementById("simpleApplyPeerAnnouncementButton"),
     simpleSaveShareMetadataButton: document.getElementById("simpleSaveShareMetadataButton"),
     simpleShareMetadataStatus: document.getElementById("simpleShareMetadataStatus"),
     simpleOpenAdvancedDiscoveryButton: document.getElementById("simpleOpenAdvancedDiscoveryButton"),
@@ -416,6 +418,8 @@
     catalogLoadButton: document.getElementById("catalogLoadButton"),
     localCatalogFile: document.getElementById("localCatalogFile"),
     importLocalCatalogButton: document.getElementById("importLocalCatalogButton"),
+    peerAnnouncementFile: document.getElementById("peerAnnouncementFile"),
+    applyPeerAnnouncementButton: document.getElementById("applyPeerAnnouncementButton"),
     catalogStatus: document.getElementById("catalogStatus"),
     catalogResults: document.getElementById("catalogResults"),
     hfSearchInput: document.getElementById("hfSearchInput"),
@@ -1469,6 +1473,27 @@
         if (el.catalogLoadButton) {
           el.catalogLoadButton.click();
         }
+      });
+    }
+    if (el.simpleApplyPeerAnnouncementButton) {
+      el.simpleApplyPeerAnnouncementButton.addEventListener("click", () => {
+        setSimpleSourceOption("p2p", true);
+        applyPeerSourceAnnouncementFile(el.simplePeerAnnouncementFile).catch((error) => {
+          setCatalogStatus(errorMessage(error), true);
+        }).finally(() => {
+          holdModelPopoverOpen(3000);
+        });
+      });
+    }
+    if (el.simplePeerAnnouncementFile) {
+      el.simplePeerAnnouncementFile.addEventListener("change", () => {
+        const file = el.simplePeerAnnouncementFile.files && el.simplePeerAnnouncementFile.files[0];
+        if (!file) {
+          setCatalogStatus("choose a peer-source announcement after loading metadata", false);
+          return;
+        }
+        setCatalogStatus(`${safeLocalModelName(file.name)} / ${formatByteCount(file.size)} peer-source announcement selected`, false);
+        holdModelPopoverOpen(2500);
       });
     }
     if (el.simpleSaveShareMetadataButton) {
@@ -2528,6 +2553,242 @@
     state.defaultCatalogCheckedForAvailability = false;
     renderCatalogResults(entries);
     setCatalogStatus(`${entries.length} local MiniModel metadata entries from ${fileName}`, false);
+  }
+
+  function catalogPeerSourceRaw(source) {
+    return {
+      source_kind: source.sourceKind || "known-direct-http-peer-v0",
+      transport: source.transport || "direct-http-piece-server-v0",
+      peer_base_url: source.peerBaseUrl,
+      consent_status: source.consentStatus || "publisher-declared-consenting-peer",
+      project_server_serves_model_bytes: false,
+      project_server_runs_model_bytes: false
+    };
+  }
+
+  function catalogPeerSourceKey(source) {
+    return [
+      source.sourceKind || "known-direct-http-peer-v0",
+      source.transport || "direct-http-piece-server-v0",
+      source.peerBaseUrl || "",
+      source.consentStatus || "publisher-declared-consenting-peer"
+    ].join("|");
+  }
+
+  function peerSourceAnnouncementFromRaw(raw, index) {
+    const label = `Peer-source announcement ${index + 1}`;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+      throw new Error(`${label} was not a JSON object`);
+    }
+    assertMetadataOnlyCatalogBoundary(raw, label);
+    if (raw.project_server_proxies_model_bytes === true) {
+      throw new Error(`${label} declares project-server model-byte proxying`);
+    }
+    if (catalogInteger(raw.announcement_version) !== 0) {
+      throw new Error(`${label} version was unsupported`);
+    }
+    if (catalogText(raw.announcement_kind) !== "minimodel.peer_source_announcement") {
+      throw new Error(`${label} kind was unsupported`);
+    }
+    if (catalogText(raw.announcement_status) !== "peer-source-available-metadata-only") {
+      throw new Error(`${label} status was unsupported`);
+    }
+    if (catalogText(raw.artifact_kind).toLowerCase() !== "slm") {
+      throw new Error(`${label} was not for an .slm artifact`);
+    }
+    const modelId = catalogText(raw.model_id);
+    if (!isCatalogModelId(modelId)) {
+      throw new Error(`${label} model id was invalid`);
+    }
+    const artifactByteCount = catalogInteger(raw.artifact_byte_count);
+    if (!artifactByteCount || artifactByteCount > localModelMaxBytes) {
+      throw new Error(`${label} byte count was invalid`);
+    }
+    const artifactSha256 = normalizeCatalogSha256(raw.artifact_sha256);
+    const peerOfferSha256 = normalizeCatalogSha256(raw.peer_offer_sha256);
+    const peerOfferMerkleRootSha256 = normalizeCatalogSha256(raw.peer_offer_merkle_root_sha256);
+    const catalogEntrySha256 = normalizeCatalogSha256(raw.catalog_entry_sha256);
+    if (!artifactSha256 || !peerOfferSha256 || !peerOfferMerkleRootSha256 || !catalogEntrySha256) {
+      throw new Error(`${label} checksums were invalid`);
+    }
+    const peerOfferRoute = catalogText(raw.peer_offer_route);
+    if (!peerOfferRoute || peerOfferRoute.includes("\n") || peerOfferRoute.includes("\r")) {
+      throw new Error(`${label} peer offer route was invalid`);
+    }
+    const peerOfferChunkCount = catalogInteger(raw.peer_offer_chunk_count);
+    if (!peerOfferChunkCount || peerOfferChunkCount < 1) {
+      throw new Error(`${label} peer offer chunk count was invalid`);
+    }
+    const peerSources = catalogPeerSourcesFromRaw(
+      { peer_source_count: 1, peer_sources: [raw.peer_source] },
+      label
+    );
+    if (!peerSources[0] || !peerSources[0].peerBaseUrl) {
+      throw new Error(`${label} did not name a consenting peer URL`);
+    }
+    return {
+      raw,
+      modelId,
+      artifactByteCount,
+      artifactSha256,
+      peerOfferSha256,
+      peerOfferMerkleRootSha256,
+      peerOfferRoute,
+      peerOfferChunkCount,
+      catalogEntrySha256,
+      peerSource: peerSources[0]
+    };
+  }
+
+  function peerSourceAnnouncementsFromBody(body, sourceLabel) {
+    const rawAnnouncements = Array.isArray(body)
+      ? body
+      : Array.isArray(body && body.announcements)
+        ? body.announcements
+        : [body];
+    if (rawAnnouncements.length > catalogMaxEntries) {
+      throw new Error(`${sourceLabel} listed too many peer-source announcements`);
+    }
+    const announcements = rawAnnouncements.map((announcement, index) => (
+      peerSourceAnnouncementFromRaw(announcement, index)
+    ));
+    if (!announcements.length) {
+      throw new Error(`${sourceLabel} did not list any peer-source announcements`);
+    }
+    return announcements;
+  }
+
+  function assertPeerAnnouncementMatchesEntry(entry, announcement) {
+    if (entry.artifactByteCount !== announcement.artifactByteCount) {
+      throw new Error(`${announcement.modelId} peer-source announcement byte count did not match catalog metadata`);
+    }
+    if (entry.artifactSha256 !== announcement.artifactSha256) {
+      throw new Error(`${announcement.modelId} peer-source announcement artifact checksum did not match catalog metadata`);
+    }
+    if (!entry.peerOfferRoute || entry.peerOfferRoute !== announcement.peerOfferRoute) {
+      throw new Error(`${announcement.modelId} peer-source announcement peer-offer route did not match catalog metadata`);
+    }
+    if (entry.peerOfferSha256 !== announcement.peerOfferSha256) {
+      throw new Error(`${announcement.modelId} peer-source announcement peer-offer checksum did not match catalog metadata`);
+    }
+    if (entry.peerOfferMerkleRootSha256 !== announcement.peerOfferMerkleRootSha256) {
+      throw new Error(`${announcement.modelId} peer-source announcement Merkle root did not match catalog metadata`);
+    }
+    if (entry.peerOfferChunkCount !== announcement.peerOfferChunkCount) {
+      throw new Error(`${announcement.modelId} peer-source announcement chunk count did not match catalog metadata`);
+    }
+  }
+
+  function applyPeerSourceAnnouncements(announcements) {
+    if (!state.catalogEntries.length) {
+      throw new Error("Load MiniModel metadata or a local models.v0.json before applying peer-source announcements.");
+    }
+    const catalogByModelId = new Map();
+    for (const entry of state.catalogEntries) {
+      if (!catalogByModelId.has(entry.modelId)) {
+        catalogByModelId.set(entry.modelId, entry);
+      }
+    }
+    for (const announcement of announcements) {
+      const entry = catalogByModelId.get(announcement.modelId);
+      if (!entry) {
+        throw new Error(`${announcement.modelId} did not match any loaded MiniModel metadata entry`);
+      }
+      assertPeerAnnouncementMatchesEntry(entry, announcement);
+    }
+
+    const announcementsByModelId = new Map();
+    for (const announcement of announcements) {
+      const list = announcementsByModelId.get(announcement.modelId) || [];
+      list.push(announcement);
+      announcementsByModelId.set(announcement.modelId, list);
+    }
+
+    let appliedCount = 0;
+    let duplicateCount = 0;
+    const nextEntries = state.catalogEntries.map((entry) => {
+      const modelAnnouncements = announcementsByModelId.get(entry.modelId) || [];
+      if (!modelAnnouncements.length) {
+        return entry;
+      }
+      const peerSources = entry.peerSources.slice();
+      const seen = new Set(peerSources.map(catalogPeerSourceKey));
+      for (const announcement of modelAnnouncements) {
+        const key = catalogPeerSourceKey(announcement.peerSource);
+        if (seen.has(key)) {
+          duplicateCount += 1;
+          continue;
+        }
+        seen.add(key);
+        peerSources.push(announcement.peerSource);
+        appliedCount += 1;
+      }
+      if (peerSources.length === entry.peerSources.length) {
+        return entry;
+      }
+      const rawPeerSources = peerSources.map(catalogPeerSourceRaw);
+      return {
+        ...entry,
+        raw: {
+          ...entry.raw,
+          peer_source_count: rawPeerSources.length,
+          peer_sources: rawPeerSources
+        },
+        peerSources,
+        peerImportStatus: entry.peerImportStatus || "request-script-ready",
+        peerHintStatus: entry.peerHintStatus === "disabled"
+          ? "peer-source-available-metadata-only"
+          : entry.peerHintStatus
+      };
+    });
+    if (!appliedCount && !duplicateCount) {
+      throw new Error("No peer-source announcements were applied.");
+    }
+    const selectedModelId = state.selectedCatalogEntry && state.selectedCatalogEntry.modelId;
+    state.catalogEntries = nextEntries;
+    if (selectedModelId) {
+      state.selectedCatalogEntry = nextEntries.find((entry) => entry.modelId === selectedModelId) || state.selectedCatalogEntry;
+    }
+    renderCatalogResults(nextEntries);
+    refreshHfResultsForCatalogChange();
+    return { appliedCount, duplicateCount };
+  }
+
+  function selectedPeerAnnouncementFile(preferredInput) {
+    if (preferredInput && preferredInput.files && preferredInput.files[0]) {
+      return preferredInput.files[0];
+    }
+    if (el.peerAnnouncementFile && el.peerAnnouncementFile.files && el.peerAnnouncementFile.files[0]) {
+      return el.peerAnnouncementFile.files[0];
+    }
+    if (el.simplePeerAnnouncementFile && el.simplePeerAnnouncementFile.files && el.simplePeerAnnouncementFile.files[0]) {
+      return el.simplePeerAnnouncementFile.files[0];
+    }
+    return null;
+  }
+
+  async function applyPeerSourceAnnouncementFile(preferredInput) {
+    const file = selectedPeerAnnouncementFile(preferredInput);
+    if (!file) {
+      throw new Error("Choose a peer-source announcement JSON file");
+    }
+    if (!Number.isFinite(file.size) || file.size <= 0) {
+      throw new Error("Peer-source announcement file is empty");
+    }
+    if (file.size > catalogTextByteBudget) {
+      throw new Error("Peer-source announcement exceeded browser metadata budget");
+    }
+    const fileName = safeLocalModelName(file.name);
+    setCatalogStatus(`reading peer-source announcement ${fileName}`, false);
+    const text = await file.text();
+    const body = JSON.parse(text);
+    const announcements = peerSourceAnnouncementsFromBody(body, fileName);
+    const result = applyPeerSourceAnnouncements(announcements);
+    const appliedText = `${result.appliedCount} peer-source announcement${result.appliedCount === 1 ? "" : "s"} applied`;
+    const duplicateText = result.duplicateCount
+      ? `; ${result.duplicateCount} duplicate${result.duplicateCount === 1 ? "" : "s"} already loaded`
+      : "";
+    setCatalogStatus(`${appliedText}${duplicateText} from ${fileName}`, false);
   }
 
   const peerShareChunkBytes = 1024 * 1024;
@@ -3656,6 +3917,30 @@
     holdModelPopoverOpen(2500);
   }
 
+  function renderAcceptedHfResults(accepted) {
+    if (el.hfResults) {
+      el.hfResults.replaceChildren();
+      for (const entry of accepted) {
+        const view = hfResultView(entry);
+        const item = modelResultItem(entry.modelId);
+        const status = elementWithText("span", hfCompatibilityClass(view), hfAdvancedStatusText(view));
+        const meta = elementWithText("div", "model-result-meta", hfAdvancedMetaText(view));
+        const actions = elementWithText("div", "model-result-actions", "");
+        appendHfAdvancedActions(actions, entry, view);
+        appendHfSourceFileNotes(actions, view);
+        item.append(status, meta, actions);
+        el.hfResults.append(item);
+      }
+    }
+    renderSimpleHfResults(accepted);
+  }
+
+  function refreshHfResultsForCatalogChange() {
+    if (state.hfLastAccepted && state.hfLastAccepted.length) {
+      renderAcceptedHfResults(state.hfLastAccepted);
+    }
+  }
+
   function renderHfResults(results) {
     clearHfResults();
     const accepted = [];
@@ -3673,18 +3958,7 @@
       setHfStatus("no model records returned", false);
       return;
     }
-    for (const entry of accepted) {
-      const view = hfResultView(entry);
-      const item = modelResultItem(entry.modelId);
-      const status = elementWithText("span", hfCompatibilityClass(view), hfAdvancedStatusText(view));
-      const meta = elementWithText("div", "model-result-meta", hfAdvancedMetaText(view));
-      const actions = elementWithText("div", "model-result-actions", "");
-      appendHfAdvancedActions(actions, entry, view);
-      appendHfSourceFileNotes(actions, view);
-      item.append(status, meta, actions);
-      el.hfResults.append(item);
-    }
-    renderSimpleHfResults(accepted);
+    renderAcceptedHfResults(accepted);
     setHfStatus(`${accepted.length} external records; local .slm verification required`, false);
   }
 
@@ -8950,6 +9224,21 @@
       return;
     }
     setCatalogStatus(`${safeLocalModelName(file.name)} / ${formatByteCount(file.size)} local catalog selected`, false);
+  });
+
+  el.applyPeerAnnouncementButton.addEventListener("click", function () {
+    applyPeerSourceAnnouncementFile(el.peerAnnouncementFile).catch((error) => {
+      setCatalogStatus(errorMessage(error), true);
+    });
+  });
+
+  el.peerAnnouncementFile.addEventListener("change", function () {
+    const file = el.peerAnnouncementFile.files && el.peerAnnouncementFile.files[0];
+    if (!file) {
+      setCatalogStatus("choose a peer-source announcement after loading metadata", false);
+      return;
+    }
+    setCatalogStatus(`${safeLocalModelName(file.name)} / ${formatByteCount(file.size)} peer-source announcement selected`, false);
   });
 
   el.hfSearchButton.addEventListener("click", function () {

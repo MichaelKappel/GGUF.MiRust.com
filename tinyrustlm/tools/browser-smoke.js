@@ -15,6 +15,7 @@ const smokeMode = process.argv[5] || "single";
 const publicLocalOnlySmokeMode = smokeMode === "public-local-only";
 const hfSearchUiSmokeMode = smokeMode === "hf-search-ui";
 const hfLocalCatalogSmokeMode = smokeMode === "hf-local-catalog-ui";
+const hfPeerAnnouncementSmokeMode = smokeMode === "hf-peer-announcement-ui";
 const shareMetadataSmokeMode = smokeMode === "share-metadata-ui";
 const catalogLocalImportSmokeMode = smokeMode === "catalog-local-import";
 const combinedSelectorOperatorFamilyRouteSoakMode = smokeMode === "combined-selector-operator-family-route-soak";
@@ -1608,6 +1609,47 @@ function hfReadyCatalogSnapshot(catalogId = "browser-smoke-minimodel-catalog") {
   };
 }
 
+function hfProofReadyCatalogEntry() {
+  const entry = JSON.parse(JSON.stringify(hfReadyCatalogEntry()));
+  entry.peer_source_count = 0;
+  entry.peer_sources = [];
+  return entry;
+}
+
+function hfProofReadyCatalogSnapshot(catalogId = "browser-smoke-proof-ready-catalog") {
+  return {
+    catalog_version: 0,
+    catalog_kind: "minimodel.model_catalog",
+    catalog_id: catalogId,
+    project_server_serves_model_bytes: false,
+    project_server_runs_model_bytes: false,
+    artifact_project_server_url: null,
+    entries: [hfProofReadyCatalogEntry()]
+  };
+}
+
+function hfPeerSourceAnnouncement() {
+  const entry = hfReadyCatalogEntry();
+  return {
+    announcement_version: 0,
+    announcement_kind: "minimodel.peer_source_announcement",
+    announcement_status: "peer-source-available-metadata-only",
+    model_id: entry.model_id,
+    artifact_kind: entry.artifact_kind,
+    artifact_byte_count: entry.artifact_byte_count,
+    artifact_sha256: entry.artifact_sha256,
+    peer_offer_route: entry.peer_offer_route,
+    peer_offer_sha256: entry.peer_offer_sha256,
+    peer_offer_chunk_count: entry.peer_offer_chunk_count,
+    peer_offer_merkle_root_sha256: entry.peer_offer_merkle_root_sha256,
+    catalog_entry_sha256: "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    project_server_serves_model_bytes: false,
+    project_server_runs_model_bytes: false,
+    project_server_proxies_model_bytes: false,
+    peer_source: entry.peer_sources[0]
+  };
+}
+
 function installHfSearchUiInterceptor(client) {
   client.on("Fetch.requestPaused", (params) => {
     const requestUrl = params.request && params.request.url ? params.request.url : "";
@@ -2203,8 +2245,10 @@ async function runPageHfSearchUiSmoke(client) {
   return parseEvaluateValue(result);
 }
 
-async function runPageHfLocalCatalogSmoke(client) {
-  const fixture = writeHfLocalCatalogSnapshotFixture();
+async function runPageHfLocalCatalogSmoke(client, options = {}) {
+  const fixture = options.peerAnnouncementOverlay
+    ? writeHfPeerAnnouncementFixture()
+    : writeHfLocalCatalogSnapshotFixture();
   try {
     await client.send("Emulation.setDeviceMetricsOverride", {
       width: 1280,
@@ -2222,6 +2266,8 @@ async function runPageHfLocalCatalogSmoke(client) {
             byId("wasmState").textContent !== "waiting" &&
             byId("localCatalogFile") &&
             byId("importLocalCatalogButton") &&
+            byId("peerAnnouncementFile") &&
+            byId("applyPeerAnnouncementButton") &&
             byId("simpleHfSearchButton")
           ) {
             return true;
@@ -2238,11 +2284,15 @@ async function runPageHfLocalCatalogSmoke(client) {
       timeout: 90000
     }));
     await setFileInputFiles(client, "#localCatalogFile", [fixture.catalogPath]);
+    if (fixture.announcementPath) {
+      await setFileInputFiles(client, "#peerAnnouncementFile", [fixture.announcementPath]);
+    }
     const expression = `
       (async () => {
         const byId = (id) => document.getElementById(id);
         const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         const textList = (selector) => Array.from(document.querySelectorAll(selector)).map((node) => node.textContent.replace(/\\s+/g, " ").trim());
+        const shouldApplyAnnouncement = ${fixture.announcementPath ? "true" : "false"};
         const visible = (node) => {
           if (!node || node.closest("[hidden]")) {
             return false;
@@ -2278,6 +2328,21 @@ async function runPageHfLocalCatalogSmoke(client) {
         }
         const localCatalogStatus = byId("catalogStatus").textContent;
         const catalogResults = textList("#catalogResults li");
+        let announcementStatus = "";
+        let catalogResultsAfterAnnouncement = catalogResults;
+        if (shouldApplyAnnouncement) {
+          byId("peerAnnouncementFile").dispatchEvent(new Event("change", { bubbles: true }));
+          byId("applyPeerAnnouncementButton").click();
+          for (let index = 0; index < 120; index += 1) {
+            const status = byId("catalogStatus").textContent || "";
+            if (status.includes("peer-source announcement") && status.includes("applied")) {
+              break;
+            }
+            await sleep(50);
+          }
+          announcementStatus = byId("catalogStatus").textContent;
+          catalogResultsAfterAnnouncement = textList("#catalogResults li");
+        }
         byId("modelEditButton").click();
         await sleep(50);
         byId("simpleHfSourceButton").click();
@@ -2307,7 +2372,9 @@ async function runPageHfLocalCatalogSmoke(client) {
         const peerImportDownloads = window.__tinyrustlmDownloads.slice();
         return JSON.stringify({
           localCatalogStatus,
+          announcementStatus,
           catalogResults,
+          catalogResultsAfterAnnouncement,
           statusAfterSearch,
           hfStatusAfterSearch,
           simpleTexts: textList("#simpleHfResults li"),
@@ -2446,6 +2513,23 @@ function writeHfLocalCatalogSnapshotFixture() {
     "utf8"
   );
   return { catalogDir, catalogPath };
+}
+
+function writeHfPeerAnnouncementFixture() {
+  const catalogDir = fs.mkdtempSync(path.join(os.tmpdir(), "tinyrustlm-hf-peer-announcement-"));
+  const catalogPath = path.join(catalogDir, "models.v0.json");
+  const announcementPath = path.join(catalogDir, "peer-source-announcement.json");
+  fs.writeFileSync(
+    catalogPath,
+    `${JSON.stringify(hfProofReadyCatalogSnapshot("browser-smoke-proof-ready-local-models-v0"), null, 2)}\n`,
+    "utf8"
+  );
+  fs.writeFileSync(
+    announcementPath,
+    `${JSON.stringify(hfPeerSourceAnnouncement(), null, 2)}\n`,
+    "utf8"
+  );
+  return { catalogDir, catalogPath, announcementPath };
 }
 
 function writeShareMetadataFixture() {
@@ -9174,6 +9258,39 @@ function assertHfLocalCatalogSmoke(result, networkRequests) {
   }
 }
 
+function assertHfPeerAnnouncementSmoke(result, networkRequests) {
+  const failures = [];
+  try {
+    assertHfLocalCatalogSmoke(result, networkRequests);
+  } catch (error) {
+    failures.push(error.message || String(error));
+  }
+  if (!result || typeof result !== "object") {
+    failures.push("peer announcement result was missing");
+  } else {
+    if (!String(result.announcementStatus || "").includes("1 peer-source announcement applied")) {
+      failures.push(`peer announcement status was ${result.announcementStatus}`);
+    }
+    const beforeText = Array.isArray(result.catalogResults) ? result.catalogResults.join(" | ") : "";
+    if (beforeText.includes("catalog peer listed")) {
+      failures.push(`proof-ready catalog already listed a peer source before announcement: ${beforeText}`);
+    }
+    const afterText = Array.isArray(result.catalogResultsAfterAnnouncement)
+      ? result.catalogResultsAfterAnnouncement.join(" | ")
+      : "";
+    if (!afterText.includes("catalog peer listed")) {
+      failures.push(`peer announcement did not update catalog peer source copy: ${afterText}`);
+    }
+    const bodyText = String(result.bodyText || "");
+    if (!bodyText.includes("Apply Peer Announcement")) {
+      failures.push("peer announcement controls were not present in the UI");
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
 function assertShareMetadataSmoke(result, networkRequests) {
   const failures = [];
   const bundle = result && result.bundle ? result.bundle : {};
@@ -12158,7 +12275,7 @@ async function main() {
         ]
       });
     }
-    if (hfSearchUiSmokeMode || hfLocalCatalogSmokeMode) {
+    if (hfSearchUiSmokeMode || hfLocalCatalogSmokeMode || hfPeerAnnouncementSmokeMode) {
       installHfSearchUiInterceptor(client);
       await client.send("Fetch.enable", {
         patterns: [
@@ -12381,6 +12498,21 @@ async function main() {
         }
       }
       assertHfLocalCatalogSmoke(result, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (hfPeerAnnouncementSmokeMode) {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageHfLocalCatalogSmoke(client, { peerAnnouncementOverlay: true });
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertHfPeerAnnouncementSmoke(result, networkRequests);
       result.networkRequests = networkRequests;
     } else if (smokeMode === "share-metadata-ui") {
       await client.send("Page.reload", { ignoreCache: true });
