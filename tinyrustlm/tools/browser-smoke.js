@@ -9221,11 +9221,18 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "model.safetensors",
       "SuggestedSourceSafetensorsFileName",
       "$ConversionRequest",
-      "$SourceSafetensors must point to your reviewed local copy",
+      "Resolve-ExistingPath",
+      "TINYRUSTLM_WORKSPACE",
+      "MINIMODEL_WORKSPACE",
+      "TINYRUSTLM_SOURCE_SAFETENSORS",
+      "$CandidateTinyRustLMWorkspaces",
+      "$CandidateMiniModelWorkspaces",
+      "$SourceSafetensorsCandidates",
+      "put the reviewed source file beside this script",
+      "TinyRustLM workspace:",
+      "MiniModel workspace:",
+      "Source safetensors:",
       "tinyrustlm-conversion.receipt",
-      "EDIT_ME\\model.safetensors",
-      "EDIT_ME\\\\SLMComposer.com",
-      "EDIT_ME\\\\MiniModel.org",
       "KnownPeerBaseUrl",
       "MiniModelCatalogEntryWithPeer",
       "MiniModelCatalogEntryForSnapshot",
@@ -9236,6 +9243,11 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     ]) {
       if (!scriptText.includes(required)) {
         failures.push(`conversion script missing ${required}: ${scriptText}`);
+      }
+    }
+    for (const removedPlaceholder of ["EDIT_ME\\model.safetensors", "EDIT_ME\\\\SLMComposer.com", "EDIT_ME\\\\MiniModel.org"]) {
+      if (scriptText.includes(removedPlaceholder)) {
+        failures.push(`conversion script still required placeholder edit ${removedPlaceholder}: ${scriptText}`);
       }
     }
     for (const lowLevelCommand of ["inspect-safetensors", "plan-safetensors-source", "convert-safetensors-trained", "validate-manifest"]) {

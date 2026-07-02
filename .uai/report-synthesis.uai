@@ -1,5 +1,5 @@
-profile: runtime-mirust.report-synthesis.v142
-updated_utc: 2026-07-03T04:20:00Z
+profile: runtime-mirust.report-synthesis.v143
+updated_utc: 2026-07-03T05:05:00Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/runtime-mirust/report-intake-2026-06-25/
@@ -36,6 +36,7 @@ source_authority:
     - wiki/runtime-mirust/reports/tinyrustlm-minimodel-peer-source-announcement-memory-2026-07-02.md
     - wiki/runtime-mirust/reports/tinyrustlm-catalog-announcement-feed-memory-2026-07-02.md
     - wiki/runtime-mirust/reports/tinyrustlm-sidebar-model-setup-memory-2026-07-02.md
+    - wiki/runtime-mirust/reports/tinyrustlm-self-locating-conversion-kit-memory-2026-07-02.md
     - wiki/runtime-mirust/reports/tinylm16-bpe-safetensors-plan-memory-2026-06-30.md
     - wiki/runtime-mirust/reports/enterprise-rust-governance-memory-2026-06-25.md
     - wiki/runtime-mirust/reports/browser-local-runtime-memory-2026-06-25.md
@@ -230,6 +231,7 @@ docs_report_intake_2026_07_02:
   peer_source_announcement_overlay_route: wiki/runtime-mirust/reports/tinyrustlm-peer-source-announcement-overlay-memory-2026-07-02.md
   catalog_announcement_feed_route: wiki/runtime-mirust/reports/tinyrustlm-catalog-announcement-feed-memory-2026-07-02.md
   sidebar_model_setup_route: wiki/runtime-mirust/reports/tinyrustlm-sidebar-model-setup-memory-2026-07-02.md
+  self_locating_conversion_kit_route: wiki/runtime-mirust/reports/tinyrustlm-self-locating-conversion-kit-memory-2026-07-02.md
   source_bucket: E:\Source\Rust\TinyRustLM.com\agent-file-handoff\Improvement\
   source_count: 6
   disposition: preserved-to-docs-and-source-site-copies-removed
@@ -267,6 +269,9 @@ tinyrustlm_sidebar_model_setup_2026_07_02:
   route: wiki/runtime-mirust/reports/tinyrustlm-sidebar-model-setup-memory-2026-07-02.md
   checksum_sha256: 4838349FA832A31B7F25A76872C03AE69DF58D5CFED00F78D5AE023577BC97CE
   synthesis: TinyRustLM left sidebar now routes to real Model Setup actions for Local .slm, Hugging Face, P2P import, and Advanced tools, removes placeholder Library/Tune/Theme/settings-style affordances, keeps docs links real, and extends `source-options-ui` to prove those actions open implemented panels without implicit Hugging Face or MiniModel network access.
+tinyrustlm_self_locating_conversion_kit_2026_07_02:
+  route: wiki/runtime-mirust/reports/tinyrustlm-self-locating-conversion-kit-memory-2026-07-02.md
+  synthesis: `Start Conversion` generated `.tinyrustlm-convert.ps1` scripts now self-locate TinyRustLM/MiniModel workspaces and reviewed `.safetensors` source files through environment variables, nearby paths, or files beside the script; `hf-search-ui` asserts the resolved-path flow and rejects old placeholder source/workspace paths.
 dare_operator_2026_06_29:
   route: wiki/runtime-mirust/reports/dare-operator-memory-2026-06-29.md
   synthesis: DARE now has an offline `dare-candidate` and `validate-dare-candidate` receipt lane with signed task-delta weights, keep/drop ppm, dropout seed, mask checksum, raw delta checksum, rescaled delta checksum, focused parameter tests, and q8 CLI proof before downstream candidate manifests.
