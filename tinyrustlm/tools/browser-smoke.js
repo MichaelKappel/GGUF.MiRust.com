@@ -8769,6 +8769,12 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       if (!Array.isArray(peerRequest.local_peer_piece_contract.peer_side_commands) || !peerRequest.local_peer_piece_contract.peer_side_commands.some((command) => command.includes("serve-peer-pieces"))) {
         failures.push(`P2P import request did not include peer-side serve command: ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
       }
+      if (!Array.isArray(peerRequest.local_peer_piece_contract.peer_side_commands) || !peerRequest.local_peer_piece_contract.peer_side_commands.some((command) => command.includes("prepare-peer-share"))) {
+        failures.push(`P2P import request did not include peer-side prepare command: ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
+      }
+      if (peerRequest.local_peer_piece_contract.peer_side_commands.some((command) => command.includes("export-peer-pieces"))) {
+        failures.push(`P2P import request exposed low-level export-peer-pieces command: ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
+      }
     }
     const peerScriptText = String(result.peerImportScriptText || "");
     for (const required of ["import-peer-request", "serve-peer-pieces", "does not download model bytes from MiniModel.org", "$PeerImportRequest", "$ImportDir", "$ExpectedPeerBaseUrl", "http://127.0.0.1:8123/"]) {
@@ -8823,16 +8829,13 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "plan-safetensors-source",
       "convert-safetensors-trained",
       "validate-manifest",
-      "peer-offer",
-      "validate-peer-offer",
-      "write-catalog-entry",
-      "export-peer-pieces",
+      "prepare-peer-share",
       "serve-peer-pieces",
-      ".minimodel-peer-offer",
       "EDIT_ME\\\\model.safetensors",
       "EDIT_ME\\\\SLMComposer.com",
-      "TinyRustLM.com",
-      "Save Share Metadata"
+      "EDIT_ME\\\\MiniModel.org",
+      "KnownPeerBaseUrl",
+      "TinyRustLM.com"
     ]) {
       if (!scriptText.includes(required)) {
         failures.push(`conversion script missing ${required}: ${scriptText}`);

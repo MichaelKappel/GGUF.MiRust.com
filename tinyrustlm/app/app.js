@@ -3080,7 +3080,7 @@
         expected_piece_dir: `${peerImportFileStem(match.modelId)}-peer-pieces`,
         assembled_output_slm: match.fileNameHint,
         peer_side_commands: [
-          "minimodel export-peer-pieces <manifest> <artifact.slm> <piece-dir>",
+          "minimodel prepare-peer-share <artifact.slm> <share-dir> <model-id> [source-huggingface-model-id] [known-peer-base-url]",
           "minimodel serve-peer-pieces <manifest> <piece-dir> <bind-addr>"
         ],
         rust_commands: [
@@ -3328,8 +3328,8 @@
         converter: "tinyrustlm-slm-pack",
         required_local_input: "A user-selected .safetensors file already present on this machine.",
         command_shape: `cargo run -p tinyrustlm-slm-pack -- convert-safetensors-trained <input.safetensors> ${defaultShape} <output-source-dir> <output.slm> ${defaultQuantization}`,
-        peer_offer_shape: "cargo run -p tinyrustlm-slm-pack -- peer-offer <output.slm> <output.minimodel-peer-offer>",
-        compatibility_rule: "The Rust planner/converter must accept the safetensors tensor names and exact TinyRustLM shape before a .slm is usable. The Rust peer-offer command then binds the verified .slm to SHA-256 chunks and a Merkle root."
+        peer_share_shape: "cargo run -p minimodel -- prepare-peer-share <output.slm> <share-dir> <minimodel-model-id> [source-huggingface-model-id] [known-peer-base-url]",
+        compatibility_rule: "The Rust planner/converter must accept the safetensors tensor names and exact TinyRustLM shape before a .slm is usable. MiniModel prepare-peer-share then writes the manifest, peer-offer proof, local peer pieces, and catalog entry from the verified .slm."
       },
       conversion_gates: [
         "source license and model-card review",
@@ -3337,12 +3337,10 @@
         "safetensors/source artifact checksum capture",
         "local conversion to .slm",
         "tinyrustlm-slm-pack validate",
-        "tinyrustlm-slm-pack peer-offer",
-        "tinyrustlm-slm-pack validate-peer-offer",
+        "MiniModel prepare-peer-share",
         "runtime smoke proof",
         "eval/admission evidence",
         "MiniModel manifest signature",
-        "MiniModel write-catalog-entry",
         "P2P peer availability metadata"
       ],
       existing_minimodel_matches: matches.map((match) => ({
@@ -3378,12 +3376,24 @@
     return stem || "huggingface-model";
   }
 
+  function minimodelModelIdForHf(modelId) {
+    const cleaned = String(modelId || "huggingface/model")
+      .toLowerCase()
+      .replace(/[\\]+/g, "/")
+      .replace(/[^a-z0-9._/-]+/g, "-")
+      .replace(/\/+/g, "/")
+      .replace(/^[-/]+|[-/]+$/g, "")
+      .slice(0, 160);
+    return cleaned || "huggingface/model";
+  }
+
   function hfConversionScript(entry, matches) {
     const request = hfConversionRequest(entry, matches);
     const stem = conversionFileStem(entry.modelId);
     const sourceShape = request.requested_artifact.default_source_shape;
     const quantization = request.requested_artifact.default_quantization;
     const modelUrl = hfModelUrl(entry.modelId);
+    const minimodelModelId = minimodelModelIdForHf(entry.modelId);
     const lines = [
       "# TinyRustLM Hugging Face to .slm conversion script",
       `# Source model: ${entry.modelId}`,
@@ -3399,13 +3409,17 @@
       "",
       "# Edit these values before running.",
       "$TinyRustLMWorkspace = \"EDIT_ME\\\\SLMComposer.com\"",
+      "$MiniModelWorkspace = \"EDIT_ME\\\\MiniModel.org\"",
       "$SourceSafetensors = \"EDIT_ME\\\\model.safetensors\"",
       `$SourceShape = ${powerShellSingleQuote(sourceShape)}`,
       `$Quantization = ${powerShellSingleQuote(quantization)}`,
       `$ModelId = ${powerShellSingleQuote(entry.modelId)}`,
+      `$MiniModelModelId = ${powerShellSingleQuote(minimodelModelId)}`,
+      "$KnownPeerBaseUrl = \"\" # Optional, for example http://127.0.0.1:8123/",
       `$WorkDir = Join-Path (Get-Location) ${powerShellSingleQuote(`${stem}-tinyrustlm-conversion`)}`,
       "$SourceDir = Join-Path $WorkDir \"source\"",
       `$OutputSlm = Join-Path $WorkDir ${powerShellSingleQuote(`${stem}.${quantization}.slm`)}`,
+      "$MiniModelShareDir = Join-Path $WorkDir \"minimodel-peer-share\"",
       "$InspectReport = Join-Path $WorkDir \"source.inspect\"",
       "$PlanReport = Join-Path $WorkDir \"source.plan\"",
       "",
@@ -3419,23 +3433,17 @@
       "cargo run -p tinyrustlm-slm-pack -- validate $OutputSlm",
       "cargo run -p tinyrustlm-slm-pack -- validate-manifest $OutputSlm \"$OutputSlm.manifest\"",
       "",
-      `$PeerOffer = Join-Path $WorkDir ${powerShellSingleQuote(`${stem}.${quantization}.minimodel-peer-offer`)}`,
-      "",
-      "cargo run -p tinyrustlm-slm-pack -- peer-offer $OutputSlm $PeerOffer",
-      "cargo run -p tinyrustlm-slm-pack -- validate-peer-offer $OutputSlm $PeerOffer",
-      "",
-      "# Optional after MiniModel admission creates a .minimodel.manifest.v0:",
-      "$MiniModelManifest = \"EDIT_ME\\\\model.minimodel.manifest.v0\"",
-      "$PeerPiecesDir = Join-Path $WorkDir \"peer-pieces\"",
-      `$MiniModelCatalogEntry = Join-Path $WorkDir ${powerShellSingleQuote(`${stem}.catalog-entry.v0.json`)}`,
-      "Write-Host \"To become a consenting P2P source after admission, run these from MiniModel.org:\"",
-      "Write-Host \"  cargo run -p minimodel -- write-catalog-entry $MiniModelManifest $PeerOffer $MiniModelCatalogEntry $ModelId\"",
-      "Write-Host \"  cargo run -p minimodel -- export-peer-pieces $MiniModelManifest $OutputSlm $PeerPiecesDir\"",
-      "Write-Host \"  cargo run -p minimodel -- serve-peer-pieces $MiniModelManifest $PeerPiecesDir 127.0.0.1:8123\"",
+      "# Prepare checksum-bound MiniModel metadata and local peer pieces in one Rust step.",
+      "# This does not upload model bytes and does not serve them from project servers.",
+      "Set-Location $MiniModelWorkspace",
+      "$PrepareArgs = @(\"run\", \"-p\", \"minimodel\", \"--\", \"prepare-peer-share\", $OutputSlm, $MiniModelShareDir, $MiniModelModelId, $ModelId)",
+      "if ($KnownPeerBaseUrl.Trim().Length -gt 0) { $PrepareArgs += $KnownPeerBaseUrl }",
+      "& cargo @PrepareArgs",
       "",
       "Write-Host \"Converted .slm:\" $OutputSlm",
-      "Write-Host \"MiniModel peer offer proof:\" $PeerOffer",
-      "Write-Host \"Next: open TinyRustLM.com, choose Your Local Files, import the .slm, then Save Share Metadata for catalog/P2P metadata.\"",
+      "Write-Host \"MiniModel share directory:\" $MiniModelShareDir",
+      "Write-Host \"If you consent to serve pieces, run the serve-peer-pieces command printed by MiniModel from your own machine.\"",
+      "Write-Host \"Next: open TinyRustLM.com, choose Your Local Files, and import the converted .slm.\"",
       ""
     ];
     return lines.join("\n");
