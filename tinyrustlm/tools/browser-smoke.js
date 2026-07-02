@@ -8740,12 +8740,18 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       if (peerRequest.minimodel_metadata.peer_offer_sha256 !== "sha256:abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd") {
         failures.push(`P2P import request peer offer SHA-256 was ${peerRequest.minimodel_metadata.peer_offer_sha256}`);
       }
+      if (!Array.isArray(peerRequest.local_peer_piece_contract.rust_commands) || !peerRequest.local_peer_piece_contract.rust_commands.some((command) => command.includes("fetch-peer-pieces"))) {
+        failures.push(`P2P import request did not include fetch-peer-pieces command: ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
+      }
+      if (!peerRequest.local_peer_piece_contract.expected_peer_base_url) {
+        failures.push(`P2P import request did not include expected peer base URL placeholder: ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
+      }
       if (!Array.isArray(peerRequest.local_peer_piece_contract.rust_commands) || !peerRequest.local_peer_piece_contract.rust_commands.some((command) => command.includes("assemble-peer-pieces"))) {
         failures.push(`P2P import request did not include assemble-peer-pieces command: ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
       }
     }
     const peerScriptText = String(result.peerImportScriptText || "");
-    for (const required of ["assemble-peer-pieces", "verify-artifact", "write-import-receipt", "does not download model bytes"]) {
+    for (const required of ["fetch-peer-pieces", "assemble-peer-pieces", "verify-artifact", "write-import-receipt", "does not download model bytes", "$PeerBaseUrl"]) {
       if (!peerScriptText.includes(required)) {
         failures.push(`P2P import script missing ${required}: ${peerScriptText}`);
       }
