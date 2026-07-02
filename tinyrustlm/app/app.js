@@ -3352,6 +3352,53 @@
     }
   }
 
+  function appendHfSourceFileNotes(actions, view, options = {}) {
+    if (view.slmFiles.length) {
+      appendHfSlmFileNotes(actions, view.slmFiles, options.slmActionWord || "import");
+      return;
+    }
+    const noSlmText = options.noSlmText || "No compatible .slm is available to this app yet.";
+    if (noSlmText) {
+      actions.append(elementWithText("span", "model-result-meta", noSlmText));
+    }
+    appendHfSafetensorsFileNotes(actions, view.safetensorsFiles);
+  }
+
+  function hfEnabledP2pActionMatch(view) {
+    if (state.p2pEnabled === false) {
+      return null;
+    }
+    return view.p2pMatch || view.peerOfferMatch || null;
+  }
+
+  function appendHfAdvancedActions(actions, entry, view) {
+    actions.append(externalActionLink("Review Model Card", hfModelUrl(entry.modelId)));
+    if (view.matches.length) {
+      for (const match of view.matches.slice(0, 2)) {
+        if (match.peerOfferRoute && state.p2pEnabled !== false) {
+          appendActionIfPresent(actions, p2pCatalogActionButton(match));
+        }
+        actions.append(actionButton("Use MiniModel Metadata", () => selectCatalogEntry(match)));
+      }
+      return;
+    }
+    actions.append(
+      actionButton("Save Conversion Request", () => saveHfConversionRequest(entry, view.matches)),
+      actionButton("Save Rust Conversion Script", () => saveHfConversionScript(entry, view.matches))
+    );
+  }
+
+  function appendHfSimpleActions(actions, entry, view) {
+    actions.append(externalActionLink("Review Model Card", hfModelUrl(entry.modelId)));
+    actions.append(elementWithText("span", hfCompatibilityClass(view), hfSimpleCompatibilityText(view)));
+    const p2pActionMatch = hfEnabledP2pActionMatch(view);
+    if (p2pActionMatch) {
+      appendActionIfPresent(actions, p2pCatalogActionButton(p2pActionMatch));
+      return;
+    }
+    actions.append(actionButton("Start Conversion", () => startHfConversion(entry, view.matches), "primary-result-action"));
+  }
+
   async function ensureDefaultCatalogForHfAvailability() {
     if (state.p2pEnabled === false) {
       return;
@@ -3605,26 +3652,8 @@
       const status = elementWithText("span", hfCompatibilityClass(view), hfAdvancedStatusText(view));
       const meta = elementWithText("div", "model-result-meta", hfAdvancedMetaText(view));
       const actions = elementWithText("div", "model-result-actions", "");
-      actions.append(externalActionLink("Review Model Card", hfModelUrl(entry.modelId)));
-      if (view.matches.length) {
-        for (const match of view.matches.slice(0, 2)) {
-          if (match.peerOfferRoute && state.p2pEnabled !== false) {
-            appendActionIfPresent(actions, p2pCatalogActionButton(match));
-          }
-          actions.append(actionButton("Use MiniModel Metadata", () => selectCatalogEntry(match)));
-        }
-      } else {
-        actions.append(
-          actionButton("Save Conversion Request", () => saveHfConversionRequest(entry, view.matches)),
-          actionButton("Save Rust Conversion Script", () => saveHfConversionScript(entry, view.matches))
-        );
-      }
-      if (view.slmFiles.length) {
-        appendHfSlmFileNotes(actions, view.slmFiles, "import");
-      } else {
-        actions.append(elementWithText("span", "model-result-meta", "No compatible .slm is available to this app yet."));
-        appendHfSafetensorsFileNotes(actions, view.safetensorsFiles);
-      }
+      appendHfAdvancedActions(actions, entry, view);
+      appendHfSourceFileNotes(actions, view);
       item.append(status, meta, actions);
       el.hfResults.append(item);
     }
@@ -3642,22 +3671,11 @@
       const item = modelResultItem(entry.modelId);
       const meta = elementWithText("div", "model-result-meta", hfSimpleMetaText(view));
       const actions = elementWithText("div", "model-result-actions", "");
-      actions.append(externalActionLink("Review Model Card", hfModelUrl(entry.modelId)));
-      const compatibility = elementWithText("span", hfCompatibilityClass(view), hfSimpleCompatibilityText(view));
-      actions.append(compatibility);
-      if (view.p2pMatch) {
-        appendActionIfPresent(actions, p2pCatalogActionButton(view.p2pMatch));
-      } else if (view.peerOfferMatch && state.p2pEnabled !== false) {
-        appendActionIfPresent(actions, p2pCatalogActionButton(view.peerOfferMatch));
-      } else {
-        actions.append(actionButton("Start Conversion", () => startHfConversion(entry, view.matches), "primary-result-action"));
-      }
-      if (view.slmFiles.length) {
-        appendHfSlmFileNotes(actions, view.slmFiles, "use it");
-      } else {
-        actions.append(elementWithText("span", "model-result-meta", hfSimpleFallbackNote(view)));
-        appendHfSafetensorsFileNotes(actions, view.safetensorsFiles);
-      }
+      appendHfSimpleActions(actions, entry, view);
+      appendHfSourceFileNotes(actions, view, {
+        slmActionWord: "use it",
+        noSlmText: hfSimpleFallbackNote(view)
+      });
       item.append(meta, actions);
       el.simpleHfResults.append(item);
     }

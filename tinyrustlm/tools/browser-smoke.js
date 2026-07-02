@@ -2085,6 +2085,10 @@ async function runPageHfSearchUiSmoke(client) {
       const p2pWarningVisibleAfterSearch = visible(byId("simpleHfP2pWarning"));
       const actionTextsAfterSearch = textList("#simpleHfResults button, #simpleHfResults a, #simpleHfResults .compatibility-pill, #simpleHfResults .model-result-meta");
       const primaryActionTextsAfterSearch = textList("#simpleHfResults .primary-result-action");
+      const simpleSourceHintCountAfterSearch = Array.from(document.querySelectorAll("#simpleHfResults .model-result-meta"))
+        .filter((node) => node.textContent.includes("Source file listed: model.safetensors")).length;
+      const advancedSourceHintCountAfterSearch = Array.from(document.querySelectorAll("#hfResults .model-result-meta"))
+        .filter((node) => node.textContent.includes("Source file listed: model.safetensors")).length;
       const p2pWarningCount = document.querySelectorAll("#simpleHfP2pWarning").length;
       const peerUrlStatusBeforeImport = byId("simplePeerUrlStatus") ? byId("simplePeerUrlStatus").textContent : "";
       const p2pImportButton = Array.from(document.querySelectorAll("#simpleHfResults .primary-result-action"))
@@ -2147,6 +2151,8 @@ async function runPageHfSearchUiSmoke(client) {
         peerUrlStatusBeforeImport,
         actionTextsAfterSearch,
         primaryActionTextsAfterSearch,
+        simpleSourceHintCountAfterSearch,
+        advancedSourceHintCountAfterSearch,
         p2pWarningCount,
         peerImportDownloadNames,
         peerImportRequestText: peerImportDownloads[0] ? peerImportDownloads[0].text : "",
@@ -8892,6 +8898,9 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     }
     if (!resultText.includes("Source file listed: model.safetensors")) {
       failures.push(`unmatched Hugging Face result did not surface the safetensors source file: ${resultText}`);
+    }
+    if (result.simpleSourceHintCountAfterSearch < 1 || result.advancedSourceHintCountAfterSearch < 1) {
+      failures.push(`source-file hint drifted between simple and advanced Hugging Face rows: simple=${result.simpleSourceHintCountAfterSearch}, advanced=${result.advancedSourceHintCountAfterSearch}`);
     }
     if (primaryActionsAfterSearch.length !== 2 || !primaryActionsAfterSearch.includes("Start Conversion") || !primaryActionsAfterSearch.includes("P2P Import")) {
       failures.push(`simple Hugging Face primary actions with P2P on were ${JSON.stringify(primaryActionsAfterSearch)}`);
