@@ -8760,21 +8760,18 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       if (peerRequest.minimodel_metadata.peer_offer_sha256 !== "sha256:abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd") {
         failures.push(`P2P import request peer offer SHA-256 was ${peerRequest.minimodel_metadata.peer_offer_sha256}`);
       }
-      if (!Array.isArray(peerRequest.local_peer_piece_contract.rust_commands) || !peerRequest.local_peer_piece_contract.rust_commands.some((command) => command.includes("fetch-peer-pieces"))) {
-        failures.push(`P2P import request did not include fetch-peer-pieces command: ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
+      if (!Array.isArray(peerRequest.local_peer_piece_contract.rust_commands) || !peerRequest.local_peer_piece_contract.rust_commands.some((command) => command.includes("import-peer-request"))) {
+        failures.push(`P2P import request did not include import-peer-request command: ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
       }
       if (peerRequest.local_peer_piece_contract.expected_peer_base_url !== "http://127.0.0.1:8123/") {
         failures.push(`P2P import request did not include the saved peer base URL: ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
-      }
-      if (!Array.isArray(peerRequest.local_peer_piece_contract.rust_commands) || !peerRequest.local_peer_piece_contract.rust_commands.some((command) => command.includes("assemble-peer-pieces"))) {
-        failures.push(`P2P import request did not include assemble-peer-pieces command: ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
       }
       if (!Array.isArray(peerRequest.local_peer_piece_contract.peer_side_commands) || !peerRequest.local_peer_piece_contract.peer_side_commands.some((command) => command.includes("serve-peer-pieces"))) {
         failures.push(`P2P import request did not include peer-side serve command: ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
       }
     }
     const peerScriptText = String(result.peerImportScriptText || "");
-    for (const required of ["fetch-peer-pieces", "assemble-peer-pieces", "serve-peer-pieces", "verify-artifact", "write-import-receipt", "does not download model bytes from MiniModel.org", "$PeerBaseUrl", "http://127.0.0.1:8123/"]) {
+    for (const required of ["import-peer-request", "serve-peer-pieces", "does not download model bytes from MiniModel.org", "$PeerImportRequest", "$ImportDir", "$ExpectedPeerBaseUrl", "http://127.0.0.1:8123/"]) {
       if (!peerScriptText.includes(required)) {
         failures.push(`P2P import script missing ${required}: ${peerScriptText}`);
       }

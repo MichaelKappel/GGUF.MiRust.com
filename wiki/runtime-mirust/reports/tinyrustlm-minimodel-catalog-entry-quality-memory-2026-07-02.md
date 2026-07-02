@@ -6,7 +6,7 @@ MiniModel now has `minimodel write-catalog-entry <manifest> <peer-offer> <output
 
 `examples/catalog-entry.v0.json` is now generated from the real q8 fixture manifest and peer-offer proof rather than placeholder checksums. Proof-ready catalog rows use `peer_hint_status=peer-offer-ready-known-peer-needed` and `peer_import_status=request-script-ready`, which means TinyRustLM may save a peer-import request plus Rust fetch/assemble/reverify script after the user supplies a consenting peer URL. It does not mean MiniModel.org serves model bytes.
 
-TinyRustLM now parses `peer_import_status`, renders proof-ready rows as `P2P proof ready`, and keeps unmatched Hugging Face rows on `Start Conversion`. The P2P panel has a list-level Known peer URL control; `P2P Import` rejects project/Hugging Face hosts, requires a consenting direct `http://` peer, and writes that URL into both the local peer-import request and Rust reverify script. The generated conversion script now prints the post-admission `write-catalog-entry`, `export-peer-pieces`, and `serve-peer-pieces` MiniModel commands.
+TinyRustLM now parses `peer_import_status`, renders proof-ready rows as `P2P proof ready`, and keeps unmatched Hugging Face rows on `Start Conversion`. The P2P panel has a list-level Known peer URL control; `P2P Import` rejects project/Hugging Face hosts, requires a consenting direct `http://` peer, and writes that URL into both the local peer-import request and Rust reverify script. MiniModel now exposes `import-peer-request <request-json> <manifest> <output-dir>`, so the generated script can run one receiver command that validates the request against the manifest, fetches peer pieces, assembles/verifies the `.slm`, and writes the import receipt. The generated conversion script still prints the post-admission `write-catalog-entry`, `export-peer-pieces`, and `serve-peer-pieces` MiniModel commands.
 
 The fallback Node static server now serves the root app shell at `/` while keeping `/app/` available as a secondary route, so root-route smoke checks match the TinyRustLM.com public-route contract. `tinyrustlm/tools/static-shell-parity.js` compares the duplicated root and `/app/` shells after normalizing the expected asset path difference, preventing a repeat of root-only stale controls.
 
@@ -18,7 +18,7 @@ Verification:
 - `node --check tinyrustlm/tools/browser-smoke.js`.
 - `node --check tinyrustlm/tools/static-shell-parity.js`.
 - `node tinyrustlm/tools/static-shell-parity.js tinyrustlm`.
-- Focused `hf-search-ui` browser smoke passed on `http://127.0.0.1:55410/`, proving the root route serves the app without a root-to-`/app/` redirect, `P2P proof ready`, `P2P Import`, `Start Conversion`, list-level known peer URL binding into JSON/script, no fake first-run transcript text, and no project-hosted model-byte path.
+- Focused `hf-search-ui` browser smoke passed on `http://127.0.0.1:55410/`, proving the root route serves the app without a root-to-`/app/` redirect, `P2P proof ready`, `P2P Import`, `Start Conversion`, list-level known peer URL binding into JSON/script, one-command `import-peer-request` script generation, no fake first-run transcript text, and no project-hosted model-byte path.
 
 Boundary:
 
