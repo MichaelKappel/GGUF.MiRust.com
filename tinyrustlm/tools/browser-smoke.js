@@ -9032,6 +9032,9 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       if (!String(conversionRequest.local_conversion.peer_source_apply_shape || "").includes("apply-peer-source-announcements")) {
         failures.push(`conversion request announcement apply shape did not use apply-peer-source-announcements: ${conversionRequest.local_conversion.peer_source_apply_shape}`);
       }
+      if (!String(conversionRequest.local_conversion.peer_source_batch_snapshot_shape || "").includes("write-catalog-snapshot-with-announcements")) {
+        failures.push(`conversion request batch snapshot shape did not use write-catalog-snapshot-with-announcements: ${conversionRequest.local_conversion.peer_source_batch_snapshot_shape}`);
+      }
     }
     const scriptText = String(result.conversionScriptText || "");
     if (!String(result.conversionScriptName || "").endsWith(".tinyrustlm-convert.ps1")) {
@@ -9043,6 +9046,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "add-peer-source",
       "write-peer-source-announcement",
       "apply-peer-source-announcements",
+      "write-catalog-snapshot-with-announcements",
       "write-catalog-snapshot",
       "serve-peer-pieces",
       "Hugging Face metadata source-file candidates",

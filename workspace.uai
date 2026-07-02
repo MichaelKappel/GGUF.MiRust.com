@@ -1,7 +1,7 @@
-profile: tinyrustlm.source-workspace.v142
+profile: tinyrustlm.source-workspace.v143
 project_name: TinyRustLM
 canonical_root: E:\Source\Rust\SLMComposer.com
-updated_utc: 2026-07-02T23:59:00Z
+updated_utc: 2026-07-03T02:45:00Z
 version_authority:
   current_version: 0.1.0
   next_version: 0.1.0
@@ -56,6 +56,7 @@ memory_authority:
   tinyrustlm_minimodel_catalog_snapshot_2026_07_02: wiki/runtime-mirust/reports/tinyrustlm-minimodel-catalog-snapshot-memory-2026-07-02.md routes MiniModel `write-catalog-snapshot`, safe Hugging Face `.safetensors` source-file hints, metadata-only `models.v0.json` reuse after conversion, local `Load Local Catalog` browser reuse, generated conversion-script update, and smoke/test proof; SHA256 F89D27B656A9096AFA6EFA3C92280513BADF7BA6D9B53E0D36416E0E3D3D9DF2.
   tinyrustlm_minimodel_add_peer_source_intake_2026_07_02: wiki/runtime-mirust/reports/tinyrustlm-minimodel-add-peer-source-intake-memory-2026-07-02.md routes July 2 intake synthesis, MiniModel `add-peer-source`, proof-ready to P2P-ready metadata, generated conversion-script follow-up hints, docs alignment, and no-server-byte boundary; SHA256 C3B04C1A3AE23C2731F26FD51A3C4F12DAF6E101EB07C581F58E4E359BEBA174.
   tinyrustlm_minimodel_peer_source_announcement_2026_07_02: wiki/runtime-mirust/reports/tinyrustlm-minimodel-peer-source-announcement-memory-2026-07-02.md routes MiniModel `write-peer-source-announcement`, `apply-peer-source-announcements`, direct `add-peer-source` versus maintainer publication flow, generated conversion-script fixes, and no-server-byte converted-once availability; SHA256 ED90C3B56BBF44AD07A4DA3C60495DD0DAC6AB2A45CEFA9982404BEA1A65CC27.
+  tinyrustlm_minimodel_batch_announcement_snapshot_2026_07_02: wiki/runtime-mirust/reports/tinyrustlm-minimodel-batch-announcement-snapshot-memory-2026-07-02.md routes MiniModel `write-catalog-snapshot-with-announcements`, maintainer batch catalog publication from peer-source announcements, generated conversion-script hints, and no-server-byte converted-once availability; SHA256 C7BFE82E9428C44B905C2985859CFBE9B56D07B74A624776CD64CFE60A63F9ED.
   tinyrustlm_source_flow_quality_2026_07_02: wiki/runtime-mirust/reports/tinyrustlm-source-flow-quality-memory-2026-07-02.md routes shared Hugging Face simple/advanced row action helpers, source-file note consolidation, cache-bust, docs alignment, and source-flow smoke parity proof; SHA256 35333E51E9D7201B4C4430C9E8F3A5E8B711A5611F38A9B79061106709621C8C.
   tinyrustlm_huggingface_conversion_request_2026_07_02: wiki/runtime-mirust/reports/tinyrustlm-huggingface-conversion-request-memory-2026-07-02.md routes `convert-huggingface-request`, paired conversion request/script downloads, receipt-bound local `.safetensors` conversion, docs alignment, and hf-search-ui proof; SHA256 C0D3DB97731C8ACA53A538C728233D4E34786837AA65A49E1E01F7C1158A5FD9.
   minimodel_local_verifier_implementation_2026_07_02: E:\Source\Rust\MiniModel.org\docs\verifier-mvp.md routes implemented `minimodel-core`/`minimodel` verifier, one-command `prepare-peer-share`, `add-peer-source`, real q8 fixture manifest, local artifact SHA256/byte checks, TinyRustLM `.slm` structural validation, chunk/Merkle verification, local peer-piece export/direct HTTP serve/fetch/reassembly, catalog-entry writing, catalog peer-source validation, and basename-only receipts; verifier doc SHA256 66D2F811041903D92F750D15883F5CB267BD52E05BDF2C42EE2F95E3ABAE441D.

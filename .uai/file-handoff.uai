@@ -1,5 +1,5 @@
-profile: runtime-mirust.file-handoff.v28
-updated_utc: 2026-07-02T23:59:00Z
+profile: runtime-mirust.file-handoff.v29
+updated_utc: 2026-07-03T02:45:00Z
 handoff_root: agent-file-handoff/
 active_buckets:
   content: agent-file-handoff/Content/
@@ -44,7 +44,7 @@ strategy_refresh_2026_06_28:
   safetensors_tokenizer_budget_reference_rule_2026_06_29: Follow-up safetensors, tokenizer, browser byte-budget, WASM hot-loop, model-breeding metadata, and reference-output fixture research routes through raw/runtime-mirust/report-intake-2026-06-29-followup/, wiki/runtime-mirust/reports/report-intake-index-2026-06-29-followup.md, and wiki/runtime-mirust/research/safetensors-tokenizer-budget-reference-ideas-2026-06-29.md before conversion, tokenizer, budget, or fixture work.
   minimodel_p2p_docs_rule_2026_07_01: MiniModel.org P2P exchange research routes through docs/report-intake/2026-07-01/MANIFEST.md, docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md, and wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md; project servers never run or serve user model bytes, and SLMComposer remains browser-local.
   huggingface_source_options_rule_2026_07_01: Hugging Face API option research routes through docs/report-intake/2026-07-01/Hugging Face API Endpoint Overview.md and wiki/runtime-mirust/research/huggingface-api-source-options-2026-07-01.md; use Hugging Face as user-triggered metadata/source discovery only, not project-server byte proxying or remote inference.
-  tinyrustlm_minimodel_intake_rule_2026_07_02: TinyRustLM/MiniModel improvement research routes through docs/report-intake/2026-07-02/MANIFEST.md, docs/report-intake/2026-07-02/tinyrustlm-minimodel-intake-synthesis-2026-07-02.md, and the add-peer-source plus peer-source-announcement memory reports; treat Iroh/broad discovery as roadmap and current direct known-peer Rust handoffs as the implemented byte path.
+  tinyrustlm_minimodel_intake_rule_2026_07_02: TinyRustLM/MiniModel improvement research routes through docs/report-intake/2026-07-02/MANIFEST.md, docs/report-intake/2026-07-02/tinyrustlm-minimodel-intake-synthesis-2026-07-02.md, and the add-peer-source, peer-source-announcement, plus batch announcement snapshot memory reports; treat Iroh/broad discovery as roadmap and current direct known-peer Rust handoffs as the implemented byte path.
   voice_memory_rule: Public-copy voice routes through .uai/taboo.uai before model-breeding, mutualist, tiny-ecology, or UAIX strategy copy is published; use proof, craft, lineage, fit, local agency, routes, and implementation evidence.
 uaix_cleanup_correction_2026_06_30:
   source: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
@@ -68,6 +68,7 @@ current_scan:
   durable_roadmap: wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md
   durable_add_peer_source_memory: wiki/runtime-mirust/reports/tinyrustlm-minimodel-add-peer-source-intake-memory-2026-07-02.md
   durable_peer_source_announcement_memory: wiki/runtime-mirust/reports/tinyrustlm-minimodel-peer-source-announcement-memory-2026-07-02.md
+  durable_batch_announcement_snapshot_memory: wiki/runtime-mirust/reports/tinyrustlm-minimodel-batch-announcement-snapshot-memory-2026-07-02.md
   processed_improvement_files_2026_07_02:
     - path: TinyRustLM.com/agent-file-handoff/Improvement/Hugging Face to SLM Conversion Workflow.md
       docs_copy: docs/report-intake/2026-07-02/Hugging Face to SLM Conversion Workflow.md
