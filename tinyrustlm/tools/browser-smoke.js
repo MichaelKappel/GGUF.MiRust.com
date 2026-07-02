@@ -1620,7 +1620,7 @@ function installHfSearchUiInterceptor(client) {
             likes: 7,
             siblings: [
               { rfilename: "config.json" },
-              { rfilename: "model.safetensors" },
+              { rfilename: "model.safetensors", size: 2048 },
               { rfilename: "tokenizer.json" }
             ]
           },
@@ -8890,6 +8890,9 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     if (!simpleActionTextAfterSearch.includes("Start Conversion")) {
       failures.push(`unmatched Hugging Face result did not offer Start Conversion: ${simpleActionTextAfterSearch}`);
     }
+    if (!resultText.includes("Source file listed: model.safetensors")) {
+      failures.push(`unmatched Hugging Face result did not surface the safetensors source file: ${resultText}`);
+    }
     if (primaryActionsAfterSearch.length !== 2 || !primaryActionsAfterSearch.includes("Start Conversion") || !primaryActionsAfterSearch.includes("P2P Import")) {
       failures.push(`simple Hugging Face primary actions with P2P on were ${JSON.stringify(primaryActionsAfterSearch)}`);
     }
@@ -8986,7 +8989,11 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "prepare-peer-share",
       "write-catalog-snapshot",
       "serve-peer-pieces",
-      "EDIT_ME\\\\model.safetensors",
+      "Hugging Face metadata source-file candidates",
+      "model.safetensors",
+      "SuggestedSourceSafetensorsFileName",
+      "$SourceSafetensors must point to your reviewed local copy",
+      "EDIT_ME\\model.safetensors",
       "EDIT_ME\\\\SLMComposer.com",
       "EDIT_ME\\\\MiniModel.org",
       "KnownPeerBaseUrl",

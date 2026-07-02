@@ -2934,12 +2934,59 @@
     return /^[A-Za-z0-9][A-Za-z0-9._/-]{1,180}$/.test(text) ? text : "";
   }
 
+  function hfSiblingFileName(sibling) {
+    const text = String(sibling && (sibling.rfilename || sibling.path || sibling.name) || "").trim();
+    if (!text || text.includes("\\") || text.includes("://") || /[\x00-\x1f\x7f]/.test(text)) {
+      return "";
+    }
+    if (!text.split("/").every((part) => part && part !== "." && part !== "..")) {
+      return "";
+    }
+    return text;
+  }
+
+  function hfSiblingByteCount(sibling) {
+    const candidates = [
+      sibling && sibling.size,
+      sibling && sibling.blobSize,
+      sibling && sibling.lfs && sibling.lfs.size
+    ];
+    for (const value of candidates) {
+      const numeric = Number(value);
+      if (Number.isFinite(numeric) && numeric >= 0) {
+        return numeric;
+      }
+    }
+    return null;
+  }
+
   function hfSlmSiblings(result) {
     const siblings = result && Array.isArray(result.siblings) ? result.siblings : [];
     return siblings
-      .map((sibling) => String(sibling && sibling.rfilename ? sibling.rfilename : "").trim())
+      .map(hfSiblingFileName)
       .filter((fileName) => /\.slm$/i.test(fileName) && !fileName.includes("\\"))
       .slice(0, 3);
+  }
+
+  function hfSafetensorsSiblings(result) {
+    const siblings = result && Array.isArray(result.siblings) ? result.siblings : [];
+    const seen = new Set();
+    const files = [];
+    for (const sibling of siblings) {
+      const fileName = hfSiblingFileName(sibling);
+      if (!/\.safetensors$/i.test(fileName) || seen.has(fileName.toLowerCase())) {
+        continue;
+      }
+      seen.add(fileName.toLowerCase());
+      files.push({
+        file_name: fileName,
+        byte_count: hfSiblingByteCount(sibling)
+      });
+      if (files.length >= 8) {
+        break;
+      }
+    }
+    return files;
   }
 
   function normalizeModelIdentity(value) {
@@ -3178,10 +3225,12 @@
   function hfResultView(entry) {
     const matches = hfP2pMatches(entry.modelId);
     const slmFiles = hfSlmSiblings(entry.result);
+    const safetensorsFiles = hfSafetensorsSiblings(entry.result);
     return {
       entry,
       matches,
       slmFiles,
+      safetensorsFiles,
       hasPeerOffer: matches.some((match) => Boolean(match.peerOfferRoute)),
       peerOfferMatch: firstPeerOfferMatch(matches),
       p2pMatch: hfP2pImportMatch(matches),
@@ -3275,6 +3324,34 @@
     }
   }
 
+  function appendHfSafetensorsFileNotes(actions, safetensorsFiles) {
+    if (!safetensorsFiles.length) {
+      actions.append(elementWithText(
+        "span",
+        "model-result-meta",
+        "No .safetensors source file was listed in metadata; review the model card before choosing a local source file."
+      ));
+      return;
+    }
+    for (const file of safetensorsFiles.slice(0, 2)) {
+      const size = Number.isFinite(file.byte_count) && file.byte_count > 0
+        ? ` / ${formatByteCount(file.byte_count)}`
+        : "";
+      actions.append(elementWithText(
+        "span",
+        "model-result-meta",
+        `Source file listed: ${safeLocalModelName(file.file_name)}${size}. Download/review locally; Start Conversion will not fetch it.`
+      ));
+    }
+    if (safetensorsFiles.length > 2) {
+      actions.append(elementWithText(
+        "span",
+        "model-result-meta",
+        `${safetensorsFiles.length - 2} more .safetensors files listed; Rust planner decides local compatibility.`
+      ));
+    }
+  }
+
   async function ensureDefaultCatalogForHfAvailability() {
     if (state.p2pEnabled === false) {
       return;
@@ -3304,6 +3381,8 @@
 
   function hfConversionRequest(entry, matches) {
     const slmFiles = hfSlmSiblings(entry.result);
+    const safetensorsFiles = hfSafetensorsSiblings(entry.result);
+    const suggestedSourceFile = safetensorsFiles.length ? safetensorsFiles[0].file_name : null;
     const defaultShape = "tinylm16-bpe";
     const defaultQuantization = "q8_0";
     return {
@@ -3315,7 +3394,8 @@
         model_url: hfModelUrl(entry.modelId),
         downloads: Number.isFinite(entry.result.downloads) ? entry.result.downloads : null,
         likes: Number.isFinite(entry.result.likes) ? entry.result.likes : null,
-        discovered_slm_files: slmFiles
+        discovered_slm_files: slmFiles,
+        discovered_safetensors_files: safetensorsFiles
       },
       requested_artifact: {
         kind: "slm",
@@ -3328,7 +3408,10 @@
       },
       local_conversion: {
         converter: "tinyrustlm-slm-pack",
-        required_local_input: "A user-selected .safetensors file already present on this machine.",
+        required_local_input: suggestedSourceFile
+          ? `A reviewed local copy of ${suggestedSourceFile}; the browser does not download it.`
+          : "A user-selected .safetensors file already present on this machine.",
+        suggested_source_safetensors_file: suggestedSourceFile,
         command_shape: `cargo run -p tinyrustlm-slm-pack -- convert-safetensors-trained <input.safetensors> ${defaultShape} <output-source-dir> <output.slm> ${defaultQuantization}`,
         peer_share_shape: "cargo run -p minimodel -- prepare-peer-share <output.slm> <share-dir> <minimodel-model-id> [source-huggingface-model-id] [known-peer-base-url]",
         catalog_snapshot_shape: "cargo run -p minimodel -- write-catalog-snapshot <models.v0.json> <catalog-entry-json>...",
@@ -3371,6 +3454,11 @@
     return `"${String(value || "").replace(/[`"$]/g, "`$&")}"`;
   }
 
+  function hfLocalSafetensorsPathHint(fileName) {
+    const safeName = String(fileName || "model.safetensors").replace(/\//g, "\\");
+    return `EDIT_ME\\${safeName}`;
+  }
+
   function conversionFileStem(modelId) {
     const stem = String(modelId || "huggingface-model")
       .replace(/[\\/]+/g, "__")
@@ -3398,14 +3486,30 @@
     const quantization = request.requested_artifact.default_quantization;
     const modelUrl = hfModelUrl(entry.modelId);
     const minimodelModelId = minimodelModelIdForHf(entry.modelId);
+    const safetensorsFiles = Array.isArray(request.source.discovered_safetensors_files)
+      ? request.source.discovered_safetensors_files
+      : [];
+    const suggestedSourceFile = request.local_conversion.suggested_source_safetensors_file || "model.safetensors";
+    const sourceCandidateLines = safetensorsFiles.length
+      ? safetensorsFiles.map((file) => {
+        const size = Number.isFinite(file.byte_count) && file.byte_count > 0
+          ? ` / ${formatByteCount(file.byte_count)}`
+          : "";
+        return `#   - ${file.file_name}${size}`;
+      })
+      : ["#   - no .safetensors sibling listed by metadata; inspect the model card before choosing a local file."];
     const lines = [
       "# TinyRustLM Hugging Face to .slm conversion script",
       `# Source model: ${entry.modelId}`,
       `# Model card: ${modelUrl}`,
       "#",
+      "# Hugging Face metadata source-file candidates:",
+      ...sourceCandidateLines,
+      "#",
       "# This script never downloads model bytes for you.",
       "# First download or otherwise obtain the source .safetensors file yourself,",
       "# review the model card/license, then edit $SourceSafetensors below.",
+      "# $SourceSafetensors must point to your reviewed local copy of a listed source file.",
       "# If the Rust planner rejects the file, this model is not currently compatible",
       "# with the selected TinyRustLM source shape.",
       "",
@@ -3414,7 +3518,8 @@
       "# Edit these values before running.",
       "$TinyRustLMWorkspace = \"EDIT_ME\\\\SLMComposer.com\"",
       "$MiniModelWorkspace = \"EDIT_ME\\\\MiniModel.org\"",
-      "$SourceSafetensors = \"EDIT_ME\\\\model.safetensors\"",
+      `$SuggestedSourceSafetensorsFileName = ${powerShellSingleQuote(suggestedSourceFile)}`,
+      `$SourceSafetensors = ${powerShellDoubleQuote(hfLocalSafetensorsPathHint(suggestedSourceFile))} # Replace with your reviewed local copy.`,
       `$SourceShape = ${powerShellSingleQuote(sourceShape)}`,
       `$Quantization = ${powerShellSingleQuote(quantization)}`,
       `$ModelId = ${powerShellSingleQuote(entry.modelId)}`,
@@ -3518,6 +3623,7 @@
         appendHfSlmFileNotes(actions, view.slmFiles, "import");
       } else {
         actions.append(elementWithText("span", "model-result-meta", "No compatible .slm is available to this app yet."));
+        appendHfSafetensorsFileNotes(actions, view.safetensorsFiles);
       }
       item.append(status, meta, actions);
       el.hfResults.append(item);
@@ -3550,6 +3656,7 @@
         appendHfSlmFileNotes(actions, view.slmFiles, "use it");
       } else {
         actions.append(elementWithText("span", "model-result-meta", hfSimpleFallbackNote(view)));
+        appendHfSafetensorsFileNotes(actions, view.safetensorsFiles);
       }
       item.append(meta, actions);
       el.simpleHfResults.append(item);
