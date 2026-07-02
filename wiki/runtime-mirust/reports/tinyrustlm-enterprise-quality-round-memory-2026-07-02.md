@@ -24,6 +24,12 @@ The simple Hugging Face lane keeps the user-facing action model:
 - The disabled-P2P warning is list-level only.
 - No simple row exposes `Choose converted .slm`, `Save Conversion Request`, or `Save Rust Conversion Script`.
 
+`P2P Import` now saves a real local handoff instead of only selecting metadata:
+
+- `minimodel.peer_import_request.v0` JSON records the matched model id, artifact SHA-256, byte count, model-card/license routes, MiniModel manifest/peer-offer routes, peer-offer checksum, chunk count, Merkle root, and explicit no-project-server-byte/no-project-server-execution boundary flags.
+- `.minimodel-peer-import.ps1` records the Rust verifier path: `minimodel verify-manifest`, consent-based peer-piece placement by a separate local peer client, `minimodel assemble-peer-pieces`, `minimodel verify-artifact`, and `minimodel write-import-receipt`.
+- The script does not download Hugging Face bytes, does not fetch project-hosted model bytes, and does not make the model runnable until the user imports the locally verified `.slm`.
+
 The advanced lane still exposes lower-level `Use MiniModel Metadata`, `Save Conversion Request`, and `Save Rust Conversion Script` controls for pro workflows.
 
 ## Root Route
@@ -47,10 +53,12 @@ The `hf-search-ui` smoke now asserts:
 - simple rows do not expose old per-row conversion/import controls
 - no Hugging Face `/resolve/` byte route is exposed
 - `Start Conversion` saves the local Rust conversion script handoff
+- `P2P Import` saves the peer-import request JSON and Rust reverify script handoff
+- the peer-import request includes the expected artifact checksum, peer-offer checksum, `assemble-peer-pieces` command contract, and no-project-server model-byte/execution flags
 
 ## Documentation
 
-TinyRustLM.MiRust.com documentation was updated so the source-options implementation note names TinyRustLM.com `/` as the deploy target and describes the corrected Hugging Face P2P action model.
+TinyRustLM.MiRust.com documentation was updated so the source-options implementation note names TinyRustLM.com `/` as the deploy target and describes the corrected Hugging Face P2P action model. The browser-runtime documentation now also explains that `P2P Import` saves a `minimodel.peer_import_request.v0` request and `.minimodel-peer-import.ps1` script, with local Rust reassembly, artifact verification, and receipt writing still required before browser import.
 
 ## Verification
 
@@ -58,10 +66,10 @@ Local verification for this pass included:
 
 - `node --check tinyrustlm/app/app.js`
 - `node --check tinyrustlm/tools/browser-smoke.js`
-- `node tinyrustlm/tools/browser-smoke.js http://127.0.0.1:8099/ 9273 tinylm16q8 hf-search-ui`
+- `node tinyrustlm/tools/browser-smoke.js http://127.0.0.1:8099/ 9275 tinylm16q8 hf-search-ui`
 
-The focused browser smoke proved root-route app loading, open source chooser behavior, P2P default-on behavior, exact simple primary-action labels, single list-level disabled-P2P warning, no Hugging Face model-byte route, and local conversion-script handoff.
+The focused browser smoke proved root-route app loading, open source chooser behavior, P2P default-on behavior, exact simple primary-action labels, single list-level disabled-P2P warning, no Hugging Face model-byte route, local conversion-script handoff, and local peer-import request/script handoff.
 
 ## Boundaries
 
-This pass did not add peer networking, server-side model execution, project-server model-byte hosting, or Hugging Face model-byte proxying. TinyRustLM remains browser-local, and every runnable model path still converges on local `.slm` verification.
+This pass did not add live peer networking, server-side model execution, project-server model-byte hosting, or Hugging Face model-byte proxying. TinyRustLM remains browser-local, and every runnable model path still converges on local `.slm` verification. Peer chunks are still a later consent-based transfer step; this pass only makes the current P2P button produce the local request and Rust reverify artifacts that the future transfer client can satisfy.

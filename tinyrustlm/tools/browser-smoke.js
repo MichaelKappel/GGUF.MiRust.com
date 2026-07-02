@@ -2066,6 +2066,23 @@ async function runPageHfSearchUiSmoke(client) {
       const actionTextsAfterSearch = textList("#simpleHfResults button, #simpleHfResults a, #simpleHfResults .compatibility-pill, #simpleHfResults .model-result-meta");
       const primaryActionTextsAfterSearch = textList("#simpleHfResults .primary-result-action");
       const p2pWarningCount = document.querySelectorAll("#simpleHfP2pWarning").length;
+      const p2pImportButton = Array.from(document.querySelectorAll("#simpleHfResults .primary-result-action"))
+        .find((button) => button.textContent.includes("P2P Import"));
+      if (p2pImportButton) {
+        p2pImportButton.click();
+        for (let index = 0; index < 120; index += 1) {
+          if (window.__tinyrustlmDownloads.length >= 2) {
+            break;
+          }
+          await sleep(50);
+        }
+      }
+      const peerImportDownloadNames = window.__tinyrustlmDownloadNames.slice();
+      const peerImportDownloads = window.__tinyrustlmDownloads.slice();
+      const statusAfterP2pImport = byId("simpleDiscoveryStatus") ? byId("simpleDiscoveryStatus").textContent : "";
+      const hfStatusAfterP2pImport = byId("hfStatus") ? byId("hfStatus").textContent : "";
+      window.__tinyrustlmDownloads = [];
+      window.__tinyrustlmDownloadNames = [];
       if (byId("simpleHfP2pToggle")) {
         byId("simpleHfP2pToggle").click();
         await sleep(100);
@@ -2109,6 +2126,13 @@ async function runPageHfSearchUiSmoke(client) {
         actionTextsAfterSearch,
         primaryActionTextsAfterSearch,
         p2pWarningCount,
+        peerImportDownloadNames,
+        peerImportRequestText: peerImportDownloads[0] ? peerImportDownloads[0].text : "",
+        peerImportRequestType: peerImportDownloads[0] ? peerImportDownloads[0].type : "",
+        peerImportScriptText: peerImportDownloads[1] ? peerImportDownloads[1].text : "",
+        peerImportScriptType: peerImportDownloads[1] ? peerImportDownloads[1].type : "",
+        statusAfterP2pImport,
+        hfStatusAfterP2pImport,
         p2pStatusAfterDisable,
         p2pWarningVisibleAfterDisable,
         p2pWarningTextAfterDisable,
@@ -8694,6 +8718,40 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     }
     if (primaryActionsAfterSearch.length !== 2 || !primaryActionsAfterSearch.includes("Start Conversion") || !primaryActionsAfterSearch.includes("P2P Import")) {
       failures.push(`simple Hugging Face primary actions with P2P on were ${JSON.stringify(primaryActionsAfterSearch)}`);
+    }
+    if (!Array.isArray(result.peerImportDownloadNames) || !result.peerImportDownloadNames.some((name) => String(name).endsWith(".minimodel-peer-import-request.json")) || !result.peerImportDownloadNames.some((name) => String(name).endsWith(".minimodel-peer-import.ps1"))) {
+      failures.push(`P2P Import did not save peer import request and script: ${JSON.stringify(result.peerImportDownloadNames)}`);
+    }
+    let peerRequest = null;
+    try {
+      peerRequest = result.peerImportRequestText ? JSON.parse(result.peerImportRequestText) : null;
+    } catch (error) {
+      failures.push(`P2P import request was not JSON: ${error.message}`);
+    }
+    if (!peerRequest || peerRequest.request_kind !== "minimodel.peer_import_request.v0") {
+      failures.push(`P2P import request kind was ${peerRequest && peerRequest.request_kind}`);
+    } else {
+      if (peerRequest.boundary.project_server_serves_model_bytes !== false || peerRequest.boundary.project_server_runs_model_bytes !== false) {
+        failures.push(`P2P import request boundary allowed project server bytes/execution: ${JSON.stringify(peerRequest.boundary)}`);
+      }
+      if (peerRequest.model.artifact_sha256 !== "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef") {
+        failures.push(`P2P import request artifact SHA-256 was ${peerRequest.model.artifact_sha256}`);
+      }
+      if (peerRequest.minimodel_metadata.peer_offer_sha256 !== "sha256:abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd") {
+        failures.push(`P2P import request peer offer SHA-256 was ${peerRequest.minimodel_metadata.peer_offer_sha256}`);
+      }
+      if (!Array.isArray(peerRequest.local_peer_piece_contract.rust_commands) || !peerRequest.local_peer_piece_contract.rust_commands.some((command) => command.includes("assemble-peer-pieces"))) {
+        failures.push(`P2P import request did not include assemble-peer-pieces command: ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
+      }
+    }
+    const peerScriptText = String(result.peerImportScriptText || "");
+    for (const required of ["assemble-peer-pieces", "verify-artifact", "write-import-receipt", "does not download model bytes"]) {
+      if (!peerScriptText.includes(required)) {
+        failures.push(`P2P import script missing ${required}: ${peerScriptText}`);
+      }
+    }
+    if (!String(result.statusAfterP2pImport || "").includes("P2P import request saved") || !String(result.hfStatusAfterP2pImport || "").includes("P2P import request saved")) {
+      failures.push(`P2P Import status was ${result.statusAfterP2pImport}/${result.hfStatusAfterP2pImport}`);
     }
     if (!String(result.p2pStatusAfterDisable || "").includes("P2P off") || !result.p2pWarningVisibleAfterDisable) {
       failures.push(`P2P disabled state did not show the list-level warning: ${JSON.stringify(result)}`);

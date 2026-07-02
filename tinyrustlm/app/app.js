@@ -2758,12 +2758,6 @@
     return `${hfOrigin()}/${String(modelId).split("/").map(encodeURIComponent).join("/")}`;
   }
 
-  function hfResolveUrl(modelId, fileName) {
-    const modelPath = String(modelId).split("/").map(encodeURIComponent).join("/");
-    const filePath = String(fileName).split("/").map(encodeURIComponent).join("/");
-    return `${hfOrigin()}/${modelPath}/resolve/main/${filePath}`;
-  }
-
   function setHfStatus(text, isError) {
     if (el.hfStatus) {
       setText(el.hfStatus, text, isError);
@@ -2839,6 +2833,117 @@
     return matches.find((match) => Boolean(match.peerOfferRoute)) || null;
   }
 
+  function peerImportFileStem(modelId) {
+    return conversionFileStem(modelId || "minimodel-peer-import");
+  }
+
+  function peerImportRequest(match) {
+    const manifestUrl = catalogRouteUrl(match, match.manifestRoute);
+    const peerOfferUrl = catalogRouteUrl(match, match.peerOfferRoute);
+    return {
+      request_kind: "minimodel.peer_import_request.v0",
+      request_version: 0,
+      created_by: "TinyRustLM browser source chooser",
+      model: {
+        model_id: match.modelId,
+        display_name: match.displayName,
+        artifact_kind: match.artifactKind,
+        artifact_file_name: match.fileNameHint,
+        artifact_byte_count: match.artifactByteCount,
+        artifact_sha256: match.artifactSha256,
+        slm_model_shape: match.modelShape || null,
+        quantization: match.quantization || null
+      },
+      source: {
+        kind: match.sourceKind,
+        huggingface_model_id: match.sourceHuggingFaceModelId || null,
+        identity: match.sourceIdentity || match.sourceUrl || null,
+        model_card_route: catalogRouteUrl(match, match.modelCardRoute) || null,
+        license_route: catalogRouteUrl(match, match.licenseRoute) || null
+      },
+      minimodel_metadata: {
+        catalog_base_url: match.catalogBaseUrl || null,
+        manifest_route: match.manifestRoute || null,
+        manifest_url: manifestUrl || null,
+        peer_offer_route: match.peerOfferRoute || null,
+        peer_offer_url: peerOfferUrl || null,
+        peer_offer_sha256: match.peerOfferSha256 || null,
+        peer_offer_chunk_count: match.peerOfferChunkCount || null,
+        peer_offer_merkle_root_sha256: match.peerOfferMerkleRootSha256 || null,
+        peer_hint_status: match.peerHintStatus,
+        admission_status: match.admissionStatus,
+        required_next_gate: match.requiredNextGate
+      },
+      local_peer_piece_contract: {
+        expected_piece_set_kind: "minimodel.peer_piece_set.v0",
+        expected_piece_dir: "EDIT_ME_peer_pieces_from_consenting_peer",
+        assembled_output_slm: match.fileNameHint,
+        rust_commands: [
+          "minimodel verify-manifest <manifest>",
+          "minimodel assemble-peer-pieces <manifest> <piece-dir> <output.slm>",
+          "minimodel verify-artifact <manifest> <output.slm>",
+          "minimodel write-import-receipt <manifest> <output.slm> <receipt.minimodel-receipt>"
+        ]
+      },
+      boundary: {
+        project_server_serves_model_bytes: false,
+        project_server_runs_model_bytes: false,
+        project_server_proxies_huggingface_bytes: false,
+        browser_runs_after_rust_wasm_local_slm_validation: true,
+        transfer_requires_user_consent_and_local_reverify: true
+      }
+    };
+  }
+
+  function peerImportScript(match) {
+    const stem = peerImportFileStem(match.modelId);
+    const request = peerImportRequest(match);
+    const lines = [
+      "# MiniModel peer import handoff",
+      `# Model: ${match.displayName} (${match.modelId})`,
+      "#",
+      "# This script does not download model bytes.",
+      "# A separate consent-based peer client must place peer pieces in $PeerPiecesDir.",
+      "# Rust then assembles and revalidates the .slm before TinyRustLM imports it.",
+      "",
+      "$ErrorActionPreference = \"Stop\"",
+      "",
+      "# Edit these values before running.",
+      "$MiniModelWorkspace = \"EDIT_ME\\\\MiniModel.org\"",
+      "$Manifest = \"EDIT_ME\\\\model.minimodel.manifest.v0\"",
+      `$PeerPiecesDir = ${powerShellSingleQuote(`${stem}-peer-pieces`)}`,
+      `$OutputSlm = ${powerShellSingleQuote(match.fileNameHint || `${stem}.slm`)}`,
+      `$Receipt = ${powerShellSingleQuote(`${stem}.minimodel-receipt`)}`,
+      "",
+      "Set-Location $MiniModelWorkspace",
+      "cargo run -p minimodel -- verify-manifest $Manifest",
+      "cargo run -p minimodel -- assemble-peer-pieces $Manifest $PeerPiecesDir $OutputSlm",
+      "cargo run -p minimodel -- verify-artifact $Manifest $OutputSlm",
+      "cargo run -p minimodel -- write-import-receipt $Manifest $OutputSlm $Receipt",
+      "",
+      "Write-Host \"Verified peer-assembled .slm:\" $OutputSlm",
+      "Write-Host \"Import receipt:\" $Receipt",
+      "Write-Host \"Next: open TinyRustLM.com, choose Your Local Files, and import the verified .slm.\"",
+      "",
+      "# Peer import request summary:",
+      `# artifact_sha256: ${request.model.artifact_sha256}`,
+      `# artifact_byte_count: ${request.model.artifact_byte_count}`,
+      `# peer_offer_sha256: ${request.minimodel_metadata.peer_offer_sha256 || "unavailable"}`,
+      `# peer_offer_merkle_root_sha256: ${request.minimodel_metadata.peer_offer_merkle_root_sha256 || "unavailable"}`,
+      ""
+    ];
+    return lines.join("\n");
+  }
+
+  function savePeerImportHandoff(match) {
+    const stem = peerImportFileStem(match.modelId);
+    const request = peerImportRequest(match);
+    downloadTextFile(`${stem}.minimodel-peer-import-request.json`, `${JSON.stringify(request, null, 2)}\n`);
+    downloadTextFile(`${stem}.minimodel-peer-import.ps1`, peerImportScript(match), "text/plain");
+    setHfStatus(`${match.displayName} P2P import request saved; waiting for peer pieces and Rust reverify`, false);
+    holdModelPopoverOpen(2500);
+  }
+
   function startHfConversion(entry, matches) {
     const request = hfConversionRequest(entry, matches);
     state.pendingConversionRequest = normalizeConversionRequest(request);
@@ -2851,8 +2956,7 @@
 
   function importHfP2pMatch(match) {
     selectCatalogEntry(match);
-    setHfStatus(`${match.displayName} P2P metadata selected; waiting for verified local or peer bytes`, false);
-    holdModelPopoverOpen(2500);
+    savePeerImportHandoff(match);
   }
 
   function hfCountText(value, unit) {
@@ -2928,7 +3032,7 @@
 
   function hfSimpleFallbackNote(view) {
     if (view.p2pMatch) {
-      return "Peer proof is metadata, not project-hosted model bytes. Import waits for verified peer/local bytes.";
+      return "P2P Import saves a peer-piece request and Rust reverify script. It does not fetch project-hosted model bytes.";
     }
     if (view.matches.length && state.p2pEnabled === false) {
       return "P2P is disabled for this list, so conversion will use local/manual source files and may take a while.";
