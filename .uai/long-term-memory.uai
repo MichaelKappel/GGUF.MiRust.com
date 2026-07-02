@@ -5395,6 +5395,23 @@ records:
     last_reviewed_utc: 2026-07-02T05:38:09Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; peer-offer source-clarity report body lives in the target file.
+  - stable_id: tinyrustlm_huggingface_conversion_request_memory
+    memory_domain: runtime-mirust.report_memory.huggingface_conversion_request
+    pointer_type: llmwiki_node
+    path: wiki/runtime-mirust/reports/tinyrustlm-huggingface-conversion-request-memory-2026-07-02.md
+    target_location: https://aiwikis.org/runtime-mirust/reports/tinyrustlm-huggingface-conversion-request-memory-2026-07-02/
+    label: Required For TinyRustLM Hugging Face Conversion Request Memory
+    summary: Routes agents to `convert-huggingface-request`, paired conversion request/script downloads, receipt-bound local `.safetensors` conversion, MiniModel share handoff, and hf-search-ui no-byte-fetch proof.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local implementation report
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing Hugging Face conversion request JSON, generated conversion scripts, safetensors request parsing, conversion receipts, or hf-search-ui conversion handoff expectations.
+    checksum_hash: sha256:C0D3DB97731C8ACA53A538C728233D4E34786837AA65A49E1E01F7C1158A5FD9
+    last_reviewed_utc: 2026-07-02T23:55:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; conversion-request report body lives in the target file.
   - stable_id: tinyrustlm_huggingface_p2p_source_flow_memory
     memory_domain: runtime-mirust.report_memory.huggingface_p2p_source_flow
     pointer_type: llmwiki_node

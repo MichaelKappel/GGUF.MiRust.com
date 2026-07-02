@@ -3207,9 +3207,10 @@
     const request = hfConversionRequest(entry, matches);
     state.pendingConversionRequest = normalizeConversionRequest(request);
     setConversionRequestStatus(`${state.pendingConversionRequest.sourceModelId} bound`, false);
-    const fileName = `${conversionFileStem(entry.modelId)}.tinyrustlm-convert.ps1`;
-    downloadTextFile(fileName, hfConversionScript(entry, matches), "text/plain");
-    setHfStatus("conversion started: local Rust script saved", false);
+    const stem = conversionFileStem(entry.modelId);
+    downloadTextFile(`${stem}.minimodel-conversion-request.json`, `${JSON.stringify(request, null, 2)}\n`);
+    downloadTextFile(`${stem}.tinyrustlm-convert.ps1`, hfConversionScript(entry, matches), "text/plain");
+    setHfStatus("conversion started: local Rust request and script saved", false);
     holdModelPopoverOpen(2500);
   }
 
@@ -3459,7 +3460,7 @@
           ? `A reviewed local copy of ${suggestedSourceFile}; the browser does not download it.`
           : "A user-selected .safetensors file already present on this machine.",
         suggested_source_safetensors_file: suggestedSourceFile,
-        command_shape: `cargo run -p tinyrustlm-slm-pack -- convert-safetensors-trained <input.safetensors> ${defaultShape} <output-source-dir> <output.slm> ${defaultQuantization}`,
+        command_shape: `cargo run -p tinyrustlm-slm-pack -- convert-huggingface-request <request.json> <input.safetensors> <output-dir> ${defaultShape} ${defaultQuantization}`,
         peer_share_shape: "cargo run -p minimodel -- prepare-peer-share <output.slm> <share-dir> <minimodel-model-id> [source-huggingface-model-id] [known-peer-base-url]",
         catalog_snapshot_shape: "cargo run -p minimodel -- write-catalog-snapshot <models.v0.json> <catalog-entry-json>...",
         compatibility_rule: "The Rust planner/converter must accept the safetensors tensor names and exact TinyRustLM shape before a .slm is usable. MiniModel prepare-peer-share then writes the manifest, peer-offer proof, local peer pieces, and catalog entry from the verified .slm."
@@ -3566,30 +3567,26 @@
       "$TinyRustLMWorkspace = \"EDIT_ME\\\\SLMComposer.com\"",
       "$MiniModelWorkspace = \"EDIT_ME\\\\MiniModel.org\"",
       `$SuggestedSourceSafetensorsFileName = ${powerShellSingleQuote(suggestedSourceFile)}`,
+      `$ConversionRequest = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${stem}.minimodel-conversion-request.json`)}`,
       `$SourceSafetensors = ${powerShellDoubleQuote(hfLocalSafetensorsPathHint(suggestedSourceFile))} # Replace with your reviewed local copy.`,
       `$SourceShape = ${powerShellSingleQuote(sourceShape)}`,
       `$Quantization = ${powerShellSingleQuote(quantization)}`,
       `$ModelId = ${powerShellSingleQuote(entry.modelId)}`,
       `$MiniModelModelId = ${powerShellSingleQuote(minimodelModelId)}`,
       "$KnownPeerBaseUrl = \"\" # Optional, for example http://127.0.0.1:8123/",
-      `$WorkDir = Join-Path (Get-Location) ${powerShellSingleQuote(`${stem}-tinyrustlm-conversion`)}`,
-      "$SourceDir = Join-Path $WorkDir \"source\"",
+      `$WorkDir = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${stem}-tinyrustlm-conversion`)}`,
       `$OutputSlm = Join-Path $WorkDir ${powerShellSingleQuote(`${stem}.${quantization}.slm`)}`,
       "$MiniModelShareDir = Join-Path $WorkDir \"minimodel-peer-share\"",
       `$MiniModelCatalogEntry = Join-Path $MiniModelShareDir ${powerShellSingleQuote(`${stem}.${quantization}.catalog-entry.v0.json`)}`,
       "$MiniModelCatalogSnapshot = Join-Path $WorkDir \"models.v0.json\"",
-      "$InspectReport = Join-Path $WorkDir \"source.inspect\"",
-      "$PlanReport = Join-Path $WorkDir \"source.plan\"",
+      "$ConversionReceipt = Join-Path $WorkDir \"tinyrustlm-conversion.receipt\"",
       "",
       "New-Item -ItemType Directory -Force -Path $WorkDir | Out-Null",
-      "New-Item -ItemType Directory -Force -Path $SourceDir | Out-Null",
       "Set-Location $TinyRustLMWorkspace",
       "",
-      "cargo run -p tinyrustlm-slm-pack -- inspect-safetensors $SourceSafetensors $InspectReport",
-      "cargo run -p tinyrustlm-slm-pack -- plan-safetensors-source $SourceSafetensors $SourceShape $PlanReport",
-      "cargo run -p tinyrustlm-slm-pack -- convert-safetensors-trained $SourceSafetensors $SourceShape $SourceDir $OutputSlm $Quantization",
-      "cargo run -p tinyrustlm-slm-pack -- validate $OutputSlm",
-      "cargo run -p tinyrustlm-slm-pack -- validate-manifest $OutputSlm \"$OutputSlm.manifest\"",
+      "# Start Conversion saved this request JSON beside this script.",
+      "# Rust performs inspect, plan, convert, validate, manifest validation, and receipt writing.",
+      "cargo run -p tinyrustlm-slm-pack -- convert-huggingface-request $ConversionRequest $SourceSafetensors $WorkDir $SourceShape $Quantization",
       "",
       "# Prepare checksum-bound MiniModel metadata and local peer pieces in one Rust step.",
       "# This does not upload model bytes and does not serve them from project servers.",
@@ -3603,6 +3600,7 @@
       "cargo run -p minimodel -- write-catalog-snapshot $MiniModelCatalogSnapshot $MiniModelCatalogEntry",
       "",
       "Write-Host \"Converted .slm:\" $OutputSlm",
+      "Write-Host \"Conversion receipt:\" $ConversionReceipt",
       "Write-Host \"MiniModel share directory:\" $MiniModelShareDir",
       "Write-Host \"MiniModel catalog snapshot:\" $MiniModelCatalogSnapshot",
       "Write-Host \"If you consent to serve pieces, run the serve-peer-pieces command printed by MiniModel from your own machine.\"",
@@ -3616,16 +3614,20 @@
     const request = hfConversionRequest(entry, matches);
     state.pendingConversionRequest = normalizeConversionRequest(request);
     setConversionRequestStatus(`${state.pendingConversionRequest.sourceModelId} bound`, false);
-    const fileName = `${entry.modelId.replace(/[\\/]+/g, "__")}.minimodel-conversion-request.json`;
+    const fileName = `${conversionFileStem(entry.modelId)}.minimodel-conversion-request.json`;
     downloadTextFile(fileName, `${JSON.stringify(request, null, 2)}\n`);
     setHfStatus("conversion request saved locally", false);
     holdModelPopoverOpen(2500);
   }
 
   function saveHfConversionScript(entry, matches) {
-    const fileName = `${conversionFileStem(entry.modelId)}.tinyrustlm-convert.ps1`;
-    downloadTextFile(fileName, hfConversionScript(entry, matches), "text/plain");
-    setHfStatus("conversion script saved locally", false);
+    const request = hfConversionRequest(entry, matches);
+    state.pendingConversionRequest = normalizeConversionRequest(request);
+    setConversionRequestStatus(`${state.pendingConversionRequest.sourceModelId} bound`, false);
+    const stem = conversionFileStem(entry.modelId);
+    downloadTextFile(`${stem}.minimodel-conversion-request.json`, `${JSON.stringify(request, null, 2)}\n`);
+    downloadTextFile(`${stem}.tinyrustlm-convert.ps1`, hfConversionScript(entry, matches), "text/plain");
+    setHfStatus("conversion request and script saved locally", false);
     holdModelPopoverOpen(2500);
   }
 

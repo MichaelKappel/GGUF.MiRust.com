@@ -2122,7 +2122,7 @@ async function runPageHfSearchUiSmoke(client) {
       if (startConversionButton) {
         startConversionButton.click();
         for (let index = 0; index < 120; index += 1) {
-          if (window.__tinyrustlmDownloads.length > 0) {
+          if (window.__tinyrustlmDownloads.length >= 2) {
             break;
           }
           await sleep(50);
@@ -2132,7 +2132,12 @@ async function runPageHfSearchUiSmoke(client) {
       const simpleTexts = textList("#simpleHfResults li");
       const advancedTexts = textList("#hfResults li");
       const actionTexts = textList("#simpleHfResults button, #simpleHfResults a, #simpleHfResults .compatibility-pill, #simpleHfResults .model-result-meta");
-      const scriptDownload = window.__tinyrustlmDownloads[0] || { text: "", type: "" };
+      const conversionDownloadNames = window.__tinyrustlmDownloadNames.slice();
+      const conversionDownloads = window.__tinyrustlmDownloads.slice();
+      const conversionRequestIndex = conversionDownloadNames.findIndex((name) => name.endsWith(".minimodel-conversion-request.json"));
+      const conversionScriptIndex = conversionDownloadNames.findIndex((name) => name.endsWith(".tinyrustlm-convert.ps1"));
+      const requestDownload = conversionRequestIndex >= 0 ? conversionDownloads[conversionRequestIndex] : { text: "", type: "" };
+      const scriptDownload = conversionScriptIndex >= 0 ? conversionDownloads[conversionScriptIndex] : { text: "", type: "" };
       return JSON.stringify({
         initiallyOpen,
         panelOpenImmediatelyAfterSearchClick,
@@ -2178,7 +2183,11 @@ async function runPageHfSearchUiSmoke(client) {
         simpleTexts,
         advancedTexts,
         actionTexts,
-        conversionScriptName: window.__tinyrustlmDownloadNames[0] || "",
+        conversionDownloadNames,
+        conversionRequestName: conversionRequestIndex >= 0 ? conversionDownloadNames[conversionRequestIndex] : "",
+        conversionRequestText: requestDownload.text || "",
+        conversionRequestType: requestDownload.type || "",
+        conversionScriptName: conversionScriptIndex >= 0 ? conversionDownloadNames[conversionScriptIndex] : "",
         conversionScriptText: scriptDownload.text || "",
         conversionScriptType: scriptDownload.type || "",
         bodyText: document.body ? document.body.textContent.replace(/\\s+/g, " ").trim() : ""
@@ -8986,22 +8995,50 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     if (!String(result.status || "").includes("conversion started") || !String(result.hfStatus || "").includes("conversion started")) {
       failures.push(`Hugging Face status after Start Conversion was ${result.status}/${result.hfStatus}`);
     }
+    if (!Array.isArray(result.conversionDownloadNames) || result.conversionDownloadNames.length < 2) {
+      failures.push(`Start Conversion did not save both request and script: ${JSON.stringify(result.conversionDownloadNames)}`);
+    }
+    if (!String(result.conversionRequestName || "").endsWith(".minimodel-conversion-request.json")) {
+      failures.push(`conversion request download name was ${result.conversionRequestName}`);
+    }
+    let conversionRequest = null;
+    try {
+      conversionRequest = JSON.parse(String(result.conversionRequestText || ""));
+    } catch (error) {
+      failures.push(`conversion request JSON was invalid: ${error.message} / ${result.conversionRequestText}`);
+    }
+    if (conversionRequest) {
+      if (conversionRequest.request_kind !== "minimodel.huggingface_conversion_request.v0") {
+        failures.push(`conversion request kind was ${conversionRequest.request_kind}`);
+      }
+      if (!conversionRequest.source || conversionRequest.source.model_id !== "example-org/tiny-source-model") {
+        failures.push(`conversion request source model was ${JSON.stringify(conversionRequest.source)}`);
+      }
+      if (!conversionRequest.local_conversion || conversionRequest.local_conversion.suggested_source_safetensors_file !== "model.safetensors") {
+        failures.push(`conversion request source file was ${JSON.stringify(conversionRequest.local_conversion)}`);
+      }
+      if (!conversionRequest.boundary || conversionRequest.boundary.project_server_runs_model_bytes !== false || conversionRequest.boundary.project_server_serves_model_bytes !== false) {
+        failures.push(`conversion request boundary was ${JSON.stringify(conversionRequest.boundary)}`);
+      }
+      if (!String(conversionRequest.local_conversion.command_shape || "").includes("convert-huggingface-request")) {
+        failures.push(`conversion request command shape did not use convert-huggingface-request: ${conversionRequest.local_conversion.command_shape}`);
+      }
+    }
     const scriptText = String(result.conversionScriptText || "");
     if (!String(result.conversionScriptName || "").endsWith(".tinyrustlm-convert.ps1")) {
       failures.push(`conversion script download name was ${result.conversionScriptName}`);
     }
     for (const required of [
-      "inspect-safetensors",
-      "plan-safetensors-source",
-      "convert-safetensors-trained",
-      "validate-manifest",
+      "convert-huggingface-request",
       "prepare-peer-share",
       "write-catalog-snapshot",
       "serve-peer-pieces",
       "Hugging Face metadata source-file candidates",
       "model.safetensors",
       "SuggestedSourceSafetensorsFileName",
+      "$ConversionRequest",
       "$SourceSafetensors must point to your reviewed local copy",
+      "tinyrustlm-conversion.receipt",
       "EDIT_ME\\model.safetensors",
       "EDIT_ME\\\\SLMComposer.com",
       "EDIT_ME\\\\MiniModel.org",
@@ -9012,6 +9049,11 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     ]) {
       if (!scriptText.includes(required)) {
         failures.push(`conversion script missing ${required}: ${scriptText}`);
+      }
+    }
+    for (const lowLevelCommand of ["inspect-safetensors", "plan-safetensors-source", "convert-safetensors-trained", "validate-manifest"]) {
+      if (scriptText.includes(`-- ${lowLevelCommand}`)) {
+        failures.push(`conversion script still made users run low-level ${lowLevelCommand}: ${scriptText}`);
       }
     }
     if (scriptText.includes("Invoke-WebRequest") || scriptText.includes("huggingface.co/api")) {

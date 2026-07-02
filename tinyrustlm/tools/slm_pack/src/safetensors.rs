@@ -10,7 +10,7 @@ use crate::tensor_writer::{
 };
 use crate::tokenizer_writer::{BpeMergeSpec, BpeTokenSpec, ByteTokenizerSection, TokenizerSection};
 use crate::writer::align_to_64;
-use crate::{browser_bundle, provenance, selector, trained_source};
+use crate::{browser_bundle, provenance, selector, slm_validate, trained_source};
 
 const SAFETENSORS_REPORT_VERSION: &str = "1";
 const SAFETENSORS_SOURCE_PLAN_VERSION: &str = "1";
@@ -111,6 +111,13 @@ struct CandidateReview<'a> {
     kv_cache_byte_budget: u64,
     kv_cache_page_count: u64,
     converter_gap_status: &'static str,
+}
+
+struct HuggingFaceConversionRequest {
+    source_model_id: String,
+    default_source_shape: String,
+    default_quantization: String,
+    suggested_source_file: Option<String>,
 }
 
 struct ReviewArtifactEvidence {
@@ -429,6 +436,72 @@ pub fn convert_source_path_with_review(
     println!("output_source_dir: {}", output_source_dir.display());
     println!("output_slm: {}", output_slm.display());
     println!("output_quantization: {output_quantization}");
+    Ok(())
+}
+
+/// Converts a browser-saved Hugging Face conversion request through the local Rust pipeline.
+pub fn convert_huggingface_request_path(
+    request_json: &Path,
+    input: &Path,
+    output_dir: &Path,
+    override_shape_name: Option<&str>,
+    override_quantization: Option<&str>,
+) -> io::Result<()> {
+    let request_text = fs::read_to_string(request_json)?;
+    let request = parse_huggingface_conversion_request(&request_text)?;
+    let shape_name = override_shape_name.unwrap_or(&request.default_source_shape);
+    let output_quantization = override_quantization.unwrap_or(&request.default_quantization);
+    trained_source::validate_output_quantization(output_quantization)?;
+
+    fs::create_dir_all(output_dir)?;
+    let source_dir = output_dir.join("source");
+    let output_slm = huggingface_conversion_output_slm_path(
+        output_dir,
+        &request.source_model_id,
+        output_quantization,
+    );
+    let inspect_report = output_dir.join("source.inspect");
+    let plan_report = output_dir.join("source.plan");
+    let receipt_path = output_dir.join("tinyrustlm-conversion.receipt");
+
+    let plan = build_source_plan(input, shape_name)?;
+    fs::write(&inspect_report, render_report(&plan.inspection))?;
+    fs::write(&plan_report, render_source_plan(&plan))?;
+    convert_source_path(
+        input,
+        shape_name,
+        &source_dir,
+        &output_slm,
+        output_quantization,
+    )?;
+    slm_validate::validate_path(&output_slm)?;
+    let manifest_path = sidecar_manifest_path(&output_slm);
+    provenance::validate_manifest_path(&output_slm, &manifest_path)?;
+    write_huggingface_conversion_receipt(
+        &receipt_path,
+        &request,
+        request_text.as_bytes(),
+        request_json,
+        input,
+        output_dir,
+        &source_dir,
+        &output_slm,
+        &manifest_path,
+        &inspect_report,
+        &plan_report,
+        &plan,
+        shape_name,
+        output_quantization,
+    )?;
+
+    println!("Hugging Face conversion request: PASS");
+    println!("request_json: {}", request_json.display());
+    println!("source_model_id: {}", request.source_model_id);
+    println!("input_safetensors: {}", input.display());
+    println!("target_model_shape: {shape_name}");
+    println!("output_quantization: {output_quantization}");
+    println!("output_slm: {}", output_slm.display());
+    println!("conversion_receipt: {}", receipt_path.display());
     Ok(())
 }
 
@@ -3466,6 +3539,310 @@ fn candidate_review_checksum(path: &Path) -> io::Result<String> {
     Ok(hex64(provenance::text_checksum(&bytes)))
 }
 
+fn parse_huggingface_conversion_request(text: &str) -> io::Result<HuggingFaceConversionRequest> {
+    let root = parse_json_object(text).map_err(|error| {
+        invalid(&format!(
+            "Hugging Face conversion request JSON invalid: {error}"
+        ))
+    })?;
+    let request_kind = conversion_string_field(&root, "request_kind")?;
+    if request_kind != "minimodel.huggingface_conversion_request.v0" {
+        return Err(invalid(
+            "Hugging Face conversion request kind must be minimodel.huggingface_conversion_request.v0",
+        ));
+    }
+
+    let source = conversion_object_field(&root, "source")?;
+    let source_kind = conversion_string_field(source, "kind")?;
+    if source_kind != "huggingface_model" {
+        return Err(invalid(
+            "Hugging Face conversion request source.kind must be huggingface_model",
+        ));
+    }
+    let source_model_id = conversion_string_field(source, "model_id")?.to_string();
+    validate_huggingface_model_id(&source_model_id)?;
+
+    let requested_artifact = conversion_object_field(&root, "requested_artifact")?;
+    let default_source_shape =
+        conversion_string_field(requested_artifact, "default_source_shape")?.to_string();
+    trained_source::source_tensor_expectations(&default_source_shape)?;
+    let default_quantization =
+        conversion_string_field(requested_artifact, "default_quantization")?.to_string();
+    trained_source::validate_output_quantization(&default_quantization)?;
+
+    let suggested_source_file = optional_object_field(&root, "local_conversion")
+        .and_then(|local_conversion| {
+            optional_string_field(local_conversion, "suggested_source_safetensors_file")
+        })
+        .filter(|value| !value.trim().is_empty())
+        .map(|value| value.to_string());
+    if let Some(file_name) = suggested_source_file.as_deref() {
+        validate_safe_safetensors_file_name(file_name)?;
+    }
+
+    Ok(HuggingFaceConversionRequest {
+        source_model_id,
+        default_source_shape,
+        default_quantization,
+        suggested_source_file,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn write_huggingface_conversion_receipt(
+    receipt_path: &Path,
+    request: &HuggingFaceConversionRequest,
+    request_bytes: &[u8],
+    request_json: &Path,
+    input: &Path,
+    output_dir: &Path,
+    source_dir: &Path,
+    output_slm: &Path,
+    manifest_path: &Path,
+    inspect_report: &Path,
+    plan_report: &Path,
+    plan: &SourcePlan,
+    shape_name: &str,
+    output_quantization: &str,
+) -> io::Result<()> {
+    let output_slm_bytes = fs::read(output_slm)?;
+    let manifest_bytes = fs::read(manifest_path)?;
+    let mut text = String::new();
+    push_receipt_line(
+        &mut text,
+        "tinyrustlm_huggingface_conversion_receipt_version",
+        "1",
+    );
+    push_receipt_line(
+        &mut text,
+        "request_kind",
+        "minimodel.huggingface_conversion_request.v0",
+    );
+    push_receipt_line(&mut text, "source_kind", "huggingface_model");
+    push_receipt_line(&mut text, "source_model_id", &request.source_model_id);
+    push_receipt_line(
+        &mut text,
+        "suggested_source_safetensors_file",
+        request
+            .suggested_source_file
+            .as_deref()
+            .unwrap_or("unavailable"),
+    );
+    push_receipt_line(&mut text, "request_json", &one_line_path(request_json));
+    push_receipt_line(
+        &mut text,
+        "request_text_checksum",
+        &hex64(provenance::text_checksum(request_bytes)),
+    );
+    push_receipt_line(&mut text, "input_safetensors", &one_line_path(input));
+    push_receipt_line(
+        &mut text,
+        "input_safetensors_file_name",
+        &input
+            .file_name()
+            .and_then(|value| value.to_str())
+            .map(one_line)
+            .unwrap_or_else(|| "unavailable".to_string()),
+    );
+    push_receipt_line(
+        &mut text,
+        "source_file_bytes",
+        &plan.inspection.file_bytes.to_string(),
+    );
+    push_receipt_line(
+        &mut text,
+        "source_header_checksum",
+        &hex64(plan.inspection.header_checksum),
+    );
+    push_receipt_line(
+        &mut text,
+        "source_tensor_directory_checksum",
+        &hex64(plan.inspection.tensor_directory_checksum),
+    );
+    push_receipt_line(
+        &mut text,
+        "source_plan_mapping_checksum",
+        &hex64(source_plan_mapping_checksum(&plan.tensors)),
+    );
+    push_receipt_line(&mut text, "target_model_shape", shape_name);
+    push_receipt_line(&mut text, "output_quantization", output_quantization);
+    push_receipt_line(&mut text, "output_dir", &one_line_path(output_dir));
+    push_receipt_line(&mut text, "output_source_dir", &one_line_path(source_dir));
+    push_receipt_line(&mut text, "output_slm", &one_line_path(output_slm));
+    push_receipt_line(&mut text, "output_manifest", &one_line_path(manifest_path));
+    push_receipt_line(&mut text, "inspect_report", &one_line_path(inspect_report));
+    push_receipt_line(&mut text, "plan_report", &one_line_path(plan_report));
+    push_receipt_line(
+        &mut text,
+        "output_slm_byte_count",
+        &output_slm_bytes.len().to_string(),
+    );
+    push_receipt_line(
+        &mut text,
+        "output_slm_checksum",
+        &hex64(provenance::text_checksum(&output_slm_bytes)),
+    );
+    push_receipt_line(
+        &mut text,
+        "output_manifest_checksum",
+        &hex64(provenance::text_checksum(&manifest_bytes)),
+    );
+    push_receipt_line(&mut text, "project_server_serves_model_bytes", "false");
+    push_receipt_line(&mut text, "project_server_runs_model_bytes", "false");
+    push_receipt_line(
+        &mut text,
+        "project_server_proxies_huggingface_bytes",
+        "false",
+    );
+    push_receipt_line(&mut text, "browser_import_rule", "user-imports-local-slm");
+    push_receipt_line(
+        &mut text,
+        "required_next_gate",
+        "minimodel-prepare-peer-share",
+    );
+    if let Some(parent) = receipt_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(receipt_path, text)
+}
+
+fn conversion_object_field<'a>(
+    object: &'a [(String, JsonValue)],
+    key: &str,
+) -> io::Result<&'a [(String, JsonValue)]> {
+    match find_object_field(object, key) {
+        Some(JsonValue::Object(value)) => Ok(value),
+        Some(_) => Err(invalid(&format!(
+            "Hugging Face conversion request field {key} must be an object"
+        ))),
+        None => Err(invalid(&format!(
+            "Hugging Face conversion request is missing field {key}"
+        ))),
+    }
+}
+
+fn conversion_string_field<'a>(
+    object: &'a [(String, JsonValue)],
+    key: &str,
+) -> io::Result<&'a str> {
+    match find_object_field(object, key) {
+        Some(JsonValue::String(value)) => Ok(value),
+        Some(_) => Err(invalid(&format!(
+            "Hugging Face conversion request field {key} must be a string"
+        ))),
+        None => Err(invalid(&format!(
+            "Hugging Face conversion request is missing field {key}"
+        ))),
+    }
+}
+
+fn validate_huggingface_model_id(model_id: &str) -> io::Result<()> {
+    let value = model_id.trim();
+    if value.is_empty()
+        || value.contains('\\')
+        || value.contains("://")
+        || value
+            .split('/')
+            .any(|part| part.is_empty() || part == "." || part == "..")
+        || value.chars().any(char::is_control)
+    {
+        return Err(invalid(
+            "Hugging Face conversion request source.model_id must be a safe model id",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_safe_safetensors_file_name(file_name: &str) -> io::Result<()> {
+    let value = file_name.trim();
+    if value.is_empty()
+        || !value.ends_with(".safetensors")
+        || value.contains('/')
+        || value.contains('\\')
+        || value.contains("://")
+        || value == "."
+        || value == ".."
+        || value.chars().any(char::is_control)
+    {
+        return Err(invalid(
+            "Hugging Face conversion request suggested source file must be a safe .safetensors file name",
+        ));
+    }
+    Ok(())
+}
+
+fn huggingface_conversion_output_slm_path(
+    output_dir: &Path,
+    model_id: &str,
+    output_quantization: &str,
+) -> PathBuf {
+    output_dir.join(format!(
+        "{}.{}.slm",
+        huggingface_conversion_file_stem(model_id),
+        output_quantization
+    ))
+}
+
+fn huggingface_conversion_file_stem(model_id: &str) -> String {
+    let mut stem = String::new();
+    let mut previous_was_dash = false;
+    for ch in model_id.chars() {
+        let mapped = if ch == '/' || ch == '\\' {
+            "__".to_string()
+        } else if ch.is_ascii_alphanumeric() || ch == '.' || ch == '_' {
+            ch.to_string()
+        } else {
+            "-".to_string()
+        };
+        for mapped_ch in mapped.chars() {
+            if mapped_ch == '-' {
+                if !previous_was_dash && !stem.is_empty() {
+                    stem.push(mapped_ch);
+                }
+                previous_was_dash = true;
+            } else {
+                stem.push(mapped_ch);
+                previous_was_dash = false;
+            }
+            if stem.len() >= 120 {
+                break;
+            }
+        }
+        if stem.len() >= 120 {
+            break;
+        }
+    }
+    while stem.ends_with('-') {
+        stem.pop();
+    }
+    if stem.is_empty() {
+        "huggingface-model".to_string()
+    } else {
+        stem
+    }
+}
+
+fn sidecar_manifest_path(output_slm: &Path) -> PathBuf {
+    let mut manifest = output_slm.as_os_str().to_owned();
+    manifest.push(".manifest");
+    PathBuf::from(manifest)
+}
+
+fn push_receipt_line(text: &mut String, key: &str, value: &str) {
+    text.push_str(key);
+    text.push('=');
+    text.push_str(&one_line(value));
+    text.push('\n');
+}
+
+fn one_line_path(path: &Path) -> String {
+    one_line(&path.display().to_string())
+}
+
+fn one_line(value: &str) -> String {
+    value.replace(['\r', '\n'], " ")
+}
+
 /// Formats a 64-bit local checksum as a report value.
 fn hex64(value: u64) -> String {
     format!("0x{value:016x}")
@@ -5091,6 +5468,103 @@ mod tests {
             slm_validate::validate_bytes(&bytes, &output_slm.display().to_string()).unwrap();
         assert_eq!(report.quantization_label(), "q8_0");
         provenance::validate_manifest_path(&output_slm, &slm_manifest_path(&output_slm)).unwrap();
+    }
+
+    #[test]
+    fn converts_huggingface_request_to_verified_slm_and_receipt() {
+        let dir = unique_dir("source-convert-hf-request");
+        fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("tiny-hf-source.safetensors");
+        let request = dir.join("example-org__tiny-source-model.minimodel-conversion-request.json");
+        let output_dir = dir.join("request-output");
+        write_template_source_extract_safetensors_with_hf_aliases(&input, "tiny-fixture");
+        fs::write(
+            &request,
+            r#"{
+  "request_kind": "minimodel.huggingface_conversion_request.v0",
+  "source": {
+    "kind": "huggingface_model",
+    "model_id": "example-org/tiny-source-model"
+  },
+  "requested_artifact": {
+    "kind": "slm",
+    "default_source_shape": "tiny-fixture",
+    "default_quantization": "q8_0"
+  },
+  "local_conversion": {
+    "suggested_source_safetensors_file": "tiny-hf-source.safetensors"
+  }
+}
+"#,
+        )
+        .unwrap();
+
+        convert_huggingface_request_path(&request, &input, &output_dir, None, None).unwrap();
+
+        let output_slm = huggingface_conversion_output_slm_path(
+            &output_dir,
+            "example-org/tiny-source-model",
+            "q8_0",
+        );
+        assert!(output_slm.exists());
+        assert!(output_dir.join("source.inspect").exists());
+        assert!(output_dir.join("source.plan").exists());
+        trained_source::validate_source_path(&output_dir.join("source")).unwrap();
+        let bytes = fs::read(&output_slm).unwrap();
+        let report =
+            slm_validate::validate_bytes(&bytes, &output_slm.display().to_string()).unwrap();
+        assert_eq!(report.quantization_label(), "q8_0");
+        provenance::validate_manifest_path(&output_slm, &sidecar_manifest_path(&output_slm))
+            .unwrap();
+
+        let receipt = fs::read_to_string(output_dir.join("tinyrustlm-conversion.receipt")).unwrap();
+        assert!(receipt.contains("tinyrustlm_huggingface_conversion_receipt_version=1"));
+        assert!(receipt.contains("request_kind=minimodel.huggingface_conversion_request.v0"));
+        assert!(receipt.contains("source_kind=huggingface_model"));
+        assert!(receipt.contains("source_model_id=example-org/tiny-source-model"));
+        assert!(receipt.contains("suggested_source_safetensors_file=tiny-hf-source.safetensors"));
+        assert!(receipt.contains("target_model_shape=tiny-fixture"));
+        assert!(receipt.contains("output_quantization=q8_0"));
+        assert!(receipt.contains("project_server_serves_model_bytes=false"));
+        assert!(receipt.contains("project_server_runs_model_bytes=false"));
+        assert!(receipt.contains("project_server_proxies_huggingface_bytes=false"));
+        assert!(receipt.contains("browser_import_rule=user-imports-local-slm"));
+        assert!(receipt.contains("required_next_gate=minimodel-prepare-peer-share"));
+    }
+
+    #[test]
+    fn rejects_huggingface_conversion_request_wrong_kind_before_conversion() {
+        let dir = unique_dir("source-convert-hf-request-wrong-kind");
+        fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("tiny-hf-source.safetensors");
+        let request = dir.join("bad-request.json");
+        let output_dir = dir.join("request-output");
+        write_template_source_extract_safetensors_with_hf_aliases(&input, "tiny-fixture");
+        fs::write(
+            &request,
+            r#"{
+  "request_kind": "not-a-minimodel-request",
+  "source": {
+    "kind": "huggingface_model",
+    "model_id": "example-org/tiny-source-model"
+  },
+  "requested_artifact": {
+    "kind": "slm",
+    "default_source_shape": "tiny-fixture",
+    "default_quantization": "q8_0"
+  }
+}
+"#,
+        )
+        .unwrap();
+
+        let error = convert_huggingface_request_path(&request, &input, &output_dir, None, None)
+            .unwrap_err();
+
+        assert!(error.to_string().contains(
+            "conversion request kind must be minimodel.huggingface_conversion_request.v0"
+        ));
+        assert!(!output_dir.exists());
     }
 
     #[test]
