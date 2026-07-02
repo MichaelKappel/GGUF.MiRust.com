@@ -1668,6 +1668,25 @@ pre {
   gap: 7px;
 }
 
+.compatibility-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 8px;
+  color: var(--warning);
+  background: rgba(251, 146, 60, .10);
+  border: 1px solid rgba(251, 146, 60, .28);
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.compatibility-pill.candidate {
+  color: var(--success);
+  background: rgba(62, 224, 131, .10);
+  border-color: rgba(62, 224, 131, .28);
+}
+
 .model-result-actions a,
 .model-result-actions button {
   min-height: 30px;

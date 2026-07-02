@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TinyRustLM</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="./app.css?v=20260701-sidebarfix">
+  <link rel="stylesheet" href="./app.css?v=20260701-hfsearchfix">
 </head>
 <body>
   <svg class="icon-sprite" aria-hidden="true" focusable="false">
@@ -134,7 +134,7 @@
           </button>
           <button id="simpleHfSourceButton" class="source-option" type="button" data-source-option="huggingface">
             <span>Hugging Face</span>
-            <small>Find model cards and metadata.</small>
+            <small>Find metadata; convert before import.</small>
           </button>
           <button id="simpleP2pSourceButton" class="source-option" type="button" data-source-option="p2p">
             <span>P2P Exchange</span>
@@ -148,6 +148,7 @@
         </div>
         <div id="simpleHfSourcePanel" class="source-panel" data-source-panel="huggingface" hidden>
           <label for="simpleHfSearchInput">Hugging Face search</label>
+          <p>Results are external metadata. TinyRustLM runs verified local `.slm` files only.</p>
           <div class="search-row">
             <input id="simpleHfSearchInput" type="search" value="tiny text-generation slm">
             <button id="simpleHfSearchButton" type="button">Search</button>
@@ -492,6 +493,6 @@
       <span id="currentModelSummary" class="model-summary">No model loaded</span>
     </footer>
   </main>
-  <script src="./app.js?v=20260701-sidebarfix"></script>
+  <script src="./app.js?v=20260701-hfsearchfix"></script>
 </body>
 </html>

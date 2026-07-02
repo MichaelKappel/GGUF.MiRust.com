@@ -844,7 +844,7 @@
     if (el.simpleDiscoveryStatus) {
       const messages = {
         local: "Choose a trusted local .slm file. No network is needed.",
-        huggingface: "Search Hugging Face metadata, then import or convert a trusted local .slm file.",
+        huggingface: "Search Hugging Face metadata. Convert a compatible model to .slm, then import it locally.",
         p2p: "MiniModel P2P is a future verified-transfer route. Metadata can be reviewed now."
       };
       el.simpleDiscoveryStatus.textContent = messages[nextOption];
@@ -1333,14 +1333,20 @@
       });
     }
     if (el.simpleHfSearchButton) {
-      el.simpleHfSearchButton.addEventListener("click", () => {
+      el.simpleHfSearchButton.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
         setSimpleSourceOption("huggingface", true);
         if (el.hfSearchInput && el.simpleHfSearchInput) {
           el.hfSearchInput.value = el.simpleHfSearchInput.value;
         }
-        if (el.hfSearchButton) {
-          el.hfSearchButton.click();
-        }
+        searchHuggingFaceModels().catch((error) => {
+          if (error && error.name === "AbortError") {
+            return;
+          }
+          setHfStatus(errorMessage(error), true);
+        });
+        toggleModelPopover(true);
       });
     }
     if (el.simpleHfSearchInput) {
@@ -2452,7 +2458,7 @@
       const meta = document.createElement("div");
       meta.className = "model-result-meta";
       const downloads = Number.isFinite(entry.result.downloads) ? `${entry.result.downloads} downloads` : "downloads unavailable";
-      meta.textContent = `Hugging Face metadata / ${downloads} / local import still required`;
+      meta.textContent = `Hugging Face metadata / ${downloads} / not runnable here until .slm conversion`;
       const actions = document.createElement("div");
       actions.className = "model-result-actions";
       const pageLink = document.createElement("a");
@@ -2462,17 +2468,21 @@
       pageLink.textContent = "Review Model Card";
       actions.append(pageLink);
       const slmFiles = hfSlmSiblings(entry.result);
+      const compatibility = document.createElement("span");
+      compatibility.className = slmFiles.length ? "compatibility-pill candidate" : "compatibility-pill convert";
+      compatibility.textContent = slmFiles.length ? ".slm candidate found" : "conversion required";
+      actions.append(compatibility);
       for (const fileName of slmFiles) {
         const slmLink = document.createElement("a");
         slmLink.href = hfResolveUrl(entry.modelId, fileName);
         slmLink.target = "_blank";
         slmLink.rel = "noopener noreferrer";
-        slmLink.textContent = `Open ${safeLocalModelName(fileName)}`;
+        slmLink.textContent = `Review ${safeLocalModelName(fileName)}`;
         actions.append(slmLink);
       }
       const importButton = document.createElement("button");
       importButton.type = "button";
-      importButton.textContent = "Import Local .slm";
+      importButton.textContent = "Choose converted .slm";
       importButton.addEventListener("click", () => {
         if (el.localModelFile) {
           el.localModelFile.click();
@@ -2483,7 +2493,7 @@
       if (!slmFiles.length) {
         const note = document.createElement("span");
         note.className = "model-result-meta";
-        note.textContent = "Convert externally to .slm before importing.";
+        note.textContent = "Use the converter path first, then import the local .slm.";
         actions.append(note);
       }
       item.append(title, meta, actions);
