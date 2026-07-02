@@ -86,6 +86,7 @@
   const svgNamespace = "http" + "://www.w3.org/2000/svg";
   const catalogTextByteBudget = 256 * 1024;
   const catalogMaxEntries = 64;
+  const catalogMaxAnnouncementRoutes = 8;
   const hfDiscoveryScheme = "https";
   const hfDiscoveryHost = "huggingface.co";
   const hfSearchLimit = 8;
@@ -2248,6 +2249,31 @@
     }
   }
 
+  function catalogMetadataRouteUrl(route, catalogBaseUrl, label) {
+    const text = catalogText(route);
+    if (!text || text.includes("\n") || text.includes("\r")) {
+      throw new Error(`${label} route was invalid`);
+    }
+    if (!catalogBaseUrl) {
+      throw new Error(`${label} needs a catalog URL before route resolution`);
+    }
+    let catalogUrl;
+    let routeUrl;
+    try {
+      catalogUrl = new URL(catalogBaseUrl, window.location.href);
+      routeUrl = new URL(text, catalogUrl);
+    } catch (_error) {
+      throw new Error(`${label} route URL was invalid`);
+    }
+    if (routeUrl.protocol !== "https:" && routeUrl.protocol !== "http:") {
+      throw new Error(`${label} route must use HTTP or HTTPS`);
+    }
+    if (routeUrl.origin !== catalogUrl.origin) {
+      throw new Error(`${label} route must stay on the catalog origin`);
+    }
+    return routeUrl.toString();
+  }
+
   function assertMetadataOnlyCatalogBoundary(raw, label) {
     if (raw && raw.project_server_serves_model_bytes === true) {
       throw new Error(`${label} declares server-served model bytes`);
@@ -2412,6 +2438,56 @@
     return entries;
   }
 
+  function catalogAnnouncementRouteFromRaw(raw, index, catalogBaseUrl) {
+    const label = `Catalog peer-source announcement route ${index + 1}`;
+    let route = "";
+    let sha256 = "";
+    if (typeof raw === "string") {
+      route = raw;
+    } else if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+      route = raw.route || raw.announcement_route || raw.url || raw.href;
+      sha256 = normalizeCatalogSha256(
+        raw.sha256 ||
+        raw.checksum_sha256 ||
+        raw.announcement_sha256 ||
+        raw.peer_source_announcement_sha256
+      );
+    } else {
+      throw new Error(`${label} was not a string or object`);
+    }
+    if (!sha256) {
+      throw new Error(`${label} must include a SHA-256 checksum`);
+    }
+    return {
+      route: catalogText(route),
+      url: catalogMetadataRouteUrl(route, catalogBaseUrl, label),
+      sha256
+    };
+  }
+
+  function catalogAnnouncementRoutesFromBody(body, catalogBaseUrl) {
+    if (!body || typeof body !== "object" || Array.isArray(body) || !catalogBaseUrl) {
+      return [];
+    }
+    const rawRoutes = [];
+    if (body.peer_source_announcement_route) {
+      rawRoutes.push({
+        route: body.peer_source_announcement_route,
+        sha256: body.peer_source_announcement_sha256 || body.peer_source_announcement_checksum_sha256
+      });
+    }
+    if (Array.isArray(body.peer_source_announcement_routes)) {
+      rawRoutes.push(...body.peer_source_announcement_routes);
+    }
+    if (Array.isArray(body.peer_source_announcement_feeds)) {
+      rawRoutes.push(...body.peer_source_announcement_feeds);
+    }
+    if (rawRoutes.length > catalogMaxAnnouncementRoutes) {
+      throw new Error(`Catalog listed more than ${catalogMaxAnnouncementRoutes} peer-source announcement routes`);
+    }
+    return rawRoutes.map((route, index) => catalogAnnouncementRouteFromRaw(route, index, catalogBaseUrl));
+  }
+
   function renderCatalogResults(entries) {
     clearCatalogResults();
     for (const entry of entries) {
@@ -2526,9 +2602,19 @@
     }
     const body = JSON.parse(text);
     const entries = catalogEntriesFromBody(body, url.hostname, url.toString());
+    const announcementRoutes = catalogAnnouncementRoutesFromBody(body, url.toString());
     state.catalogEntries = entries;
     state.defaultCatalogCheckedForAvailability = rawUrl === defaultCatalogUrl;
     renderCatalogResults(entries);
+    if (announcementRoutes.length) {
+      const routeResult = await applyCatalogAnnouncementRoutes(announcementRoutes, controller.signal);
+      const appliedText = `${routeResult.appliedCount} peer-source announcement${routeResult.appliedCount === 1 ? "" : "s"} applied`;
+      const duplicateText = routeResult.duplicateCount
+        ? `; ${routeResult.duplicateCount} duplicate${routeResult.duplicateCount === 1 ? "" : "s"} already loaded`
+        : "";
+      setCatalogStatus(`${entries.length} metadata entries; ${appliedText}${duplicateText}`, false);
+      return;
+    }
     setCatalogStatus(`${entries.length} metadata entries`, false);
   }
 
@@ -2789,6 +2875,35 @@
       ? `; ${result.duplicateCount} duplicate${result.duplicateCount === 1 ? "" : "s"} already loaded`
       : "";
     setCatalogStatus(`${appliedText}${duplicateText} from ${fileName}`, false);
+  }
+
+  async function applyCatalogAnnouncementRoutes(routes, signal) {
+    let appliedCount = 0;
+    let duplicateCount = 0;
+    for (const route of routes) {
+      const response = await fetch(route.url, {
+        cache: "no-store",
+        credentials: "omit",
+        signal
+      });
+      if (!response.ok) {
+        throw new Error(`Peer-source announcement request failed (${response.status})`);
+      }
+      const text = await response.text();
+      if (state.encoder.encode(text).length > catalogTextByteBudget) {
+        throw new Error("Peer-source announcement metadata exceeded browser budget");
+      }
+      const actualSha256 = await sha256Text(text);
+      if (actualSha256 !== route.sha256) {
+        throw new Error("Peer-source announcement checksum did not match catalog metadata");
+      }
+      const body = JSON.parse(text);
+      const announcements = peerSourceAnnouncementsFromBody(body, route.url);
+      const result = applyPeerSourceAnnouncements(announcements);
+      appliedCount += result.appliedCount;
+      duplicateCount += result.duplicateCount;
+    }
+    return { routeCount: routes.length, appliedCount, duplicateCount };
   }
 
   const peerShareChunkBytes = 1024 * 1024;
@@ -3682,7 +3797,15 @@
         return;
       }
       const body = JSON.parse(text);
+      const announcementRoutes = catalogAnnouncementRoutesFromBody(body, defaultCatalogUrl);
       state.catalogEntries = catalogEntriesFromBody(body, "MiniModel.org", defaultCatalogUrl);
+      if (announcementRoutes.length) {
+        try {
+          await applyCatalogAnnouncementRoutes(announcementRoutes);
+        } catch (_error) {
+          // Keep the base proof-ready metadata, but fail closed on optional peer sources.
+        }
+      }
     } catch (_error) {
       state.catalogEntries = [];
     }
