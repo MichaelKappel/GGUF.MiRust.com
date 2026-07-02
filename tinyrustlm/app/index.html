@@ -128,7 +128,7 @@
           </button>
           <button id="simpleHfSourceButton" class="source-option" type="button" data-source-option="huggingface">
             <span>Hugging Face</span>
-            <small>Find sources; Rust converts.</small>
+            <small>Model cards first. Convert later.</small>
           </button>
           <button id="simpleP2pSourceButton" class="source-option" type="button" data-source-option="p2p">
             <span>P2P Exchange</span>
@@ -142,11 +142,19 @@
         </div>
         <div id="simpleHfSourcePanel" class="source-panel" data-source-panel="huggingface" hidden>
           <label for="simpleHfSearchInput">Hugging Face metadata search</label>
-          <p>Search returns model cards, not runnable models. Rust must convert and verify a source into `.slm` before it can run here.</p>
+          <p>These are external model-card candidates. Nothing runs here until Rust converts a compatible source to `.slm`, verifies it, and you choose the local file.</p>
           <div class="search-row">
             <input id="simpleHfSearchInput" type="search" value="tiny text-generation slm">
             <button id="simpleHfSearchButton" type="button">Search Metadata</button>
           </div>
+          <div class="source-flow-row">
+            <label class="toggle-row" for="simpleHfP2pToggle">
+              <input id="simpleHfP2pToggle" type="checkbox" checked>
+              <span>Enable P2P when available</span>
+            </label>
+            <span id="simpleHfP2pStatus" class="flow-status">P2P on. Peer-ready matches can use P2P Import.</span>
+          </div>
+          <p id="simpleHfP2pWarning" class="inline-status source-warning" hidden>P2P is off. Local conversion can take a while; enable P2P above to use peer-ready imports when metadata supports them.</p>
           <ol id="simpleHfResults" class="model-results"></ol>
         </div>
         <div id="simpleP2pSourcePanel" class="source-panel" data-source-panel="p2p" hidden>
@@ -497,6 +505,6 @@
       <span id="currentModelSummary" class="model-summary">No model loaded</span>
     </footer>
   </main>
-  <script src="./app.js?v=20260702-sourceclarity"></script>
+  <script src="./app.js?v=20260702-quality"></script>
 </body>
 </html>

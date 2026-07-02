@@ -820,6 +820,32 @@ svg {
   gap: 8px;
 }
 
+.source-flow-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 10px;
+  background: rgba(4, 12, 23, .50);
+  border: 1px solid rgba(118, 151, 192, .16);
+  border-radius: 11px;
+}
+
+.flow-status {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.source-warning {
+  padding: 8px 10px;
+  color: var(--warning);
+  background: rgba(251, 146, 60, .10);
+  border: 1px solid rgba(251, 146, 60, .26);
+  border-radius: 10px;
+}
+
 label {
   display: block;
   margin: 10px 0 6px;
@@ -1719,6 +1745,12 @@ pre {
   border: 1px solid var(--border);
   border-radius: 9px;
   font-weight: 700;
+}
+
+.model-result-actions .primary-result-action {
+  color: white;
+  background: rgba(47, 125, 255, .82);
+  border-color: rgba(147, 197, 253, .48);
 }
 
 .bottom-controls {

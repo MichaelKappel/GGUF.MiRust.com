@@ -325,6 +325,9 @@
     latestSampling: null,
     consoleAutoScroll: true,
     simpleSourceOption: "local",
+    modelPopoverHoldUntil: 0,
+    p2pEnabled: true,
+    hfLastAccepted: [],
     defaultCatalogCheckedForAvailability: false
   };
 
@@ -343,6 +346,9 @@
     simpleImportLocalModelButton: document.getElementById("simpleImportLocalModelButton"),
     simpleHfSearchInput: document.getElementById("simpleHfSearchInput"),
     simpleHfSearchButton: document.getElementById("simpleHfSearchButton"),
+    simpleHfP2pToggle: document.getElementById("simpleHfP2pToggle"),
+    simpleHfP2pStatus: document.getElementById("simpleHfP2pStatus"),
+    simpleHfP2pWarning: document.getElementById("simpleHfP2pWarning"),
     simpleCatalogResults: document.getElementById("simpleCatalogResults"),
     simpleHfResults: document.getElementById("simpleHfResults"),
     simpleLoadCatalogButton: document.getElementById("simpleLoadCatalogButton"),
@@ -500,6 +506,7 @@
     mode: "slmcomposer.ui.mode",
     selectedStarter: "slmcomposer.ui.selectedStarter",
     simpleSourceOption: "slmcomposer.ui.simpleSourceOption",
+    p2pEnabled: "slmcomposer.ui.p2pEnabled",
     creativity: "slmcomposer.ui.creativity",
     length: "slmcomposer.ui.length",
     repeatable: "slmcomposer.ui.repeatable",
@@ -973,6 +980,38 @@
     openers.forEach((button) => button.setAttribute("aria-expanded", String(nextOpen)));
   }
 
+  function holdModelPopoverOpen(durationMs = 1500) {
+    state.modelPopoverHoldUntil = Math.max(
+      state.modelPopoverHoldUntil || 0,
+      Date.now() + durationMs
+    );
+    toggleModelPopover(true);
+  }
+
+  function updateHfP2pStatus() {
+    const enabled = state.p2pEnabled !== false;
+    if (el.simpleHfP2pToggle) {
+      el.simpleHfP2pToggle.checked = enabled;
+    }
+    if (el.simpleHfP2pStatus) {
+      el.simpleHfP2pStatus.textContent = enabled
+        ? "P2P on. Peer-ready matches can use P2P Import."
+        : "P2P off. Results will use local conversion.";
+    }
+    if (el.simpleHfP2pWarning) {
+      el.simpleHfP2pWarning.hidden = enabled;
+    }
+  }
+
+  function setHfP2pEnabled(enabled) {
+    state.p2pEnabled = Boolean(enabled);
+    storageSet(uiStorageKeys.p2pEnabled, String(state.p2pEnabled));
+    updateHfP2pStatus();
+    if (state.hfLastAccepted && state.hfLastAccepted.length) {
+      renderSimpleHfResults(state.hfLastAccepted);
+    }
+  }
+
   function collapseSidebar(collapsed) {
     if (!el.appShell) {
       return;
@@ -1212,6 +1251,8 @@
 
   function initializeUiShell() {
     resetUiPreferencesForVersion();
+    state.p2pEnabled = storageGet(uiStorageKeys.p2pEnabled, "true") !== "false";
+    updateHfP2pStatus();
     setAppMode(initialAppMode());
     restoreSemanticPreferences();
     markStarterSelected(storageGet(uiStorageKeys.selectedStarter, ""));
@@ -1300,6 +1341,10 @@
       if (!panel || panel.hidden) {
         return;
       }
+      if (Date.now() < (state.modelPopoverHoldUntil || 0)) {
+        toggleModelPopover(true);
+        return;
+      }
       const clickedOpener = event.target.closest("[data-open-model-popover], #modelEditButton");
       if (!clickedOpener && !panel.contains(event.target)) {
         toggleModelPopover(false);
@@ -1367,20 +1412,23 @@
       });
     }
     if (el.simpleHfSearchButton) {
+      el.simpleHfSearchButton.addEventListener("pointerdown", () => holdModelPopoverOpen(3000));
       el.simpleHfSearchButton.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
         setSimpleSourceOption("huggingface", true);
+        holdModelPopoverOpen(5000);
         if (el.hfSearchInput && el.simpleHfSearchInput) {
           el.hfSearchInput.value = el.simpleHfSearchInput.value;
         }
-        searchHuggingFaceModels().catch((error) => {
+        searchHuggingFaceModels({ keepSimplePopover: true }).catch((error) => {
           if (error && error.name === "AbortError") {
             return;
           }
           setHfStatus(errorMessage(error), true);
+          holdModelPopoverOpen(2500);
         });
-        toggleModelPopover(true);
+        holdModelPopoverOpen(5000);
       });
     }
     if (el.simpleHfSearchInput) {
@@ -1391,6 +1439,19 @@
         event.preventDefault();
         if (el.simpleHfSearchButton) {
           el.simpleHfSearchButton.click();
+        }
+      });
+    }
+    if (el.simpleHfP2pToggle) {
+      el.simpleHfP2pToggle.addEventListener("change", () => {
+        setHfP2pEnabled(el.simpleHfP2pToggle.checked);
+        holdModelPopoverOpen(2000);
+        if (state.p2pEnabled && state.hfLastAccepted && state.hfLastAccepted.length) {
+          ensureDefaultCatalogForHfAvailability().then(() => {
+            renderSimpleHfResults(state.hfLastAccepted);
+          }).catch((error) => {
+            setHfStatus(errorMessage(error), true);
+          });
         }
       });
     }
@@ -1921,6 +1982,42 @@
       .replace(/\s+/g, " ")
       .trim();
     return (cleaned || "local-model.slm").slice(0, 96);
+  }
+
+  function elementWithText(tagName, className, text) {
+    const node = document.createElement(tagName);
+    if (className) {
+      node.className = className;
+    }
+    node.textContent = text;
+    return node;
+  }
+
+  function actionButton(label, onClick, className = "") {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = label;
+    if (className) {
+      button.className = className;
+    }
+    button.addEventListener("click", onClick);
+    return button;
+  }
+
+  function externalActionLink(label, href) {
+    const link = document.createElement("a");
+    link.href = href;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = label;
+    return link;
+  }
+
+  function modelResultItem(titleText) {
+    const item = document.createElement("li");
+    item.className = "model-result";
+    item.append(elementWithText("strong", "", titleText));
+    return item;
   }
 
   function simpleLocalStatusText(text, isError) {
@@ -2735,7 +2832,124 @@
     return state.catalogEntries.filter((entry) => catalogEntryMatchesHfModel(entry, modelId));
   }
 
+  function hfP2pImportMatch(matches) {
+    if (state.p2pEnabled === false) {
+      return null;
+    }
+    return matches.find((match) => Boolean(match.peerOfferRoute)) || null;
+  }
+
+  function startHfConversion(entry, matches) {
+    const request = hfConversionRequest(entry, matches);
+    state.pendingConversionRequest = normalizeConversionRequest(request);
+    setConversionRequestStatus(`${state.pendingConversionRequest.sourceModelId} bound`, false);
+    const fileName = `${conversionFileStem(entry.modelId)}.tinyrustlm-convert.ps1`;
+    downloadTextFile(fileName, hfConversionScript(entry, matches), "text/plain");
+    setHfStatus("conversion started: local Rust script saved", false);
+    holdModelPopoverOpen(2500);
+  }
+
+  function importHfP2pMatch(match) {
+    selectCatalogEntry(match);
+    setHfStatus(`${match.displayName} P2P metadata selected; waiting for verified local or peer bytes`, false);
+    holdModelPopoverOpen(2500);
+  }
+
+  function hfCountText(value, unit) {
+    return Number.isFinite(value) ? `${value} ${unit}` : `${unit} unavailable`;
+  }
+
+  function hfResultView(entry) {
+    const matches = hfP2pMatches(entry.modelId);
+    const slmFiles = hfSlmSiblings(entry.result);
+    return {
+      entry,
+      matches,
+      slmFiles,
+      hasPeerOffer: matches.some((match) => Boolean(match.peerOfferRoute)),
+      p2pMatch: hfP2pImportMatch(matches),
+      downloads: hfCountText(entry.result.downloads, "downloads"),
+      likes: hfCountText(entry.result.likes, "likes")
+    };
+  }
+
+  function hfCompatibilityClass(view) {
+    return view.matches.length || view.slmFiles.length
+      ? "compatibility-pill candidate"
+      : "compatibility-pill convert";
+  }
+
+  function hfAdvancedStatusText(view) {
+    if (view.matches.length) {
+      return view.hasPeerOffer
+        ? "Peer proof found, local .slm still required"
+        : "Catalog match, local .slm needed";
+    }
+    if (view.slmFiles.length) {
+      return "External .slm listed, verify locally";
+    }
+    return "Rust conversion required";
+  }
+
+  function hfAdvancedMetaText(view) {
+    const sourceState = view.matches.length
+      ? "MiniModel metadata only; choose the matching local .slm before running"
+      : "model card only; not runnable here until Rust conversion and local .slm verification";
+    return `${view.downloads} / ${view.likes} / ${sourceState}`;
+  }
+
+  function hfSimpleMetaText(view) {
+    if (view.matches.length) {
+      if (state.p2pEnabled === false) {
+        return `Hugging Face model card / ${view.downloads} / P2P disabled; local conversion path selected`;
+      }
+      return `Hugging Face model card / ${view.downloads} / MiniModel metadata found${view.hasPeerOffer ? " with peer proof" : ""}`;
+    }
+    return `Hugging Face model card / ${view.downloads} / not compatible yet; Rust conversion required`;
+  }
+
+  function hfSimpleCompatibilityText(view) {
+    if (view.p2pMatch) {
+      return "P2P available";
+    }
+    if (view.matches.length && state.p2pEnabled === false) {
+      return "P2P off; conversion";
+    }
+    if (view.matches.length) {
+      return view.hasPeerOffer
+        ? "Peer proof, local .slm needed"
+        : "Catalog match, local .slm needed";
+    }
+    if (view.slmFiles.length) {
+      return "External .slm listed, verify locally";
+    }
+    return "Rust conversion required";
+  }
+
+  function hfSimpleFallbackNote(view) {
+    if (view.p2pMatch) {
+      return "Peer proof is metadata, not project-hosted model bytes. Import waits for verified peer/local bytes.";
+    }
+    if (view.matches.length && state.p2pEnabled === false) {
+      return "P2P is disabled for this list, so conversion will use local/manual source files and may take a while.";
+    }
+    return "This is a model-card result. Convert locally, save peer-offer proof, then publish metadata for future P2P reuse.";
+  }
+
+  function appendHfSlmFileNotes(actions, slmFiles, actionWord) {
+    for (const fileName of slmFiles) {
+      actions.append(elementWithText(
+        "span",
+        "model-result-meta",
+        `${safeLocalModelName(fileName)} is listed externally; ${actionWord} only after local review and Rust validation.`
+      ));
+    }
+  }
+
   async function ensureDefaultCatalogForHfAvailability() {
+    if (state.p2pEnabled === false) {
+      return;
+    }
     if (state.catalogEntries.length || state.defaultCatalogCheckedForAvailability) {
       return;
     }
@@ -2893,14 +3107,14 @@
     const fileName = `${entry.modelId.replace(/[\\/]+/g, "__")}.minimodel-conversion-request.json`;
     downloadTextFile(fileName, `${JSON.stringify(request, null, 2)}\n`);
     setHfStatus("conversion request saved locally", false);
-    toggleModelPopover(true);
+    holdModelPopoverOpen(2500);
   }
 
   function saveHfConversionScript(entry, matches) {
     const fileName = `${conversionFileStem(entry.modelId)}.tinyrustlm-convert.ps1`;
     downloadTextFile(fileName, hfConversionScript(entry, matches), "text/plain");
     setHfStatus("conversion script saved locally", false);
-    toggleModelPopover(true);
+    holdModelPopoverOpen(2500);
   }
 
   function renderHfResults(results) {
@@ -2915,73 +3129,38 @@
         break;
       }
     }
+    state.hfLastAccepted = accepted;
     if (!accepted.length) {
       setHfStatus("no model records returned", false);
       return;
     }
     for (const entry of accepted) {
-      const matches = hfP2pMatches(entry.modelId);
-      const hasPeerOffer = matches.some((match) => Boolean(match.peerOfferRoute));
-      const item = document.createElement("li");
-      item.className = "model-result";
-      const title = document.createElement("strong");
-      title.textContent = entry.modelId;
-      const meta = document.createElement("div");
-      meta.className = "model-result-meta";
-      const downloads = Number.isFinite(entry.result.downloads) ? `${entry.result.downloads} downloads` : "downloads unavailable";
-      const likes = Number.isFinite(entry.result.likes) ? `${entry.result.likes} likes` : "likes unavailable";
-      meta.textContent = matches.length
-        ? `${downloads} / ${likes} / MiniModel metadata match / local .slm import still required${hasPeerOffer ? " / peer offer proof found" : ""}`
-        : `${downloads} / ${likes} / model card only / Rust conversion required`;
-      const actions = document.createElement("div");
-      actions.className = "model-result-actions";
-      const pageLink = document.createElement("a");
-      pageLink.href = hfModelUrl(entry.modelId);
-      pageLink.target = "_blank";
-      pageLink.rel = "noopener noreferrer";
-      pageLink.textContent = "Model Page";
-      actions.append(pageLink);
-      if (matches.length) {
-        for (const match of matches.slice(0, 2)) {
-          const useButton = document.createElement("button");
-          useButton.type = "button";
-          useButton.textContent = "Use MiniModel Metadata";
-          useButton.addEventListener("click", () => selectCatalogEntry(match));
-          actions.append(useButton);
+      const view = hfResultView(entry);
+      const item = modelResultItem(entry.modelId);
+      const status = elementWithText("span", hfCompatibilityClass(view), hfAdvancedStatusText(view));
+      const meta = elementWithText("div", "model-result-meta", hfAdvancedMetaText(view));
+      const actions = elementWithText("div", "model-result-actions", "");
+      actions.append(externalActionLink("Review Model Card", hfModelUrl(entry.modelId)));
+      if (view.matches.length) {
+        for (const match of view.matches.slice(0, 2)) {
+          actions.append(actionButton("Use MiniModel Metadata", () => selectCatalogEntry(match)));
         }
       } else {
-        const requestButton = document.createElement("button");
-        requestButton.type = "button";
-        requestButton.textContent = "Save Conversion Request";
-        requestButton.addEventListener("click", () => saveHfConversionRequest(entry, matches));
-        actions.append(requestButton);
-        const scriptButton = document.createElement("button");
-        scriptButton.type = "button";
-        scriptButton.textContent = "Save Rust Conversion Script";
-        scriptButton.addEventListener("click", () => saveHfConversionScript(entry, matches));
-        actions.append(scriptButton);
+        actions.append(
+          actionButton("Save Conversion Request", () => saveHfConversionRequest(entry, view.matches)),
+          actionButton("Save Rust Conversion Script", () => saveHfConversionScript(entry, view.matches))
+        );
       }
-      const slmFiles = hfSlmSiblings(entry.result);
-      if (slmFiles.length) {
-        for (const fileName of slmFiles) {
-          const slmLink = document.createElement("a");
-          slmLink.href = hfResolveUrl(entry.modelId, fileName);
-          slmLink.target = "_blank";
-          slmLink.rel = "noopener noreferrer";
-          slmLink.textContent = `Download ${safeLocalModelName(fileName)}`;
-          actions.append(slmLink);
-        }
+      if (view.slmFiles.length) {
+        appendHfSlmFileNotes(actions, view.slmFiles, "import");
       } else {
-        const note = document.createElement("span");
-        note.className = "model-result-meta";
-        note.textContent = "Not runnable here until Rust converts and verifies a local .slm";
-        actions.append(note);
+        actions.append(elementWithText("span", "model-result-meta", "No compatible .slm is available to this app yet."));
       }
-      item.append(title, meta, actions);
+      item.append(status, meta, actions);
       el.hfResults.append(item);
     }
     renderSimpleHfResults(accepted);
-    setHfStatus(`${accepted.length} external records`, false);
+    setHfStatus(`${accepted.length} external records; local .slm verification required`, false);
   }
 
   function renderSimpleHfResults(accepted) {
@@ -2990,90 +3169,34 @@
     }
     el.simpleHfResults.replaceChildren();
     for (const entry of accepted) {
-      const matches = hfP2pMatches(entry.modelId);
-      const hasPeerOffer = matches.some((match) => Boolean(match.peerOfferRoute));
-      const item = document.createElement("li");
-      item.className = "model-result";
-      const title = document.createElement("strong");
-      title.textContent = entry.modelId;
-      const meta = document.createElement("div");
-      meta.className = "model-result-meta";
-      const downloads = Number.isFinite(entry.result.downloads) ? `${entry.result.downloads} downloads` : "downloads unavailable";
-      meta.textContent = matches.length
-        ? `Hugging Face metadata / ${downloads} / MiniModel metadata match / local .slm import required${hasPeerOffer ? " / peer offer proof found" : ""}`
-        : `Hugging Face metadata / ${downloads} / compatibility unknown until Rust conversion`;
-      const actions = document.createElement("div");
-      actions.className = "model-result-actions";
-      const pageLink = document.createElement("a");
-      pageLink.href = hfModelUrl(entry.modelId);
-      pageLink.target = "_blank";
-      pageLink.rel = "noopener noreferrer";
-      pageLink.textContent = "Review Model Card";
-      actions.append(pageLink);
-      const slmFiles = hfSlmSiblings(entry.result);
-      const compatibility = document.createElement("span");
-      compatibility.className = matches.length || slmFiles.length ? "compatibility-pill candidate" : "compatibility-pill convert";
-      compatibility.textContent = matches.length
-        ? hasPeerOffer
-          ? "Peer proof, local .slm needed"
-          : "Catalog match, local .slm needed"
-        : slmFiles.length
-          ? ".slm file listed, review first"
-          : "Rust conversion required";
+      const view = hfResultView(entry);
+      const item = modelResultItem(entry.modelId);
+      const meta = elementWithText("div", "model-result-meta", hfSimpleMetaText(view));
+      const actions = elementWithText("div", "model-result-actions", "");
+      actions.append(externalActionLink("Review Model Card", hfModelUrl(entry.modelId)));
+      const compatibility = elementWithText("span", hfCompatibilityClass(view), hfSimpleCompatibilityText(view));
       actions.append(compatibility);
-      if (matches.length) {
-        for (const match of matches.slice(0, 2)) {
-          const useButton = document.createElement("button");
-          useButton.type = "button";
-          useButton.textContent = "Use MiniModel Metadata";
-          useButton.addEventListener("click", () => selectCatalogEntry(match));
-          actions.append(useButton);
-        }
+      if (view.p2pMatch) {
+        actions.append(actionButton("P2P Import", () => importHfP2pMatch(view.p2pMatch), "primary-result-action"));
+      } else {
+        actions.append(actionButton("Start Conversion", () => startHfConversion(entry, view.matches), "primary-result-action"));
       }
-      for (const fileName of slmFiles) {
-        const slmLink = document.createElement("a");
-        slmLink.href = hfResolveUrl(entry.modelId, fileName);
-        slmLink.target = "_blank";
-        slmLink.rel = "noopener noreferrer";
-        slmLink.textContent = `Review ${safeLocalModelName(fileName)}`;
-        actions.append(slmLink);
+      if (view.slmFiles.length) {
+        appendHfSlmFileNotes(actions, view.slmFiles, "use it");
+      } else {
+        actions.append(elementWithText("span", "model-result-meta", hfSimpleFallbackNote(view)));
       }
-      const requestButton = document.createElement("button");
-      requestButton.type = "button";
-      requestButton.textContent = "Save Conversion Request";
-      requestButton.addEventListener("click", () => saveHfConversionRequest(entry, matches));
-      actions.append(requestButton);
-      if (!matches.length) {
-        const scriptButton = document.createElement("button");
-        scriptButton.type = "button";
-      scriptButton.textContent = "Save Rust Conversion Script";
-        scriptButton.addEventListener("click", () => saveHfConversionScript(entry, matches));
-        actions.append(scriptButton);
-      }
-      const importButton = document.createElement("button");
-      importButton.type = "button";
-      importButton.textContent = "Choose converted .slm";
-      importButton.addEventListener("click", () => {
-        if (el.localModelFile) {
-          el.localModelFile.click();
-          el.localModelFile.focus();
-        }
-      });
-      actions.append(importButton);
-      if (!slmFiles.length) {
-        const note = document.createElement("span");
-        note.className = "model-result-meta";
-        note.textContent = matches.length
-          ? "Not downloaded here. Choose the matching local .slm; peer transfer will require a verified peer offer."
-          : "This is a model-card result. Convert locally, save peer-offer proof, then publish metadata for future P2P reuse.";
-        actions.append(note);
-      }
-      item.append(title, meta, actions);
+      item.append(meta, actions);
       el.simpleHfResults.append(item);
     }
   }
 
-  async function searchHuggingFaceModels() {
+  async function searchHuggingFaceModels(options = {}) {
+    const keepSimplePopover = Boolean(options.keepSimplePopover);
+    if (keepSimplePopover) {
+      setSimpleSourceOption("huggingface", true);
+      holdModelPopoverOpen(5000);
+    }
     const query = String(el.hfSearchInput && el.hfSearchInput.value ? el.hfSearchInput.value : "").trim();
     if (!query) {
       throw new Error("Enter a model search phrase");
@@ -3082,7 +3205,7 @@
       state.hfSearchAbort.abort();
     }
     clearHfResults();
-    setHfStatus("searching external index", false);
+    setHfStatus("searching model-card metadata", false);
     const controller = new AbortController();
     state.hfSearchAbort = controller;
     const catalogAvailability = ensureDefaultCatalogForHfAvailability();
@@ -3107,6 +3230,9 @@
     }
     await catalogAvailability;
     renderHfResults(results);
+    if (keepSimplePopover) {
+      holdModelPopoverOpen(3000);
+    }
   }
 
   function isSafeRegistryModelPath(value) {

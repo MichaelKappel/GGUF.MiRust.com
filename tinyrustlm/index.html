@@ -3,16 +3,508 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="refresh" content="0; url=./app/">
   <title>TinyRustLM</title>
-  <script>
-    window.location.replace("./app/");
-  </script>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./app/app.css?v=20260701-realmodelpath">
 </head>
 <body>
-  <main>
-    <h1>TinyRustLM</h1>
-    <p><a href="./app/">Open TinyRustLM</a></p>
+  <svg class="icon-sprite" aria-hidden="true" focusable="false">
+    <symbol id="icon-cube" viewBox="0 0 24 24"><path d="m12 2 8 4.5v9L12 20l-8-4.5v-9L12 2Z"/><path d="m4 6.5 8 4.5 8-4.5"/><path d="M12 11v9"/></symbol>
+    <symbol id="icon-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></symbol>
+    <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16 16 4 4"/></symbol>
+    <symbol id="icon-chat" viewBox="0 0 24 24"><path d="M5 6.5A4.5 4.5 0 0 1 9.5 2h5A4.5 4.5 0 0 1 19 6.5v4A4.5 4.5 0 0 1 14.5 15H11l-5 4v-4.5A4.5 4.5 0 0 1 2 10.1V6.5Z"/><path d="M8 7h8"/><path d="M8 10.5h5"/></symbol>
+    <symbol id="icon-book" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21V5.5Z"/><path d="M4 18.5A2.5 2.5 0 0 1 6.5 16H20"/></symbol>
+    <symbol id="icon-sliders" viewBox="0 0 24 24"><path d="M4 6h10"/><path d="M18 6h2"/><circle cx="16" cy="6" r="2"/><path d="M4 12h4"/><path d="M12 12h8"/><circle cx="10" cy="12" r="2"/><path d="M4 18h12"/><path d="M20 18h0"/><circle cx="18" cy="18" r="2"/></symbol>
+    <symbol id="icon-code" viewBox="0 0 24 24"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/><path d="m14 4-4 16"/></symbol>
+    <symbol id="icon-shield" viewBox="0 0 24 24"><path d="M12 3 19 6v5c0 5-3.2 8.4-7 10-3.8-1.6-7-5-7-10V6l7-3Z"/><path d="m9 12 2 2 4-5"/></symbol>
+    <symbol id="icon-pencil" viewBox="0 0 24 24"><path d="M4 20h4l11-11a2.8 2.8 0 0 0-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/></symbol>
+    <symbol id="icon-file" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7V3Z"/><path d="M14 3v5h5"/><path d="M9 13h6"/><path d="M9 17h5"/></symbol>
+    <symbol id="icon-braces" viewBox="0 0 24 24"><path d="M8 4c-2 0-3 1-3 3v2c0 1-1 2-2 2 1 0 2 1 2 2v4c0 2 1 3 3 3"/><path d="M16 4c2 0 3 1 3 3v2c0 1 1 2 2 2-1 0-2 1-2 2v4c0 2-1 3-3 3"/></symbol>
+    <symbol id="icon-paperclip" viewBox="0 0 24 24"><path d="m21 11-8.5 8.5a5 5 0 0 1-7-7L15 3a3.5 3.5 0 0 1 5 5l-9.2 9.2a2 2 0 0 1-2.8-2.8L16 6.5"/></symbol>
+    <symbol id="icon-send" viewBox="0 0 24 24"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4 20-7Z"/></symbol>
+    <symbol id="icon-sparkles" viewBox="0 0 24 24"><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"/><path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"/></symbol>
+    <symbol id="icon-scales" viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M5 6h14"/><path d="m6 6-3 7h6L6 6Z"/><path d="m18 6-3 7h6l-3-7Z"/></symbol>
+    <symbol id="icon-lightbulb" viewBox="0 0 24 24"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M8 14a6 6 0 1 1 8 0c-.8.7-1 1.5-1 2H9c0-.5-.2-1.3-1-2Z"/></symbol>
+    <symbol id="icon-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><path d="M12 2v3"/><path d="M22 12h-3"/><path d="M12 22v-3"/><path d="M2 12h3"/></symbol>
+    <symbol id="icon-bug" viewBox="0 0 24 24"><path d="M8 8a4 4 0 0 1 8 0v8a4 4 0 0 1-8 0V8Z"/><path d="M8 10H4"/><path d="M20 10h-4"/><path d="M8 16H4"/><path d="M20 16h-4"/><path d="M9 3l2 3"/><path d="m15 3-2 3"/></symbol>
+    <symbol id="icon-chart" viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 16v-5"/><path d="M12 16V8"/><path d="M16 16v-3"/></symbol>
+    <symbol id="icon-network" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="7" r="3"/><circle cx="12" cy="18" r="3"/><path d="m8.5 7.4 7 5.2"/><path d="m15.7 8.8-2.5 6.4"/><path d="m8.1 8.6 2.3 6.5"/></symbol>
+    <symbol id="icon-reset" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.5"/><path d="M4 4v4.5h4.5"/></symbol>
+    <symbol id="icon-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.7 2.7 0 0 1 5 1.4c0 2.2-2.5 2.3-2.5 4.1"/><path d="M12 18h.01"/></symbol>
+    <symbol id="icon-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a8.1 8.1 0 0 0 .1-1l2-1.5-2-3.4-2.4 1a7.3 7.3 0 0 0-1.7-1L15 6.5h-4l-.4 2.6c-.6.2-1.2.6-1.7 1l-2.4-1-2 3.4 2 1.5a8.1 8.1 0 0 0 .1 2l-2 1.5 2 3.4 2.4-1c.5.4 1.1.8 1.7 1l.4 2.6h4l.4-2.6c.6-.2 1.2-.6 1.7-1l2.4 1 2-3.4-2-1.5c.1-.3.1-.7.1-1Z"/></symbol>
+    <symbol id="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3"/><path d="M12 19v3"/><path d="M2 12h3"/><path d="M19 12h3"/><path d="m4.9 4.9 2.1 2.1"/><path d="m17 17 2.1 2.1"/><path d="m19.1 4.9-2.1 2.1"/><path d="m7 17-2.1 2.1"/></symbol>
+    <symbol id="icon-dice" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="3"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="9" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="9" cy="15" r="1"/><circle cx="15" cy="15" r="1"/></symbol>
+  </svg>
+
+  <main class="app-shell" data-mode="simple" data-system-state="booting" data-rail-collapsed="false" data-sidebar-collapsed="false">
+    <aside class="left-sidebar" aria-label="TinyRustLM navigation">
+      <header class="brand-header">
+        <div class="brand-mark" aria-hidden="true"><svg><use href="#icon-cube"></use></svg></div>
+        <div class="brand-copy">
+          <p class="eyebrow">Private Rust/WASM</p>
+          <h1>TinyRustLM</h1>
+        </div>
+        <button id="sidebarCollapseButton" class="icon-button sidebar-collapse" type="button" aria-label="Collapse sidebar" aria-expanded="true" title="Collapse sidebar">
+          <svg><use href="#icon-chevron"></use></svg>
+        </button>
+      </header>
+
+      <button id="newChatButton" class="new-chat-button" type="button" aria-label="New chat" data-tooltip="New chat">
+        <svg aria-hidden="true"><use href="#icon-plus"></use></svg>
+        <span>New Chat</span>
+      </button>
+
+      <section class="recent-section" aria-labelledby="recentChatsHeading">
+        <div class="sidebar-section-header">
+          <h2 id="recentChatsHeading">Recent Chats</h2>
+        </div>
+        <ol class="recent-list">
+          <li class="recent-empty">No saved chats yet.</li>
+        </ol>
+      </section>
+
+      <nav class="primary-nav" aria-label="Primary navigation">
+        <a href="#modelToolbar" aria-label="Models" data-tooltip="Models"><svg><use href="#icon-cube"></use></svg><span>Models</span></a>
+        <a href="#conversation" aria-label="Library" data-tooltip="Library"><svg><use href="#icon-book"></use></svg><span>Library</span></a>
+        <a href="#advancedOptionsTitle" aria-label="Tune" data-tooltip="Tune"><svg><use href="#icon-sliders"></use></svg><span>Tune</span></a>
+        <a href="#diagnostics" aria-label="Inspect" data-tooltip="Inspect"><svg><use href="#icon-search"></use></svg><span>Inspect</span></a>
+        <a href="#developer" aria-label="Developer" data-tooltip="Developer"><svg><use href="#icon-code"></use></svg><span>Developer</span></a>
+      </nav>
+
+      <section class="local-status-card" aria-label="Local runtime status" data-tooltip="Local runtime ready">
+        <span id="systemStatusDot" class="status-dot" aria-hidden="true"></span>
+        <div>
+          <strong>Local Only</strong>
+          <span id="runtimeStatus" class="status-text">System Ready</span>
+          <span id="statusDetail" class="status-detail">Browser-local runtime</span>
+        </div>
+        <svg aria-hidden="true"><use href="#icon-chevron"></use></svg>
+      </section>
+
+      <div class="sidebar-utilities" aria-label="Utilities">
+        <button class="icon-button" type="button" aria-label="Settings" data-tooltip="Settings"><svg><use href="#icon-gear"></use></svg></button>
+        <button class="icon-button" type="button" aria-label="Help" data-tooltip="Help"><svg><use href="#icon-help"></use></svg></button>
+        <button class="icon-button" type="button" aria-label="Theme" data-tooltip="Theme"><svg><use href="#icon-sun"></use></svg></button>
+      </div>
+    </aside>
+
+    <section class="main-workspace grid" aria-label="Local AI chat workspace">
+      <div class="privacy-badge" title="Prompts and model execution stay in this browser.">
+        <svg aria-hidden="true"><use href="#icon-shield"></use></svg>
+        <span>Local browser inference &bull; No prompts sent to a server</span>
+      </div>
+
+      <section id="modelToolbar" class="model-toolbar" aria-label="Loaded local model">
+        <div class="model-icon" aria-hidden="true"><svg><use href="#icon-cube"></use></svg></div>
+        <button id="modelEditButton" class="model-name-button" type="button" aria-haspopup="dialog" aria-expanded="false">
+          <span id="modelToolbarName">Choose a local .slm</span>
+          <svg aria-hidden="true"><use href="#icon-chevron"></use></svg>
+        </button>
+        <span id="modelLoadPill" class="status-pill neutral"><span class="mini-dot"></span>No model imported</span>
+        <span class="status-pill info"><span class="mini-dot"></span>WASM ready <span id="wasmState" class="sr-only">waiting</span></span>
+        <span id="modelContextPill" class="status-pill neutral">Browser local</span>
+        <button class="edit-model-button" type="button" data-open-model-popover>
+          <svg aria-hidden="true"><use href="#icon-pencil"></use></svg>
+          <span>Edit Model</span>
+        </button>
+      </section>
+
+      <button id="mobileAdvancedButton" class="mobile-advanced-button" type="button" aria-controls="diagnosticsRail" aria-expanded="false">
+        <svg aria-hidden="true"><use href="#icon-sparkles"></use></svg>
+        <span>Advanced Options</span>
+      </button>
+
+      <div class="mode-toggle" role="group" aria-label="Interface mode">
+        <button id="simpleModeButton" class="mode-button" type="button" aria-pressed="true">Chat</button>
+        <button id="advancedModeButton" class="mode-button" type="button" aria-pressed="false">Advanced Tools</button>
+      </div>
+
+      <section id="simpleDiscoveryPanel" class="model-popover" hidden aria-label="Model source options">
+        <div class="source-option-grid" role="list" aria-label="Model source options">
+          <button id="simpleLocalSourceButton" class="source-option" type="button" data-source-option="local">
+            <span>Your Local Files</span>
+            <small>Fastest path. No network needed.</small>
+          </button>
+          <button id="simpleHfSourceButton" class="source-option" type="button" data-source-option="huggingface">
+            <span>Hugging Face</span>
+            <small>Model cards first. Convert later.</small>
+          </button>
+          <button id="simpleP2pSourceButton" class="source-option" type="button" data-source-option="p2p">
+            <span>P2P Exchange</span>
+            <small>Use manifests or peer proof.</small>
+          </button>
+        </div>
+        <div id="simpleLocalSourcePanel" class="source-panel" data-source-panel="local">
+          <p>Local `.slm` files stay on this device and are checked before they run.</p>
+          <button id="simpleChooseLocalButton" class="secondary-action" type="button">Choose Local .slm</button>
+          <button id="simpleImportLocalModelButton" class="secondary-action" type="button">Import Selected .slm</button>
+        </div>
+        <div id="simpleHfSourcePanel" class="source-panel" data-source-panel="huggingface" hidden>
+          <label for="simpleHfSearchInput">Hugging Face metadata search</label>
+          <p>These are external model-card candidates. Nothing runs here until Rust converts a compatible source to `.slm`, verifies it, and you choose the local file.</p>
+          <div class="search-row">
+            <input id="simpleHfSearchInput" type="search" value="tiny text-generation slm">
+            <button id="simpleHfSearchButton" type="button">Search Metadata</button>
+          </div>
+          <div class="source-flow-row">
+            <label class="toggle-row" for="simpleHfP2pToggle">
+              <input id="simpleHfP2pToggle" type="checkbox" checked>
+              <span>Enable P2P when available</span>
+            </label>
+            <span id="simpleHfP2pStatus" class="flow-status">P2P on. Peer-ready matches can use P2P Import.</span>
+          </div>
+          <p id="simpleHfP2pWarning" class="inline-status source-warning" hidden>P2P is off. Local conversion can take a while; enable P2P above to use peer-ready imports when metadata supports them.</p>
+          <ol id="simpleHfResults" class="model-results"></ol>
+        </div>
+        <div id="simpleP2pSourcePanel" class="source-panel" data-source-panel="p2p" hidden>
+          <p>After you import a verified local `.slm`, TinyRustLM can save checksum-bound metadata for a future peer transfer client.</p>
+          <button id="simpleLoadCatalogButton" class="secondary-action" type="button">Load MiniModel Metadata</button>
+          <button id="simpleSaveShareMetadataButton" class="secondary-action" type="button">Save Share Metadata</button>
+          <p id="simpleShareMetadataStatus" class="inline-status">import a local .slm first</p>
+          <ol id="simpleCatalogResults" class="model-results"></ol>
+        </div>
+        <button id="simpleOpenAdvancedDiscoveryButton" class="text-link-button" type="button">Open source details in Advanced Tools</button>
+        <div id="simpleDiscoveryStatus" class="helper-status" aria-live="polite">Choose a trusted local .slm file. No network is needed.</div>
+      </section>
+
+      <section id="simpleErrorPanel" class="simple-error" hidden aria-live="polite">
+        <strong>Something needs attention.</strong>
+        <p id="simpleErrorMessage">Check the selected model and try again.</p>
+      </section>
+
+      <section id="simpleExperience" class="chat-stage" aria-label="Chat mode">
+        <div class="hero-icon" aria-hidden="true"><svg><use href="#icon-chat"></use></svg></div>
+        <h2>Chat with your local model</h2>
+        <p>Run prompts privately in your browser. No data sent to a server.</p>
+
+        <div class="starter-grid" role="list" aria-label="Starter actions">
+          <button class="starter-action" type="button" data-prompt-template="Summarize the following article in clear bullet points:" data-starter="summarize">
+            <svg aria-hidden="true"><use href="#icon-file"></use></svg>
+            <span>Summarize this article</span>
+            <small>Get the key points in a clear summary.</small>
+          </button>
+          <button class="starter-action" type="button" data-prompt-template="Explain what this code does, step by step:" data-starter="code">
+            <svg aria-hidden="true"><use href="#icon-code"></use></svg>
+            <span>Explain code</span>
+            <small>Understand what this code does.</small>
+          </button>
+          <button class="starter-action" type="button" data-prompt-template="Rewrite this text for clarity, tone, and flow:" data-starter="rewrite">
+            <svg aria-hidden="true"><use href="#icon-pencil"></use></svg>
+            <span>Rewrite text</span>
+            <small>Improve clarity, tone, and flow.</small>
+          </button>
+          <button class="starter-action" type="button" data-prompt-template="Generate JSON for the following structure:" data-starter="json">
+            <svg aria-hidden="true"><use href="#icon-braces"></use></svg>
+            <span>Generate JSON</span>
+            <small>Create structured data instantly.</small>
+          </button>
+        </div>
+      </section>
+
+      <section class="conversation-panel" aria-label="Conversation">
+        <ol id="conversation" class="messages" aria-live="polite"></ol>
+        <div id="response" class="latest-response" aria-live="polite"></div>
+      </section>
+
+      <form class="composer-panel" id="chatForm">
+        <label class="sr-only" for="prompt">Prompt</label>
+        <textarea id="prompt" rows="4" autocomplete="off" spellcheck="true" placeholder="Message your model..."></textarea>
+        <div class="composer-footer">
+          <button class="attachment-button" type="button" aria-label="Attach local context file">
+            <svg aria-hidden="true"><use href="#icon-paperclip"></use></svg>
+          </button>
+          <span>Enter to send &bull; Shift+Enter for newline</span>
+          <button id="generateButton" class="send-button" type="submit" disabled aria-label="Send message">
+            <svg aria-hidden="true"><use href="#icon-send"></use></svg>
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <aside id="diagnosticsRail" class="advanced-options-panel diagnostics-rail" aria-label="Advanced options">
+      <header class="advanced-header">
+        <div>
+          <svg aria-hidden="true"><use href="#icon-sparkles"></use></svg>
+          <h2 id="advancedOptionsTitle">Advanced Options</h2>
+        </div>
+        <button id="diagnosticsRailToggle" class="icon-button" type="button" aria-label="Collapse Advanced Options" aria-expanded="true">
+          <svg><use href="#icon-chevron"></use></svg>
+        </button>
+      </header>
+
+      <div class="advanced-scroll">
+        <section class="generation-card" aria-labelledby="generationPresetsHeading">
+          <h3 id="generationPresetsHeading">Generation Presets</h3>
+          <div class="preset-grid" role="group" aria-label="Generation presets">
+            <button class="preset-button is-active" type="button" data-preset="balanced" aria-pressed="true"><svg><use href="#icon-scales"></use></svg><span>Balanced</span></button>
+            <button class="preset-button" type="button" data-preset="creative" aria-pressed="false"><svg><use href="#icon-lightbulb"></use></svg><span>Creative</span></button>
+            <button class="preset-button" type="button" data-preset="precise" aria-pressed="false"><svg><use href="#icon-target"></use></svg><span>Precise</span></button>
+            <button class="preset-button" type="button" data-preset="code" aria-pressed="false"><svg><use href="#icon-code"></use></svg><span>Code</span></button>
+            <button class="preset-button" type="button" data-preset="json" aria-pressed="false"><svg><use href="#icon-braces"></use></svg><span>JSON</span></button>
+          </div>
+
+          <div class="slider-stack">
+            <label class="slider-control" for="maxTokens">
+              <span>Max Tokens</span>
+              <input id="maxTokens" type="range" min="1" max="1024" step="1" value="1024">
+              <output data-value-for="maxTokens">1024</output>
+            </label>
+            <label class="slider-control" for="temperature">
+              <span>Temperature</span>
+              <input id="temperature" type="range" min="0" max="1.5" step="0.01" value="0.70">
+              <output data-value-for="temperature">0.70</output>
+            </label>
+            <label class="slider-control" for="topK">
+              <span>Top-K</span>
+              <input id="topK" type="range" min="1" max="100" step="1" value="40">
+              <output data-value-for="topK">40</output>
+            </label>
+            <label class="slider-control" for="topP">
+              <span>Top-P</span>
+              <input id="topP" type="range" min="0.01" max="1" step="0.01" value="0.90">
+              <output data-value-for="topP">0.90</output>
+            </label>
+          </div>
+
+          <label class="seed-control" for="seed">
+            <span>Seed</span>
+            <input id="seed" type="number" min="-1" max="4294967295" step="1" value="-1">
+            <button id="seedRandomButton" class="icon-button" type="button" aria-label="Randomize seed"><svg><use href="#icon-dice"></use></svg></button>
+          </label>
+        </section>
+
+        <section class="advanced-source-details" aria-label="Model and source details">
+          <details class="drawer-section" data-panel-key="dashboard-model-source">
+            <summary>Model Selection</summary>
+            <label for="modelSelect">Model</label>
+            <select id="modelSelect">
+              <option value="tinylm16q8" selected>TinyLM-16M q8_0</option>
+              <option value="tinylm16q4">TinyLM-16M q4_0</option>
+              <option value="tinylm16f32">TinyLM-16M f32</option>
+              <option value="tinyf32">Tiny Fixture f32</option>
+              <option value="tinytied">Tiny Fixture tied-output f32</option>
+              <option value="tinyq8">Tiny Fixture q8_0</option>
+              <option value="tinyq4">Tiny Fixture q4_0</option>
+              <option value="tinybpe">Tiny Fixture BPE f32</option>
+            </select>
+            <p id="modelHelperText" class="helper-text">Exact technical model names are shown here for local verification.</p>
+
+            <label for="localModelFile">Local .slm</label>
+            <input id="localModelFile" type="file" accept=".slm,application/octet-stream">
+            <button id="importLocalModelButton" class="secondary-action" type="button">Import Local Model</button>
+            <p id="localModelState" class="inline-status">waiting</p>
+
+            <label for="conversionRequestFile">Conversion request JSON</label>
+            <input id="conversionRequestFile" type="file" accept=".json,application/json">
+            <button id="importConversionRequestButton" class="secondary-action" type="button">Bind Conversion Request</button>
+            <p id="conversionRequestState" class="inline-status">optional source handoff</p>
+
+            <label for="catalogUrlInput">Catalog URL</label>
+            <div class="search-row">
+              <input id="catalogUrlInput" type="url" autocomplete="off" spellcheck="false">
+              <button id="catalogLoadButton" type="button">Load</button>
+            </div>
+            <label for="localCatalogFile">Local model list</label>
+            <input id="localCatalogFile" type="file" accept=".json,application/json">
+            <button id="importLocalCatalogButton" class="secondary-action" type="button">Import Local List</button>
+            <p id="catalogStatus" class="inline-status">idle</p>
+            <ol id="catalogResults" class="model-results"></ol>
+
+            <label for="hfSearchInput">Hugging Face metadata</label>
+            <div class="search-row">
+              <input id="hfSearchInput" type="search" value="tiny text-generation slm">
+              <button id="hfSearchButton" type="button">Search Metadata</button>
+            </div>
+            <p id="hfStatus" class="inline-status">idle</p>
+            <ol id="hfResults" class="model-results"></ol>
+
+            <button id="saveShareMetadataButton" class="secondary-action" type="button">Save MiniModel Share Metadata</button>
+            <p id="shareMetadataState" class="inline-status">import a local .slm first</p>
+          </details>
+        </section>
+
+        <div class="accordion-stack">
+          <details class="status-accordion" data-panel-key="dashboard-runtime-status">
+            <summary><span class="accordion-icon success"></span><span><strong>Runtime Status</strong><small>WASM &bull; GPU &bull; Memory</small></span><svg><use href="#icon-chevron"></use></svg></summary>
+            <dl id="loadPanel" class="kv-list">
+              <dt>Model</dt><dd id="modelState">waiting</dd>
+              <dt>Error</dt><dd id="errorState">none</dd>
+            </dl>
+            <pre id="diagnostics"></pre>
+            <pre id="developer"></pre>
+          </details>
+
+          <details class="status-accordion" data-panel-key="dashboard-diagnostics">
+            <summary><svg class="accordion-svg warn"><use href="#icon-bug"></use></svg><span><strong>Diagnostics</strong><small>Logs &bull; Performance &bull; Errors</small></span><svg><use href="#icon-chevron"></use></svg></summary>
+            <div class="tabs" role="tablist" aria-label="Diagnostics tabs">
+              <button id="tabRuntime" class="tab-button" type="button" role="tab" aria-selected="true" aria-controls="panelRuntime" data-tab="runtime">Runtime</button>
+              <button id="tabProvenance" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panelProvenance" data-tab="provenance">Provenance</button>
+              <button id="tabAssembly" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panelAssembly" data-tab="assembly">Assembly</button>
+              <button id="tabModulePlan" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panelModulePlan" data-tab="module">Module Plan</button>
+              <button id="tabBenchmark" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panelBenchmark" data-tab="benchmark">Benchmark</button>
+              <button id="tabConsole" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panelConsole" data-tab="console">Token Console</button>
+              <button id="tabTeleodynamic" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="panelTeleodynamic" data-tab="teleodynamic">Teleodynamic</button>
+            </div>
+            <section id="panelRuntime" class="tab-panel" role="tabpanel" aria-labelledby="tabRuntime"></section>
+            <section id="panelProvenance" class="tab-panel" role="tabpanel" aria-labelledby="tabProvenance" hidden></section>
+            <section id="panelAssembly" class="tab-panel" role="tabpanel" aria-labelledby="tabAssembly" hidden></section>
+            <section id="panelModulePlan" class="tab-panel" role="tabpanel" aria-labelledby="tabModulePlan" hidden></section>
+            <section id="panelBenchmark" class="tab-panel" role="tabpanel" aria-labelledby="tabBenchmark" hidden></section>
+            <section id="panelConsole" class="tab-panel" role="tabpanel" aria-labelledby="tabConsole" hidden></section>
+            <section id="panelTeleodynamic" class="tab-panel" role="tabpanel" aria-labelledby="tabTeleodynamic" hidden></section>
+            <div class="console-actions">
+              <button id="clearConsoleButton" type="button">Clear Console</button>
+              <button id="copyConsoleButton" type="button">Copy Console</button>
+              <label class="toggle-row" for="pauseConsoleScroll"><input id="pauseConsoleScroll" type="checkbox"><span>Pause auto-scroll</span></label>
+            </div>
+            <pre id="console"></pre>
+          </details>
+
+          <details class="status-accordion" data-panel-key="dashboard-provenance">
+            <summary><svg class="accordion-svg info"><use href="#icon-shield"></use></svg><span><strong>Provenance</strong><small>Model &bull; Files &bull; Checksums</small></span><svg><use href="#icon-chevron"></use></svg></summary>
+            <dl id="provenancePanel" class="kv-list">
+              <dt>Manifest</dt><dd id="provenanceState">waiting</dd>
+              <dt>Source</dt><dd id="provenanceSourceKind">waiting</dd>
+              <dt>Source Snapshot</dt><dd id="provenanceSourceSnapshot">waiting</dd>
+              <dt>Source ID</dt><dd id="provenanceSourceId" class="copyable">waiting</dd>
+              <dt>Source Shape</dt><dd id="provenanceSourceShape">waiting</dd>
+              <dt>Source Review</dt><dd id="provenanceSourceReview" class="copyable">waiting</dd>
+              <dt>Review Routes</dt><dd id="provenanceSourceReviewRoutes">waiting</dd>
+              <dt>Review Artifacts</dt><dd id="provenanceSourceReviewArtifacts">waiting</dd>
+              <dt>Tokenizer Import</dt><dd id="provenanceSourceTokenizerImport">waiting</dd>
+              <dt>Source Validation</dt><dd id="provenanceSourceValidation">waiting</dd>
+              <dt>Admission</dt><dd id="provenanceAdmission">waiting</dd>
+              <dt>Quality</dt><dd id="provenanceQualityClaim">waiting</dd>
+              <dt>Trained</dt><dd id="provenanceTrainedClaim">waiting</dd>
+              <dt>Genome</dt><dd id="provenanceGenome">waiting</dd>
+              <dt>Species</dt><dd id="provenanceSpecies">waiting</dd>
+              <dt>Novelty</dt><dd id="provenanceNovelty">waiting</dd>
+              <dt>Population</dt><dd id="provenancePopulation">waiting</dd>
+              <dt>Mate Selection</dt><dd id="provenanceMateSelection">waiting</dd>
+              <dt>Operator</dt><dd id="provenanceOperator">waiting</dd>
+              <dt>Schedule</dt><dd id="provenanceSchedule">waiting</dd>
+              <dt>Phenotype</dt><dd id="provenancePhenotype">waiting</dd>
+              <dt>Artifact</dt><dd id="provenanceArtifact">waiting</dd>
+              <dt>Fitness</dt><dd id="provenanceFitness">waiting</dd>
+              <dt>Eval Cases</dt><dd id="provenanceEvalCases">waiting</dd>
+              <dt>Eval Checksum</dt><dd id="provenanceEvalChecksum">waiting</dd>
+              <dt>Checksum</dt><dd id="provenanceChecksum" class="copyable">waiting</dd>
+              <dt>Next Gate</dt><dd id="provenanceNextGate">waiting</dd>
+            </dl>
+          </details>
+
+          <details class="status-accordion" data-panel-key="dashboard-benchmark">
+            <summary><svg class="accordion-svg yellow"><use href="#icon-chart"></use></svg><span><strong>Benchmark</strong><small>Speed &bull; Tokens/sec &bull; Latency</small></span><svg><use href="#icon-chevron"></use></svg></summary>
+            <div class="benchmark-grid">
+              <div class="metric-card"><span>Load</span><strong id="benchLoadMs">waiting</strong></div>
+              <div class="metric-card"><span>Prompt tokens</span><strong id="benchPromptTokens">0 tokens</strong></div>
+              <div class="metric-card"><span>Generated tokens</span><strong id="benchGeneratedTokens">0 tokens</strong></div>
+              <div class="metric-card"><span>Speed</span><strong id="benchTokensPerSecond">0.000 tok/s</strong></div>
+              <div class="metric-card"><span>Scratch</span><strong id="benchScratch">0 bytes</strong></div>
+            </div>
+            <p id="runSummary" class="helper-status">No generation run yet.</p>
+          </details>
+
+          <details class="status-accordion" data-panel-key="dashboard-adapter">
+            <summary><svg class="accordion-svg cyan"><use href="#icon-cube"></use></svg><span><strong>Adapter Sidecar</strong><small>LoRA &bull; Adapters &bull; Merges</small></span><svg><use href="#icon-chevron"></use></svg></summary>
+            <label for="adapterSelect">Adapter</label>
+            <select id="adapterSelect" disabled><option value="none" selected>None</option></select>
+            <button id="applyAdapterButton" class="secondary-action" type="button" disabled>Apply Adapter</button>
+            <dl id="adapterPanel" class="kv-list"><dt>Status</dt><dd id="adapterState">waiting</dd></dl>
+          </details>
+
+          <details class="status-accordion" data-panel-key="dashboard-module-plan">
+            <summary><svg class="accordion-svg yellow"><use href="#icon-network"></use></svg><span><strong>Module Plan</strong><small>Graph &bull; Modules &bull; Ops</small></span><svg><use href="#icon-chevron"></use></svg></summary>
+            <dl id="modulePlanPanel" class="kv-list">
+              <dt>Receipt</dt><dd id="modulePlanState" class="copyable">waiting</dd>
+              <dt>Kind</dt><dd id="modulePlanKind">waiting</dd>
+              <dt>Resource</dt><dd id="modulePlanResource">waiting</dd>
+              <dt>Execution</dt><dd id="modulePlanExecution">waiting</dd>
+              <dt>Fetch</dt><dd id="modulePlanFetch">waiting</dd>
+              <dt>Origin</dt><dd id="modulePlanOrigin">waiting</dd>
+              <dt>Fetch Limit</dt><dd id="modulePlanFetchLimit">waiting</dd>
+              <dt>Plan Fetches</dt><dd id="modulePlanPlannedFetchCount">waiting</dd>
+              <dt>Actual Fetches</dt><dd id="modulePlanActualFetchCount">waiting</dd>
+              <dt>Route Hash</dt><dd id="modulePlanRouteSetChecksumAlgorithm">waiting</dd>
+              <dt>Route Version</dt><dd id="modulePlanRouteSetVersion">waiting</dd>
+              <dt>Route Set</dt><dd id="modulePlanRouteSetChecksum" class="copyable">waiting</dd>
+              <dt>Actual Route Set</dt><dd id="modulePlanActualRouteSetChecksum" class="copyable">waiting</dd>
+              <dt>WASM Pages</dt><dd id="modulePlanWasmPages">waiting</dd>
+              <dt>WASM ABI</dt><dd id="modulePlanWasmExportSet">waiting</dd>
+              <dt>Transfer</dt><dd id="modulePlanWasmTransferStrategy">waiting</dd>
+              <dt>Release</dt><dd id="modulePlanModelReleaseStrategy">waiting</dd>
+              <dt>Reset</dt><dd id="modulePlanRuntimeResetStrategy">waiting</dd>
+              <dt>Validate</dt><dd id="modulePlanAdapterValidationStrategy">waiting</dd>
+              <dt>Validate Count</dt><dd id="modulePlanAdapterValidationCount">waiting</dd>
+              <dt>Apply Count</dt><dd id="modulePlanAdapterApplyCount">waiting</dd>
+              <dt>Heap Floor</dt><dd id="modulePlanWasmHeapMinBytes">waiting</dd>
+              <dt>Context</dt><dd id="modulePlanContextTokens">waiting</dd>
+              <dt>Sampler Cap</dt><dd id="modulePlanSamplerCap">waiting</dd>
+              <dt>Tokenizer</dt><dd id="modulePlanTokenizer">waiting</dd>
+              <dt>Modules</dt><dd id="modulePlanModules">waiting</dd>
+              <dt>Model Budget</dt><dd id="modulePlanModelBudget">waiting</dd>
+              <dt>Adapter Budget</dt><dd id="modulePlanAdapterBudget">waiting</dd>
+              <dt>Stack Budget</dt><dd id="modulePlanAdapterStackBudget">waiting</dd>
+              <dt>Scratch Budget</dt><dd id="modulePlanScratchBudget">waiting</dd>
+              <dt>Prompt Limit</dt><dd id="modulePlanPromptLimit">waiting</dd>
+              <dt>Output Limit</dt><dd id="modulePlanOutputLimit">waiting</dd>
+              <dt>KV Budget</dt><dd id="modulePlanKvCacheBudget">waiting</dd>
+              <dt>KV Pages</dt><dd id="modulePlanKvCachePages">waiting</dd>
+              <dt>Total Budget</dt><dd id="modulePlanTotalBudget">waiting</dd>
+              <dt>Total Limit</dt><dd id="modulePlanTotalLimit">waiting</dd>
+              <dt>Bytes</dt><dd id="modulePlanBytes">waiting</dd>
+              <dt>Actual Module Bytes</dt><dd id="modulePlanActualModuleBytes">waiting</dd>
+              <dt>Checksums</dt><dd id="modulePlanChecksums">waiting</dd>
+              <dt>Actual Module Checksums</dt><dd id="modulePlanActualModuleChecksums">waiting</dd>
+              <dt>Slots</dt><dd id="modulePlanSlots">waiting</dd>
+              <dt>Roles</dt><dd id="modulePlanRoles">waiting</dd>
+              <dt>Phases</dt><dd id="modulePlanPhases">waiting</dd>
+              <dt>Depends</dt><dd id="modulePlanDepends">waiting</dd>
+              <dt>Trace</dt><dd id="modulePlanTrace">waiting</dd>
+              <dt>Model</dt><dd id="modulePlanModel">waiting</dd>
+              <dt>Stack</dt><dd id="modulePlanStack">waiting</dd>
+            </dl>
+          </details>
+
+          <details class="status-accordion" data-panel-key="dashboard-assembly">
+            <summary><svg class="accordion-svg cyan"><use href="#icon-network"></use></svg><span><strong>Assembly</strong><small>Receipts &bull; Lineage &bull; Gates</small></span><svg><use href="#icon-chevron"></use></svg></summary>
+            <dl id="assemblyPanel" class="kv-list">
+              <dt>Receipt</dt><dd id="assemblyState" class="copyable">waiting</dd>
+              <dt>Kind</dt><dd id="assemblyKind">waiting</dd>
+              <dt>Parents</dt><dd id="assemblyParents">waiting</dd>
+              <dt>Operator</dt><dd id="assemblyOperator">waiting</dd>
+              <dt>Ledger</dt><dd id="assemblyLedger" class="copyable">waiting</dd>
+              <dt>Next Gate</dt><dd id="assemblyNextGate">waiting</dd>
+            </dl>
+          </details>
+        </div>
+
+        <details class="run-history" data-panel-key="dashboard-run-history">
+          <summary>Run History / State Ledger</summary>
+          <label class="toggle-row" for="keepRunHistoryToggle"><input id="keepRunHistoryToggle" type="checkbox"><span>Keep run history on this device</span></label>
+          <button id="clearRunHistoryButton" class="secondary-action" type="button">Clear Run History</button>
+          <ol id="runHistoryList" class="run-history-list"></ol>
+        </details>
+
+        <div class="bottom-controls">
+          <button id="resetButton" class="reset-defaults-button" type="button" disabled><svg><use href="#icon-reset"></use></svg><span>Reset to Defaults</span></button>
+          <button id="stepTokenButton" class="icon-button" type="button" disabled aria-label="Step one token"><svg><use href="#icon-code"></use></svg></button>
+          <button id="clearChatButton" class="icon-button" type="button" disabled aria-label="Clear conversation"><svg><use href="#icon-chat"></use></svg></button>
+          <button class="icon-button" type="button" aria-label="Help"><svg><use href="#icon-help"></use></svg></button>
+        </div>
+      </div>
+    </aside>
+
+    <footer class="footnote" id="appFooter">
+      <span>TinyRustLM.com</span>
+      <span>Browser-local Rust/WASM runtime</span>
+      <span>Developer portal: tinyrustlm.mirust.com</span>
+      <span>Local .slm models only</span>
+      <span class="notice">TinyRustLM.com does not serve runnable model weights. Prompts are not sent to a server.</span>
+      <span id="currentModelSummary" class="model-summary">No model loaded</span>
+    </footer>
   </main>
+  <script src="./app/app.js?v=20260702-quality"></script>
 </body>
 </html>

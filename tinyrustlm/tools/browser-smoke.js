@@ -1601,6 +1601,10 @@ function installHfSearchUiInterceptor(client) {
               project_server_serves_model_bytes: false,
               project_server_runs_model_bytes: false,
               peer_hint_status: "metadata-only",
+              peer_offer_route: "../examples/example-tiny-ready-slm.minimodel-peer-offer",
+              peer_offer_sha256: "sha256:abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+              peer_offer_chunk_count: 2,
+              peer_offer_merkle_root_sha256: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
               execution_policy: "user-local-file-only",
               source_kind: "huggingface-hub",
               source_huggingface_model_id: "example-org/tiny-ready-slm",
@@ -2011,7 +2015,6 @@ async function runPageHfSearchUiSmoke(client) {
       byId("simpleHfSourceButton").click();
       await sleep(50);
       byId("simpleHfSearchInput").value = "tiny";
-      byId("simpleHfSearchButton").click();
       window.__tinyrustlmDownloads = [];
       window.__tinyrustlmDownloadNames = [];
       const originalCreateObjectUrl = URL.createObjectURL.bind(URL);
@@ -2025,6 +2028,24 @@ async function runPageHfSearchUiSmoke(client) {
         window.__tinyrustlmDownloadNames.push(this.download || "");
         return originalAnchorClick.call(this);
       };
+      byId("simpleHfSearchButton").click();
+      await sleep(50);
+      const panelImmediatelyAfterSearchClick = byId("simpleDiscoveryPanel");
+      const panelOpenImmediatelyAfterSearchClick = visible(panelImmediatelyAfterSearchClick);
+      const panelHiddenImmediatelyAfterSearchClick = panelImmediatelyAfterSearchClick ? panelImmediatelyAfterSearchClick.hidden : true;
+      for (let index = 0; index < 120; index += 1) {
+        const status = byId("simpleDiscoveryStatus") ? byId("simpleDiscoveryStatus").textContent : "";
+        if (document.querySelectorAll("#simpleHfResults li").length >= 2 && status.includes("external records")) {
+          break;
+        }
+        await sleep(100);
+      }
+      byId("simpleHfSearchInput").value = "tiny q8";
+      byId("simpleHfSearchButton").click();
+      await sleep(50);
+      const panelImmediatelyAfterRefilterClick = byId("simpleDiscoveryPanel");
+      const panelOpenImmediatelyAfterRefilterClick = visible(panelImmediatelyAfterRefilterClick);
+      const panelHiddenImmediatelyAfterRefilterClick = panelImmediatelyAfterRefilterClick ? panelImmediatelyAfterRefilterClick.hidden : true;
       for (let index = 0; index < 120; index += 1) {
         const status = byId("simpleDiscoveryStatus") ? byId("simpleDiscoveryStatus").textContent : "";
         if (document.querySelectorAll("#simpleHfResults li").length >= 2 && status.includes("external records")) {
@@ -2040,10 +2061,24 @@ async function runPageHfSearchUiSmoke(client) {
       const p2pVisibleAfterSearch = visible(byId("simpleP2pSourcePanel"));
       const statusAfterSearch = byId("simpleDiscoveryStatus") ? byId("simpleDiscoveryStatus").textContent : "";
       const hfStatusAfterSearch = byId("hfStatus") ? byId("hfStatus").textContent : "";
-      const conversionScriptButton = Array.from(document.querySelectorAll("#simpleHfResults button"))
-        .find((button) => button.textContent.includes("Save Rust Conversion Script"));
-      if (conversionScriptButton) {
-        conversionScriptButton.click();
+      const p2pStatusAfterSearch = byId("simpleHfP2pStatus") ? byId("simpleHfP2pStatus").textContent : "";
+      const p2pWarningVisibleAfterSearch = visible(byId("simpleHfP2pWarning"));
+      const actionTextsAfterSearch = textList("#simpleHfResults button, #simpleHfResults a, #simpleHfResults .compatibility-pill, #simpleHfResults .model-result-meta");
+      const primaryActionTextsAfterSearch = textList("#simpleHfResults .primary-result-action");
+      const p2pWarningCount = document.querySelectorAll("#simpleHfP2pWarning").length;
+      if (byId("simpleHfP2pToggle")) {
+        byId("simpleHfP2pToggle").click();
+        await sleep(100);
+      }
+      const p2pStatusAfterDisable = byId("simpleHfP2pStatus") ? byId("simpleHfP2pStatus").textContent : "";
+      const p2pWarningVisibleAfterDisable = visible(byId("simpleHfP2pWarning"));
+      const p2pWarningTextAfterDisable = byId("simpleHfP2pWarning") ? byId("simpleHfP2pWarning").textContent : "";
+      const actionTextsAfterP2pDisable = textList("#simpleHfResults button, #simpleHfResults a, #simpleHfResults .compatibility-pill, #simpleHfResults .model-result-meta");
+      const primaryActionTextsAfterP2pDisable = textList("#simpleHfResults .primary-result-action");
+      const startConversionButton = Array.from(document.querySelectorAll("#simpleHfResults button"))
+        .find((button) => button.textContent.includes("Start Conversion"));
+      if (startConversionButton) {
+        startConversionButton.click();
         for (let index = 0; index < 120; index += 1) {
           if (window.__tinyrustlmDownloads.length > 0) {
             break;
@@ -2058,6 +2093,10 @@ async function runPageHfSearchUiSmoke(client) {
       const scriptDownload = window.__tinyrustlmDownloads[0] || { text: "", type: "" };
       return JSON.stringify({
         initiallyOpen,
+        panelOpenImmediatelyAfterSearchClick,
+        panelHiddenImmediatelyAfterSearchClick,
+        panelOpenImmediatelyAfterRefilterClick,
+        panelHiddenImmediatelyAfterRefilterClick,
         panelOpenAfterSearch,
         panelHiddenAfterSearch,
         hfVisibleAfterSearch,
@@ -2065,6 +2104,16 @@ async function runPageHfSearchUiSmoke(client) {
         p2pVisibleAfterSearch,
         statusAfterSearch,
         hfStatusAfterSearch,
+        p2pStatusAfterSearch,
+        p2pWarningVisibleAfterSearch,
+        actionTextsAfterSearch,
+        primaryActionTextsAfterSearch,
+        p2pWarningCount,
+        p2pStatusAfterDisable,
+        p2pWarningVisibleAfterDisable,
+        p2pWarningTextAfterDisable,
+        actionTextsAfterP2pDisable,
+        primaryActionTextsAfterP2pDisable,
         panelOpen: visible(panel),
         panelHidden: panel ? panel.hidden : true,
         hfVisible: visible(byId("simpleHfSourcePanel")),
@@ -8596,6 +8645,12 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     if (result.initiallyOpen) {
       failures.push("model source popover was open before the user requested it");
     }
+    if (!result.panelOpenImmediatelyAfterSearchClick || result.panelHiddenImmediatelyAfterSearchClick) {
+      failures.push(`Search Metadata click immediately closed the source popover: ${JSON.stringify(result)}`);
+    }
+    if (!result.panelOpenImmediatelyAfterRefilterClick || result.panelHiddenImmediatelyAfterRefilterClick) {
+      failures.push(`Repeated Search Metadata click closed the source popover: ${JSON.stringify(result)}`);
+    }
     if (!result.panelOpenAfterSearch || result.panelHiddenAfterSearch) {
       failures.push(`Hugging Face search closed the source popover before handoff actions: ${JSON.stringify(result)}`);
     }
@@ -8614,34 +8669,66 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     const resultText = [
       ...(Array.isArray(result.simpleTexts) ? result.simpleTexts : []),
       ...(Array.isArray(result.advancedTexts) ? result.advancedTexts : []),
-      ...(Array.isArray(result.actionTexts) ? result.actionTexts : [])
+      ...(Array.isArray(result.actionTexts) ? result.actionTexts : []),
+      ...(Array.isArray(result.actionTextsAfterSearch) ? result.actionTextsAfterSearch : []),
+      ...(Array.isArray(result.actionTextsAfterP2pDisable) ? result.actionTextsAfterP2pDisable : [])
     ].join(" ");
+    const simpleActionTextAfterSearch = (Array.isArray(result.actionTextsAfterSearch) ? result.actionTextsAfterSearch : []).join(" ");
+    const simpleActionTextAfterP2pDisable = (Array.isArray(result.actionTextsAfterP2pDisable) ? result.actionTextsAfterP2pDisable : []).join(" ");
+    const primaryActionsAfterSearch = Array.isArray(result.primaryActionTextsAfterSearch) ? result.primaryActionTextsAfterSearch : [];
+    const primaryActionsAfterP2pDisable = Array.isArray(result.primaryActionTextsAfterP2pDisable) ? result.primaryActionTextsAfterP2pDisable : [];
     if (!resultText.includes("Rust conversion required")) {
       failures.push(`unmatched Hugging Face result did not show Rust conversion required: ${resultText}`);
     }
-    if (!resultText.includes("Save Conversion Request")) {
-      failures.push(`unmatched Hugging Face result did not offer conversion request: ${resultText}`);
+    if (!resultText.includes("not compatible yet")) {
+      failures.push(`unmatched Hugging Face result did not make compatibility state plain: ${resultText}`);
     }
-    if (!resultText.includes("Save Rust Conversion Script")) {
-      failures.push(`unmatched Hugging Face result did not offer Rust conversion script: ${resultText}`);
+    if (!String(result.p2pStatusAfterSearch || "").includes("P2P on") || result.p2pWarningVisibleAfterSearch) {
+      failures.push(`P2P was not enabled by default for Hugging Face results: ${JSON.stringify(result)}`);
     }
-    if (!resultText.includes("Choose converted .slm")) {
-      failures.push(`Hugging Face result did not route to local .slm import: ${resultText}`);
+    if (!simpleActionTextAfterSearch.includes("P2P Import")) {
+      failures.push(`peer-ready Hugging Face result did not offer P2P Import while P2P was on: ${simpleActionTextAfterSearch}`);
     }
-    if (!resultText.includes("Catalog match, local .slm needed")) {
-      failures.push(`matched Hugging Face result did not explain local .slm requirement: ${resultText}`);
+    if (!simpleActionTextAfterSearch.includes("Start Conversion")) {
+      failures.push(`unmatched Hugging Face result did not offer Start Conversion: ${simpleActionTextAfterSearch}`);
     }
-    if (!resultText.includes("Use MiniModel Metadata")) {
-      failures.push(`matched Hugging Face result did not offer MiniModel metadata: ${resultText}`);
+    if (primaryActionsAfterSearch.length !== 2 || !primaryActionsAfterSearch.includes("Start Conversion") || !primaryActionsAfterSearch.includes("P2P Import")) {
+      failures.push(`simple Hugging Face primary actions with P2P on were ${JSON.stringify(primaryActionsAfterSearch)}`);
+    }
+    if (!String(result.p2pStatusAfterDisable || "").includes("P2P off") || !result.p2pWarningVisibleAfterDisable) {
+      failures.push(`P2P disabled state did not show the list-level warning: ${JSON.stringify(result)}`);
+    }
+    if (result.p2pWarningCount !== 1) {
+      failures.push(`P2P disabled warning should be list-level only, found ${result.p2pWarningCount}`);
+    }
+    if (!String(result.p2pWarningTextAfterDisable || "").includes("Local conversion can take a while")) {
+      failures.push(`P2P disabled warning did not explain the conversion delay: ${result.p2pWarningTextAfterDisable}`);
+    }
+    if (simpleActionTextAfterP2pDisable.includes("P2P Import")) {
+      failures.push(`P2P Import remained visible after disabling P2P: ${simpleActionTextAfterP2pDisable}`);
+    }
+    if (!simpleActionTextAfterP2pDisable.includes("Start Conversion")) {
+      failures.push(`Start Conversion was not available after disabling P2P: ${simpleActionTextAfterP2pDisable}`);
+    }
+    if (primaryActionsAfterP2pDisable.length !== 2 || primaryActionsAfterP2pDisable.some((label) => label !== "Start Conversion")) {
+      failures.push(`simple Hugging Face primary actions with P2P off were ${JSON.stringify(primaryActionsAfterP2pDisable)}`);
+    }
+    for (const removedSimpleAction of ["Choose converted .slm", "Save Conversion Request", "Save Rust Conversion Script"]) {
+      if (simpleActionTextAfterSearch.includes(removedSimpleAction) || simpleActionTextAfterP2pDisable.includes(removedSimpleAction)) {
+        failures.push(`simple Hugging Face result still showed ${removedSimpleAction}: ${simpleActionTextAfterSearch} / ${simpleActionTextAfterP2pDisable}`);
+      }
     }
     if (resultText.includes("Import Local .slm")) {
       failures.push(`Hugging Face result still used fake import wording: ${resultText}`);
     }
+    if (resultText.includes("Download tiny-ready.slm") || resultText.includes("/resolve/")) {
+      failures.push(`Hugging Face result exposed a direct model-byte download affordance: ${resultText}`);
+    }
     if (!String(result.statusAfterSearch || "").includes("2 external records") || !String(result.hfStatusAfterSearch || "").includes("2 external records")) {
       failures.push(`Hugging Face status after search was ${result.statusAfterSearch}/${result.hfStatusAfterSearch}`);
     }
-    if (!String(result.status || "").includes("conversion script saved locally") || !String(result.hfStatus || "").includes("conversion script saved locally")) {
-      failures.push(`Hugging Face status after script save was ${result.status}/${result.hfStatus}`);
+    if (!String(result.status || "").includes("conversion started") || !String(result.hfStatus || "").includes("conversion started")) {
+      failures.push(`Hugging Face status after Start Conversion was ${result.status}/${result.hfStatus}`);
     }
     const scriptText = String(result.conversionScriptText || "");
     if (!String(result.conversionScriptName || "").endsWith(".tinyrustlm-convert.ps1")) {

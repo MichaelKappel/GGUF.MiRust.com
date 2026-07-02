@@ -1,9 +1,9 @@
-profile: runtime-mirust.next-recursive-prompt.v12
-updated_utc: 2026-07-02T06:15:00Z
+profile: runtime-mirust.next-recursive-prompt.v15
+updated_utc: 2026-07-02T14:55:00Z
 prompt: >
-  Continue in E:\Source\Rust\SLMComposer.com as the active Rust workspace for TinyRustLM, with E:\Source\Rust\MiniModel.org as the MiniModel.org site workspace. The site-folder split, source-control cleanup, MiniModel intake processing, Hugging Face option routing, roadmap, metadata-only MiniModel catalog endpoint, TinyRustLM catalog-to-local-file import slice, Chat/Advanced Tools dashboard redesign, local Hugging Face conversion-script handoff, Rust `.minimodel-peer-offer` proof commands, and the first MiniModel local Rust verifier (`minimodel-core` plus `minimodel` CLI) are complete in local source. TinyRustLM.com and documentation sites should be deployed from source only after docs are updated and live proof is run. Start the next work by deciding the smallest consent-based peer-transfer prototype that can consume the existing manifest, peer-offer, chunk/Merkle proof, and local receipt contract without adding project-server model bytes. Keep TinyRustLM browser-local and keep project servers metadata-only: no server-side user model execution and no project-server user model bytes.
+  Continue in E:\Source\Rust\SLMComposer.com as the active Rust workspace for TinyRustLM, with E:\Source\Rust\MiniModel.org as the MiniModel.org site workspace. The site-folder split, source-control cleanup, MiniModel intake processing, Hugging Face option routing, roadmap, metadata-only MiniModel catalog endpoint, TinyRustLM catalog-to-local-file import slice, Chat/Advanced Tools dashboard redesign, local Hugging Face conversion-script handoff, Rust `.minimodel-peer-offer` proof commands, the first MiniModel local Rust verifier (`minimodel-core` plus `minimodel` CLI), local peer-piece export/reassembly, TinyRustLM.com root app route, and Hugging Face/P2P enterprise quality refactor are complete in local source. TinyRustLM.com and documentation sites should be deployed from source only after docs are updated and live proof is run. Start the next work by deciding the smallest consent-based network prototype that can move existing peer pieces between consenting peers and then call `assemble-peer-pieces` plus `verify-artifact` without adding project-server model bytes. Keep TinyRustLM browser-local and keep project servers metadata-only: no server-side user model execution and no project-server user model bytes.
 primary_goal: >
-  Move from local manifest/artifact verification into the first consent-based peer-transfer design slice while preserving the verifier as the authority: peers may provide chunks later, but local Rust verification and receipts remain mandatory before TinyRustLM import.
+  Move from local peer-piece export/reassembly into the first consent-based peer-transfer network design slice while preserving the verifier as the authority: peers may provide chunks later, but local Rust verification and receipts remain mandatory before TinyRustLM import.
 required_context:
   - E:\Source\Rust\workspace.uai
   - workspace.uai
@@ -24,6 +24,8 @@ required_context:
   - wiki/runtime-mirust/reports/slmcomposer-progressive-source-ui-memory-2026-07-01.md
   - wiki/runtime-mirust/reports/slmcomposer-local-ai-dashboard-memory-2026-07-01.md
   - wiki/runtime-mirust/reports/tinyrustlm-peer-offer-source-clarity-memory-2026-07-02.md
+  - wiki/runtime-mirust/reports/tinyrustlm-huggingface-p2p-source-flow-memory-2026-07-02.md
+  - wiki/runtime-mirust/reports/tinyrustlm-enterprise-quality-round-memory-2026-07-02.md
   - E:\Source\Rust\MiniModel.org\ROADMAP.md
   - E:\Source\Rust\MiniModel.org\docs\manifest-v0.md
   - E:\Source\Rust\MiniModel.org\docs\verifier-mvp.md
@@ -42,6 +44,8 @@ processed_intake_routes:
   slmcomposer_progressive_source_ui: wiki/runtime-mirust/reports/slmcomposer-progressive-source-ui-memory-2026-07-01.md
   slmcomposer_dashboard_ui: wiki/runtime-mirust/reports/slmcomposer-local-ai-dashboard-memory-2026-07-01.md
   tinyrustlm_peer_offer_source_clarity: wiki/runtime-mirust/reports/tinyrustlm-peer-offer-source-clarity-memory-2026-07-02.md
+  tinyrustlm_huggingface_p2p_source_flow: wiki/runtime-mirust/reports/tinyrustlm-huggingface-p2p-source-flow-memory-2026-07-02.md
+  tinyrustlm_enterprise_quality_round: wiki/runtime-mirust/reports/tinyrustlm-enterprise-quality-round-memory-2026-07-02.md
   minimodel_site_roadmap: E:\Source\Rust\MiniModel.org\ROADMAP.md
   source_site_result: processed source-site copies removed from agent-file-handoff/Improvement/ after byte-exact preservation and pointer updates.
 roadmap_guardrails:
@@ -49,14 +53,16 @@ roadmap_guardrails:
   - Source options are user-owned local files/lists, user-triggered Hugging Face discovery, and future MiniModel P2P transfer; all converge on local `.slm` verification.
   - SLMComposer Chat mode should keep Local Files, Hugging Face, P2P Exchange, prompt, and Generate visible on first load while Advanced Tools exposes diagnostics and lower-level controls.
   - SLMComposer dashboard source should remain simple on first load: left navigation, local privacy proof, model-ready toolbar, starter cards, central composer, and contained Advanced Options for pro controls.
-  - Hugging Face rows are model-card metadata only; label unmatched rows `Rust conversion required`, label admitted metadata matches as local `.slm` needed, and keep Search Metadata from closing the source chooser.
+  - Hugging Face rows are model-card metadata only; simple rows use a list-level P2P toggle, show `P2P Import` only for peer-proof MiniModel matches while P2P is enabled, show `Start Conversion` otherwise, show one disabled-P2P warning, and keep Search Metadata from closing the source chooser.
+  - Keep TinyRustLM.com `/` as the canonical public app route; `/app/` can remain a secondary route, but docs and deploy proof should target root.
+  - Keep the Hugging Face UI row state centralized through shared helpers; do not reintroduce divergent simple/advanced compatibility text or per-row simple conversion controls.
   - Legal/liability boundaries must keep MiniModel.org as metadata/catalog guidance until legal review; no claims that third-party models are safe, legal, or endorsed.
   - Secure manifests must be checksum-bound and route source identity, model cards, license, tokenizer/config, eval/admission evidence, chunk/Merkle data, and signatures.
   - Tiny-model creation/import stays tied to TinyRustLM local review, conversion, validation, runtime-smoke, eval, admission, and local import receipts.
   - Project servers never run user model bytes and never serve user model bytes.
 next_implementation_slice:
   - Preserve the implemented `key=value` manifest parser, duplicate-key rejection, project-server model-byte URL rejection, and server-execution rejection as the non-negotiable trust gate.
-  - Design the smallest peer-transfer prototype around existing `.minimodel-peer-offer` chunk proofs, manifest v0 chunk/Merkle fields, and `minimodel verify-artifact` revalidation.
+  - Design the smallest peer-transfer prototype around existing `.minimodel-peer-offer` chunk proofs, manifest v0 chunk/Merkle fields, `minimodel.peer_piece_set.v0`, `assemble-peer-pieces`, and `minimodel verify-artifact` revalidation.
   - Mirror the TinyRustLM catalog-import proof: catalog metadata can name expectations, but local verifier artifacts must come from user-supplied local paths or consent-based peer chunks reassembled locally.
   - Preserve the Hugging Face boundary: metadata discovery is allowed, project-server byte proxying and remote inference execution are not.
   - Keep any peer-transfer receipt path on `user-selected-tinyrustlm-local-file-open` after local verification passes.
@@ -64,7 +70,7 @@ next_implementation_slice:
 success_criteria:
   - Active intake buckets remain empty or placeholder-only.
   - SLMComposer.com remains browser-local and user-selected local `.slm` import remains the model byte boundary.
-  - MiniModel.org local schema parsing, verifier checks, and receipt writing remain stable; metadata-only catalog is current and peer transfer remains the next later phase.
+  - MiniModel.org local schema parsing, verifier checks, peer-piece export/reassembly, and receipt writing remain stable; metadata-only catalog is current and live peer networking remains the next later phase.
   - MiniModel local verifier tests and CLI smokes remain green before any peer-transfer behavior is trusted.
   - Long-term memory remains pointer-based and checksum-bearing.
   - Before claiming completion, run relevant pointer audits and `git diff --check`.
