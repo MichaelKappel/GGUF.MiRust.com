@@ -1604,6 +1604,17 @@ function installHfSearchUiInterceptor(client) {
               peer_import_status: "request-script-ready",
               peer_offer_route: "../examples/example-tiny-ready-slm.minimodel-peer-offer",
               peer_offer_sha256: "sha256:abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+              peer_source_count: 1,
+              peer_sources: [
+                {
+                  source_kind: "known-direct-http-peer-v0",
+                  transport: "direct-http-piece-server-v0",
+                  peer_base_url: "http://127.0.0.1:8123/",
+                  consent_status: "publisher-declared-consenting-peer",
+                  project_server_serves_model_bytes: false,
+                  project_server_runs_model_bytes: false
+                }
+              ],
               peer_offer_chunk_count: 2,
               peer_offer_merkle_root_sha256: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
               execution_policy: "user-local-file-only",
@@ -2067,18 +2078,7 @@ async function runPageHfSearchUiSmoke(client) {
       const actionTextsAfterSearch = textList("#simpleHfResults button, #simpleHfResults a, #simpleHfResults .compatibility-pill, #simpleHfResults .model-result-meta");
       const primaryActionTextsAfterSearch = textList("#simpleHfResults .primary-result-action");
       const p2pWarningCount = document.querySelectorAll("#simpleHfP2pWarning").length;
-      byId("simpleP2pSourceButton").click();
-      await sleep(50);
-      if (byId("simplePeerBaseUrlInput")) {
-        byId("simplePeerBaseUrlInput").value = "http://127.0.0.1:8123/";
-      }
-      if (byId("simpleSavePeerUrlButton")) {
-        byId("simpleSavePeerUrlButton").click();
-      }
-      await sleep(50);
-      const peerUrlStatusAfterSet = byId("simplePeerUrlStatus") ? byId("simplePeerUrlStatus").textContent : "";
-      byId("simpleHfSourceButton").click();
-      await sleep(50);
+      const peerUrlStatusBeforeImport = byId("simplePeerUrlStatus") ? byId("simplePeerUrlStatus").textContent : "";
       const p2pImportButton = Array.from(document.querySelectorAll("#simpleHfResults .primary-result-action"))
         .find((button) => button.textContent.includes("P2P Import"));
       if (p2pImportButton) {
@@ -2136,7 +2136,7 @@ async function runPageHfSearchUiSmoke(client) {
         hfStatusAfterSearch,
         p2pStatusAfterSearch,
         p2pWarningVisibleAfterSearch,
-        peerUrlStatusAfterSet,
+        peerUrlStatusBeforeImport,
         actionTextsAfterSearch,
         primaryActionTextsAfterSearch,
         p2pWarningCount,
@@ -8727,11 +8727,11 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     if (!simpleActionTextAfterSearch.includes("P2P Import")) {
       failures.push(`peer-ready Hugging Face result did not offer P2P Import while P2P was on: ${simpleActionTextAfterSearch}`);
     }
-    if (!resultText.includes("P2P proof ready") || !resultText.includes("consenting peer URL required")) {
-      failures.push(`peer-ready Hugging Face result did not explain proof/peer URL state: ${resultText}`);
+    if (!resultText.includes("P2P available") || !resultText.includes("P2P source listed")) {
+      failures.push(`peer-ready Hugging Face result did not explain catalog peer availability: ${resultText}`);
     }
-    if (!String(result.peerUrlStatusAfterSet || "").includes("http://127.0.0.1:8123/")) {
-      failures.push(`known peer URL was not saved before P2P Import: ${result.peerUrlStatusAfterSet}`);
+    if (!String(result.peerUrlStatusBeforeImport || "").includes("Enter the consenting peer URL once")) {
+      failures.push(`manual peer URL should not be required before catalog-sourced P2P Import: ${result.peerUrlStatusBeforeImport}`);
     }
     if (!simpleActionTextAfterSearch.includes("Start Conversion")) {
       failures.push(`unmatched Hugging Face result did not offer Start Conversion: ${simpleActionTextAfterSearch}`);

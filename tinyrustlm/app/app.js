@@ -2101,6 +2101,12 @@
     return button;
   }
 
+  function appendActionIfPresent(parent, action) {
+    if (action) {
+      parent.append(action);
+    }
+  }
+
   function externalActionLink(label, href) {
     const link = document.createElement("a");
     link.href = href;
@@ -2229,6 +2235,42 @@
     }
   }
 
+  function catalogPeerSourcesFromRaw(raw, label) {
+    const rawSources = Array.isArray(raw && raw.peer_sources) ? raw.peer_sources : [];
+    const declaredCount = catalogInteger(raw && raw.peer_source_count);
+    if (declaredCount !== null && declaredCount !== rawSources.length) {
+      throw new Error(`${label} peer source count did not match peer_sources`);
+    }
+    if (rawSources.length > 8) {
+      throw new Error(`${label} listed more than 8 peer sources`);
+    }
+    return rawSources.map((source, index) => {
+      if (!source || typeof source !== "object" || Array.isArray(source)) {
+        throw new Error(`${label} peer source ${index + 1} was not an object`);
+      }
+      assertMetadataOnlyCatalogBoundary(source, `${label} peer source ${index + 1}`);
+      const peerBaseUrl = normalizedPeerBaseUrl(source.peer_base_url);
+      const sourceKind = catalogText(source.source_kind || source.kind);
+      const transport = catalogText(source.transport);
+      const consentStatus = catalogText(source.consent_status);
+      if (sourceKind && sourceKind !== "known-direct-http-peer-v0") {
+        throw new Error(`${label} peer source ${index + 1} kind was unsupported`);
+      }
+      if (transport && transport !== "direct-http-piece-server-v0") {
+        throw new Error(`${label} peer source ${index + 1} transport was unsupported`);
+      }
+      if (consentStatus && consentStatus !== "publisher-declared-consenting-peer") {
+        throw new Error(`${label} peer source ${index + 1} consent status was unsupported`);
+      }
+      return {
+        sourceKind: sourceKind || "known-direct-http-peer-v0",
+        transport: transport || "direct-http-piece-server-v0",
+        peerBaseUrl,
+        consentStatus: consentStatus || "publisher-declared-consenting-peer"
+      };
+    });
+  }
+
   function catalogEntryFromRaw(raw, index, catalogBaseUrl) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
       throw new Error(`Catalog entry ${index + 1} was not an object`);
@@ -2257,6 +2299,7 @@
       raw.artifact_file_name ||
       `${modelId.split("/").pop()}.slm`
     );
+    const peerSources = catalogPeerSourcesFromRaw(raw, `Catalog entry ${modelId}`);
     return {
       raw,
       catalogBaseUrl,
@@ -2283,6 +2326,7 @@
       peerOfferSha256: normalizeCatalogSha256(raw.peer_offer_sha256 || raw.peer_offer_checksum),
       peerOfferChunkCount: catalogInteger(raw.peer_offer_chunk_count),
       peerOfferMerkleRootSha256: normalizeCatalogSha256(raw.peer_offer_merkle_root_sha256 || raw.merkle_root_sha256),
+      peerSources,
       licenseRoute: catalogText(raw.license_route),
       modelCardRoute: catalogText(raw.model_card_route),
       manifestRoute: catalogText(raw.manifest_route),
@@ -2294,6 +2338,37 @@
       fileNameHint,
       maxTokens: maxTokens && maxTokens > 0 && maxTokens <= 512 ? maxTokens : 16
     };
+  }
+
+  function catalogPeerStateText(entry) {
+    if (!entry.peerOfferRoute) {
+      return entry.peerHintStatus && entry.peerHintStatus !== "disabled"
+        ? entry.peerHintStatus
+        : "local file required";
+    }
+    const sourceState = entry.peerSources.length
+      ? "catalog peer listed"
+      : entry.peerImportStatus || "known peer URL required";
+    return `peer proof ready / ${entry.peerOfferChunkCount || "chunk count unknown"} chunks / ${sourceState}`;
+  }
+
+  function simpleCatalogPeerStateText(entry) {
+    if (!entry.peerOfferRoute) {
+      return entry.sourceKind || "verified source pending";
+    }
+    return entry.peerSources.length
+      ? "P2P proof ready / catalog peer listed"
+      : `P2P proof ready / ${entry.peerImportStatus || "known peer URL required"}`;
+  }
+
+  function appendCatalogRouteLinks(actions, entry, routes) {
+    for (const [label, route] of routes) {
+      const href = catalogRouteUrl(entry, route);
+      if (!href) {
+        continue;
+      }
+      actions.append(externalActionLink(label, href));
+    }
   }
 
   function catalogEntriesFromBody(body, sourceLabel, catalogBaseUrl) {
@@ -2326,11 +2401,7 @@
         formatByteCount(entry.artifactByteCount),
         entry.artifactSha256,
         entry.quantization || "quantization unavailable",
-        entry.peerOfferRoute
-          ? `peer proof ready / ${entry.peerOfferChunkCount || "chunk count unknown"} chunks / ${entry.peerImportStatus || "known peer URL required"}`
-          : entry.peerHintStatus && entry.peerHintStatus !== "disabled"
-            ? entry.peerHintStatus
-            : "local file required"
+        catalogPeerStateText(entry)
       ].join(" / ");
       const actions = document.createElement("div");
       actions.className = "model-result-actions";
@@ -2341,21 +2412,8 @@
         selectCatalogEntry(entry);
       });
       actions.append(selectButton);
-      if (entry.peerOfferRoute) {
-        actions.append(actionButton("P2P Import Request", () => importHfP2pMatch(entry), "primary-result-action"));
-      }
-      for (const [label, route] of [["Manifest", entry.manifestRoute], ["Model Card", entry.modelCardRoute], ["License", entry.licenseRoute]]) {
-        const href = catalogRouteUrl(entry, route);
-        if (!href) {
-          continue;
-        }
-        const link = document.createElement("a");
-        link.href = href;
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
-        link.textContent = label;
-        actions.append(link);
-      }
+      appendActionIfPresent(actions, p2pCatalogActionButton(entry));
+      appendCatalogRouteLinks(actions, entry, [["Manifest", entry.manifestRoute], ["Model Card", entry.modelCardRoute], ["License", entry.licenseRoute]]);
       item.append(title, meta, actions);
       el.catalogResults.append(item);
     }
@@ -2377,14 +2435,11 @@
       meta.textContent = [
         "MiniModel metadata",
         formatByteCount(entry.artifactByteCount),
-        entry.peerOfferRoute ? "P2P proof ready" : entry.sourceKind || "verified source pending",
-        entry.peerOfferRoute ? entry.peerImportStatus || "known peer URL required" : ""
+        simpleCatalogPeerStateText(entry)
       ].filter(Boolean).join(" / ");
       const actions = document.createElement("div");
       actions.className = "model-result-actions";
-      if (entry.peerOfferRoute) {
-        actions.append(actionButton("P2P Import Request", () => importHfP2pMatch(entry), "primary-result-action"));
-      }
+      appendActionIfPresent(actions, p2pCatalogActionButton(entry));
       const selectButton = document.createElement("button");
       selectButton.type = "button";
       selectButton.textContent = "Use Metadata";
@@ -2392,18 +2447,7 @@
         selectCatalogEntry(entry);
       });
       actions.append(selectButton);
-      for (const [label, route] of [["Model Card", entry.modelCardRoute], ["License", entry.licenseRoute], ["Manifest", entry.manifestRoute]]) {
-        const href = catalogRouteUrl(entry, route);
-        if (!href) {
-          continue;
-        }
-        const link = document.createElement("a");
-        link.href = href;
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
-        link.textContent = label;
-        actions.append(link);
-      }
+      appendCatalogRouteLinks(actions, entry, [["Model Card", entry.modelCardRoute], ["License", entry.licenseRoute], ["Manifest", entry.manifestRoute]]);
       item.append(title, meta, actions);
       el.simpleCatalogResults.append(item);
     }
@@ -2931,11 +2975,58 @@
     return state.catalogEntries.filter((entry) => catalogEntryMatchesHfModel(entry, modelId));
   }
 
+  function firstPeerOfferMatch(matches) {
+    return matches.find((match) => Boolean(match.peerOfferRoute)) || null;
+  }
+
+  function catalogPeerBaseUrl(entry) {
+    return entry && Array.isArray(entry.peerSources) && entry.peerSources.length
+      ? entry.peerSources[0].peerBaseUrl
+      : "";
+  }
+
+  function p2pImportBaseUrl(entry, explicitPeerBaseUrl = state.peerBaseUrl) {
+    if (explicitPeerBaseUrl) {
+      return normalizedPeerBaseUrl(explicitPeerBaseUrl);
+    }
+    return catalogPeerBaseUrl(entry);
+  }
+
+  function canStartP2pImport(entry) {
+    return Boolean(entry && entry.peerOfferRoute && p2pImportBaseUrl(entry));
+  }
+
+  function p2pCatalogActionButton(entry) {
+    if (!entry || !entry.peerOfferRoute) {
+      return null;
+    }
+    return actionButton(
+      canStartP2pImport(entry) ? "P2P Import" : "Set Peer URL",
+      () => startP2pImportOrRequestPeer(entry),
+      "primary-result-action"
+    );
+  }
+
+  function requestKnownPeerForEntry(entry) {
+    selectCatalogEntry(entry);
+    setSimpleSourceOption("p2p", true);
+    updatePeerUrlStatus("Enter the consenting peer URL once, then use P2P Import.", false);
+    holdModelPopoverOpen(4000);
+  }
+
+  function startP2pImportOrRequestPeer(entry) {
+    if (canStartP2pImport(entry)) {
+      importHfP2pMatch(entry);
+      return;
+    }
+    requestKnownPeerForEntry(entry);
+  }
+
   function hfP2pImportMatch(matches) {
     if (state.p2pEnabled === false) {
       return null;
     }
-    return matches.find((match) => Boolean(match.peerOfferRoute)) || null;
+    return matches.find((match) => canStartP2pImport(match)) || null;
   }
 
   function peerImportFileStem(modelId) {
@@ -2945,7 +3036,7 @@
   function peerImportRequest(match, peerBaseUrl = state.peerBaseUrl) {
     const manifestUrl = catalogRouteUrl(match, match.manifestRoute);
     const peerOfferUrl = catalogRouteUrl(match, match.peerOfferRoute);
-    const normalizedPeerUrl = normalizedPeerBaseUrl(peerBaseUrl);
+    const normalizedPeerUrl = p2pImportBaseUrl(match, peerBaseUrl);
     if (!normalizedPeerUrl) {
       throw new Error("Set a known consenting peer URL before starting P2P Import.");
     }
@@ -3090,6 +3181,7 @@
       matches,
       slmFiles,
       hasPeerOffer: matches.some((match) => Boolean(match.peerOfferRoute)),
+      peerOfferMatch: firstPeerOfferMatch(matches),
       p2pMatch: hfP2pImportMatch(matches),
       downloads: hfCountText(entry.result.downloads, "downloads"),
       likes: hfCountText(entry.result.likes, "likes")
@@ -3104,8 +3196,10 @@
 
   function hfAdvancedStatusText(view) {
     if (view.matches.length) {
-      return view.hasPeerOffer
-        ? "P2P proof ready; peer URL required"
+      return view.p2pMatch
+        ? "P2P available"
+        : view.hasPeerOffer
+          ? "P2P proof ready; peer URL required"
         : "Catalog match, local .slm needed";
     }
     if (view.slmFiles.length) {
@@ -3116,8 +3210,10 @@
 
   function hfAdvancedMetaText(view) {
     const sourceState = view.matches.length
-      ? view.hasPeerOffer
-        ? "MiniModel metadata has a peer-offer proof; Rust must fetch from a consenting peer, assemble, and reverify before import"
+      ? view.p2pMatch
+        ? "MiniModel metadata lists a peer source; Rust must fetch, assemble, and reverify before import"
+        : view.hasPeerOffer
+          ? "MiniModel metadata has a peer-offer proof; enter a consenting peer URL before Rust fetches, assembles, and reverifies"
         : "MiniModel metadata only; choose the matching local .slm before running"
       : "model card only; not runnable here until Rust conversion and local .slm verification";
     return `${view.downloads} / ${view.likes} / ${sourceState}`;
@@ -3127,6 +3223,9 @@
     if (view.matches.length) {
       if (state.p2pEnabled === false) {
         return `Hugging Face model card / ${view.downloads} / P2P disabled; local conversion path selected`;
+      }
+      if (view.p2pMatch) {
+        return `Hugging Face model card / ${view.downloads} / P2P source listed; Rust reverify required`;
       }
       return `Hugging Face model card / ${view.downloads} / ${view.hasPeerOffer ? "P2P proof ready; consenting peer URL required" : "MiniModel metadata found; local .slm needed"}`;
     }
@@ -3153,10 +3252,13 @@
 
   function hfSimpleFallbackNote(view) {
     if (view.p2pMatch) {
-      return "P2P Import saves a peer-piece request and Rust fetch/verify script. You still enter a consenting peer URL; project servers never provide model bytes.";
+      return "P2P Import saves a peer-piece request and Rust fetch/verify script. Project servers never provide model bytes.";
     }
     if (view.matches.length && state.p2pEnabled === false) {
       return "P2P is disabled for this list, so conversion will use local/manual source files and may take a while.";
+    }
+    if (view.hasPeerOffer) {
+      return "MiniModel has a peer-offer proof. Enter one consenting peer URL in P2P Exchange to import without repeating source conversion.";
     }
     return "This is a model-card result. Convert locally, save peer-offer proof, then publish metadata for future P2P reuse.";
   }
@@ -3383,7 +3485,7 @@
       if (view.matches.length) {
         for (const match of view.matches.slice(0, 2)) {
           if (match.peerOfferRoute && state.p2pEnabled !== false) {
-            actions.append(actionButton("P2P Import Request", () => importHfP2pMatch(match), "primary-result-action"));
+            appendActionIfPresent(actions, p2pCatalogActionButton(match));
           }
           actions.append(actionButton("Use MiniModel Metadata", () => selectCatalogEntry(match)));
         }
@@ -3419,7 +3521,9 @@
       const compatibility = elementWithText("span", hfCompatibilityClass(view), hfSimpleCompatibilityText(view));
       actions.append(compatibility);
       if (view.p2pMatch) {
-        actions.append(actionButton("P2P Import", () => importHfP2pMatch(view.p2pMatch), "primary-result-action"));
+        appendActionIfPresent(actions, p2pCatalogActionButton(view.p2pMatch));
+      } else if (view.peerOfferMatch && state.p2pEnabled !== false) {
+        appendActionIfPresent(actions, p2pCatalogActionButton(view.peerOfferMatch));
       } else {
         actions.append(actionButton("Start Conversion", () => startHfConversion(entry, view.matches), "primary-result-action"));
       }
