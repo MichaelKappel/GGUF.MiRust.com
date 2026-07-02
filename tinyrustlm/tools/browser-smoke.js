@@ -9023,6 +9023,9 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       if (!String(conversionRequest.local_conversion.command_shape || "").includes("convert-huggingface-request")) {
         failures.push(`conversion request command shape did not use convert-huggingface-request: ${conversionRequest.local_conversion.command_shape}`);
       }
+      if (!String(conversionRequest.local_conversion.peer_source_shape || "").includes("add-peer-source")) {
+        failures.push(`conversion request peer source shape did not use add-peer-source: ${conversionRequest.local_conversion.peer_source_shape}`);
+      }
     }
     const scriptText = String(result.conversionScriptText || "");
     if (!String(result.conversionScriptName || "").endsWith(".tinyrustlm-convert.ps1")) {
@@ -9031,6 +9034,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     for (const required of [
       "convert-huggingface-request",
       "prepare-peer-share",
+      "add-peer-source",
       "write-catalog-snapshot",
       "serve-peer-pieces",
       "Hugging Face metadata source-file candidates",
@@ -9043,6 +9047,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "EDIT_ME\\\\SLMComposer.com",
       "EDIT_ME\\\\MiniModel.org",
       "KnownPeerBaseUrl",
+      "MiniModelCatalogEntryWithPeer",
       "MiniModelCatalogSnapshot",
       "models.v0.json",
       "TinyRustLM.com"

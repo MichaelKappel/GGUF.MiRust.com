@@ -2454,6 +2454,142 @@ records:
     last_reviewed_utc: 2026-07-01T22:25:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; synthesis body lives in the target file.
+  - stable_id: runtime_mirust_docs_report_intake_manifest_2026_07_02
+    memory_domain: runtime-mirust.docs_report_intake
+    pointer_type: local_md
+    path: docs/report-intake/2026-07-02/MANIFEST.md
+    target_location: docs/report-intake/2026-07-02/MANIFEST.md
+    label: Required For TinyRustLM/MiniModel July 2 Intake Manifest
+    summary: Routes agents to six preserved TinyRustLM/MiniModel Improvement reports, byte counts, SHA-256 checksums, source bucket, archive bucket, and synthesis route.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed docs manifest
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before processing or auditing the July 2 TinyRustLM/MiniModel report intake batch.
+    checksum_hash: sha256:DD1E34DA7E736BCCE1B38F39220609EA148BB656FC4544A604B56D066283B664
+    last_reviewed_utc: 2026-07-02T20:20:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; source report bodies live in the target files.
+  - stable_id: runtime_mirust_docs_report_tinyrustlm_minimodel_intake_synthesis_2026_07_02
+    memory_domain: runtime-mirust.docs_report_intake
+    pointer_type: local_md
+    path: docs/report-intake/2026-07-02/tinyrustlm-minimodel-intake-synthesis-2026-07-02.md
+    target_location: docs/report-intake/2026-07-02/tinyrustlm-minimodel-intake-synthesis-2026-07-02.md
+    label: Required For TinyRustLM/MiniModel July 2 Intake Synthesis
+    summary: Routes agents to local-first UX, Hugging Face metadata plus local conversion, MiniModel metadata-only P2P, `add-peer-source`, Iroh-as-roadmap, and rejected aspirational claims.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed docs synthesis
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before applying the July 2 intake reports to UI, Hugging Face conversion, MiniModel peer-source metadata, P2P roadmap, or docs.
+    checksum_hash: sha256:DE828E571734F85961CF419C87BCAD5C136451D8FF071F7FCA7562FD863C2E58
+    last_reviewed_utc: 2026-07-02T20:20:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; synthesis body lives in the target file.
+  - stable_id: runtime_mirust_docs_report_tinyrustlm_beginner_ux_2026_07_02
+    memory_domain: runtime-mirust.docs_report_intake
+    pointer_type: local_md
+    path: docs/report-intake/2026-07-02/TinyRustLM Beginner UX Report.md
+    target_location: docs/report-intake/2026-07-02/TinyRustLM Beginner UX Report.md
+    label: Required For TinyRustLM Beginner UX Report
+    summary: Routes agents to first-run local import UX, no fake readiness, beginner/pro progressive disclosure, source-lane labels, verification language, mobile constraints, and trust copy.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed intake report
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before revising first-run UX, source chooser copy, no-model empty state, or beginner/advanced split.
+    checksum_hash: sha256:5648FE486ED5203240427D16D84A966DABEAD7F50CD96C794BEE0BA3A73E06A4
+    last_reviewed_utc: 2026-07-02T20:20:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; report body lives in the target file.
+  - stable_id: runtime_mirust_docs_report_huggingface_slm_conversion_workflow_2026_07_02
+    memory_domain: runtime-mirust.docs_report_intake
+    pointer_type: local_md
+    path: docs/report-intake/2026-07-02/Hugging Face to SLM Conversion Workflow.md
+    target_location: docs/report-intake/2026-07-02/Hugging Face to SLM Conversion Workflow.md
+    label: Required For Hugging Face To SLM Conversion Workflow Report
+    summary: Routes agents to Hugging Face metadata discovery, local `.safetensors` conversion, conversion receipts, MiniModel reuse, P2P import expectations, UI labels, typestate validation, and threat model notes.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed intake report
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing Hugging Face source handling, conversion requests, conversion receipts, or converted-once reuse flow.
+    checksum_hash: sha256:AC8C8D09112CFA372EDD5B5AB2429B1F98DD2CD4FB95D665F3C60672EC41EB50
+    last_reviewed_utc: 2026-07-02T20:20:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Report contains aspirational claims; use synthesis for accepted current truth.
+  - stable_id: runtime_mirust_docs_report_minimodel_p2p_architecture_2026_07_02
+    memory_domain: runtime-mirust.docs_report_intake
+    pointer_type: local_md
+    path: docs/report-intake/2026-07-02/MiniModel P2P Architecture Research.md
+    target_location: docs/report-intake/2026-07-02/MiniModel P2P Architecture Research.md
+    label: Required For MiniModel P2P Architecture Research Report
+    summary: Routes agents to metadata-only control/data plane split, checksum/Merkle verification, no-server-byte acceptance criteria, legal posture, takedown flow, and developer-doc outline.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed intake report
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing MiniModel architecture, legal boundary, metadata-only catalog rules, or P2P roadmap.
+    checksum_hash: sha256:A7335D466841CE2C009F630F926F3052320C6352106FDD6FFB9484F37F28166E
+    last_reviewed_utc: 2026-07-02T20:20:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Report contains aspirational claims; use synthesis for accepted current truth.
+  - stable_id: runtime_mirust_docs_report_minimodel_p2p_technology_evaluation_2026_07_02
+    memory_domain: runtime-mirust.docs_report_intake
+    pointer_type: local_md
+    path: docs/report-intake/2026-07-02/MiniModel P2P Technology Evaluation.md
+    target_location: docs/report-intake/2026-07-02/MiniModel P2P Technology Evaluation.md
+    label: Required For MiniModel P2P Technology Evaluation Report
+    summary: Routes agents to Rust-native QUIC, rust-libp2p, BitTorrent-style chunking, Iroh, Pear/Bare/Hypercore, direct HTTP bridge, phased P2P roadmap, and test gates.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed intake report
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before selecting or documenting a broader peer networking substrate.
+    checksum_hash: sha256:FE1FDBED38F4DE6F65425E6C0C0A2719C31EFF4B22F0D9F62AEB63B99BF4585D
+    last_reviewed_utc: 2026-07-02T20:20:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Current implementation is direct known-peer HTTP; Iroh and broad discovery remain roadmap.
+  - stable_id: runtime_mirust_docs_report_tinyrustlm_slm_format_documentation_2026_07_02
+    memory_domain: runtime-mirust.docs_report_intake
+    pointer_type: local_md
+    path: docs/report-intake/2026-07-02/TinyRustLM SLM Format Documentation.md
+    target_location: docs/report-intake/2026-07-02/TinyRustLM SLM Format Documentation.md
+    label: Required For TinyRustLM SLM Format Documentation Report
+    summary: Routes agents to `.slm`/SLM1 binary documentation, tokenizer/config/tensor-directory explanation, validation state machine, conversion receipts, MiniModel manifests, and developer-doc structure.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed intake report
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before updating `.slm` format docs or MiniModel.MiRust.com developer documentation.
+    checksum_hash: sha256:81E5C28A605362DB514F500FFF9E5D175BAB178CAA558907E79652F95919F99A
+    last_reviewed_utc: 2026-07-02T20:20:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; report body lives in the target file.
+  - stable_id: runtime_mirust_docs_report_tinyrustlm_quality_improvement_plan_2026_07_02
+    memory_domain: runtime-mirust.docs_report_intake
+    pointer_type: local_md
+    path: docs/report-intake/2026-07-02/TinyRustLM Quality Improvement Plan.md
+    target_location: docs/report-intake/2026-07-02/TinyRustLM Quality Improvement Plan.md
+    label: Required For TinyRustLM Quality Improvement Plan Report
+    summary: Routes agents to enterprise quality recommendations, repetitive code consolidation, lifecycle states, documentation/deploy gates, namespace collision risks, file-size/no-model-byte CI, and test plans.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local reviewed intake report
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before enterprise quality rounds, docs/deploy gates, static-site byte audits, or state-management refactors.
+    checksum_hash: sha256:26D1AB0C9FD710FF0D5ACFFB1E1772C0E4D090A9CEB1D72EA8F21891C54AAC20
+    last_reviewed_utc: 2026-07-02T20:20:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Report contains aspirational claims; use implementation and synthesis for current truth.
   - stable_id: runtime_mirust_research_minimodel_p2p_exchange_roadmap_2026_07_01
     memory_domain: runtime-mirust.research_memory
     pointer_type: llmwiki_node
@@ -2518,7 +2654,7 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before editing MiniModel.org site, workspace policy, or public/private route boundaries.
-    checksum_hash: sha256:D6D6E763908F28AA07F3085CEE22007E5E72D325627200670741D00F27F0C558
+    checksum_hash: sha256:C0A522234B63A3B79C46676DAA2F491B3027BADE761332F5F5B2B328A4703158
     last_reviewed_utc: 2026-07-02T21:00:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; workspace state lives in the target file.
@@ -2535,10 +2671,27 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before resuming MiniModel.org site, docs, or source-option work.
-    checksum_hash: sha256:8F7C89689F39316AD80DB236E3EA031B152608AC227878BAE3F9B60DEE61E466
+    checksum_hash: sha256:62FEB62C289CB4E5898D1C3EDF4B647C231F1850A896E6C8ABA0FC6F5E226EE7
     last_reviewed_utc: 2026-07-02T21:00:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; short-term memory lives in the target file.
+  - stable_id: minimodel_org_intake_outcome_ledger_uai
+    memory_domain: minimodel.hot_memory.intake_outcome_ledger
+    pointer_type: local_uai
+    path: E:\Source\Rust\MiniModel.org\.uai\intake-outcome-ledger.uai
+    target_location: E:\Source\Rust\MiniModel.org\.uai\intake-outcome-ledger.uai
+    label: Required For MiniModel.org Intake Outcome Ledger
+    summary: Routes agents to processed MiniModel intake outcomes, including the July 2 `add-peer-source` implementation result.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: MiniModel.org local hot memory
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before claiming MiniModel.org intake reports were processed, routed, or removed from active intake.
+    checksum_hash: sha256:11BCE51C03A562ADA5C79F33E50704470E1E5CC2DCB8CF924148D1BED70C597A
+    last_reviewed_utc: 2026-07-02T21:20:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; intake outcome ledger lives in the target file.
   - stable_id: minimodel_org_uai_index
     memory_domain: minimodel.hot_memory.index
     pointer_type: local_uai
@@ -2562,14 +2715,14 @@ records:
     path: E:\Source\Rust\MiniModel.org\ROADMAP.md
     target_location: E:\Source\Rust\MiniModel.org\ROADMAP.md
     label: Required For MiniModel.org Site Roadmap
-    summary: Routes agents to MiniModel.org source options, manifests, verifier, `prepare-peer-share`, metadata-only `write-catalog-snapshot`, catalog peer sources, direct peer-piece serve/fetch, `import-peer-request`, legal boundaries, and no-server-byte rules.
+    summary: Routes agents to MiniModel.org source options, manifests, verifier, `prepare-peer-share`, late `add-peer-source`, metadata-only `write-catalog-snapshot`, catalog peer sources, direct peer-piece serve/fetch, `import-peer-request`, legal boundaries, and no-server-byte rules.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: MiniModel.org local source roadmap
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before editing MiniModel.org public roadmap or implementation plan.
-    checksum_hash: sha256:8CB42EF788EF1CB0993560030AB0546C90E006DBBA09296975709AC3EC325927
+    checksum_hash: sha256:4123DE00812542497C25C4A0A12342E3B0A7335D3984505163C6C3CEFBB26D39
     last_reviewed_utc: 2026-07-02T21:00:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; public roadmap body lives in the target file.
@@ -2579,14 +2732,14 @@ records:
     path: E:\Source\Rust\MiniModel.org\docs\manifest-v0.md
     target_location: E:\Source\Rust\MiniModel.org\docs\manifest-v0.md
     label: Required For MiniModel Manifest v0 Draft
-    summary: Routes agents to manifest fields, source lanes, `prepare-peer-share`, `write-catalog-snapshot`, catalog peer-source rows, boundary rules, direct peer-piece serve/fetch, `import-peer-request`, evidence, chunks, and signatures.
+    summary: Routes agents to manifest fields, source lanes, `prepare-peer-share`, `add-peer-source`, `write-catalog-snapshot`, catalog peer-source rows, boundary rules, direct peer-piece serve/fetch, `import-peer-request`, evidence, chunks, and signatures.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: MiniModel.org local docs
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before implementing manifest parsing, validation, schema fields, boundary rejection, or signature/chunk planning.
-    checksum_hash: sha256:F0DEDCD413FCD7E23172129C1BFF22D410ECC3AB8721420C04C077F40288A1DD
+    checksum_hash: sha256:4AA10703655482F34794D043EC4C278BFA66486C73B2CE221619BFE4AA266B1B
     last_reviewed_utc: 2026-07-02T21:00:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; manifest draft body lives in the target file.
@@ -2596,14 +2749,14 @@ records:
     path: E:\Source\Rust\MiniModel.org\docs\verifier-mvp.md
     target_location: E:\Source\Rust\MiniModel.org\docs\verifier-mvp.md
     label: Required For MiniModel Verifier MVP
-    summary: Routes agents to local Rust verifier commands, `prepare-peer-share`, `write-catalog-snapshot`, catalog peer-source validation, direct peer-piece serve/fetch, `import-peer-request`, boundary checks, receipts, and drift tests.
+    summary: Routes agents to local Rust verifier commands, `prepare-peer-share`, `add-peer-source`, `write-catalog-snapshot`, catalog peer-source validation, direct peer-piece serve/fetch, `import-peer-request`, boundary checks, receipts, and drift tests.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: MiniModel.org local docs
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before implementing minimodel-core, verifier CLI, import receipts, or drift tests.
-    checksum_hash: sha256:B59546A79F607901B9CA776F613FFD42A97FE5ED4299BA44057DDD9046087DAB
+    checksum_hash: sha256:66D2F811041903D92F750D15883F5CB267BD52E05BDF2C42EE2F95E3ABAE441D
     last_reviewed_utc: 2026-07-02T21:00:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; verifier plan body lives in the target file.
@@ -2613,14 +2766,14 @@ records:
     path: E:\Source\Rust\MiniModel.org\docs\catalog-boundary.md
     target_location: E:\Source\Rust\MiniModel.org\docs\catalog-boundary.md
     label: Required For MiniModel Catalog Boundary
-    summary: Routes agents to metadata-only catalog rules, `prepare-peer-share`, `write-catalog-snapshot`, peer-source metadata, local/Hugging Face/P2P lanes, direct peer-piece serve/fetch, consent gates, legal posture, and tradeoffs.
+    summary: Routes agents to metadata-only catalog rules, `prepare-peer-share`, `add-peer-source`, `write-catalog-snapshot`, peer-source metadata, local/Hugging Face/P2P lanes, direct peer-piece serve/fetch, consent gates, legal posture, and tradeoffs.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: MiniModel.org local docs
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing catalog behavior, public website copy, legal boundary, takedown/contact flows, or peer-transfer staging.
-    checksum_hash: sha256:C781DC1746AB76B5E19A460B5357A970831009BE380CC3412D35CA13204B2E3C
+    checksum_hash: sha256:359A172E55DE100DEDBA573C575D92972009C4E58AF94C9C8FE976519A6C20E7
     last_reviewed_utc: 2026-07-02T21:00:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; catalog boundary body lives in the target file.
@@ -5531,20 +5684,37 @@ records:
     last_reviewed_utc: 2026-07-02T23:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; source-flow quality report body lives in the target file.
+  - stable_id: tinyrustlm_minimodel_add_peer_source_intake_memory
+    memory_domain: runtime-mirust.report_memory.minimodel_add_peer_source_intake
+    pointer_type: llmwiki_node
+    path: wiki/runtime-mirust/reports/tinyrustlm-minimodel-add-peer-source-intake-memory-2026-07-02.md
+    target_location: https://aiwikis.org/runtime-mirust/reports/tinyrustlm-minimodel-add-peer-source-intake-memory-2026-07-02/
+    label: Required For TinyRustLM MiniModel Add Peer Source Intake Memory
+    summary: Routes agents to July 2 intake synthesis, `add-peer-source`, proof-ready to P2P-ready metadata, generated conversion-script follow-up hints, MiniModel.org/MiniModel.MiRust.com docs alignment, and no-server-byte boundary.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local implementation report
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing MiniModel peer-source publication, Hugging Face conversion handoffs, intake report synthesis, P2P availability claims, or docs that mention converted-once reuse.
+    checksum_hash: sha256:C3B04C1A3AE23C2731F26FD51A3C4F12DAF6E101EB07C581F58E4E359BEBA174
+    last_reviewed_utc: 2026-07-02T20:20:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; add-peer-source intake report body lives in the target file.
   - stable_id: minimodel_local_verifier_mvp_doc
     memory_domain: minimodel.local_verifier.implementation
     pointer_type: local_md
     path: E:\Source\Rust\MiniModel.org\docs\verifier-mvp.md
     target_location: E:\Source\Rust\MiniModel.org\docs\verifier-mvp.md
     label: Required For MiniModel Local Verifier MVP
-    summary: Routes agents to implemented `minimodel-core`/`minimodel` verifier commands, `prepare-peer-share`, `write-catalog-snapshot`, catalog peer-source validation, direct peer-piece serve/fetch, local artifact checks, `.slm` validation, and receipts.
+    summary: Routes agents to implemented `minimodel-core`/`minimodel` verifier commands, `prepare-peer-share`, `add-peer-source`, `write-catalog-snapshot`, catalog peer-source validation, direct peer-piece serve/fetch, local artifact checks, `.slm` validation, and receipts.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local MiniModel.org implementation docs
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing MiniModel manifest/artifact verification, receipt fields, or peer-transfer trust gates.
-    checksum_hash: sha256:B59546A79F607901B9CA776F613FFD42A97FE5ED4299BA44057DDD9046087DAB
+    checksum_hash: sha256:66D2F811041903D92F750D15883F5CB267BD52E05BDF2C42EE2F95E3ABAE441D
     last_reviewed_utc: 2026-07-02T21:00:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; verifier implementation details live in the target file.
@@ -5554,14 +5724,14 @@ records:
     path: E:\Source\Rust\MiniModel.org\docs\manifest-v0.md
     target_location: E:\Source\Rust\MiniModel.org\docs\manifest-v0.md
     label: Required For MiniModel Manifest v0
-    summary: Routes agents to manifest v0 fields, local artifact boundary, source lanes, `prepare-peer-share`, `write-catalog-snapshot`, catalog peer-source rows, direct peer-piece serve/fetch, evidence pairs, chunks, and signatures.
+    summary: Routes agents to manifest v0 fields, local artifact boundary, source lanes, `prepare-peer-share`, `add-peer-source`, `write-catalog-snapshot`, catalog peer-source rows, direct peer-piece serve/fetch, evidence pairs, chunks, and signatures.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local MiniModel.org schema docs
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing MiniModel manifests, catalog routes, source discovery fields, or local verifier parser behavior.
-    checksum_hash: sha256:F0DEDCD413FCD7E23172129C1BFF22D410ECC3AB8721420C04C077F40288A1DD
+    checksum_hash: sha256:4AA10703655482F34794D043EC4C278BFA66486C73B2CE221619BFE4AA266B1B
     last_reviewed_utc: 2026-07-02T21:00:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; schema details live in the target file.
