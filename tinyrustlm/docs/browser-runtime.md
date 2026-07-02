@@ -2,13 +2,13 @@
 
 ## Purpose
 
-The browser runtime hosts TinyRustLM as static files and keeps prompts local to the user browser. SLMComposer.com is the live usable public surface, while Runtime.MiRust.com remains the project documentation identity.
+The browser runtime hosts TinyRustLM as static files and keeps prompts local to the user browser. TinyRustLM.com is the current public app surface, while TinyRustLM.MiRust.com/developer-portal/ is the current developer documentation identity.
 
 ## Constraints
 
 The app uses static HTML, custom CSS, handwritten JavaScript, local WASM, and local `.slm` files only. It does not use npm, CDN scripts, frontend frameworks, remote inference APIs, telemetry, analytics, or model downloads from external hosts during inference.
 
-On SLMComposer.com, the browser host does not auto-admit selector registries or fetch hosted `/models/` bytes. It loads the app shell and WASM runtime, then waits for the user to import a local `.slm` file from disk. Optional Hugging Face discovery is user-triggered and only helps users find external source/model pages or external `.slm` downloads; importing into the runtime still goes through the local file picker and Rust/WASM `load_model` validation.
+On TinyRustLM.com, the browser host does not auto-admit selector registries or fetch hosted `/models/` bytes. It loads the app shell and WASM runtime, then waits for the user to import a local `.slm` file from disk. Optional Hugging Face discovery is user-triggered and only helps users find external source/model pages or external `.slm` downloads; importing into the runtime still goes through the local file picker and Rust/WASM `load_model` validation.
 
 Local development hosting uses the no-crate Rust server in `tools/local_server/`. It serves only the checked-in static tree over loopback, supports `GET` and `HEAD`, rejects traversal paths, and keeps Visual Studio F5 on the Rust toolchain path. The no-crate Rust mini browser harness in `tools/browser_harness/` audits the static app contract and can probe loopback routes before headless browser automation. The older Node server remains only as a narrow fallback utility.
 

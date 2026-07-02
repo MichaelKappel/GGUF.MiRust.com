@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SLM Composer</title>
+  <title>TinyRustLM</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="./app.css?v=20260701-layoutfix">
 </head>
@@ -38,12 +38,12 @@
   </svg>
 
   <main class="app-shell" data-mode="simple" data-system-state="booting" data-rail-collapsed="false" data-sidebar-collapsed="false">
-    <aside class="left-sidebar" aria-label="SLM Composer navigation">
+    <aside class="left-sidebar" aria-label="TinyRustLM navigation">
       <header class="brand-header">
         <div class="brand-mark" aria-hidden="true"><svg><use href="#icon-cube"></use></svg></div>
         <div class="brand-copy">
-          <p class="eyebrow">Runtime.MiRust.com / TinyRustLM</p>
-          <h1>SLM Composer</h1>
+          <p class="eyebrow">Browser-local Rust/WASM tiny models</p>
+          <h1>TinyRustLM</h1>
         </div>
         <button id="sidebarCollapseButton" class="icon-button sidebar-collapse" type="button" aria-label="Collapse sidebar" aria-expanded="true">
           <svg><use href="#icon-chevron"></use></svg>
@@ -292,7 +292,7 @@
 
             <label for="catalogUrlInput">Catalog URL</label>
             <div class="search-row">
-              <input id="catalogUrlInput" type="url" value="https://MiniModel.org/catalog/models.v0.json" autocomplete="off" spellcheck="false">
+              <input id="catalogUrlInput" type="url" autocomplete="off" spellcheck="false">
               <button id="catalogLoadButton" type="button">Load</button>
             </div>
             <label for="localCatalogFile">Local model list</label>
@@ -484,11 +484,11 @@
     </aside>
 
     <footer class="footnote" id="appFooter">
-      <span>SLMComposer.com</span>
-      <span>Runtime.MiRust.com browser-local Rust/WASM runtime</span>
-      <span>TinyRustLM model docs: tinyrustlm.mirust.com</span>
+      <span>TinyRustLM.com</span>
+      <span>Browser-local Rust/WASM runtime</span>
+      <span>Developer portal: tinyrustlm.mirust.com</span>
       <span>Local .slm models only</span>
-      <span class="notice">SLMComposer.com does not serve runnable model weights. Prompts are not sent to a server.</span>
+      <span class="notice">TinyRustLM.com does not serve runnable model weights. Prompts are not sent to a server.</span>
       <span id="currentModelSummary" class="model-summary">No model loaded</span>
     </footer>
   </main>

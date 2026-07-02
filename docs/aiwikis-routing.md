@@ -4,7 +4,7 @@ Reviewed: 2026-06-24
 
 ## Target
 
-Runtime.MiRust.com long memory targets AIWikis.org at:
+Existing TinyRustLM long memory uses the established `runtime-mirust` AIWikis namespace at:
 
 - `https://aiwikis.org/runtime-mirust/`
 - `https://aiwikis.org/runtime-mirust/source-memory-guide/`
@@ -23,4 +23,3 @@ Site-specific memory belongs under `/runtime-mirust/`. Organization-wide guidanc
 ## Publication Status
 
 The local source namespace exists now. Public AIWikis routes are planned until the WordPress source package is built and deployed.
-

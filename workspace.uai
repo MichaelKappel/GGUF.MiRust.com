@@ -1,23 +1,24 @@
-profile: runtime-mirust.workspace.v122
-project_name: SLMComposer.com
+profile: tinyrustlm.source-workspace.v124
+project_name: TinyRustLM
 canonical_root: E:\Source\Rust\SLMComposer.com
-updated_utc: 2026-07-01T22:25:00Z
+updated_utc: 2026-07-02T00:12:07Z
 version_authority:
   current_version: 0.1.0
   next_version: 0.1.0
   policy: Increment intentionally after real implementation milestones; source scaffolding does not imply runtime support.
 active_product:
-  name: SLM Composer / TinyRustLM
+  name: TinyRustLM
   root: tinyrustlm/
   purpose: Zero-dependency Rust/WASM browser-local SLM runtime and UI.
-  live_public_site: SLMComposer.com
-  runtime_documentation_site: Runtime.MiRust.com
+  live_public_site: TinyRustLM.com
+  retired_public_site: SLMComposer.com
+  runtime_documentation_site: TinyRustLM.MiRust.com/developer-portal/
+  retired_runtime_documentation_site: Runtime.MiRust.com
   model_documentation_site: TinyRustLM.MiRust.com
-  public_site_boundary: SLMComposer.com loads the static app and WASM runtime, shows the default MiniModel.org metadata catalog URL, waits for user-selected local `.slm` files, and does not auto-admit or fetch hosted `/models/` bytes from the public host.
+  public_site_boundary: TinyRustLM.com loads the static app and WASM runtime, shows the default MiniModel.org metadata catalog URL, waits for user-selected local `.slm` files, and does not auto-admit or fetch hosted `/models/` bytes from the public host. SLMComposer.com is no longer canonical and may redirect or be deleted by the human.
 deploy_gate:
-  instruction: Before every SLMComposer.com or TinyRustLM deploy, update the related documentation sites and public-safe exports so live docs match the app behavior being deployed.
+  instruction: Before every TinyRustLM deploy or SLMComposer.com retirement/redirect change, update the related documentation sites and public-safe exports so live docs match the app behavior being deployed.
   related_documentation_sites:
-    - Runtime.MiRust.com
     - TinyRustLM.MiRust.com
     - MiniModel.org
     - MiRust.com
@@ -31,7 +32,7 @@ active_intake_state:
   status: processed_2026_07_01_minimodel_huggingface_slmcomposer_ui_batch
   content_bucket_non_placeholder_files: 0
   improvement_bucket_non_placeholder_files: 0
-  instruction: Seven MiniModel Improvement docs, one Hugging Face API option report, the SLM Composer UI plan, and the dashboard redesign batch were preserved under docs/report-intake/2026-07-01/, synthesized into durable memory, routed into product guidance, and removed from active intake.
+  instruction: Seven MiniModel Improvement docs, one Hugging Face API option report, the former SLM Composer UI plan, and the dashboard redesign batch were preserved under docs/report-intake/2026-07-01/, synthesized into durable memory, routed into product guidance, and removed from active intake.
 memory_authority:
   hot_memory_root: .uai/
   llm_wiki_namespace: wiki/runtime-mirust/
@@ -122,7 +123,7 @@ memory_authority:
   short_term_report_route_strategy: .uai/short-term-memory.uai keeps the current report indexes, research route, active bucket disposition, UAIX strategy source, dogfood route, report pointer audit, and long-term pointer ledger route in one cold-start block.
   report_pointer_audit_strategy: every current wiki/runtime-mirust/reports/*.md and wiki/runtime-mirust/research/*.md page is represented in .uai/long-term-memory.uai; add future report and research pages to long-term pointers and short-term routes together.
   setup_file_handoff_strategy_2026_06_28: active buckets are intake queues, durable bodies live in raw/wiki/docs Markdown, hot .uai files carry routing and synthesis, short-term memory names current report/research routes, long-term memory keeps checksum pointers, and processed source-site copies are removed after preservation unless a named keep-active exception or blocker is recorded.
-  site_voice_strategy: .uai/taboo.uai keeps Runtime.MiRust.com public copy centered on proof, craft, lineage, fit, local agency, routes, and implementation evidence.
+  site_voice_strategy: .uai/taboo.uai keeps TinyRustLM public copy centered on proof, craft, lineage, fit, local agency, routes, and implementation evidence.
 support_boundary:
   status: milestone_170_source_review_tokenizer_import_evidence
   static_browser_shell: implemented_source

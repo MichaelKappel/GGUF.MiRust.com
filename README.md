@@ -1,6 +1,10 @@
-# Runtime.MiRust.com
+# TinyRustLM
 
-Canonical Rust source root for the Runtime.MiRust.com client-side SLM runtime and browser UI.
+Canonical Rust source root for the TinyRustLM client-side SLM runtime and browser-local UI.
+
+Current public app route: `https://TinyRustLM.com/`.
+Current developer portal: `https://TinyRustLM.MiRust.com/developer-portal/`.
+`Runtime.MiRust.com` is retired as a separate documentation authority, and `SLMComposer.com` is no longer the canonical public app identity.
 
 The active implementation target is `tinyrustlm/`: a 100% custom Rust/WASM browser-local AI app named TinyRustLM. The runtime is zero-dependency by design: no third-party Rust crates, no JavaScript frameworks, no tokenizer libraries, no inference frameworks, no package-manager runtime, no remote inference API, and no CDN dependency.
 

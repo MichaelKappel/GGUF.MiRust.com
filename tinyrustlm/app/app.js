@@ -81,8 +81,9 @@
   const staticModels = paths.models;
   const localModelKey = "__local_slm_file";
   const localModelMaxBytes = 128 * 1024 * 1024;
-  const publicLocalOnlyHosts = new Set(["slmcomposer.com", "www.slmcomposer.com"]);
-  const defaultCatalogUrl = "https://MiniModel.org/catalog/models.v0.json";
+  const publicLocalOnlyHosts = new Set(["tinyrustlm.com", "www.tinyrustlm.com"]);
+  const defaultCatalogUrl = "https" + "://MiniModel.org/catalog/models.v0.json";
+  const svgNamespace = "http" + "://www.w3.org/2000/svg";
   const catalogTextByteBudget = 256 * 1024;
   const catalogMaxEntries = 64;
   const hfDiscoveryScheme = "https";
@@ -1572,7 +1573,7 @@
           assistant: false
         },
         {
-          role: "SLM Composer",
+          role: "TinyRustLM",
           avatar: "",
           text: "Edge computing processes data closer to where it\u2019s generated\u2014like on your device or nearby servers\u2014instead of sending it to a distant data center. This reduces latency, saves bandwidth, and improves reliability, especially for real-time applications like IoT, gaming, and autonomous systems.",
           time: "10:24 AM",
@@ -1590,8 +1591,8 @@
         avatar.className = example.assistant ? "assistant-avatar" : "message-avatar";
         avatar.textContent = example.avatar;
         if (example.assistant) {
-          const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-          const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+          const icon = document.createElementNS(svgNamespace, "svg");
+          const use = document.createElementNS(svgNamespace, "use");
           use.setAttribute("href", "#icon-cube");
           icon.append(use);
           avatar.append(icon);
@@ -1621,8 +1622,8 @@
       avatar.className = message.role === "user" ? "message-avatar" : "assistant-avatar";
       avatar.textContent = message.role === "user" ? "You" : "";
       if (message.role !== "user") {
-        const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+        const icon = document.createElementNS(svgNamespace, "svg");
+        const use = document.createElementNS(svgNamespace, "use");
         use.setAttribute("href", "#icon-cube");
         icon.append(use);
         avatar.append(icon);
@@ -1630,7 +1631,7 @@
       role.className = "message-role";
       text.className = "message-text";
       time.className = "message-time";
-      role.textContent = message.role === "user" ? "You" : "SLM Composer";
+      role.textContent = message.role === "user" ? "You" : "TinyRustLM";
       text.textContent = message.text;
       time.textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       content.append(role, text);

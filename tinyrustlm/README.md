@@ -1,6 +1,6 @@
 # TinyRustLM
 
-TinyRustLM is the zero-dependency client-side SLM runtime for Runtime.MiRust.com.
+TinyRustLM is the zero-dependency client-side SLM runtime for TinyRustLM.com.
 
 The app target is a static browser UI plus a Rust-compiled WASM runtime that loads a local `.slm` model file, validates it, tokenizes prompts, and runs local inference without remote APIs or third-party runtime libraries.
 
@@ -80,7 +80,7 @@ Implemented source slice:
 - Browser model selector for TinyLM-16M q8_0, TinyLM-16M q4_0, TinyLM-16M f32, f32/q8_0/q4_0 tiny fixtures, the tiny BPE fixture, and the tiny tied-output fixture.
 - Browser conversation transcript that appends local User and TinyRustLM turns, keeps text insertion DOM-safe, persists across runtime Reset, and clears through the Clear control.
 - Browser Step Token control that calls `generate_next_token` after generation context exists, appends one decoded token to the response and latest TinyRustLM transcript turn, and records the action in the token console.
-- Browser product shell footer exposing TinyRustLM, Runtime.MiRust.com, browser-local Rust/WASM identity, and local `.slm` model scope.
+- Browser product shell footer exposing TinyRustLM, browser-local Rust/WASM identity, and local `.slm` model scope.
 - Browser smoke tool for headless Chrome or Edge UI verification.
 - Browser UI audit mode for desktop/mobile structure, local-only notice, footer identity, model controls, panel coverage, diagnostics/developer mirror, benchmark fields, layout overflow, and local-only requests.
 - Browser smoke and UI audit assertions for transcript state, including empty ready state, disabled Clear button before generation, generated User/TinyRustLM entries, Clear-click transcript removal, and response preservation after clearing history.

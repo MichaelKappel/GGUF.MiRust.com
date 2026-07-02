@@ -11,8 +11,8 @@ resolver = "2"
 version = "0.1.0"
 edition = "2021"
 license = "Proprietary"
-authors = ["Runtime.MiRust.com maintainers"]
-repository = "https://Runtime.MiRust.com/"
+authors = ["TinyRustLM maintainers"]
+repository = "https://TinyRustLM.com/"
 
 [workspace.lints.rust]
 missing_docs = "deny"

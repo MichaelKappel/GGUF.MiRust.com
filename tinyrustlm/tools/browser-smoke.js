@@ -7710,29 +7710,28 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
     "Tiny Fixture BPE f32"
   ];
   const prefix = `${viewportName} ${phase}`;
-  if (snapshot.title !== "SLM Composer") {
+  if (snapshot.title !== "TinyRustLM") {
     failures.push(`${prefix} title was ${snapshot.title}`);
   }
   if (snapshot.lang !== "en") {
     failures.push(`${prefix} lang was ${snapshot.lang}`);
   }
-  if (snapshot.h1 !== "SLM Composer") {
+  if (snapshot.h1 !== "TinyRustLM") {
     failures.push(`${prefix} h1 was ${snapshot.h1}`);
   }
-  if (snapshot.eyebrow !== "Runtime.MiRust.com / TinyRustLM") {
+  if (snapshot.eyebrow !== "Browser-local Rust/WASM tiny models") {
     failures.push(`${prefix} eyebrow was ${snapshot.eyebrow}`);
   }
   const localOnlyCopy = `${snapshot.privacyBadge} ${snapshot.notice} ${snapshot.footer}`;
   if (!localOnlyCopy.includes("Local browser inference") || !localOnlyCopy.includes("No prompts sent to a server")) {
     failures.push(`${prefix} privacy badge was ${snapshot.privacyBadge}`);
   }
-  if (!localOnlyCopy.includes("SLMComposer.com does not serve runnable model weights")) {
+  if (!localOnlyCopy.includes("TinyRustLM.com does not serve runnable model weights")) {
     failures.push(`${prefix} model-serving boundary was not visible`);
   }
   if (
-    !snapshot.footer.includes("SLMComposer.com") ||
+    !snapshot.footer.includes("TinyRustLM.com") ||
     !snapshot.footer.includes("TinyRustLM") ||
-    !snapshot.footer.includes("Runtime.MiRust.com") ||
     !snapshot.footer.includes("Rust/WASM")
   ) {
     failures.push(`${prefix} footer did not expose product, site, and Rust/WASM identity`);
@@ -7806,7 +7805,7 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
       if (snapshot.conversationItems[0].role !== "You" || snapshot.conversationItems[0].text !== "hi") {
         failures.push(`${prefix} conversation user item was ${JSON.stringify(snapshot.conversationItems[0])}`);
       }
-      if (snapshot.conversationItems[1].role !== "SLM Composer" || snapshot.conversationItems[1].text !== "e" || snapshot.conversationItems[1].isError) {
+      if (snapshot.conversationItems[1].role !== "TinyRustLM" || snapshot.conversationItems[1].text !== "e" || snapshot.conversationItems[1].isError) {
         failures.push(`${prefix} conversation assistant item was ${JSON.stringify(snapshot.conversationItems[1])}`);
       }
     }
@@ -8202,16 +8201,16 @@ function assertSourceOptionsSmoke(result, networkRequests) {
 
 function assertPublicLocalOnlySmoke(result, networkRequests) {
   const failures = [];
-  if (result.hostname !== "slmcomposer.com") {
+  if (result.hostname !== "tinyrustlm.com") {
     failures.push(`hostname was ${result.hostname}`);
   }
-  if (result.title !== "SLM Composer" || result.h1 !== "SLM Composer") {
+  if (result.title !== "TinyRustLM" || result.h1 !== "TinyRustLM") {
     failures.push(`public title/h1 were ${result.title}/${result.h1}`);
   }
-  if (result.eyebrow !== "Runtime.MiRust.com / TinyRustLM") {
+  if (result.eyebrow !== "Browser-local Rust/WASM tiny models") {
     failures.push(`public eyebrow was ${result.eyebrow}`);
   }
-  if (!String(result.notice || "").includes("SLMComposer.com does not serve runnable model weights")) {
+  if (!String(result.notice || "").includes("TinyRustLM.com does not serve runnable model weights")) {
     failures.push(`public notice was ${result.notice}`);
   }
   if (!String(result.footer || "").includes("Local .slm models only")) {
@@ -10953,7 +10952,7 @@ async function main() {
     `--user-data-dir=${profile}`
   ];
   if (publicLocalOnlySmokeMode) {
-    browserArgs.push("--host-resolver-rules=MAP slmcomposer.com 127.0.0.1,MAP www.slmcomposer.com 127.0.0.1");
+    browserArgs.push("--host-resolver-rules=MAP tinyrustlm.com 127.0.0.1,MAP www.tinyrustlm.com 127.0.0.1");
   }
   browserArgs.push(appUrl);
   const browserProcess = childProcess.spawn(browser, browserArgs, {

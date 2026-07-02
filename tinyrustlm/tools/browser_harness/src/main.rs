@@ -12,8 +12,7 @@ use std::thread;
 use std::time::Duration;
 
 const DEFAULT_ROOT: &str = "tinyrustlm";
-const PRIVACY_NOTICE: &str =
-    "All inference runs locally in this browser. Prompts are not sent to a server.";
+const PRIVACY_NOTICE: &str = "Local browser inference";
 
 const REQUIRED_IDS: &[&str] = &[
     "runtimeStatus",
@@ -135,18 +134,18 @@ const REQUIRED_IDS: &[&str] = &[
 ];
 
 const REQUIRED_HTML_TEXT: &[&str] = &[
-    "SLM Composer",
     "TinyRustLM",
-    "Runtime.MiRust.com",
+    "TinyRustLM.com",
     "Hugging Face",
-    "Runtime Diagnostics",
-    "Token Generation Console",
-    "Developer Mode",
-    "Model Provenance",
-    "Assembly Evidence",
+    "Runtime Status",
+    "Diagnostics",
+    "Token Console",
+    "Developer",
+    "Provenance",
+    "Assembly",
     "Module Plan",
     "Adapter Sidecar",
-    "Conversation",
+    "Chat with your local model",
     "Local .slm models only",
     PRIVACY_NOTICE,
 ];
@@ -359,8 +358,8 @@ fn audit_static_contract(root: &Path, checks: &mut Vec<String>) -> Result<(), Ha
         REQUIRED_HTML_TEXT.len()
     ));
 
-    require_contains("index.html stylesheet", &index, "href=\"./app.css\"")?;
-    require_contains("index.html script", &index, "src=\"./app.js\"")?;
+    require_contains("index.html stylesheet", &index, "href=\"./app.css")?;
+    require_contains("index.html script", &index, "src=\"./app.js")?;
     checks.push("html asset links".to_string());
 
     require_contains("app.js wasm path", &js, "../runtime/tinyrustlm.wasm")?;
@@ -375,7 +374,7 @@ fn audit_static_contract(root: &Path, checks: &mut Vec<String>) -> Result<(), Ha
     require_contains("app.js manifest fetch", &js, ".manifest")?;
     require_contains("app.js local file model key", &js, "__local_slm_file")?;
     require_contains("app.js local file route", &js, "local-file:")?;
-    require_contains("app.js public local-only host", &js, "slmcomposer.com")?;
+    require_contains("app.js public local-only host", &js, "tinyrustlm.com")?;
     require_contains("app.js external model discovery", &js, "/api/models")?;
     require_contains(
         "app.js external search omits credentials",
@@ -463,7 +462,7 @@ fn audit_static_contract(root: &Path, checks: &mut Vec<String>) -> Result<(), Ha
 
     require_contains("app.css responsive behavior", &css, "@media")?;
     require_contains("app.css status error state", &css, ".error")?;
-    require_contains("app.css shell layout", &css, ".shell")?;
+    require_contains("app.css shell layout", &css, ".app-shell")?;
     checks.push("css layout and error-state markers".to_string());
 
     Ok(())
@@ -629,7 +628,7 @@ fn audit_http_contract(app_url: &str, checks: &mut Vec<String>) -> Result<(), Ha
         }
         if method == "GET" {
             let body = String::from_utf8_lossy(&response.body);
-            require_contains("http app body", &body, "<title>SLM Composer</title>")?;
+            require_contains("http app body", &body, "<title>TinyRustLM</title>")?;
             require_contains("http app body", &body, PRIVACY_NOTICE)?;
         }
     }
