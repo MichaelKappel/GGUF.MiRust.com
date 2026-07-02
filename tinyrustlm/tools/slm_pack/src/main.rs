@@ -18,6 +18,7 @@ mod multi_candidate;
 mod multi_promotion;
 mod mutation;
 mod parent_pool;
+mod peer_offer;
 mod population;
 mod promotion;
 mod provenance;
@@ -2952,6 +2953,47 @@ fn run() -> io::Result<()> {
         };
         return provenance::validate_manifest_path(Path::new(&input), Path::new(&manifest));
     }
+    if output == "peer-offer" {
+        let Some(input) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "peer-offer requires an input .slm path",
+            ));
+        };
+        let Some(offer) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "peer-offer requires an output peer-offer path",
+            ));
+        };
+        let artifact_file_name = args.next();
+        let chunk_size = args.next();
+        return peer_offer::write_offer_path(
+            Path::new(&input),
+            Path::new(&offer),
+            artifact_file_name.as_deref(),
+            chunk_size.as_deref(),
+        );
+    }
+    if output == "validate-peer-offer" {
+        let Some(input) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-peer-offer requires an input .slm path",
+            ));
+        };
+        let Some(offer) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "validate-peer-offer requires an input peer-offer path",
+            ));
+        };
+        return peer_offer::validate_offer_path(Path::new(&input), Path::new(&offer));
+    }
     if output == "runtime-smoke" {
         let Some(input) = args.next() else {
             print_usage();
@@ -3365,6 +3407,9 @@ fn looks_like_safetensors_candidate_review(path: &Path) -> bool {
 
 fn print_usage() {
     eprintln!("{}", primary_usage_text());
+    eprintln!(
+        "       tinyrustlm-slm-pack peer-offer <input.slm> <output.peer-offer> [artifact-file-name] [chunk-size]\n       tinyrustlm-slm-pack validate-peer-offer <input.slm> <input.peer-offer>"
+    );
     eprintln!(
         "       review-safetensors-candidate optional route tail: [source-config-route] [source-tokenizer-route]"
     );

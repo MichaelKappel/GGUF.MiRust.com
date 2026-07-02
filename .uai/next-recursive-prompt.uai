@@ -1,7 +1,7 @@
-profile: runtime-mirust.next-recursive-prompt.v10
-updated_utc: 2026-07-01T22:25:00Z
+profile: runtime-mirust.next-recursive-prompt.v11
+updated_utc: 2026-07-02T05:38:09Z
 prompt: >
-  Continue in E:\Source\Rust\SLMComposer.com as the active Rust workspace for SLMComposer.com / TinyRustLM, with E:\Source\Rust\MiniModel.org as the MiniModel.org site workspace. The site-folder split, source-control cleanup, MiniModel intake processing, Hugging Face option routing, roadmap, first MiniModel implementation docs, metadata-only MiniModel catalog endpoint, SLMComposer catalog-to-local-file import slice, local Chat/Advanced Tools source-option correction, and high-fidelity dark dashboard redesign are complete in local source. Live SLMComposer.com is not proven updated with the dashboard until an explicit deploy path/credential is available and live proof is run. Start the next work by either deploying the dashboard with explicit access plus docs-site freshness checks, or planning/scaffolding the local Rust verifier (`minimodel-core` plus CLI) from E:\Source\Rust\MiniModel.org\docs\manifest-v0.md and docs\verifier-mvp.md. Keep SLMComposer.com browser-local and keep project servers metadata-only: no server-side user model execution and no project-server user model bytes.
+  Continue in E:\Source\Rust\SLMComposer.com as the active Rust workspace for TinyRustLM, with E:\Source\Rust\MiniModel.org as the MiniModel.org site workspace. The site-folder split, source-control cleanup, MiniModel intake processing, Hugging Face option routing, roadmap, first MiniModel implementation docs, metadata-only MiniModel catalog endpoint, TinyRustLM catalog-to-local-file import slice, Chat/Advanced Tools dashboard redesign, local Hugging Face conversion-script handoff, and Rust `.minimodel-peer-offer` proof commands are complete in local source. TinyRustLM.com should be deployed from source only after the related documentation sites are updated and live proof is run. Start the next work by implementing/scaffolding the MiniModel local Rust verifier (`minimodel-core` plus CLI) from E:\Source\Rust\MiniModel.org\docs\manifest-v0.md and docs\verifier-mvp.md, then move toward a consent-based peer-transfer client only after local verification and receipts are stable. Keep TinyRustLM browser-local and keep project servers metadata-only: no server-side user model execution and no project-server user model bytes.
 primary_goal: >
   Move from the browser catalog/import proof into the first local Rust verifier implementation path: manifest parsing, boundary rejection, artifact checksum verification, TinyRustLM compatibility checks, and local import receipts, before any peer networking.
 required_context:
@@ -23,6 +23,7 @@ required_context:
   - wiki/runtime-mirust/reports/slmcomposer-minimodel-catalog-import-memory-2026-07-01.md
   - wiki/runtime-mirust/reports/slmcomposer-progressive-source-ui-memory-2026-07-01.md
   - wiki/runtime-mirust/reports/slmcomposer-local-ai-dashboard-memory-2026-07-01.md
+  - wiki/runtime-mirust/reports/tinyrustlm-peer-offer-source-clarity-memory-2026-07-02.md
   - E:\Source\Rust\MiniModel.org\ROADMAP.md
   - E:\Source\Rust\MiniModel.org\docs\manifest-v0.md
   - E:\Source\Rust\MiniModel.org\docs\verifier-mvp.md
@@ -38,6 +39,7 @@ processed_intake_routes:
   slmcomposer_catalog_import: wiki/runtime-mirust/reports/slmcomposer-minimodel-catalog-import-memory-2026-07-01.md
   slmcomposer_progressive_source_ui: wiki/runtime-mirust/reports/slmcomposer-progressive-source-ui-memory-2026-07-01.md
   slmcomposer_dashboard_ui: wiki/runtime-mirust/reports/slmcomposer-local-ai-dashboard-memory-2026-07-01.md
+  tinyrustlm_peer_offer_source_clarity: wiki/runtime-mirust/reports/tinyrustlm-peer-offer-source-clarity-memory-2026-07-02.md
   minimodel_site_roadmap: E:\Source\Rust\MiniModel.org\ROADMAP.md
   source_site_result: processed source-site copies removed from agent-file-handoff/Improvement/ after byte-exact preservation and pointer updates.
 roadmap_guardrails:
@@ -45,6 +47,7 @@ roadmap_guardrails:
   - Source options are user-owned local files/lists, user-triggered Hugging Face discovery, and future MiniModel P2P transfer; all converge on local `.slm` verification.
   - SLMComposer Chat mode should keep Local Files, Hugging Face, P2P Exchange, prompt, and Generate visible on first load while Advanced Tools exposes diagnostics and lower-level controls.
   - SLMComposer dashboard source should remain simple on first load: left navigation, local privacy proof, model-ready toolbar, starter cards, central composer, and contained Advanced Options for pro controls.
+  - Hugging Face rows are model-card metadata only; label unmatched rows `Rust conversion required`, label admitted metadata matches as local `.slm` needed, and keep Search Metadata from closing the source chooser.
   - Legal/liability boundaries must keep MiniModel.org as metadata/catalog guidance until legal review; no claims that third-party models are safe, legal, or endorsed.
   - Secure manifests must be checksum-bound and route source identity, model cards, license, tokenizer/config, eval/admission evidence, chunk/Merkle data, and signatures.
   - Tiny-model creation/import stays tied to TinyRustLM local review, conversion, validation, runtime-smoke, eval, admission, and local import receipts.
@@ -52,7 +55,7 @@ roadmap_guardrails:
 next_implementation_slice:
   - Stabilize the `key=value` manifest parser and duplicate-key rejection.
   - Reject project-server model-byte URLs and server-side execution claims before artifact checks.
-  - Verify a user-supplied local `.slm` byte count and SHA256 before any SLMComposer handoff.
+  - Verify a user-supplied local `.slm` byte count and SHA256 before any TinyRustLM handoff.
   - Mirror the SLMComposer catalog-import proof: catalog metadata can name expectations, but local verifier artifacts must come from user-supplied local paths.
   - Preserve the Hugging Face boundary: metadata discovery is allowed, project-server byte proxying and remote inference execution are not.
   - Write a local import receipt with manifest checksum, artifact checksum, validation result, and `user-selected-slmcomposer-local-file-open` next gate.

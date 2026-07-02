@@ -2041,7 +2041,7 @@ async function runPageHfSearchUiSmoke(client) {
       const statusAfterSearch = byId("simpleDiscoveryStatus") ? byId("simpleDiscoveryStatus").textContent : "";
       const hfStatusAfterSearch = byId("hfStatus") ? byId("hfStatus").textContent : "";
       const conversionScriptButton = Array.from(document.querySelectorAll("#simpleHfResults button"))
-        .find((button) => button.textContent.includes("Save Conversion Script"));
+        .find((button) => button.textContent.includes("Save Rust Conversion Script"));
       if (conversionScriptButton) {
         conversionScriptButton.click();
         for (let index = 0; index < 120; index += 1) {
@@ -8616,20 +8616,20 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       ...(Array.isArray(result.advancedTexts) ? result.advancedTexts : []),
       ...(Array.isArray(result.actionTexts) ? result.actionTexts : [])
     ].join(" ");
-    if (!resultText.includes("conversion required")) {
-      failures.push(`unmatched Hugging Face result did not show conversion required: ${resultText}`);
+    if (!resultText.includes("Rust conversion required")) {
+      failures.push(`unmatched Hugging Face result did not show Rust conversion required: ${resultText}`);
     }
     if (!resultText.includes("Save Conversion Request")) {
       failures.push(`unmatched Hugging Face result did not offer conversion request: ${resultText}`);
     }
-    if (!resultText.includes("Save Conversion Script")) {
-      failures.push(`unmatched Hugging Face result did not offer conversion script: ${resultText}`);
+    if (!resultText.includes("Save Rust Conversion Script")) {
+      failures.push(`unmatched Hugging Face result did not offer Rust conversion script: ${resultText}`);
     }
     if (!resultText.includes("Choose converted .slm")) {
       failures.push(`Hugging Face result did not route to local .slm import: ${resultText}`);
     }
-    if (!resultText.includes("MiniModel metadata found")) {
-      failures.push(`matched Hugging Face result did not show MiniModel metadata: ${resultText}`);
+    if (!resultText.includes("Catalog match, local .slm needed")) {
+      failures.push(`matched Hugging Face result did not explain local .slm requirement: ${resultText}`);
     }
     if (!resultText.includes("Use MiniModel Metadata")) {
       failures.push(`matched Hugging Face result did not offer MiniModel metadata: ${resultText}`);
@@ -8652,6 +8652,9 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "plan-safetensors-source",
       "convert-safetensors-trained",
       "validate-manifest",
+      "peer-offer",
+      "validate-peer-offer",
+      ".minimodel-peer-offer",
       "EDIT_ME\\\\model.safetensors",
       "EDIT_ME\\\\SLMComposer.com",
       "TinyRustLM.com",
@@ -8663,6 +8666,12 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     }
     if (scriptText.includes("Invoke-WebRequest") || scriptText.includes("huggingface.co/api")) {
       failures.push(`conversion script attempted remote download/API behavior: ${scriptText}`);
+    }
+    const bodyText = String(result.bodyText || "");
+    for (const fakeText of ["Example conversation", "Can you explain the benefits", "Market research s"]) {
+      if (bodyText.includes(fakeText)) {
+        failures.push(`first-run UI still contained fake conversation text ${fakeText}: ${bodyText}`);
+      }
     }
   }
   const requests = networkRequests.filter((requestUrl) => requestUrl.startsWith("http://") || requestUrl.startsWith("https://"));

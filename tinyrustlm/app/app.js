@@ -864,10 +864,10 @@
     });
     storageSet(uiStorageKeys.simpleSourceOption, nextOption);
     if (el.simpleDiscoveryStatus) {
-    const messages = {
-      local: "Choose a trusted local .slm file. No network is needed.",
-        huggingface: "Search Hugging Face metadata. Convert accepted sources to .slm before import.",
-        p2p: "Load MiniModel metadata or save share metadata after a verified local .slm import. Peer transfer comes after P2P implementation."
+      const messages = {
+        local: "Choose a trusted local .slm file. No network is needed.",
+        huggingface: "Search returns model cards. Rust conversion decides whether a source can become a runnable .slm.",
+        p2p: "Load MiniModel metadata or save peer-offer proof after a verified local .slm import. Network transfer still needs a peer client."
       };
       el.simpleDiscoveryStatus.textContent = messages[nextOption];
       el.simpleDiscoveryStatus.classList.remove("error");
@@ -1286,6 +1286,10 @@
     document.querySelectorAll("[data-open-model-popover], #modelEditButton").forEach((button) => {
       button.addEventListener("click", () => toggleModelPopover());
     });
+    if (el.simpleDiscoveryPanel) {
+      el.simpleDiscoveryPanel.addEventListener("pointerdown", (event) => event.stopPropagation());
+      el.simpleDiscoveryPanel.addEventListener("click", (event) => event.stopPropagation());
+    }
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         toggleModelPopover(false);
@@ -1604,7 +1608,7 @@
     if (state.messages.length === 0) {
       const item = document.createElement("li");
       item.className = "empty-message";
-      item.textContent = "No messages yet. Import a verified local .slm file, then send the first prompt.";
+      item.textContent = "No conversation yet. Import a verified local .slm file to run the first real prompt.";
       el.conversation.append(item);
       el.clearChatButton.disabled = true;
       return;
@@ -2080,6 +2084,10 @@
       sourceHuggingFaceModelId: catalogText(raw.source_huggingface_model_id || raw.huggingface_model_id || raw.hf_model_id),
       sourceUrl: catalogText(raw.source_url || raw.huggingface_url || raw.upstream_url),
       peerHintStatus: catalogText(raw.peer_hint_status || raw.p2p_status || raw.transfer_status) || "disabled",
+      peerOfferRoute: catalogText(raw.peer_offer_route || raw.peer_offer_path),
+      peerOfferSha256: normalizeCatalogSha256(raw.peer_offer_sha256 || raw.peer_offer_checksum),
+      peerOfferChunkCount: catalogInteger(raw.peer_offer_chunk_count),
+      peerOfferMerkleRootSha256: normalizeCatalogSha256(raw.peer_offer_merkle_root_sha256 || raw.merkle_root_sha256),
       licenseRoute: catalogText(raw.license_route),
       modelCardRoute: catalogText(raw.model_card_route),
       manifestRoute: catalogText(raw.manifest_route),
@@ -2122,7 +2130,12 @@
         entry.modelId,
         formatByteCount(entry.artifactByteCount),
         entry.artifactSha256,
-        entry.quantization || "quantization unavailable"
+        entry.quantization || "quantization unavailable",
+        entry.peerOfferRoute
+          ? `peer offer proof / ${entry.peerOfferChunkCount || "chunk count unknown"} chunks`
+          : entry.peerHintStatus && entry.peerHintStatus !== "disabled"
+            ? entry.peerHintStatus
+            : "local file required"
       ].join(" / ");
       const actions = document.createElement("div");
       actions.className = "model-result-actions";
@@ -2774,7 +2787,8 @@
         converter: "tinyrustlm-slm-pack",
         required_local_input: "A user-selected .safetensors file already present on this machine.",
         command_shape: `cargo run -p tinyrustlm-slm-pack -- convert-safetensors-trained <input.safetensors> ${defaultShape} <output-source-dir> <output.slm> ${defaultQuantization}`,
-        compatibility_rule: "The Rust planner/converter must accept the safetensors tensor names and exact TinyRustLM shape before a .slm is usable."
+        peer_offer_shape: "cargo run -p tinyrustlm-slm-pack -- peer-offer <output.slm> <output.minimodel-peer-offer>",
+        compatibility_rule: "The Rust planner/converter must accept the safetensors tensor names and exact TinyRustLM shape before a .slm is usable. The Rust peer-offer command then binds the verified .slm to SHA-256 chunks and a Merkle root."
       },
       conversion_gates: [
         "source license and model-card review",
@@ -2782,6 +2796,8 @@
         "safetensors/source artifact checksum capture",
         "local conversion to .slm",
         "tinyrustlm-slm-pack validate",
+        "tinyrustlm-slm-pack peer-offer",
+        "tinyrustlm-slm-pack validate-peer-offer",
         "runtime smoke proof",
         "eval/admission evidence",
         "MiniModel manifest signature",
@@ -2798,7 +2814,7 @@
       boundary: {
         project_server_runs_model_bytes: false,
         project_server_serves_model_bytes: false,
-        p2p_goal: "Convert once, publish checksum-bound metadata, then let peers transfer verified .slm bytes when P2P is implemented."
+        p2p_goal: "Convert once, publish checksum-bound metadata plus a peer-offer proof, then let consenting peers transfer verified .slm bytes when the peer client is implemented."
       }
     };
   }
@@ -2857,8 +2873,14 @@
       "cargo run -p tinyrustlm-slm-pack -- validate $OutputSlm",
       "cargo run -p tinyrustlm-slm-pack -- validate-manifest $OutputSlm \"$OutputSlm.manifest\"",
       "",
+      `$PeerOffer = Join-Path $WorkDir ${powerShellSingleQuote(`${stem}.${quantization}.minimodel-peer-offer`)}`,
+      "",
+      "cargo run -p tinyrustlm-slm-pack -- peer-offer $OutputSlm $PeerOffer",
+      "cargo run -p tinyrustlm-slm-pack -- validate-peer-offer $OutputSlm $PeerOffer",
+      "",
       "Write-Host \"Converted .slm:\" $OutputSlm",
-      "Write-Host \"Next: open TinyRustLM.com, choose Your Local Files, import the .slm, then Save Share Metadata for future P2P availability.\"",
+      "Write-Host \"MiniModel peer offer proof:\" $PeerOffer",
+      "Write-Host \"Next: open TinyRustLM.com, choose Your Local Files, import the .slm, then Save Share Metadata for catalog/P2P metadata.\"",
       ""
     ];
     return lines.join("\n");
@@ -2899,6 +2921,7 @@
     }
     for (const entry of accepted) {
       const matches = hfP2pMatches(entry.modelId);
+      const hasPeerOffer = matches.some((match) => Boolean(match.peerOfferRoute));
       const item = document.createElement("li");
       item.className = "model-result";
       const title = document.createElement("strong");
@@ -2908,8 +2931,8 @@
       const downloads = Number.isFinite(entry.result.downloads) ? `${entry.result.downloads} downloads` : "downloads unavailable";
       const likes = Number.isFinite(entry.result.likes) ? `${entry.result.likes} likes` : "likes unavailable";
       meta.textContent = matches.length
-        ? `${downloads} / ${likes} / converted .slm metadata found`
-        : `${downloads} / ${likes} / conversion request needed`;
+        ? `${downloads} / ${likes} / MiniModel metadata match / local .slm import still required${hasPeerOffer ? " / peer offer proof found" : ""}`
+        : `${downloads} / ${likes} / model card only / Rust conversion required`;
       const actions = document.createElement("div");
       actions.className = "model-result-actions";
       const pageLink = document.createElement("a");
@@ -2934,7 +2957,7 @@
         actions.append(requestButton);
         const scriptButton = document.createElement("button");
         scriptButton.type = "button";
-        scriptButton.textContent = "Save Conversion Script";
+        scriptButton.textContent = "Save Rust Conversion Script";
         scriptButton.addEventListener("click", () => saveHfConversionScript(entry, matches));
         actions.append(scriptButton);
       }
@@ -2951,7 +2974,7 @@
       } else {
         const note = document.createElement("span");
         note.className = "model-result-meta";
-        note.textContent = "Convert to .slm before importing";
+        note.textContent = "Not runnable here until Rust converts and verifies a local .slm";
         actions.append(note);
       }
       item.append(title, meta, actions);
@@ -2968,6 +2991,7 @@
     el.simpleHfResults.replaceChildren();
     for (const entry of accepted) {
       const matches = hfP2pMatches(entry.modelId);
+      const hasPeerOffer = matches.some((match) => Boolean(match.peerOfferRoute));
       const item = document.createElement("li");
       item.className = "model-result";
       const title = document.createElement("strong");
@@ -2976,8 +3000,8 @@
       meta.className = "model-result-meta";
       const downloads = Number.isFinite(entry.result.downloads) ? `${entry.result.downloads} downloads` : "downloads unavailable";
       meta.textContent = matches.length
-        ? `Hugging Face metadata / ${downloads} / converted .slm metadata found`
-        : `Hugging Face metadata / ${downloads} / not runnable here until .slm conversion`;
+        ? `Hugging Face metadata / ${downloads} / MiniModel metadata match / local .slm import required${hasPeerOffer ? " / peer offer proof found" : ""}`
+        : `Hugging Face metadata / ${downloads} / compatibility unknown until Rust conversion`;
       const actions = document.createElement("div");
       actions.className = "model-result-actions";
       const pageLink = document.createElement("a");
@@ -2990,10 +3014,12 @@
       const compatibility = document.createElement("span");
       compatibility.className = matches.length || slmFiles.length ? "compatibility-pill candidate" : "compatibility-pill convert";
       compatibility.textContent = matches.length
-        ? "MiniModel metadata found"
+        ? hasPeerOffer
+          ? "Peer proof, local .slm needed"
+          : "Catalog match, local .slm needed"
         : slmFiles.length
-          ? ".slm candidate found"
-          : "conversion required";
+          ? ".slm file listed, review first"
+          : "Rust conversion required";
       actions.append(compatibility);
       if (matches.length) {
         for (const match of matches.slice(0, 2)) {
@@ -3020,7 +3046,7 @@
       if (!matches.length) {
         const scriptButton = document.createElement("button");
         scriptButton.type = "button";
-        scriptButton.textContent = "Save Conversion Script";
+      scriptButton.textContent = "Save Rust Conversion Script";
         scriptButton.addEventListener("click", () => saveHfConversionScript(entry, matches));
         actions.append(scriptButton);
       }
@@ -3038,8 +3064,8 @@
         const note = document.createElement("span");
         note.className = "model-result-meta";
         note.textContent = matches.length
-          ? "Choose the matching local .slm when you already have it; P2P transfer is a later phase."
-          : "Convert once, then publish checksum-bound metadata for future P2P reuse.";
+          ? "Not downloaded here. Choose the matching local .slm; peer transfer will require a verified peer offer."
+          : "This is a model-card result. Convert locally, save peer-offer proof, then publish metadata for future P2P reuse.";
         actions.append(note);
       }
       item.append(title, meta, actions);
