@@ -2181,6 +2181,7 @@
       sourceHuggingFaceModelId: catalogText(raw.source_huggingface_model_id || raw.huggingface_model_id || raw.hf_model_id),
       sourceUrl: catalogText(raw.source_url || raw.huggingface_url || raw.upstream_url),
       peerHintStatus: catalogText(raw.peer_hint_status || raw.p2p_status || raw.transfer_status) || "disabled",
+      peerImportStatus: catalogText(raw.peer_import_status || raw.peer_transfer_status || raw.import_status),
       peerOfferRoute: catalogText(raw.peer_offer_route || raw.peer_offer_path),
       peerOfferSha256: normalizeCatalogSha256(raw.peer_offer_sha256 || raw.peer_offer_checksum),
       peerOfferChunkCount: catalogInteger(raw.peer_offer_chunk_count),
@@ -2229,7 +2230,7 @@
         entry.artifactSha256,
         entry.quantization || "quantization unavailable",
         entry.peerOfferRoute
-          ? `peer offer proof / ${entry.peerOfferChunkCount || "chunk count unknown"} chunks`
+          ? `peer proof ready / ${entry.peerOfferChunkCount || "chunk count unknown"} chunks / ${entry.peerImportStatus || "known peer URL required"}`
           : entry.peerHintStatus && entry.peerHintStatus !== "disabled"
             ? entry.peerHintStatus
             : "local file required"
@@ -2243,6 +2244,9 @@
         selectCatalogEntry(entry);
       });
       actions.append(selectButton);
+      if (entry.peerOfferRoute) {
+        actions.append(actionButton("P2P Import Request", () => importHfP2pMatch(entry), "primary-result-action"));
+      }
       for (const [label, route] of [["Manifest", entry.manifestRoute], ["Model Card", entry.modelCardRoute], ["License", entry.licenseRoute]]) {
         const href = catalogRouteUrl(entry, route);
         if (!href) {
@@ -2276,10 +2280,14 @@
       meta.textContent = [
         "MiniModel metadata",
         formatByteCount(entry.artifactByteCount),
-        entry.sourceKind || "verified source pending"
-      ].join(" / ");
+        entry.peerOfferRoute ? "P2P proof ready" : entry.sourceKind || "verified source pending",
+        entry.peerOfferRoute ? entry.peerImportStatus || "known peer URL required" : ""
+      ].filter(Boolean).join(" / ");
       const actions = document.createElement("div");
       actions.className = "model-result-actions";
+      if (entry.peerOfferRoute) {
+        actions.append(actionButton("P2P Import Request", () => importHfP2pMatch(entry), "primary-result-action"));
+      }
       const selectButton = document.createElement("button");
       selectButton.type = "button";
       selectButton.textContent = "Use Metadata";
@@ -2996,7 +3004,7 @@
   function hfAdvancedStatusText(view) {
     if (view.matches.length) {
       return view.hasPeerOffer
-        ? "Peer proof found, local .slm still required"
+        ? "P2P proof ready; peer URL required"
         : "Catalog match, local .slm needed";
     }
     if (view.slmFiles.length) {
@@ -3007,7 +3015,9 @@
 
   function hfAdvancedMetaText(view) {
     const sourceState = view.matches.length
-      ? "MiniModel metadata only; choose the matching local .slm before running"
+      ? view.hasPeerOffer
+        ? "MiniModel metadata has a peer-offer proof; Rust must fetch from a consenting peer, assemble, and reverify before import"
+        : "MiniModel metadata only; choose the matching local .slm before running"
       : "model card only; not runnable here until Rust conversion and local .slm verification";
     return `${view.downloads} / ${view.likes} / ${sourceState}`;
   }
@@ -3017,7 +3027,7 @@
       if (state.p2pEnabled === false) {
         return `Hugging Face model card / ${view.downloads} / P2P disabled; local conversion path selected`;
       }
-      return `Hugging Face model card / ${view.downloads} / MiniModel metadata found${view.hasPeerOffer ? " with peer proof" : ""}`;
+      return `Hugging Face model card / ${view.downloads} / ${view.hasPeerOffer ? "P2P proof ready; consenting peer URL required" : "MiniModel metadata found; local .slm needed"}`;
     }
     return `Hugging Face model card / ${view.downloads} / not compatible yet; Rust conversion required`;
   }
@@ -3031,7 +3041,7 @@
     }
     if (view.matches.length) {
       return view.hasPeerOffer
-        ? "Peer proof, local .slm needed"
+        ? "P2P proof ready"
         : "Catalog match, local .slm needed";
     }
     if (view.slmFiles.length) {
@@ -3042,7 +3052,7 @@
 
   function hfSimpleFallbackNote(view) {
     if (view.p2pMatch) {
-      return "P2P Import saves a peer-piece request and Rust fetch/verify script. It does not fetch project-hosted model bytes.";
+      return "P2P Import saves a peer-piece request and Rust fetch/verify script. You still enter a consenting peer URL; project servers never provide model bytes.";
     }
     if (view.matches.length && state.p2pEnabled === false) {
       return "P2P is disabled for this list, so conversion will use local/manual source files and may take a while.";
@@ -3129,6 +3139,7 @@
         "runtime smoke proof",
         "eval/admission evidence",
         "MiniModel manifest signature",
+        "MiniModel write-catalog-entry",
         "P2P peer availability metadata"
       ],
       existing_minimodel_matches: matches.map((match) => ({
@@ -3209,7 +3220,9 @@
       "# Optional after MiniModel admission creates a .minimodel.manifest.v0:",
       "$MiniModelManifest = \"EDIT_ME\\\\model.minimodel.manifest.v0\"",
       "$PeerPiecesDir = Join-Path $WorkDir \"peer-pieces\"",
+      `$MiniModelCatalogEntry = Join-Path $WorkDir ${powerShellSingleQuote(`${stem}.catalog-entry.v0.json`)}`,
       "Write-Host \"To become a consenting P2P source after admission, run these from MiniModel.org:\"",
+      "Write-Host \"  cargo run -p minimodel -- write-catalog-entry $MiniModelManifest $PeerOffer $MiniModelCatalogEntry $ModelId\"",
       "Write-Host \"  cargo run -p minimodel -- export-peer-pieces $MiniModelManifest $OutputSlm $PeerPiecesDir\"",
       "Write-Host \"  cargo run -p minimodel -- serve-peer-pieces $MiniModelManifest $PeerPiecesDir 127.0.0.1:8123\"",
       "",
@@ -3264,6 +3277,9 @@
       actions.append(externalActionLink("Review Model Card", hfModelUrl(entry.modelId)));
       if (view.matches.length) {
         for (const match of view.matches.slice(0, 2)) {
+          if (match.peerOfferRoute && state.p2pEnabled !== false) {
+            actions.append(actionButton("P2P Import Request", () => importHfP2pMatch(match), "primary-result-action"));
+          }
           actions.append(actionButton("Use MiniModel Metadata", () => selectCatalogEntry(match)));
         }
       } else {

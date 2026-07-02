@@ -1600,7 +1600,8 @@ function installHfSearchUiInterceptor(client) {
               artifact_project_server_url: null,
               project_server_serves_model_bytes: false,
               project_server_runs_model_bytes: false,
-              peer_hint_status: "metadata-only",
+              peer_hint_status: "peer-offer-ready-known-peer-needed",
+              peer_import_status: "request-script-ready",
               peer_offer_route: "../examples/example-tiny-ready-slm.minimodel-peer-offer",
               peer_offer_sha256: "sha256:abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd",
               peer_offer_chunk_count: 2,
@@ -1613,7 +1614,7 @@ function installHfSearchUiInterceptor(client) {
               license_route: "../LICENSE.txt",
               manifest_route: "../examples/minimodel.manifest.v0.example",
               evidence_admission_status: "metadata-only",
-              required_next_gate: "user-local-file-import-and-rust-wasm-validation",
+              required_next_gate: "known-consenting-peer-fetch-assemble-rust-reverify-before-browser-import",
               max_tokens: 16
             }
           ]
@@ -8713,6 +8714,9 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     if (!simpleActionTextAfterSearch.includes("P2P Import")) {
       failures.push(`peer-ready Hugging Face result did not offer P2P Import while P2P was on: ${simpleActionTextAfterSearch}`);
     }
+    if (!resultText.includes("P2P proof ready") || !resultText.includes("consenting peer URL required")) {
+      failures.push(`peer-ready Hugging Face result did not explain proof/peer URL state: ${resultText}`);
+    }
     if (!simpleActionTextAfterSearch.includes("Start Conversion")) {
       failures.push(`unmatched Hugging Face result did not offer Start Conversion: ${simpleActionTextAfterSearch}`);
     }
@@ -8808,6 +8812,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "validate-manifest",
       "peer-offer",
       "validate-peer-offer",
+      "write-catalog-entry",
       "export-peer-pieces",
       "serve-peer-pieces",
       ".minimodel-peer-offer",
