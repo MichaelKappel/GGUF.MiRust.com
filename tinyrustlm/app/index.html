@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TinyRustLM</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="./app.css?v=20260701-realmodelpath">
+  <link rel="stylesheet" href="./app.css?v=20260702-sidebarsetup">
 </head>
 <body>
   <svg class="icon-sprite" aria-hidden="true" focusable="false">
@@ -64,13 +64,29 @@
         </ol>
       </section>
 
-      <nav class="primary-nav" aria-label="Primary navigation">
-        <a href="#modelToolbar" aria-label="Models" data-tooltip="Models"><svg><use href="#icon-cube"></use></svg><span>Models</span></a>
-        <a href="#conversation" aria-label="Library" data-tooltip="Library"><svg><use href="#icon-book"></use></svg><span>Library</span></a>
-        <a href="#advancedOptionsTitle" aria-label="Tune" data-tooltip="Tune"><svg><use href="#icon-sliders"></use></svg><span>Tune</span></a>
-        <a href="#diagnostics" aria-label="Inspect" data-tooltip="Inspect"><svg><use href="#icon-search"></use></svg><span>Inspect</span></a>
-        <a href="#developer" aria-label="Developer" data-tooltip="Developer"><svg><use href="#icon-code"></use></svg><span>Developer</span></a>
-      </nav>
+      <section class="setup-section" aria-labelledby="modelSetupHeading">
+        <div class="sidebar-section-header">
+          <h2 id="modelSetupHeading">Model Setup</h2>
+        </div>
+        <div class="setup-step-list">
+          <button id="sidebarLocalSetupButton" class="setup-step" type="button" data-sidebar-source="local" data-tooltip="Local .slm" aria-pressed="true">
+            <svg aria-hidden="true"><use href="#icon-cube"></use></svg>
+            <span><strong>Local .slm</strong><small>Import and verify a file.</small></span>
+          </button>
+          <button id="sidebarHfSetupButton" class="setup-step" type="button" data-sidebar-source="huggingface" data-tooltip="Hugging Face">
+            <svg aria-hidden="true"><use href="#icon-search"></use></svg>
+            <span><strong>Hugging Face</strong><small>Find sources; Rust converts.</small></span>
+          </button>
+          <button id="sidebarP2pSetupButton" class="setup-step" type="button" data-sidebar-source="p2p" data-tooltip="P2P import">
+            <svg aria-hidden="true"><use href="#icon-network"></use></svg>
+            <span><strong>P2P import</strong><small>Use peer proof and manifests.</small></span>
+          </button>
+          <button id="sidebarAdvancedToolsButton" class="setup-step" type="button" data-sidebar-action="advanced" data-tooltip="Advanced tools">
+            <svg aria-hidden="true"><use href="#icon-sliders"></use></svg>
+            <span><strong>Advanced tools</strong><small>Verifier details and receipts.</small></span>
+          </button>
+        </div>
+      </section>
 
       <section class="local-status-card" aria-label="Local runtime status" data-tooltip="Local runtime ready">
         <span id="systemStatusDot" class="status-dot" aria-hidden="true"></span>
@@ -82,10 +98,10 @@
         <svg aria-hidden="true"><use href="#icon-chevron"></use></svg>
       </section>
 
-      <div class="sidebar-utilities" aria-label="Utilities">
-        <button class="icon-button" type="button" aria-label="Settings" data-tooltip="Settings"><svg><use href="#icon-gear"></use></svg></button>
-        <button class="icon-button" type="button" aria-label="Help" data-tooltip="Help"><svg><use href="#icon-help"></use></svg></button>
-        <button class="icon-button" type="button" aria-label="Theme" data-tooltip="Theme"><svg><use href="#icon-sun"></use></svg></button>
+      <div class="sidebar-utilities" aria-label="Documentation and tools">
+        <a class="icon-button" href="https://TinyRustLM.MiRust.com/" target="_blank" rel="noopener" aria-label="Runtime docs" data-tooltip="Runtime docs"><svg><use href="#icon-book"></use></svg></a>
+        <a class="icon-button" href="https://MiniModel.MiRust.com/" target="_blank" rel="noopener" aria-label="MiniModel docs" data-tooltip="MiniModel docs"><svg><use href="#icon-network"></use></svg></a>
+        <button class="icon-button" type="button" data-sidebar-action="advanced" aria-label="Advanced tools" data-tooltip="Advanced tools"><svg><use href="#icon-sliders"></use></svg></button>
       </div>
     </aside>
 
@@ -517,6 +533,6 @@
       <span id="currentModelSummary" class="model-summary">No model loaded</span>
     </footer>
   </main>
-  <script src="./app.js?v=20260702-realworkflow"></script>
+  <script src="./app.js?v=20260702-sidebarsetup"></script>
 </body>
 </html>

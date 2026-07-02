@@ -2037,6 +2037,8 @@ async function runPageSourceOptionsSmoke(client) {
         starterLabels: Array.from(document.querySelectorAll(".starter-action")).map((button) => button.textContent.replace(/\\s+/g, " ").trim()),
         modeButtonLabels: Array.from(document.querySelectorAll(".mode-button")).map((button) => button.textContent.replace(/\\s+/g, " ").trim()),
         sourceLabels: Array.from(document.querySelectorAll("[data-source-option]")).map((button) => button.textContent.replace(/\\s+/g, " ").trim()),
+        setupLabels: Array.from(document.querySelectorAll(".setup-step")).map((button) => button.textContent.replace(/\\s+/g, " ").trim()),
+        setupPressed: Array.from(document.querySelectorAll("[data-sidebar-source]")).filter((button) => button.getAttribute("aria-pressed") === "true").map((button) => button.dataset.sidebarSource),
         status: byId("simpleDiscoveryStatus") ? byId("simpleDiscoveryStatus").textContent : ""
       }));
       for (let index = 0; index < 600; index += 1) {
@@ -2050,6 +2052,20 @@ async function runPageSourceOptionsSmoke(client) {
         await sleep(100);
       }
       const initial = snapshot("initial");
+      byId("sidebarHfSetupButton").click();
+      await sleep(50);
+      const sidebarHf = snapshot("sidebar-hf");
+      byId("sidebarP2pSetupButton").click();
+      await sleep(50);
+      const sidebarP2p = snapshot("sidebar-p2p");
+      byId("sidebarLocalSetupButton").click();
+      await sleep(50);
+      const sidebarLocal = snapshot("sidebar-local");
+      byId("sidebarAdvancedToolsButton").click();
+      await sleep(50);
+      const sidebarAdvanced = snapshot("sidebar-advanced");
+      byId("simpleModeButton").click();
+      await sleep(50);
       byId("simpleHfSourceButton").click();
       await sleep(50);
       const external = snapshot("external");
@@ -2062,7 +2078,7 @@ async function runPageSourceOptionsSmoke(client) {
       byId("advancedModeButton").click();
       await sleep(50);
       const advanced = snapshot("advanced");
-      return JSON.stringify({ initial, external, p2p, local, advanced });
+      return JSON.stringify({ initial, sidebarHf, sidebarP2p, sidebarLocal, sidebarAdvanced, external, p2p, local, advanced });
     })()
   `;
   const result = await client.send("Runtime.evaluate", {
@@ -8912,8 +8928,9 @@ function assertUiAudit(result, networkRequests) {
 function assertSourceOptionsSmoke(result, networkRequests) {
   const failures = [];
   const requiredLabels = ["Your Local Files", "Hugging Face", "P2P Exchange"];
+  const requiredSetupLabels = ["Local .slm", "Hugging Face", "P2P import", "Advanced tools"];
   const requiredStarterCards = ["Summarize this article", "Explain code", "Rewrite text", "Generate JSON"];
-  if (!result || !result.initial || !result.external || !result.p2p || !result.local || !result.advanced) {
+  if (!result || !result.initial || !result.sidebarHf || !result.sidebarP2p || !result.sidebarLocal || !result.sidebarAdvanced || !result.external || !result.p2p || !result.local || !result.advanced) {
     failures.push("source-option result was incomplete");
   } else {
     if (result.initial.mode !== "simple") {
@@ -8943,6 +8960,23 @@ function assertSourceOptionsSmoke(result, networkRequests) {
       if (!result.initial.sourceLabels.some((text) => text.includes(label))) {
         failures.push(`missing source option ${label}`);
       }
+    }
+    for (const label of requiredSetupLabels) {
+      if (!result.initial.setupLabels.some((text) => text.includes(label))) {
+        failures.push(`missing sidebar setup action ${label}: ${JSON.stringify(result.initial.setupLabels)}`);
+      }
+    }
+    if (result.sidebarHf.mode !== "simple" || result.sidebarHf.activeSource !== "huggingface" || !result.sidebarHf.discoveryVisible || !result.sidebarHf.hfVisible || !result.sidebarHf.setupPressed.includes("huggingface")) {
+      failures.push(`sidebar Hugging Face setup state was ${JSON.stringify(result.sidebarHf)}`);
+    }
+    if (result.sidebarP2p.mode !== "simple" || result.sidebarP2p.activeSource !== "p2p" || !result.sidebarP2p.discoveryVisible || !result.sidebarP2p.p2pVisible || !result.sidebarP2p.setupPressed.includes("p2p")) {
+      failures.push(`sidebar P2P setup state was ${JSON.stringify(result.sidebarP2p)}`);
+    }
+    if (result.sidebarLocal.mode !== "simple" || result.sidebarLocal.activeSource !== "local" || !result.sidebarLocal.discoveryVisible || !result.sidebarLocal.localVisible || !result.sidebarLocal.setupPressed.includes("local")) {
+      failures.push(`sidebar local setup state was ${JSON.stringify(result.sidebarLocal)}`);
+    }
+    if (result.sidebarAdvanced.mode !== "advanced" || !result.sidebarAdvanced.railVisible || result.sidebarAdvanced.discoveryVisible) {
+      failures.push(`sidebar advanced setup state was ${JSON.stringify(result.sidebarAdvanced)}`);
     }
     if (result.external.mode !== "simple" || result.external.activeSource !== "huggingface" || !result.external.discoveryVisible || !result.external.hfVisible) {
       failures.push(`external source state was ${JSON.stringify(result.external)}`);

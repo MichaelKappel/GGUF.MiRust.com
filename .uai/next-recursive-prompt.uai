@@ -1,7 +1,7 @@
-profile: runtime-mirust.next-recursive-prompt.v20
-updated_utc: 2026-07-02T22:30:00Z
+profile: runtime-mirust.next-recursive-prompt.v21
+updated_utc: 2026-07-03T04:20:00Z
 prompt: >
-  Continue in E:\Source\Rust\SLMComposer.com as the active Rust workspace for TinyRustLM, with E:\Source\Rust\MiniModel.org as the MiniModel.org site workspace. The site-folder split, source-control cleanup, MiniModel intake processing, Hugging Face option routing, roadmap, metadata-only MiniModel catalog endpoint, TinyRustLM catalog-to-local-file import slice, Chat/Advanced Tools dashboard redesign, local Hugging Face conversion-script handoff, one-command Hugging Face `convert-huggingface-request` flow, Rust `.minimodel-peer-offer` proof commands, the first MiniModel local Rust verifier (`minimodel-core` plus `minimodel` CLI), local peer-piece export/reassembly, direct known-peer HTTP `fetch-peer-pieces`, TinyRustLM.com root app route, Hugging Face/P2P enterprise quality refactor, TinyRustLM `P2P Import` peer-import request/script handoff, MiniModel `add-peer-source`, MiniModel `write-peer-source-announcement`/`apply-peer-source-announcements`, MiniModel `write-catalog-snapshot-with-announcements` batch publication, TinyRustLM local peer-source announcement overlay, and TinyRustLM same-origin SHA-256-bound catalog announcement feed routes are complete in local source. TinyRustLM.com and documentation sites should be deployed from source only after docs are updated and live proof is run. Start the next work by deciding the smallest peer-discovery or peer-offer publication slice that can make consenting peer endpoints discoverable without adding project-server model bytes. Keep TinyRustLM browser-local and keep project servers metadata-only: no server-side user model execution and no project-server user model bytes.
+  Continue in E:\Source\Rust\SLMComposer.com as the active Rust workspace for TinyRustLM, with E:\Source\Rust\MiniModel.org as the MiniModel.org site workspace. The site-folder split, source-control cleanup, MiniModel intake processing, Hugging Face option routing, roadmap, metadata-only MiniModel catalog endpoint, TinyRustLM catalog-to-local-file import slice, Chat/Advanced Tools dashboard redesign, real Model Setup sidebar, local Hugging Face conversion-script handoff, one-command Hugging Face `convert-huggingface-request` flow, Rust `.minimodel-peer-offer` proof commands, the first MiniModel local Rust verifier (`minimodel-core` plus `minimodel` CLI), local peer-piece export/reassembly, direct known-peer HTTP `fetch-peer-pieces`, TinyRustLM.com root app route, Hugging Face/P2P enterprise quality refactor, TinyRustLM `P2P Import` peer-import request/script handoff, MiniModel `add-peer-source`, MiniModel `write-peer-source-announcement`/`apply-peer-source-announcements`, MiniModel `write-catalog-snapshot-with-announcements` batch publication, TinyRustLM local peer-source announcement overlay, and TinyRustLM same-origin SHA-256-bound catalog announcement feed routes are complete in local source. TinyRustLM.com and documentation sites should be deployed from source only after docs are updated and live proof is run. Start the next work by deciding the smallest peer-discovery or peer-offer publication slice that can make consenting peer endpoints discoverable without adding project-server model bytes. Keep TinyRustLM browser-local and keep project servers metadata-only: no server-side user model execution and no project-server user model bytes.
 primary_goal: >
   Move from local peer-piece export/reassembly into the first consent-based peer-transfer network design slice while preserving the verifier as the authority: peers may provide chunks later, but local Rust verification and receipts remain mandatory before TinyRustLM import.
 required_context:
@@ -34,6 +34,7 @@ required_context:
   - wiki/runtime-mirust/reports/tinyrustlm-minimodel-batch-announcement-snapshot-memory-2026-07-02.md
   - wiki/runtime-mirust/reports/tinyrustlm-peer-source-announcement-overlay-memory-2026-07-02.md
   - wiki/runtime-mirust/reports/tinyrustlm-catalog-announcement-feed-memory-2026-07-02.md
+  - wiki/runtime-mirust/reports/tinyrustlm-sidebar-model-setup-memory-2026-07-02.md
   - E:\Source\Rust\MiniModel.org\ROADMAP.md
   - E:\Source\Rust\MiniModel.org\docs\manifest-v0.md
   - E:\Source\Rust\MiniModel.org\docs\verifier-mvp.md
@@ -58,6 +59,7 @@ processed_intake_routes:
   tinyrustlm_minimodel_batch_announcement_snapshot: wiki/runtime-mirust/reports/tinyrustlm-minimodel-batch-announcement-snapshot-memory-2026-07-02.md
   tinyrustlm_peer_source_announcement_overlay: wiki/runtime-mirust/reports/tinyrustlm-peer-source-announcement-overlay-memory-2026-07-02.md
   tinyrustlm_catalog_announcement_feed: wiki/runtime-mirust/reports/tinyrustlm-catalog-announcement-feed-memory-2026-07-02.md
+  tinyrustlm_sidebar_model_setup: wiki/runtime-mirust/reports/tinyrustlm-sidebar-model-setup-memory-2026-07-02.md
   minimodel_site_roadmap: E:\Source\Rust\MiniModel.org\ROADMAP.md
   source_site_result: processed source-site copies removed from agent-file-handoff/Improvement/ after byte-exact preservation and pointer updates.
 roadmap_guardrails:
@@ -73,6 +75,7 @@ roadmap_guardrails:
   - 2026-07-02 intake reports are preserved under `docs/report-intake/2026-07-02/` with synthesis `tinyrustlm-minimodel-intake-synthesis-2026-07-02.md`; keep broad P2P discovery/Iroh/relays as roadmap and current direct known-peer Rust handoffs as the only implemented byte path.
   - Keep TinyRustLM.com `/` as the canonical public app route; `/app/` can remain a secondary route, but docs and deploy proof should target root.
   - Keep the Hugging Face UI row state centralized through shared helpers; do not reintroduce divergent simple/advanced compatibility text or per-row simple conversion controls.
+  - Keep the left sidebar as real Model Setup routing only: Local .slm, Hugging Face, P2P import, Advanced tools, and documentation links. Do not reintroduce placeholder Library/Tune/Theme/settings-style controls unless they are backed by implemented behavior and tests.
   - Legal/liability boundaries must keep MiniModel.org as metadata/catalog guidance until legal review; no claims that third-party models are safe, legal, or endorsed.
   - Secure manifests must be checksum-bound and route source identity, model cards, license, tokenizer/config, eval/admission evidence, chunk/Merkle data, and signatures.
   - Tiny-model creation/import stays tied to TinyRustLM local review, conversion, validation, runtime-smoke, eval, admission, and local import receipts.

@@ -1,5 +1,5 @@
-profile: runtime-mirust.report-synthesis.v141
-updated_utc: 2026-07-02T22:30:00Z
+profile: runtime-mirust.report-synthesis.v142
+updated_utc: 2026-07-03T04:20:00Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/runtime-mirust/report-intake-2026-06-25/
@@ -35,6 +35,7 @@ source_authority:
     - wiki/runtime-mirust/reports/tinyrustlm-minimodel-add-peer-source-intake-memory-2026-07-02.md
     - wiki/runtime-mirust/reports/tinyrustlm-minimodel-peer-source-announcement-memory-2026-07-02.md
     - wiki/runtime-mirust/reports/tinyrustlm-catalog-announcement-feed-memory-2026-07-02.md
+    - wiki/runtime-mirust/reports/tinyrustlm-sidebar-model-setup-memory-2026-07-02.md
     - wiki/runtime-mirust/reports/tinylm16-bpe-safetensors-plan-memory-2026-06-30.md
     - wiki/runtime-mirust/reports/enterprise-rust-governance-memory-2026-06-25.md
     - wiki/runtime-mirust/reports/browser-local-runtime-memory-2026-06-25.md
@@ -228,11 +229,12 @@ docs_report_intake_2026_07_02:
   batch_announcement_snapshot_route: wiki/runtime-mirust/reports/tinyrustlm-minimodel-batch-announcement-snapshot-memory-2026-07-02.md
   peer_source_announcement_overlay_route: wiki/runtime-mirust/reports/tinyrustlm-peer-source-announcement-overlay-memory-2026-07-02.md
   catalog_announcement_feed_route: wiki/runtime-mirust/reports/tinyrustlm-catalog-announcement-feed-memory-2026-07-02.md
+  sidebar_model_setup_route: wiki/runtime-mirust/reports/tinyrustlm-sidebar-model-setup-memory-2026-07-02.md
   source_bucket: E:\Source\Rust\TinyRustLM.com\agent-file-handoff\Improvement\
   source_count: 6
   disposition: preserved-to-docs-and-source-site-copies-removed
   synthesis: The batch routes local-first TinyRustLM UX, Hugging Face metadata plus local conversion, `.slm` format documentation pressure, MiniModel metadata-only P2P, direct known-peer Rust handoffs, Iroh/libp2p/Pear/Bare/Hyper as roadmap tradeoffs, and no-server-model-byte boundaries.
-  implementation_use: Use this docs batch before changing Hugging Face conversion handoffs, MiniModel peer-source metadata, local peer-source announcement overlays, catalog-declared announcement feed routes, batch catalog publication, P2P-ready catalog claims, beginner source UX, `.slm` documentation, or legal/security copy; keep broad DHT/relay/browser seeding claims as roadmap until implemented.
+  implementation_use: Use this docs batch before changing Hugging Face conversion handoffs, MiniModel peer-source metadata, local peer-source announcement overlays, catalog-declared announcement feed routes, batch catalog publication, P2P-ready catalog claims, beginner source UX including the Model Setup sidebar, `.slm` documentation, or legal/security copy; keep broad DHT/relay/browser seeding claims as roadmap until implemented.
 huggingface_api_source_options_2026_07_01:
   route: wiki/runtime-mirust/research/huggingface-api-source-options-2026-07-01.md
   source_report: docs/report-intake/2026-07-01/Hugging Face API Endpoint Overview.md
@@ -261,6 +263,10 @@ tinyrustlm_peer_offer_source_clarity_2026_07_02:
   route: wiki/runtime-mirust/reports/tinyrustlm-peer-offer-source-clarity-memory-2026-07-02.md
   checksum_sha256: B9A7200F6AA1B8F0A328502E46FFD980E419E7E66AA8E943066AF1FCBC9E7BBF
   synthesis: Rust now writes and validates deterministic `.minimodel-peer-offer` proof, generated Hugging Face conversion scripts include `peer-offer` and `validate-peer-offer`, and the UI labels Hub rows as `Rust conversion required` or `Catalog match, local .slm needed` while proving Search Metadata stays open.
+tinyrustlm_sidebar_model_setup_2026_07_02:
+  route: wiki/runtime-mirust/reports/tinyrustlm-sidebar-model-setup-memory-2026-07-02.md
+  checksum_sha256: 4838349FA832A31B7F25A76872C03AE69DF58D5CFED00F78D5AE023577BC97CE
+  synthesis: TinyRustLM left sidebar now routes to real Model Setup actions for Local .slm, Hugging Face, P2P import, and Advanced tools, removes placeholder Library/Tune/Theme/settings-style affordances, keeps docs links real, and extends `source-options-ui` to prove those actions open implemented panels without implicit Hugging Face or MiniModel network access.
 dare_operator_2026_06_29:
   route: wiki/runtime-mirust/reports/dare-operator-memory-2026-06-29.md
   synthesis: DARE now has an offline `dare-candidate` and `validate-dare-candidate` receipt lane with signed task-delta weights, keep/drop ppm, dropout seed, mask checksum, raw delta checksum, rescaled delta checksum, focused parameter tests, and q8 CLI proof before downstream candidate manifests.

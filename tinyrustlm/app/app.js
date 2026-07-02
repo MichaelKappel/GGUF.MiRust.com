@@ -890,6 +890,10 @@
       const selected = button.dataset.sourceOption === nextOption;
       button.setAttribute("aria-pressed", String(selected));
     });
+    document.querySelectorAll("[data-sidebar-source]").forEach((button) => {
+      const selected = button.dataset.sidebarSource === nextOption;
+      button.setAttribute("aria-pressed", String(selected));
+    });
     document.querySelectorAll("[data-source-panel]").forEach((panel) => {
       panel.hidden = panel.dataset.sourcePanel !== nextOption;
     });
@@ -1095,6 +1099,27 @@
       button.title = collapsed ? "Expand sidebar" : "Collapse sidebar";
     }
     storageSet(uiStorageKeys.sidebarCollapsed, String(Boolean(collapsed)));
+  }
+
+  function openSidebarSource(option) {
+    setAppMode("simple");
+    setSimpleSourceOption(option, true);
+    toggleModelPopover(true);
+    holdModelPopoverOpen(2500);
+  }
+
+  function openSidebarAdvancedTools() {
+    setAppMode("advanced");
+    setRailCollapsed(false);
+    toggleModelPopover(false);
+    const drawer = document.querySelector('[data-panel-key="dashboard-model-source"]')
+      || document.getElementById("advancedOptionsTitle");
+    if (drawer && "open" in drawer) {
+      drawer.open = true;
+    }
+    if (drawer && typeof drawer.scrollIntoView === "function") {
+      drawer.scrollIntoView({ block: "nearest" });
+    }
   }
 
   function useStarterPrompt(button) {
@@ -1441,6 +1466,12 @@
     }
     document.querySelectorAll("[data-source-option]").forEach((button) => {
       button.addEventListener("click", () => setSimpleSourceOption(button.dataset.sourceOption, true));
+    });
+    document.querySelectorAll("[data-sidebar-source]").forEach((button) => {
+      button.addEventListener("click", () => openSidebarSource(button.dataset.sidebarSource));
+    });
+    document.querySelectorAll('[data-sidebar-action="advanced"]').forEach((button) => {
+      button.addEventListener("click", () => openSidebarAdvancedTools());
     });
     if (el.simpleChooseLocalButton) {
       el.simpleChooseLocalButton.addEventListener("click", () => {
