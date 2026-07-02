@@ -1,5 +1,5 @@
-profile: runtime-mirust.report-synthesis.v137
-updated_utc: 2026-07-02T05:38:09Z
+profile: runtime-mirust.report-synthesis.v138
+updated_utc: 2026-07-02T23:59:00Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/runtime-mirust/report-intake-2026-06-25/
@@ -15,6 +15,9 @@ source_authority:
   docs_report_synthesis_2026_07_01: docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md
   docs_report_slmcomposer_ui_plan_2026_07_01: docs/report-intake/2026-07-01/SLM Composer UI Improvement Plan.md
   docs_report_slmcomposer_dashboard_synthesis_2026_07_01: docs/report-intake/2026-07-01/slmcomposer-dashboard-ui-synthesis-2026-07-01.md
+  docs_report_intake_2026_07_02: docs/report-intake/2026-07-02/
+  docs_report_manifest_2026_07_02: docs/report-intake/2026-07-02/MANIFEST.md
+  docs_report_synthesis_2026_07_02: docs/report-intake/2026-07-02/tinyrustlm-minimodel-intake-synthesis-2026-07-02.md
   raw_manifest: raw/runtime-mirust/MANIFEST.md
   durable_index: wiki/runtime-mirust/reports/report-intake-index-2026-06-25.md
   durable_index_2026_06_26: wiki/runtime-mirust/reports/report-intake-index-2026-06-26.md
@@ -29,6 +32,8 @@ source_authority:
     - wiki/runtime-mirust/reports/slmcomposer-local-ai-dashboard-memory-2026-07-01.md
     - wiki/runtime-mirust/reports/tinyrustlm-huggingface-conversion-script-memory-2026-07-02.md
     - wiki/runtime-mirust/reports/tinyrustlm-peer-offer-source-clarity-memory-2026-07-02.md
+    - wiki/runtime-mirust/reports/tinyrustlm-minimodel-add-peer-source-intake-memory-2026-07-02.md
+    - wiki/runtime-mirust/reports/tinyrustlm-minimodel-peer-source-announcement-memory-2026-07-02.md
     - wiki/runtime-mirust/reports/tinylm16-bpe-safetensors-plan-memory-2026-06-30.md
     - wiki/runtime-mirust/reports/enterprise-rust-governance-memory-2026-06-25.md
     - wiki/runtime-mirust/reports/browser-local-runtime-memory-2026-06-25.md
@@ -214,6 +219,16 @@ docs_report_intake_2026_07_01:
   disposition: preserved-to-docs-and-source-site-copies-removed
   synthesis: The batch routes MiniModel.org Rust-first P2P exchange, legal/liability boundary, checksum-bound manifest design, Pear/Bare/Hyper tradeoffs, tiny-model creation/import, Hugging Face external discovery, and no-server-model-bytes rules.
   implementation_use: Use this docs batch before MiniModel.org catalog, manifest, verifier, peer-transfer, legal-warning, Hugging Face discovery, source-option, or SLMComposer import work; keep SLMComposer browser-local and project servers metadata-only.
+docs_report_intake_2026_07_02:
+  manifest: docs/report-intake/2026-07-02/MANIFEST.md
+  synthesis_route: docs/report-intake/2026-07-02/tinyrustlm-minimodel-intake-synthesis-2026-07-02.md
+  add_peer_source_route: wiki/runtime-mirust/reports/tinyrustlm-minimodel-add-peer-source-intake-memory-2026-07-02.md
+  peer_source_announcement_route: wiki/runtime-mirust/reports/tinyrustlm-minimodel-peer-source-announcement-memory-2026-07-02.md
+  source_bucket: E:\Source\Rust\TinyRustLM.com\agent-file-handoff\Improvement\
+  source_count: 6
+  disposition: preserved-to-docs-and-source-site-copies-removed
+  synthesis: The batch routes local-first TinyRustLM UX, Hugging Face metadata plus local conversion, `.slm` format documentation pressure, MiniModel metadata-only P2P, direct known-peer Rust handoffs, Iroh/libp2p/Pear/Bare/Hyper as roadmap tradeoffs, and no-server-model-byte boundaries.
+  implementation_use: Use this docs batch before changing Hugging Face conversion handoffs, MiniModel peer-source metadata, P2P-ready catalog claims, beginner source UX, `.slm` documentation, or legal/security copy; keep broad DHT/relay/browser seeding claims as roadmap until implemented.
 huggingface_api_source_options_2026_07_01:
   route: wiki/runtime-mirust/research/huggingface-api-source-options-2026-07-01.md
   source_report: docs/report-intake/2026-07-01/Hugging Face API Endpoint Overview.md

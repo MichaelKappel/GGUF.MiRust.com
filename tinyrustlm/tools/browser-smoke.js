@@ -9026,6 +9026,12 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       if (!String(conversionRequest.local_conversion.peer_source_shape || "").includes("add-peer-source")) {
         failures.push(`conversion request peer source shape did not use add-peer-source: ${conversionRequest.local_conversion.peer_source_shape}`);
       }
+      if (!String(conversionRequest.local_conversion.peer_source_announcement_shape || "").includes("write-peer-source-announcement")) {
+        failures.push(`conversion request announcement shape did not use write-peer-source-announcement: ${conversionRequest.local_conversion.peer_source_announcement_shape}`);
+      }
+      if (!String(conversionRequest.local_conversion.peer_source_apply_shape || "").includes("apply-peer-source-announcements")) {
+        failures.push(`conversion request announcement apply shape did not use apply-peer-source-announcements: ${conversionRequest.local_conversion.peer_source_apply_shape}`);
+      }
     }
     const scriptText = String(result.conversionScriptText || "");
     if (!String(result.conversionScriptName || "").endsWith(".tinyrustlm-convert.ps1")) {
@@ -9035,6 +9041,8 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "convert-huggingface-request",
       "prepare-peer-share",
       "add-peer-source",
+      "write-peer-source-announcement",
+      "apply-peer-source-announcements",
       "write-catalog-snapshot",
       "serve-peer-pieces",
       "Hugging Face metadata source-file candidates",
@@ -9048,6 +9056,8 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "EDIT_ME\\\\MiniModel.org",
       "KnownPeerBaseUrl",
       "MiniModelCatalogEntryWithPeer",
+      "MiniModelCatalogEntryForSnapshot",
+      "MiniModelPeerSourceAnnouncement",
       "MiniModelCatalogSnapshot",
       "models.v0.json",
       "TinyRustLM.com"
@@ -9060,6 +9070,9 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       if (scriptText.includes(`-- ${lowLevelCommand}`)) {
         failures.push(`conversion script still made users run low-level ${lowLevelCommand}: ${scriptText}`);
       }
+    }
+    if (scriptText.includes("$PrepareArgs += $KnownPeerBaseUrl")) {
+      failures.push(`conversion script passed peer URL into prepare-peer-share before add-peer-source: ${scriptText}`);
     }
     if (scriptText.includes("Invoke-WebRequest") || scriptText.includes("huggingface.co/api")) {
       failures.push(`conversion script attempted remote download/API behavior: ${scriptText}`);

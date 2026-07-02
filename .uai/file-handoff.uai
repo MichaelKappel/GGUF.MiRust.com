@@ -1,5 +1,5 @@
-profile: runtime-mirust.file-handoff.v27
-updated_utc: 2026-07-01T22:25:00Z
+profile: runtime-mirust.file-handoff.v28
+updated_utc: 2026-07-02T23:59:00Z
 handoff_root: agent-file-handoff/
 active_buckets:
   content: agent-file-handoff/Content/
@@ -27,6 +27,7 @@ durable_preservation:
   target: raw/runtime-mirust/
   docs_target_2026_06_30: docs/report-intake/2026-06-30/
   docs_target_2026_07_01: docs/report-intake/2026-07-01/
+  docs_target_2026_07_02: docs/report-intake/2026-07-02/
   public_target: https://aiwikis.org/runtime-mirust/files/
   manifest: raw/runtime-mirust/MANIFEST.md
   checksum_required: true
@@ -43,6 +44,7 @@ strategy_refresh_2026_06_28:
   safetensors_tokenizer_budget_reference_rule_2026_06_29: Follow-up safetensors, tokenizer, browser byte-budget, WASM hot-loop, model-breeding metadata, and reference-output fixture research routes through raw/runtime-mirust/report-intake-2026-06-29-followup/, wiki/runtime-mirust/reports/report-intake-index-2026-06-29-followup.md, and wiki/runtime-mirust/research/safetensors-tokenizer-budget-reference-ideas-2026-06-29.md before conversion, tokenizer, budget, or fixture work.
   minimodel_p2p_docs_rule_2026_07_01: MiniModel.org P2P exchange research routes through docs/report-intake/2026-07-01/MANIFEST.md, docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md, and wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md; project servers never run or serve user model bytes, and SLMComposer remains browser-local.
   huggingface_source_options_rule_2026_07_01: Hugging Face API option research routes through docs/report-intake/2026-07-01/Hugging Face API Endpoint Overview.md and wiki/runtime-mirust/research/huggingface-api-source-options-2026-07-01.md; use Hugging Face as user-triggered metadata/source discovery only, not project-server byte proxying or remote inference.
+  tinyrustlm_minimodel_intake_rule_2026_07_02: TinyRustLM/MiniModel improvement research routes through docs/report-intake/2026-07-02/MANIFEST.md, docs/report-intake/2026-07-02/tinyrustlm-minimodel-intake-synthesis-2026-07-02.md, and the add-peer-source plus peer-source-announcement memory reports; treat Iroh/broad discovery as roadmap and current direct known-peer Rust handoffs as the implemented byte path.
   voice_memory_rule: Public-copy voice routes through .uai/taboo.uai before model-breeding, mutualist, tiny-ecology, or UAIX strategy copy is published; use proof, craft, lineage, fit, local agency, routes, and implementation evidence.
 uaix_cleanup_correction_2026_06_30:
   source: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
@@ -53,20 +55,51 @@ uaix_cleanup_correction_2026_06_30:
   proof: Nine Improvement reports were copied byte-for-byte to docs/report-intake/2026-06-30/ with SHA256 verification, then removed from agent-file-handoff/Improvement/; current scan sees Content=0 and Improvement=0.
   next_agent_action: Treat non-placeholder files in Content/Improvement as pending intake; do not call handoff complete until each has disposition, proof-of-use, durable preservation when accepted, and source-site removal or a real keep-active blocker.
 current_scan:
-  scanned_utc: 2026-07-01T22:25:00Z
+  scanned_utc: 2026-07-02T23:59:00Z
   workspace_checked: E:\Source\Rust\SLMComposer.com
   content_bucket_non_placeholder_files: 0
   improvement_bucket_non_placeholder_files: 0
   misplaced_root_files: 0
-  status: processed_2026_07_01_minimodel_huggingface_slmcomposer_ui_batch
-  action: User authorized intake processing; seven MiniModel.org Improvement reports, one Hugging Face API option report, the SLM Composer UI plan, and the dashboard redesign batch were copied byte-exact to docs/report-intake/2026-07-01/, synthesized, routed into durable memory/product guidance, and removed from active intake.
+  status: processed_2026_07_02_tinyrustlm_minimodel_batch
+  action: Six TinyRustLM/MiniModel Improvement reports from TinyRustLM.com were copied byte-exact to docs/report-intake/2026-07-02/, synthesized, routed into durable memory/product guidance, used for MiniModel peer-source publication work, and removed from active intake.
   keep_active_reason: none
-  durable_manifest: docs/report-intake/2026-07-01/MANIFEST.md
-  durable_synthesis: docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md
-  durable_dashboard_synthesis: docs/report-intake/2026-07-01/slmcomposer-dashboard-ui-synthesis-2026-07-01.md
+  durable_manifest: docs/report-intake/2026-07-02/MANIFEST.md
+  durable_synthesis: docs/report-intake/2026-07-02/tinyrustlm-minimodel-intake-synthesis-2026-07-02.md
   durable_roadmap: wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md
-  durable_dashboard_memory: wiki/runtime-mirust/reports/slmcomposer-local-ai-dashboard-memory-2026-07-01.md
-  processed_improvement_files:
+  durable_add_peer_source_memory: wiki/runtime-mirust/reports/tinyrustlm-minimodel-add-peer-source-intake-memory-2026-07-02.md
+  durable_peer_source_announcement_memory: wiki/runtime-mirust/reports/tinyrustlm-minimodel-peer-source-announcement-memory-2026-07-02.md
+  processed_improvement_files_2026_07_02:
+    - path: TinyRustLM.com/agent-file-handoff/Improvement/Hugging Face to SLM Conversion Workflow.md
+      docs_copy: docs/report-intake/2026-07-02/Hugging Face to SLM Conversion Workflow.md
+      bytes: 35963
+      sha256: AC8C8D09112CFA372EDD5B5AB2429B1F98DD2CD4FB95D665F3C60672EC41EB50
+      route_hint: Hugging Face metadata, local `.safetensors` conversion, receipts, and P2P reuse boundaries.
+    - path: TinyRustLM.com/agent-file-handoff/Improvement/MiniModel P2P Architecture Research.md
+      docs_copy: docs/report-intake/2026-07-02/MiniModel P2P Architecture Research.md
+      bytes: 41818
+      sha256: A7335D466841CE2C009F630F926F3052320C6352106FDD6FFB9484F37F28166E
+      route_hint: MiniModel metadata-only architecture, consent, verifier authority, and no-server-byte enforcement.
+    - path: TinyRustLM.com/agent-file-handoff/Improvement/MiniModel P2P Technology Evaluation.md
+      docs_copy: docs/report-intake/2026-07-02/MiniModel P2P Technology Evaluation.md
+      bytes: 41743
+      sha256: FE1FDBED38F4DE6F65425E6C0C0A2719C31EFF4B22F0D9F62AEB63B99BF4585D
+      route_hint: Iroh, libp2p, BitTorrent-style chunks, and Pear/Bare/Hyper tradeoffs for later roadmap work.
+    - path: TinyRustLM.com/agent-file-handoff/Improvement/TinyRustLM Beginner UX Report.md
+      docs_copy: docs/report-intake/2026-07-02/TinyRustLM Beginner UX Report.md
+      bytes: 34847
+      sha256: 5648FE486ED5203240427D16D84A966DABEAD7F50CD96C794BEE0BA3A73E06A4
+      route_hint: Beginner local-first UX, progressive disclosure, honest P2P/conversion states, and no fake readiness.
+    - path: TinyRustLM.com/agent-file-handoff/Improvement/TinyRustLM Quality Improvement Plan.md
+      docs_copy: docs/report-intake/2026-07-02/TinyRustLM Quality Improvement Plan.md
+      bytes: 45437
+      sha256: 26D1AB0C9FD710FF0D5ACFFB1E1772C0E4D090A9CEB1D72EA8F21891C54AAC20
+      route_hint: Enterprise quality, deterministic verifier functions, docs, tests, and legal/security posture.
+    - path: TinyRustLM.com/agent-file-handoff/Improvement/TinyRustLM SLM Format Documentation.md
+      docs_copy: docs/report-intake/2026-07-02/TinyRustLM SLM Format Documentation.md
+      bytes: 31494
+      sha256: 81E5C28A605362DB514F500FFF9E5D175BAB178CAA558907E79652F95919F99A
+      route_hint: `.slm` documentation pressure, local validation, receipts, and exchange metadata expectations.
+  processed_improvement_files_2026_07_01:
     - path: agent-file-handoff/Improvement/Building Custom Tiny AI_ML Models.md
       docs_copy: docs/report-intake/2026-07-01/Building Custom Tiny AI_ML Models.md
       bytes: 58462

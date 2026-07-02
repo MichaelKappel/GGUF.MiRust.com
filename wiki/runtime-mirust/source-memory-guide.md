@@ -66,6 +66,8 @@ For Hugging Face conversion-request handoffs, load `reports/tinyrustlm-huggingfa
 
 For MiniModel late peer-source publication and the July 2 report intake synthesis, load `reports/tinyrustlm-minimodel-add-peer-source-intake-memory-2026-07-02.md` when `add-peer-source`, proof-ready versus P2P-ready catalog entries, generated conversion-script follow-up hints, `docs/report-intake/2026-07-02/`, Iroh-as-roadmap, or no-server-byte catalog availability claims are in scope.
 
+For MiniModel peer-source announcement publication, load `reports/tinyrustlm-minimodel-peer-source-announcement-memory-2026-07-02.md` when `write-peer-source-announcement`, `apply-peer-source-announcements`, portable converter availability metadata, catalog-maintainer drift checks, or converted-once P2P-ready publication is in scope.
+
 For SLMComposer progressive UI/source-option work, load `wiki/runtime-mirust/reports/slmcomposer-progressive-source-ui-memory-2026-07-01.md` when Chat/Advanced Tools mode behavior, Local/Hugging Face/P2P source choices, diagnostics rail grouping, run history, source-options browser smoke, local `.slm` import status copy, or stale-live deploy status is in scope.
 
 For first real tiny-model conversion planning, load `research/tiny-model-candidate-matrix-2026-06-29.md` when choosing Xenova 15M, Aurelius, StorySupra, Pythia, or a q4-only pressure route, or when adding converter fields for architecture, tokenizer, license route, byte budget, or first fixture proof.
