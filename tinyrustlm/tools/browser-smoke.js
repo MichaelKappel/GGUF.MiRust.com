@@ -14,6 +14,7 @@ const port = Number(process.argv[3] || 9223);
 const smokeMode = process.argv[5] || "single";
 const publicLocalOnlySmokeMode = smokeMode === "public-local-only";
 const hfSearchUiSmokeMode = smokeMode === "hf-search-ui";
+const shareMetadataSmokeMode = smokeMode === "share-metadata-ui";
 const catalogLocalImportSmokeMode = smokeMode === "catalog-local-import";
 const combinedSelectorOperatorFamilyRouteSoakMode = smokeMode === "combined-selector-operator-family-route-soak";
 const combinedSelectorOperatorFamilyReloadSoakMode = smokeMode === "combined-selector-operator-family-reload-soak";
@@ -2146,6 +2147,158 @@ function writeCatalogLocalImportFixture() {
   const catalogPath = path.join(os.tmpdir(), `tinyrustlm-catalog-local-import-${process.pid}.json`);
   fs.writeFileSync(catalogPath, `${JSON.stringify(catalog, null, 2)}\n`, "utf8");
   return { catalogPath, modelPath, sha256: `sha256:${sha256}`, modelBytes: modelBytes.length };
+}
+
+function writeShareMetadataFixture() {
+  const modelPath = path.join(__dirname, "..", "models", "tiny-test-model-q8.slm");
+  const modelBytes = fs.readFileSync(modelPath);
+  const sha256 = crypto.createHash("sha256").update(modelBytes).digest("hex");
+  const request = {
+    request_kind: "minimodel.huggingface_conversion_request.v0",
+    generated_at: "2026-07-02T00:00:00Z",
+    source: {
+      kind: "huggingface_model",
+      model_id: "example-org/tiny-source-model",
+      model_url: "https://huggingface.co/example-org/tiny-source-model",
+      downloads: 123,
+      likes: 7,
+      discovered_slm_files: []
+    },
+    requested_artifact: {
+      kind: "slm",
+      preferred_quantization_order: ["q8_0", "q4_0", "f32"],
+      runtime_target: "TinyRustLM Rust/WASM browser-local runtime"
+    },
+    boundary: {
+      project_server_runs_model_bytes: false,
+      project_server_serves_model_bytes: false
+    }
+  };
+  const requestPath = path.join(os.tmpdir(), `tinyrustlm-conversion-request-${process.pid}.json`);
+  fs.writeFileSync(requestPath, `${JSON.stringify(request, null, 2)}\n`, "utf8");
+  return { modelPath, requestPath, sha256: `sha256:${sha256}`, modelBytes: modelBytes.length };
+}
+
+async function runPageShareMetadataSmoke(client) {
+  const fixture = writeShareMetadataFixture();
+  try {
+    const waitExpression = `
+      (async () => {
+        const byId = (id) => document.getElementById(id);
+        const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        for (let index = 0; index < 600; index += 1) {
+          if (
+            byId("wasmState") &&
+            byId("wasmState").textContent === "loaded" &&
+            byId("conversionRequestFile") &&
+            byId("importConversionRequestButton") &&
+            byId("localModelFile") &&
+            byId("importLocalModelButton") &&
+            byId("saveShareMetadataButton")
+          ) {
+            return true;
+          }
+          await sleep(100);
+        }
+        throw new Error("runtime did not boot for share metadata smoke");
+      })()
+    `;
+    parseEvaluateValue(await client.send("Runtime.evaluate", {
+      expression: waitExpression,
+      awaitPromise: true,
+      returnByValue: true,
+      timeout: 90000
+    }));
+    await setFileInputFiles(client, "#conversionRequestFile", [fixture.requestPath]);
+    const conversionExpression = `
+      (async () => {
+        const byId = (id) => document.getElementById(id);
+        const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        byId("conversionRequestFile").dispatchEvent(new Event("change", { bubbles: true }));
+        byId("importConversionRequestButton").click();
+        for (let index = 0; index < 200; index += 1) {
+          if (byId("conversionRequestState").textContent.includes("example-org/tiny-source-model")) {
+            return true;
+          }
+          await sleep(50);
+        }
+        throw new Error("conversion request did not bind");
+      })()
+    `;
+    await client.send("Runtime.evaluate", {
+      expression: conversionExpression,
+      awaitPromise: true,
+      returnByValue: true,
+      timeout: 90000
+    });
+    await setFileInputFiles(client, "#localModelFile", [fixture.modelPath]);
+    const importAndExportExpression = `
+      (async () => {
+        const byId = (id) => document.getElementById(id);
+        const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        window.__tinyrustlmDownloads = [];
+        window.__tinyrustlmDownloadNames = [];
+        const originalCreateObjectUrl = URL.createObjectURL.bind(URL);
+        const originalRevokeObjectUrl = URL.revokeObjectURL.bind(URL);
+        URL.createObjectURL = (blob) => {
+          const url = originalCreateObjectUrl(blob);
+          blob.text().then((text) => window.__tinyrustlmDownloads.push({ text, type: blob.type }));
+          return url;
+        };
+        URL.revokeObjectURL = (url) => originalRevokeObjectUrl(url);
+        const originalAnchorClick = HTMLAnchorElement.prototype.click;
+        HTMLAnchorElement.prototype.click = function () {
+          window.__tinyrustlmDownloadNames.push(this.download || "");
+          return originalAnchorClick.call(this);
+        };
+        byId("localModelFile").dispatchEvent(new Event("change", { bubbles: true }));
+        byId("importLocalModelButton").click();
+        for (let index = 0; index < 600; index += 1) {
+          if (
+            byId("modelSelect").value === "__local_slm_file" &&
+            byId("localModelState").textContent.includes("loaded") &&
+            byId("runtimeStatus").textContent === "Ready" &&
+            !byId("saveShareMetadataButton").disabled
+          ) {
+            break;
+          }
+          await sleep(100);
+        }
+        byId("saveShareMetadataButton").click();
+        for (let index = 0; index < 600; index += 1) {
+          if (window.__tinyrustlmDownloads.length > 0) {
+            break;
+          }
+          await sleep(100);
+        }
+        const downloaded = window.__tinyrustlmDownloads[0] || { text: "" };
+        const parsed = downloaded.text ? JSON.parse(downloaded.text) : {};
+        return JSON.stringify({
+          runtimeStatus: byId("runtimeStatus").textContent,
+          localModelState: byId("localModelState").textContent,
+          shareMetadataState: byId("shareMetadataState").textContent,
+          conversionRequestState: byId("conversionRequestState").textContent,
+          downloadNames: window.__tinyrustlmDownloadNames,
+          bundle: parsed,
+          fixtureSha256: ${JSON.stringify(fixture.sha256)},
+          fixtureBytes: ${JSON.stringify(fixture.modelBytes)}
+        });
+      })()
+    `;
+    const result = await client.send("Runtime.evaluate", {
+      expression: importAndExportExpression,
+      awaitPromise: true,
+      returnByValue: true,
+      timeout: 120000
+    });
+    return parseEvaluateValue(result);
+  } finally {
+    try {
+      fs.unlinkSync(fixture.requestPath);
+    } catch (_error) {
+      // Best effort cleanup only.
+    }
+  }
 }
 
 async function runPageCatalogLocalImportSmoke(client) {
@@ -8453,6 +8606,61 @@ function assertHfSearchUiSmoke(result, networkRequests) {
   }
 }
 
+function assertShareMetadataSmoke(result, networkRequests) {
+  const failures = [];
+  const bundle = result && result.bundle ? result.bundle : {};
+  const entry = bundle.catalog_entry || {};
+  const offer = bundle.peer_offer || {};
+  const chunks = offer.chunks || {};
+  if (bundle.bundle_kind !== "minimodel.local_slm_share_metadata.v0") {
+    failures.push(`bundle kind was ${bundle.bundle_kind}`);
+  }
+  if (!result.downloadNames || !result.downloadNames.some((name) => String(name).endsWith(".minimodel-share-metadata.json"))) {
+    failures.push(`share metadata download name was ${JSON.stringify(result.downloadNames)}`);
+  }
+  if (entry.artifact_sha256 !== result.fixtureSha256 || offer.artifact_sha256 !== result.fixtureSha256) {
+    failures.push(`artifact SHA-256 mismatch in share metadata: ${entry.artifact_sha256}/${offer.artifact_sha256}/${result.fixtureSha256}`);
+  }
+  if (entry.artifact_byte_count !== result.fixtureBytes || offer.artifact_byte_count !== result.fixtureBytes) {
+    failures.push(`artifact bytes mismatch in share metadata: ${entry.artifact_byte_count}/${offer.artifact_byte_count}/${result.fixtureBytes}`);
+  }
+  if (entry.source_huggingface_model_id !== "example-org/tiny-source-model") {
+    failures.push(`source Hugging Face id was ${entry.source_huggingface_model_id}`);
+  }
+  if (entry.project_server_serves_model_bytes !== false || entry.project_server_runs_model_bytes !== false) {
+    failures.push("catalog entry did not preserve no-server model-byte boundary");
+  }
+  if (!bundle.boundary || bundle.boundary.peer_transfer_implemented !== false || bundle.boundary.project_server_serves_model_bytes !== false) {
+    failures.push(`bundle boundary was ${JSON.stringify(bundle.boundary)}`);
+  }
+  if (offer.offer_status !== "metadata-ready-transfer-not-implemented" || !offer.transfer || offer.transfer.network_transfer_available !== false) {
+    failures.push(`peer offer status was ${offer.offer_status}/${JSON.stringify(offer.transfer)}`);
+  }
+  if (chunks.algorithm !== "sha256-merkle-v0" || chunks.chunk_size !== 1048576 || chunks.chunk_count !== 1) {
+    failures.push(`chunk metadata was ${JSON.stringify(chunks)}`);
+  }
+  if (!/^sha256:[0-9a-f]{64}$/i.test(chunks.merkle_root_sha256 || "")) {
+    failures.push(`Merkle root was ${chunks.merkle_root_sha256}`);
+  }
+  if (!/^sha256:[0-9a-f]{64}$/i.test(chunks.chunk_list_sha256 || "")) {
+    failures.push(`chunk list SHA-256 was ${chunks.chunk_list_sha256}`);
+  }
+  if (!Array.isArray(chunks.entries) || chunks.entries.length !== 1 || chunks.entries[0].sha256 !== result.fixtureSha256) {
+    failures.push(`chunk entries were ${JSON.stringify(chunks.entries)}`);
+  }
+  if (!String(result.shareMetadataState || "").includes("share metadata saved locally")) {
+    failures.push(`share metadata status was ${result.shareMetadataState}`);
+  }
+  for (const requestUrl of networkRequests) {
+    if (requestUrl.includes("huggingface.co") || requestUrl.includes("MiniModel.org") || requestUrl.includes("minimodel.org")) {
+      failures.push(`share metadata export made remote request: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
 function assertPublicLocalOnlySmoke(result, networkRequests) {
   const failures = [];
   if (result.hostname !== "tinyrustlm.com") {
@@ -11590,6 +11798,21 @@ async function main() {
         }
       }
       assertHfSearchUiSmoke(result, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (smokeMode === "share-metadata-ui") {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageShareMetadataSmoke(client);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertShareMetadataSmoke(result, networkRequests);
       result.networkRequests = networkRequests;
     } else if (smokeMode === "step-token") {
       await client.send("Page.reload", { ignoreCache: true });

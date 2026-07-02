@@ -132,7 +132,7 @@
           </button>
           <button id="simpleP2pSourceButton" class="source-option" type="button" data-source-option="p2p">
             <span>P2P Exchange</span>
-            <small>Use verified MiniModel manifests.</small>
+            <small>Use manifests or save share metadata.</small>
           </button>
         </div>
         <div id="simpleLocalSourcePanel" class="source-panel" data-source-panel="local">
@@ -150,8 +150,10 @@
           <ol id="simpleHfResults" class="model-results"></ol>
         </div>
         <div id="simpleP2pSourcePanel" class="source-panel" data-source-panel="p2p" hidden>
-          <p>MiniModel is metadata-first today. Converted `.slm` artifacts can be advertised for future P2P transfer after admission.</p>
+          <p>MiniModel is metadata-first today. After you import a verified local `.slm`, TinyRustLM can save checksum-bound share metadata for future P2P transfer.</p>
           <button id="simpleLoadCatalogButton" class="secondary-action" type="button">Load MiniModel Metadata</button>
+          <button id="simpleSaveShareMetadataButton" class="secondary-action" type="button">Save Share Metadata</button>
+          <p id="simpleShareMetadataStatus" class="inline-status">import a local .slm first</p>
           <ol id="simpleCatalogResults" class="model-results"></ol>
         </div>
         <button id="simpleOpenAdvancedDiscoveryButton" class="text-link-button" type="button">Open source details in Advanced Tools</button>
@@ -285,6 +287,11 @@
             <button id="importLocalModelButton" class="secondary-action" type="button">Import Local Model</button>
             <p id="localModelState" class="inline-status">waiting</p>
 
+            <label for="conversionRequestFile">Conversion request JSON</label>
+            <input id="conversionRequestFile" type="file" accept=".json,application/json">
+            <button id="importConversionRequestButton" class="secondary-action" type="button">Bind Conversion Request</button>
+            <p id="conversionRequestState" class="inline-status">optional source handoff</p>
+
             <label for="catalogUrlInput">Catalog URL</label>
             <div class="search-row">
               <input id="catalogUrlInput" type="url" autocomplete="off" spellcheck="false">
@@ -303,6 +310,9 @@
             </div>
             <p id="hfStatus" class="inline-status">idle</p>
             <ol id="hfResults" class="model-results"></ol>
+
+            <button id="saveShareMetadataButton" class="secondary-action" type="button">Save MiniModel Share Metadata</button>
+            <p id="shareMetadataState" class="inline-status">import a local .slm first</p>
           </details>
         </section>
 
@@ -487,6 +497,6 @@
       <span id="currentModelSummary" class="model-summary">No model loaded</span>
     </footer>
   </main>
-  <script src="./app.js?v=20260701-realmodelpath"></script>
+  <script src="./app.js?v=20260702-sharemetadata"></script>
 </body>
 </html>

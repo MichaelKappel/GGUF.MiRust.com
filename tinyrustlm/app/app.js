@@ -315,6 +315,7 @@
     localModel: null,
     catalogEntries: [],
     selectedCatalogEntry: null,
+    pendingConversionRequest: null,
     catalogFetchAbort: null,
     hfSearchAbort: null,
     hasContext: false,
@@ -345,6 +346,8 @@
     simpleCatalogResults: document.getElementById("simpleCatalogResults"),
     simpleHfResults: document.getElementById("simpleHfResults"),
     simpleLoadCatalogButton: document.getElementById("simpleLoadCatalogButton"),
+    simpleSaveShareMetadataButton: document.getElementById("simpleSaveShareMetadataButton"),
+    simpleShareMetadataStatus: document.getElementById("simpleShareMetadataStatus"),
     simpleOpenAdvancedDiscoveryButton: document.getElementById("simpleOpenAdvancedDiscoveryButton"),
     simpleDiscoveryStatus: document.getElementById("simpleDiscoveryStatus"),
     simpleErrorPanel: document.getElementById("simpleErrorPanel"),
@@ -382,6 +385,9 @@
     localModelFile: document.getElementById("localModelFile"),
     importLocalModelButton: document.getElementById("importLocalModelButton"),
     localModelState: document.getElementById("localModelState"),
+    conversionRequestFile: document.getElementById("conversionRequestFile"),
+    importConversionRequestButton: document.getElementById("importConversionRequestButton"),
+    conversionRequestState: document.getElementById("conversionRequestState"),
     catalogUrlInput: document.getElementById("catalogUrlInput"),
     catalogLoadButton: document.getElementById("catalogLoadButton"),
     localCatalogFile: document.getElementById("localCatalogFile"),
@@ -392,6 +398,8 @@
     hfSearchButton: document.getElementById("hfSearchButton"),
     hfStatus: document.getElementById("hfStatus"),
     hfResults: document.getElementById("hfResults"),
+    saveShareMetadataButton: document.getElementById("saveShareMetadataButton"),
+    shareMetadataState: document.getElementById("shareMetadataState"),
     adapterSelect: document.getElementById("adapterSelect"),
     applyAdapterButton: document.getElementById("applyAdapterButton"),
     adapterState: document.getElementById("adapterState"),
@@ -823,6 +831,7 @@
         : "Browser local";
     }
     el.currentModelSummary.textContent = `${selected} / ${stateText || "waiting"}`;
+    updateShareMetadataControls();
   }
 
   function setAppMode(mode) {
@@ -857,7 +866,7 @@
       const messages = {
         local: "Choose a trusted local .slm file. No network is needed.",
         huggingface: "Search Hugging Face metadata. Save a conversion request or choose an admitted local .slm.",
-        p2p: "Load MiniModel metadata to find converted .slm records. Peer transfer comes after admission and P2P implementation."
+        p2p: "Load MiniModel metadata or save share metadata after a verified local .slm import. Peer transfer comes after P2P implementation."
       };
       el.simpleDiscoveryStatus.textContent = messages[nextOption];
       el.simpleDiscoveryStatus.classList.remove("error");
@@ -1342,6 +1351,14 @@
         if (el.catalogLoadButton) {
           el.catalogLoadButton.click();
         }
+      });
+    }
+    if (el.simpleSaveShareMetadataButton) {
+      el.simpleSaveShareMetadataButton.addEventListener("click", () => {
+        setSimpleSourceOption("p2p", true);
+        saveShareMetadata().catch((error) => {
+          setShareMetadataStatus(errorMessage(error), true);
+        });
       });
     }
     if (el.simpleHfSearchButton) {
@@ -2251,15 +2268,74 @@
     setCatalogStatus(`${entries.length} local metadata entries`, false);
   }
 
-  async function sha256Hex(bytes) {
+  const peerShareChunkBytes = 1024 * 1024;
+
+  function bytesToHex(bytes) {
+    return Array.from(bytes)
+      .map((value) => value.toString(16).padStart(2, "0"))
+      .join("");
+  }
+
+  function hexToBytes(hex) {
+    const clean = String(hex || "").replace(/^sha256:/i, "");
+    if (!/^[0-9a-f]{64}$/i.test(clean)) {
+      throw new Error("SHA-256 hex was invalid");
+    }
+    const bytes = new Uint8Array(32);
+    for (let index = 0; index < bytes.length; index += 1) {
+      bytes[index] = Number.parseInt(clean.slice(index * 2, index * 2 + 2), 16);
+    }
+    return bytes;
+  }
+
+  async function sha256Raw(bytes) {
     if (!window.crypto || !window.crypto.subtle) {
       throw new Error("Browser SHA-256 verification is unavailable");
     }
     const digest = await window.crypto.subtle.digest("SHA-256", bytes);
-    const hex = Array.from(new Uint8Array(digest))
-      .map((value) => value.toString(16).padStart(2, "0"))
-      .join("");
-    return `sha256:${hex}`;
+    return new Uint8Array(digest);
+  }
+
+  async function sha256Hex(bytes) {
+    return `sha256:${bytesToHex(await sha256Raw(bytes))}`;
+  }
+
+  async function sha256Text(text) {
+    return sha256Hex(state.encoder.encode(String(text || "")));
+  }
+
+  async function chunkSha256List(bytes, chunkSize) {
+    const chunks = [];
+    for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+      const chunk = bytes.subarray(offset, Math.min(offset + chunkSize, bytes.length));
+      chunks.push({
+        index: chunks.length,
+        offset,
+        byte_count: chunk.length,
+        sha256: await sha256Hex(chunk)
+      });
+    }
+    return chunks;
+  }
+
+  async function merkleRootSha256(chunks) {
+    if (!chunks.length) {
+      return "";
+    }
+    let level = chunks.map((chunk) => hexToBytes(chunk.sha256));
+    while (level.length > 1) {
+      const nextLevel = [];
+      for (let index = 0; index < level.length; index += 2) {
+        const left = level[index];
+        const right = level[index + 1] || left;
+        const pair = new Uint8Array(left.length + right.length);
+        pair.set(left, 0);
+        pair.set(right, left.length);
+        nextLevel.push(await sha256Raw(pair));
+      }
+      level = nextLevel;
+    }
+    return `sha256:${bytesToHex(level[0])}`;
   }
 
   function validateCatalogArtifactMatch(entry, name, bytes, sha256) {
@@ -2275,6 +2351,244 @@
     if (!/\.slm$/i.test(name)) {
       throw new Error("Catalog artifact must be a local .slm file");
     }
+  }
+
+  function hasVerifiedLocalModelFile() {
+    return Boolean(
+      state.localModel &&
+      state.localModel.localFile &&
+      state.localModel.localFile.bytes &&
+      state.localModel.localFile.verified === true
+    );
+  }
+
+  function setShareMetadataStatus(text, isError) {
+    const targetText = text || (hasVerifiedLocalModelFile() ? "share metadata ready" : "import a local .slm first");
+    for (const node of [el.shareMetadataState, el.simpleShareMetadataStatus]) {
+      if (node) {
+        setText(node, targetText, isError);
+      }
+    }
+    if (el.simpleDiscoveryStatus && state.simpleSourceOption === "p2p") {
+      el.simpleDiscoveryStatus.textContent = targetText;
+      el.simpleDiscoveryStatus.classList.toggle("error", Boolean(isError));
+    }
+  }
+
+  function updateShareMetadataControls() {
+    const disabled = !hasVerifiedLocalModelFile();
+    for (const button of [el.saveShareMetadataButton, el.simpleSaveShareMetadataButton]) {
+      if (button) {
+        button.disabled = disabled;
+        button.title = disabled
+          ? "Import and load a Rust-validated local .slm before saving share metadata."
+          : "Save checksum-bound MiniModel metadata for this verified local .slm.";
+      }
+    }
+    if (disabled) {
+      setShareMetadataStatus("import and load a local .slm first", false);
+    }
+  }
+
+  function setLocalFileVerificationState(model, verified, text, isError) {
+    if (model && model.localFile) {
+      model.localFile.verified = Boolean(verified);
+      updateShareMetadataControls();
+      if (text) {
+        setShareMetadataStatus(text, isError);
+      }
+    }
+  }
+
+  function setConversionRequestStatus(text, isError) {
+    if (el.conversionRequestState) {
+      setText(el.conversionRequestState, text, isError);
+    }
+  }
+
+  function normalizeConversionRequest(body) {
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      throw new Error("Conversion request must be a JSON object");
+    }
+    if (body.request_kind !== "minimodel.huggingface_conversion_request.v0") {
+      throw new Error("Conversion request kind was not minimodel.huggingface_conversion_request.v0");
+    }
+    const source = body.source && typeof body.source === "object" ? body.source : {};
+    const sourceModelId = hfModelId({ modelId: source.model_id });
+    if (!sourceModelId) {
+      throw new Error("Conversion request source model id was invalid");
+    }
+    return {
+      request: body,
+      sourceModelId,
+      sourceUrl: catalogText(source.model_url) || hfModelUrl(sourceModelId),
+      generatedAt: catalogText(body.generated_at)
+    };
+  }
+
+  async function importConversionRequestFile() {
+    const file = el.conversionRequestFile && el.conversionRequestFile.files ? el.conversionRequestFile.files[0] : null;
+    if (!file) {
+      throw new Error("Choose a conversion request JSON file");
+    }
+    if (!Number.isFinite(file.size) || file.size <= 0 || file.size > catalogTextByteBudget) {
+      throw new Error("Conversion request JSON size was invalid");
+    }
+    const body = JSON.parse(await file.text());
+    state.pendingConversionRequest = normalizeConversionRequest(body);
+    setConversionRequestStatus(`${state.pendingConversionRequest.sourceModelId} bound`, false);
+  }
+
+  function slugForShareMetadata(value) {
+    const slug = String(value || "")
+      .toLowerCase()
+      .replace(/\.slm$/i, "")
+      .replace(/[^a-z0-9._/-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 160);
+    return /^[a-z0-9]/.test(slug) ? slug : "local-slm";
+  }
+
+  function sourceFieldsForShareMetadata(localFile) {
+    const entry = localFile.catalogEntry || null;
+    const conversion = state.pendingConversionRequest || null;
+    const sourceHfId = entry && entry.sourceHuggingFaceModelId
+      ? entry.sourceHuggingFaceModelId
+      : conversion
+        ? conversion.sourceModelId
+        : "";
+    return {
+      sourceKind: sourceHfId ? "huggingface-hub" : entry ? entry.sourceKind : "user-local-file",
+      sourceIdentity: entry && entry.sourceIdentity
+        ? entry.sourceIdentity
+        : conversion
+          ? conversion.sourceUrl
+          : "user-local-file",
+      sourceHuggingFaceModelId: sourceHfId,
+      sourceUrl: entry && entry.sourceUrl
+        ? entry.sourceUrl
+        : conversion
+          ? conversion.sourceUrl
+          : "",
+      modelId: entry
+        ? entry.modelId
+        : sourceHfId
+          ? `converted/${sourceHfId}`.slice(0, 180)
+          : `local/${slugForShareMetadata(localFile.name)}`,
+      displayName: entry ? entry.displayName : safeLocalModelName(localFile.name).replace(/\.slm$/i, "")
+    };
+  }
+
+  async function buildShareMetadataBundle() {
+    if (!hasVerifiedLocalModelFile()) {
+      throw new Error("Import a verified local .slm before saving share metadata");
+    }
+    const localFile = state.localModel.localFile;
+    const chunks = await chunkSha256List(localFile.bytes, peerShareChunkBytes);
+    const chunkListText = chunks.map((chunk) => [
+      chunk.index,
+      chunk.offset,
+      chunk.byte_count,
+      chunk.sha256
+    ].join("=")).join("\n");
+    const source = sourceFieldsForShareMetadata(localFile);
+    const merkleRoot = await merkleRootSha256(chunks);
+    const chunkListSha256 = await sha256Text(`${chunkListText}\n`);
+    const catalogEntry = {
+      catalog_version: 0,
+      entry_kind: "minimodel.catalog_entry",
+      model_id: source.modelId,
+      display_name: source.displayName,
+      publisher_id: "local-user",
+      publisher_key_id: "local-user-unsigned",
+      artifact_kind: "slm",
+      artifact_file_name: localFile.name,
+      local_file_name_hint: localFile.name,
+      artifact_byte_count: localFile.byteLength,
+      artifact_sha256: localFile.sha256,
+      artifact_project_server_url: null,
+      project_server_serves_model_bytes: false,
+      project_server_runs_model_bytes: false,
+      peer_hint_status: "metadata-ready-transfer-not-implemented",
+      execution_policy: "user-local-file-only",
+      source_kind: source.sourceKind,
+      source_identity: source.sourceIdentity,
+      evidence_admission_status: "local-import-verified",
+      quality_claim: "not-endorsed-by-project",
+      trained_quality_claim: "not-claimed",
+      required_next_gate: "publisher-review-admission-and-peer-transfer-implementation",
+      slm_checksum: localFile.checksum
+    };
+    if (source.sourceHuggingFaceModelId) {
+      catalogEntry.source_huggingface_model_id = source.sourceHuggingFaceModelId;
+    }
+    if (source.sourceUrl) {
+      catalogEntry.source_url = source.sourceUrl;
+    }
+    if (localFile.catalogEntry) {
+      if (localFile.catalogEntry.modelShape) {
+        catalogEntry.slm_model_shape = localFile.catalogEntry.modelShape;
+      }
+      if (localFile.catalogEntry.quantization) {
+        catalogEntry.slm_quantization = localFile.catalogEntry.quantization;
+      }
+      if (localFile.catalogEntry.tokenizerChecksum) {
+        catalogEntry.slm_tokenizer_checksum = localFile.catalogEntry.tokenizerChecksum;
+      }
+      if (localFile.catalogEntry.configChecksum) {
+        catalogEntry.slm_config_checksum = localFile.catalogEntry.configChecksum;
+      }
+    }
+    return {
+      bundle_kind: "minimodel.local_slm_share_metadata.v0",
+      generated_at: new Date().toISOString(),
+      boundary: {
+        project_server_runs_model_bytes: false,
+        project_server_serves_model_bytes: false,
+        peer_transfer_implemented: false,
+        user_consent_required_before_transfer: true,
+        tiny_rust_lm_execution_rule: "User imports a verified local .slm through the browser file picker before execution."
+      },
+      catalog_entry: catalogEntry,
+      peer_offer: {
+        offer_kind: "minimodel.peer_offer.v0",
+        offer_version: 0,
+        offer_status: "metadata-ready-transfer-not-implemented",
+        artifact_kind: "slm",
+        artifact_file_name: localFile.name,
+        artifact_byte_count: localFile.byteLength,
+        artifact_sha256: localFile.sha256,
+        slm_checksum: localFile.checksum,
+        chunks: {
+          algorithm: "sha256-merkle-v0",
+          chunk_size: peerShareChunkBytes,
+          chunk_count: chunks.length,
+          chunk_list_sha256: chunkListSha256,
+          merkle_root_sha256: merkleRoot,
+          entries: chunks
+        },
+        transfer: {
+          protocols: [],
+          network_transfer_available: false,
+          required_next_gate: "implement-consent-based-peer-transfer-and-rust-reverify-before-import"
+        }
+      },
+      conversion_request: state.pendingConversionRequest
+        ? {
+          request_kind: state.pendingConversionRequest.request.request_kind,
+          source: state.pendingConversionRequest.request.source,
+          generated_at: state.pendingConversionRequest.generatedAt
+        }
+        : null
+    };
+  }
+
+  async function saveShareMetadata() {
+    setShareMetadataStatus("computing chunk hashes", false);
+    const bundle = await buildShareMetadataBundle();
+    const fileName = `${slugForShareMetadata(bundle.catalog_entry.model_id)}.minimodel-share-metadata.json`;
+    downloadTextFile(fileName, `${JSON.stringify(bundle, null, 2)}\n`);
+    setShareMetadataStatus(`${bundle.peer_offer.chunks.chunk_count} chunks / share metadata saved locally`, false);
   }
 
   async function importLocalModelFile() {
@@ -2308,15 +2622,20 @@
         byteLength: bytes.length,
         checksum,
         sha256,
-        catalogEntry
+        catalogEntry,
+        verified: false
       }
     };
     paths.models = modelsWithLocalModel(paths.models);
     renderModelOptions(paths.models, false, localModelKey);
     setLocalModelStatus(`${name} / ${formatByteCount(bytes.length)} / ${sha256} / ${checksum}`, false);
+    setShareMetadataStatus("validating local .slm", false);
     setText(el.errorState, "none", false);
     if (state.exports) {
-      await loadSelectedModel();
+      const loaded = await loadSelectedModel();
+      if (!loaded) {
+        throw new Error("Local .slm failed Rust/WASM validation");
+      }
     }
   }
 
@@ -2474,6 +2793,8 @@
 
   function saveHfConversionRequest(entry, matches) {
     const request = hfConversionRequest(entry, matches);
+    state.pendingConversionRequest = normalizeConversionRequest(request);
+    setConversionRequestStatus(`${state.pendingConversionRequest.sourceModelId} bound`, false);
     const fileName = `${entry.modelId.replace(/[\\/]+/g, "__")}.minimodel-conversion-request.json`;
     downloadTextFile(fileName, `${JSON.stringify(request, null, 2)}\n`);
     setHfStatus("conversion request saved locally", false);
@@ -7185,6 +7506,7 @@
       model.admissionEvidence.verified = false;
       model.admissionEvidence.fields = null;
     }
+    setLocalFileVerificationState(model, false, model.localFile ? "validating local .slm" : "", false);
     resetModulePlanActualFetchCount(model);
     renderAdapterOptions(model, "waiting");
     setInteractive(false);
@@ -7243,6 +7565,7 @@
       }
       renderAssembly("model not loaded", null, true);
       setText(el.adapterState, "model not loaded", true);
+      setLocalFileVerificationState(model, false, "local .slm not verified", true);
       setControls(false, true);
       renderDiagnostics();
       return false;
@@ -7280,6 +7603,7 @@
         resetModulePlanTrace(text, true);
         renderAssembly("model not loaded", null, true);
         setText(el.adapterState, "model not loaded", true);
+        setLocalFileVerificationState(model, false, "local .slm not verified", true);
         setControls(false, true);
         renderDiagnostics();
         return false;
@@ -7334,6 +7658,7 @@
           recordModulePlanTrace("assembly evidence rejected");
         }
         renderAdapterOptions(model, "assembly evidence rejected", true);
+        setLocalFileVerificationState(model, false, "local .slm not verified", true);
         setControls(false, true);
         renderDiagnostics();
         return false;
@@ -7393,6 +7718,7 @@
           setText(el.errorState, text, true);
           renderModulePlan(text, model.modulePlanReceipt, true);
           renderAdapterOptions(model, text, true);
+          setLocalFileVerificationState(model, false, "local .slm not verified", true);
           setControls(false, true);
           renderDiagnostics();
           return false;
@@ -7407,6 +7733,12 @@
       }
       renderAdapterOptions(model, "model not loaded");
     }
+    setLocalFileVerificationState(
+      model,
+      loadCode === 0,
+      loadCode === 0 ? "local .slm verified; share metadata ready" : "local .slm rejected",
+      loadCode !== 0
+    );
     setControls(loadCode === 0, true);
     renderDiagnostics();
     return loadCode === 0;
@@ -7811,6 +8143,21 @@
     setLocalModelStatus(`${name} / ${formatByteCount(file.size)} selected${expected}`, false);
   });
 
+  el.importConversionRequestButton.addEventListener("click", function () {
+    importConversionRequestFile().catch((error) => {
+      setConversionRequestStatus(errorMessage(error), true);
+    });
+  });
+
+  el.conversionRequestFile.addEventListener("change", function () {
+    const file = el.conversionRequestFile.files && el.conversionRequestFile.files[0];
+    if (!file) {
+      setConversionRequestStatus("optional source handoff", false);
+      return;
+    }
+    setConversionRequestStatus(`${safeLocalModelName(file.name)} / ${formatByteCount(file.size)} selected`, false);
+  });
+
   el.catalogLoadButton.addEventListener("click", function () {
     loadCatalogFromUrl().catch((error) => {
       if (error && error.name === "AbortError") {
@@ -7860,6 +8207,12 @@
     el.hfSearchButton.click();
   });
 
+  el.saveShareMetadataButton.addEventListener("click", function () {
+    saveShareMetadata().catch((error) => {
+      setShareMetadataStatus(errorMessage(error), true);
+    });
+  });
+
   el.applyAdapterButton.addEventListener("click", function () {
     applySelectedAdapter().catch((error) => {
       const text = errorMessage(error);
@@ -7897,5 +8250,6 @@
   installUiEventHandlers();
   observeCopyableFields();
   renderConversation();
+  updateShareMetadataControls();
   boot();
 }());

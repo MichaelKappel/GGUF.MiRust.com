@@ -1,7 +1,7 @@
-profile: tinyrustlm.source-workspace.v125
+profile: tinyrustlm.source-workspace.v126
 project_name: TinyRustLM
 canonical_root: E:\Source\Rust\SLMComposer.com
-updated_utc: 2026-07-02T03:45:00Z
+updated_utc: 2026-07-02T05:15:00Z
 version_authority:
   current_version: 0.1.0
   next_version: 0.1.0
@@ -15,7 +15,7 @@ active_product:
   runtime_documentation_site: TinyRustLM.MiRust.com/developer-portal/
   retired_runtime_documentation_site: Runtime.MiRust.com
   model_documentation_site: TinyRustLM.MiRust.com
-  public_site_boundary: TinyRustLM.com loads the static app and WASM runtime, shows the default MiniModel.org metadata catalog URL, waits for user-selected local `.slm` files, and does not auto-admit or fetch hosted `/models/` bytes from the public host. Hugging Face results are external metadata only; the app checks MiniModel metadata for admitted `.slm` records and otherwise saves a local conversion request for the review/conversion/admission/future-P2P path. SLMComposer.com is no longer canonical and may redirect or be deleted by the human.
+  public_site_boundary: TinyRustLM.com loads the static app and WASM runtime, shows the default MiniModel.org metadata catalog URL, waits for user-selected local `.slm` files, and does not auto-admit or fetch hosted `/models/` bytes from the public host. Hugging Face results are external metadata only; the app checks MiniModel metadata for admitted `.slm` records and otherwise saves a local conversion request for the review/conversion/admission/future-P2P path. After a verified local `.slm` import, the app can export a `minimodel.local_slm_share_metadata.v0` bundle with artifact SHA-256, chunk SHA-256 entries, chunk-list SHA-256, Merkle root, and explicit no-live-peer-transfer flags. SLMComposer.com is no longer canonical and may redirect or be deleted by the human.
 deploy_gate:
   instruction: Before every TinyRustLM deploy or SLMComposer.com retirement/redirect change, update the related documentation sites and public-safe exports so live docs match the app behavior being deployed.
   related_documentation_sites:
