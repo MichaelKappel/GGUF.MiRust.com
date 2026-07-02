@@ -158,7 +158,7 @@
           <ol id="simpleHfResults" class="model-results"></ol>
         </div>
         <div id="simpleP2pSourcePanel" class="source-panel" data-source-panel="p2p" hidden>
-          <p>Load MiniModel metadata to find proof-ready peer imports, or save share metadata after you import a verified local `.slm`.</p>
+          <p>Load MiniModel metadata or a local `models.v0.json` snapshot to find proof-ready peer imports, or save share metadata after you import a verified local `.slm`.</p>
           <label for="simplePeerBaseUrlInput">Known peer URL</label>
           <div class="search-row">
             <input id="simplePeerBaseUrlInput" type="url" inputmode="url" placeholder="http://127.0.0.1:8123/">
@@ -311,9 +311,9 @@
               <input id="catalogUrlInput" type="url" autocomplete="off" spellcheck="false">
               <button id="catalogLoadButton" type="button">Load</button>
             </div>
-            <label for="localCatalogFile">Local model list</label>
+            <label for="localCatalogFile">Local models.v0.json</label>
             <input id="localCatalogFile" type="file" accept=".json,application/json">
-            <button id="importLocalCatalogButton" class="secondary-action" type="button">Import Local List</button>
+            <button id="importLocalCatalogButton" class="secondary-action" type="button">Load Local Catalog</button>
             <p id="catalogStatus" class="inline-status">idle</p>
             <ol id="catalogResults" class="model-results"></ol>
 
@@ -511,6 +511,6 @@
       <span id="currentModelSummary" class="model-summary">No model loaded</span>
     </footer>
   </main>
-  <script src="./app/app.js?v=20260702-catalogsnapshot"></script>
+  <script src="./app/app.js?v=20260702-localcatalogsnapshot"></script>
 </body>
 </html>

@@ -9,6 +9,8 @@ This report routes the quality continuation that turns converted-once MiniModel 
 - MiniModel `write-catalog-snapshot <output-json> <catalog-entry-json>...` validates generated catalog-entry JSON files and writes a `minimodel.model_catalog` snapshot.
 - The snapshot writer rejects duplicate `model_id` values, artifact/model/download URLs, project-server model-byte or execution claims, peer-source count drift, unsupported peer-source rows, and project-server peer hosts.
 - TinyRustLM `Start Conversion` scripts now run local Rust packer conversion and validation, call `minimodel prepare-peer-share`, then call `minimodel write-catalog-snapshot` to produce local `models.v0.json` metadata.
+- TinyRustLM exposes the generated snapshot path as `Local models.v0.json` plus `Load Local Catalog`; users can load a local metadata snapshot before Hugging Face search.
+- When a loaded local `models.v0.json` entry matches a Hugging Face model id and includes a validated `peer_sources` row, the matching Hugging Face row becomes `P2P Import` without fetching the default MiniModel catalog.
 - The generated catalog snapshot is metadata only. It can make a converted model discoverable as proof-ready or P2P-ready later, but it does not contain `.slm` bytes and does not make project servers host or relay model bytes.
 - P2P import remains receipt-gated: Rust `import-peer-request` must fetch from a consenting direct peer, verify chunks, assemble, verify the `.slm`, and write a receipt before browser import.
 
@@ -34,4 +36,4 @@ This report routes the quality continuation that turns converted-once MiniModel 
 
 - MiniModel tests cover snapshot writing from verified entries, duplicate model-id rejection, artifact URL rejection, and project-server peer-source rejection.
 - TinyRustLM browser smoke checks that generated conversion scripts include `write-catalog-snapshot` and still do not request Hugging Face or project-hosted model bytes.
-
+- TinyRustLM `hf-local-catalog-ui` browser smoke loads a local `models.v0.json`, searches Hugging Face metadata, proves the matching row offers `P2P Import`, writes a peer-import request/script, and confirms the default MiniModel catalog plus Hugging Face `/resolve/` byte routes are not requested.

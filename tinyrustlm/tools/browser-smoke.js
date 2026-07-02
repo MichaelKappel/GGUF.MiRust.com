@@ -14,6 +14,7 @@ const port = Number(process.argv[3] || 9223);
 const smokeMode = process.argv[5] || "single";
 const publicLocalOnlySmokeMode = smokeMode === "public-local-only";
 const hfSearchUiSmokeMode = smokeMode === "hf-search-ui";
+const hfLocalCatalogSmokeMode = smokeMode === "hf-local-catalog-ui";
 const shareMetadataSmokeMode = smokeMode === "share-metadata-ui";
 const catalogLocalImportSmokeMode = smokeMode === "catalog-local-import";
 const combinedSelectorOperatorFamilyRouteSoakMode = smokeMode === "combined-selector-operator-family-route-soak";
@@ -1549,6 +1550,64 @@ async function continuePausedRequest(client, requestId) {
   }
 }
 
+function hfReadyCatalogEntry() {
+  return {
+    catalog_version: 0,
+    entry_kind: "minimodel.catalog_entry",
+    model_id: "minimodel/example-tiny-ready-slm",
+    display_name: "Example Tiny Ready SLM",
+    publisher_id: "minimodel.org",
+    publisher_key_id: "minimodel-test-key",
+    artifact_kind: "slm",
+    artifact_file_name: "tiny-ready.slm",
+    local_file_name_hint: "tiny-ready.slm",
+    artifact_byte_count: 4096,
+    artifact_sha256: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    artifact_project_server_url: null,
+    project_server_serves_model_bytes: false,
+    project_server_runs_model_bytes: false,
+    peer_hint_status: "peer-offer-ready-known-peer-needed",
+    peer_import_status: "request-script-ready",
+    peer_offer_route: "../examples/example-tiny-ready-slm.minimodel-peer-offer",
+    peer_offer_sha256: "sha256:abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+    peer_source_count: 1,
+    peer_sources: [
+      {
+        source_kind: "known-direct-http-peer-v0",
+        transport: "direct-http-piece-server-v0",
+        peer_base_url: "http://127.0.0.1:8123/",
+        consent_status: "publisher-declared-consenting-peer",
+        project_server_serves_model_bytes: false,
+        project_server_runs_model_bytes: false
+      }
+    ],
+    peer_offer_chunk_count: 2,
+    peer_offer_merkle_root_sha256: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    execution_policy: "user-local-file-or-consenting-peer-only",
+    source_kind: "huggingface-hub",
+    source_huggingface_model_id: "example-org/tiny-ready-slm",
+    source_identity: "https://huggingface.co/example-org/tiny-ready-slm",
+    model_card_route: "../docs/catalog-boundary.md",
+    license_route: "../LICENSE.txt",
+    manifest_route: "../examples/minimodel.manifest.v0.example",
+    evidence_admission_status: "metadata-only",
+    required_next_gate: "known-consenting-peer-fetch-assemble-rust-reverify-before-browser-import",
+    max_tokens: 16
+  };
+}
+
+function hfReadyCatalogSnapshot(catalogId = "browser-smoke-minimodel-catalog") {
+  return {
+    catalog_version: 0,
+    catalog_kind: "minimodel.model_catalog",
+    catalog_id: catalogId,
+    project_server_serves_model_bytes: false,
+    project_server_runs_model_bytes: false,
+    artifact_project_server_url: null,
+    entries: [hfReadyCatalogEntry()]
+  };
+}
+
 function installHfSearchUiInterceptor(client) {
   client.on("Fetch.requestPaused", (params) => {
     const requestUrl = params.request && params.request.url ? params.request.url : "";
@@ -1578,58 +1637,7 @@ function installHfSearchUiInterceptor(client) {
         return;
       }
       if (/^https?:\/\/minimodel\.org\/catalog\/models\.v0\.json\b/i.test(requestUrl)) {
-        await fulfillJsonRequest(client, params.requestId, {
-          catalog_version: 0,
-          catalog_kind: "minimodel.model_catalog",
-          project_server_serves_model_bytes: false,
-          project_server_runs_model_bytes: false,
-          artifact_project_server_url: null,
-          entries: [
-            {
-              catalog_version: 0,
-              entry_kind: "minimodel.catalog_entry",
-              model_id: "minimodel/example-tiny-ready-slm",
-              display_name: "Example Tiny Ready SLM",
-              publisher_id: "minimodel.org",
-              publisher_key_id: "minimodel-test-key",
-              artifact_kind: "slm",
-              artifact_file_name: "tiny-ready.slm",
-              local_file_name_hint: "tiny-ready.slm",
-              artifact_byte_count: 4096,
-              artifact_sha256: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-              artifact_project_server_url: null,
-              project_server_serves_model_bytes: false,
-              project_server_runs_model_bytes: false,
-              peer_hint_status: "peer-offer-ready-known-peer-needed",
-              peer_import_status: "request-script-ready",
-              peer_offer_route: "../examples/example-tiny-ready-slm.minimodel-peer-offer",
-              peer_offer_sha256: "sha256:abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd",
-              peer_source_count: 1,
-              peer_sources: [
-                {
-                  source_kind: "known-direct-http-peer-v0",
-                  transport: "direct-http-piece-server-v0",
-                  peer_base_url: "http://127.0.0.1:8123/",
-                  consent_status: "publisher-declared-consenting-peer",
-                  project_server_serves_model_bytes: false,
-                  project_server_runs_model_bytes: false
-                }
-              ],
-              peer_offer_chunk_count: 2,
-              peer_offer_merkle_root_sha256: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-              execution_policy: "user-local-file-only",
-              source_kind: "huggingface-hub",
-              source_huggingface_model_id: "example-org/tiny-ready-slm",
-              source_identity: "https://huggingface.co/example-org/tiny-ready-slm",
-              model_card_route: "../docs/catalog-boundary.md",
-              license_route: "../LICENSE.txt",
-              manifest_route: "../examples/minimodel.manifest.v0.example",
-              evidence_admission_status: "metadata-only",
-              required_next_gate: "known-consenting-peer-fetch-assemble-rust-reverify-before-browser-import",
-              max_tokens: 16
-            }
-          ]
-        });
+        await fulfillJsonRequest(client, params.requestId, hfReadyCatalogSnapshot("browser-smoke-default-catalog"));
         return;
       }
       await continuePausedRequest(client, params.requestId);
@@ -2180,6 +2188,141 @@ async function runPageHfSearchUiSmoke(client) {
   return parseEvaluateValue(result);
 }
 
+async function runPageHfLocalCatalogSmoke(client) {
+  const fixture = writeHfLocalCatalogSnapshotFixture();
+  try {
+    await client.send("Emulation.setDeviceMetricsOverride", {
+      width: 1280,
+      height: 900,
+      deviceScaleFactor: 1,
+      mobile: false
+    });
+    const waitExpression = `
+      (async () => {
+        const byId = (id) => document.getElementById(id);
+        const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        for (let index = 0; index < 600; index += 1) {
+          if (
+            byId("wasmState") &&
+            byId("wasmState").textContent !== "waiting" &&
+            byId("localCatalogFile") &&
+            byId("importLocalCatalogButton") &&
+            byId("simpleHfSearchButton")
+          ) {
+            return true;
+          }
+          await sleep(100);
+        }
+        throw new Error("runtime did not boot");
+      })()
+    `;
+    parseEvaluateValue(await client.send("Runtime.evaluate", {
+      expression: waitExpression,
+      awaitPromise: true,
+      returnByValue: true,
+      timeout: 90000
+    }));
+    await setFileInputFiles(client, "#localCatalogFile", [fixture.catalogPath]);
+    const expression = `
+      (async () => {
+        const byId = (id) => document.getElementById(id);
+        const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        const textList = (selector) => Array.from(document.querySelectorAll(selector)).map((node) => node.textContent.replace(/\\s+/g, " ").trim());
+        const visible = (node) => {
+          if (!node || node.closest("[hidden]")) {
+            return false;
+          }
+          for (let current = node; current; current = current.parentElement) {
+            const style = window.getComputedStyle(current);
+            if (style.display === "none" || style.visibility === "hidden") {
+              return false;
+            }
+          }
+          return node.getClientRects().length > 0;
+        };
+        window.__tinyrustlmDownloads = [];
+        window.__tinyrustlmDownloadNames = [];
+        const originalCreateObjectUrl = URL.createObjectURL.bind(URL);
+        const originalAnchorClick = HTMLAnchorElement.prototype.click;
+        URL.createObjectURL = (blob) => {
+          const url = originalCreateObjectUrl(blob);
+          blob.text().then((text) => window.__tinyrustlmDownloads.push({ text, type: blob.type }));
+          return url;
+        };
+        HTMLAnchorElement.prototype.click = function () {
+          window.__tinyrustlmDownloadNames.push(this.download || "");
+          return originalAnchorClick.call(this);
+        };
+        byId("localCatalogFile").dispatchEvent(new Event("change", { bubbles: true }));
+        byId("importLocalCatalogButton").click();
+        for (let index = 0; index < 120; index += 1) {
+          if ((byId("catalogStatus").textContent || "").includes("local MiniModel metadata entries from models.v0.json")) {
+            break;
+          }
+          await sleep(50);
+        }
+        const localCatalogStatus = byId("catalogStatus").textContent;
+        const catalogResults = textList("#catalogResults li");
+        byId("modelEditButton").click();
+        await sleep(50);
+        byId("simpleHfSourceButton").click();
+        await sleep(50);
+        byId("simpleHfSearchInput").value = "tiny";
+        byId("simpleHfSearchButton").click();
+        for (let index = 0; index < 120; index += 1) {
+          const status = byId("simpleDiscoveryStatus") ? byId("simpleDiscoveryStatus").textContent : "";
+          if (document.querySelectorAll("#simpleHfResults li").length >= 2 && status.includes("external records")) {
+            break;
+          }
+          await sleep(100);
+        }
+        const statusAfterSearch = byId("simpleDiscoveryStatus") ? byId("simpleDiscoveryStatus").textContent : "";
+        const hfStatusAfterSearch = byId("hfStatus") ? byId("hfStatus").textContent : "";
+        const p2pImportButton = Array.from(document.querySelectorAll("#simpleHfResults .primary-result-action"))
+          .find((button) => button.textContent.includes("P2P Import"));
+        if (p2pImportButton) {
+          p2pImportButton.click();
+          for (let index = 0; index < 120; index += 1) {
+            if (window.__tinyrustlmDownloads.length >= 2) {
+              break;
+            }
+            await sleep(50);
+          }
+        }
+        const peerImportDownloads = window.__tinyrustlmDownloads.slice();
+        return JSON.stringify({
+          localCatalogStatus,
+          catalogResults,
+          statusAfterSearch,
+          hfStatusAfterSearch,
+          simpleTexts: textList("#simpleHfResults li"),
+          actionTexts: textList("#simpleHfResults button, #simpleHfResults a, #simpleHfResults .compatibility-pill, #simpleHfResults .model-result-meta"),
+          primaryActionTexts: textList("#simpleHfResults .primary-result-action"),
+          peerImportRequestText: peerImportDownloads[0] ? peerImportDownloads[0].text : "",
+          peerImportScriptText: peerImportDownloads[1] ? peerImportDownloads[1].text : "",
+          p2pStatusAfterImport: byId("simpleDiscoveryStatus") ? byId("simpleDiscoveryStatus").textContent : "",
+          panelOpen: visible(byId("simpleDiscoveryPanel")),
+          hfVisible: visible(byId("simpleHfSourcePanel")),
+          bodyText: document.body ? document.body.textContent.replace(/\\s+/g, " ").trim() : ""
+        });
+      })()
+    `;
+    const result = await client.send("Runtime.evaluate", {
+      expression,
+      awaitPromise: true,
+      returnByValue: true,
+      timeout: 90000
+    });
+    return parseEvaluateValue(result);
+  } finally {
+    try {
+      fs.rmSync(fixture.catalogDir, { recursive: true, force: true });
+    } catch (_error) {
+      // Best effort cleanup only.
+    }
+  }
+}
+
 async function waitForDomSelector(client, selector, timeoutMs = 15000) {
   await client.send("DOM.enable", {});
   const deadline = Date.now() + timeoutMs;
@@ -2277,6 +2420,17 @@ function writeCatalogLocalImportFixture() {
   const catalogPath = path.join(os.tmpdir(), `tinyrustlm-catalog-local-import-${process.pid}.json`);
   fs.writeFileSync(catalogPath, `${JSON.stringify(catalog, null, 2)}\n`, "utf8");
   return { catalogPath, modelPath, sha256: `sha256:${sha256}`, modelBytes: modelBytes.length };
+}
+
+function writeHfLocalCatalogSnapshotFixture() {
+  const catalogDir = fs.mkdtempSync(path.join(os.tmpdir(), "tinyrustlm-hf-local-catalog-"));
+  const catalogPath = path.join(catalogDir, "models.v0.json");
+  fs.writeFileSync(
+    catalogPath,
+    `${JSON.stringify(hfReadyCatalogSnapshot("browser-smoke-local-models-v0"), null, 2)}\n`,
+    "utf8"
+  );
+  return { catalogDir, catalogPath };
 }
 
 function writeShareMetadataFixture() {
@@ -8871,6 +9025,75 @@ function assertHfSearchUiSmoke(result, networkRequests) {
   }
 }
 
+function assertHfLocalCatalogSmoke(result, networkRequests) {
+  const failures = [];
+  if (!result || typeof result !== "object") {
+    failures.push("local catalog Hugging Face result was missing");
+  } else {
+    if (!String(result.localCatalogStatus || "").includes("local MiniModel metadata entries from models.v0.json")) {
+      failures.push(`local catalog status was ${result.localCatalogStatus}`);
+    }
+    if (!Array.isArray(result.catalogResults) || !result.catalogResults.some((text) => String(text).includes("Example Tiny Ready SLM"))) {
+      failures.push(`local catalog result did not render the ready entry: ${JSON.stringify(result.catalogResults)}`);
+    }
+    if (!Array.isArray(result.primaryActionTexts) || !result.primaryActionTexts.includes("P2P Import")) {
+      failures.push(`local catalog did not make the matching Hugging Face row P2P-ready: ${JSON.stringify(result.primaryActionTexts)}`);
+    }
+    const actionText = Array.isArray(result.actionTexts) ? result.actionTexts.join(" | ") : "";
+    if (!actionText.includes("P2P source listed") || !actionText.includes("Rust reverify required")) {
+      failures.push(`local catalog availability copy was missing: ${actionText}`);
+    }
+    if (!String(result.statusAfterSearch || "").includes("external records") || !String(result.hfStatusAfterSearch || "").includes("external records")) {
+      failures.push(`Hugging Face status after local catalog search was ${result.statusAfterSearch}/${result.hfStatusAfterSearch}`);
+    }
+    if (!String(result.p2pStatusAfterImport || "").includes("P2P import request saved")) {
+      failures.push(`P2P Import from local catalog did not save a request: ${result.p2pStatusAfterImport}`);
+    }
+    if (!result.panelOpen || !result.hfVisible) {
+      failures.push(`local catalog Hugging Face flow closed or hid the source chooser: ${JSON.stringify(result)}`);
+    }
+    const peerRequest = result.peerImportRequestText ? JSON.parse(result.peerImportRequestText) : null;
+    if (!peerRequest) {
+      failures.push("local catalog P2P import request was not downloaded");
+    } else {
+      if (peerRequest.source.huggingface_model_id !== "example-org/tiny-ready-slm") {
+        failures.push(`local catalog request source id was ${peerRequest.source.huggingface_model_id}`);
+      }
+      if (peerRequest.local_peer_piece_contract.expected_peer_base_url !== "http://127.0.0.1:8123/") {
+        failures.push(`local catalog request peer URL was ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
+      }
+      if (peerRequest.boundary.project_server_serves_model_bytes !== false || peerRequest.boundary.project_server_runs_model_bytes !== false) {
+        failures.push(`local catalog request boundary was ${JSON.stringify(peerRequest.boundary)}`);
+      }
+    }
+    const peerScript = String(result.peerImportScriptText || "");
+    for (const required of ["import-peer-request", "serve-peer-pieces", "http://127.0.0.1:8123/", "does not download model bytes"]) {
+      if (!peerScript.includes(required)) {
+        failures.push(`local catalog peer import script missing ${required}: ${peerScript}`);
+      }
+    }
+    const bodyText = String(result.bodyText || "");
+    if (bodyText.includes("Choose converted .slm") || bodyText.includes("Download tiny-ready.slm")) {
+      failures.push(`local catalog path exposed stale/fake wording: ${bodyText}`);
+    }
+  }
+  const requests = networkRequests.filter((requestUrl) => requestUrl.startsWith("http://") || requestUrl.startsWith("https://"));
+  if (!requests.some((requestUrl) => requestUrl.includes("huggingface.co/api/models"))) {
+    failures.push(`Hugging Face API metadata request was not observed: ${JSON.stringify(requests)}`);
+  }
+  for (const requestUrl of requests) {
+    if (requestUrl.toLowerCase().includes("minimodel.org/catalog/models.v0.json")) {
+      failures.push(`default MiniModel catalog was fetched despite local models.v0.json: ${requestUrl}`);
+    }
+    if (requestUrl.includes("/resolve/")) {
+      failures.push(`Hugging Face model bytes were requested: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
 function assertShareMetadataSmoke(result, networkRequests) {
   const failures = [];
   const bundle = result && result.bundle ? result.bundle : {};
@@ -11855,7 +12078,7 @@ async function main() {
         ]
       });
     }
-    if (hfSearchUiSmokeMode) {
+    if (hfSearchUiSmokeMode || hfLocalCatalogSmokeMode) {
       installHfSearchUiInterceptor(client);
       await client.send("Fetch.enable", {
         patterns: [
@@ -12063,6 +12286,21 @@ async function main() {
         }
       }
       assertHfSearchUiSmoke(result, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (hfLocalCatalogSmokeMode) {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageHfLocalCatalogSmoke(client);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertHfLocalCatalogSmoke(result, networkRequests);
       result.networkRequests = networkRequests;
     } else if (smokeMode === "share-metadata-ui") {
       await client.send("Page.reload", { ignoreCache: true });

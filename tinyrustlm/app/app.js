@@ -2510,22 +2510,24 @@
   async function importLocalCatalogFile() {
     const file = el.localCatalogFile && el.localCatalogFile.files ? el.localCatalogFile.files[0] : null;
     if (!file) {
-      throw new Error("Choose a local model list");
+      throw new Error("Choose a local models.v0.json catalog snapshot");
     }
     if (!Number.isFinite(file.size) || file.size <= 0) {
-      throw new Error("Local model list is empty");
+      throw new Error("Local catalog snapshot is empty");
     }
     if (file.size > catalogTextByteBudget) {
-      throw new Error("Local model list exceeded browser budget");
+      throw new Error("Local catalog snapshot exceeded browser budget");
     }
     clearCatalogResults();
-    setCatalogStatus(`reading ${safeLocalModelName(file.name)}`, false);
+    const fileName = safeLocalModelName(file.name);
+    setCatalogStatus(`reading local metadata snapshot ${fileName}`, false);
     const text = await file.text();
     const body = JSON.parse(text);
-    const entries = catalogEntriesFromBody(body, safeLocalModelName(file.name), "");
+    const entries = catalogEntriesFromBody(body, fileName, "");
     state.catalogEntries = entries;
+    state.defaultCatalogCheckedForAvailability = false;
     renderCatalogResults(entries);
-    setCatalogStatus(`${entries.length} local metadata entries`, false);
+    setCatalogStatus(`${entries.length} local MiniModel metadata entries from ${fileName}`, false);
   }
 
   const peerShareChunkBytes = 1024 * 1024;
@@ -8795,7 +8797,7 @@
       setCatalogStatus("idle", false);
       return;
     }
-    setCatalogStatus(`${safeLocalModelName(file.name)} / ${formatByteCount(file.size)} selected`, false);
+    setCatalogStatus(`${safeLocalModelName(file.name)} / ${formatByteCount(file.size)} local catalog selected`, false);
   });
 
   el.hfSearchButton.addEventListener("click", function () {
