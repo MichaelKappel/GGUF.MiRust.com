@@ -8749,9 +8749,12 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       if (!Array.isArray(peerRequest.local_peer_piece_contract.rust_commands) || !peerRequest.local_peer_piece_contract.rust_commands.some((command) => command.includes("assemble-peer-pieces"))) {
         failures.push(`P2P import request did not include assemble-peer-pieces command: ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
       }
+      if (!Array.isArray(peerRequest.local_peer_piece_contract.peer_side_commands) || !peerRequest.local_peer_piece_contract.peer_side_commands.some((command) => command.includes("serve-peer-pieces"))) {
+        failures.push(`P2P import request did not include peer-side serve command: ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
+      }
     }
     const peerScriptText = String(result.peerImportScriptText || "");
-    for (const required of ["fetch-peer-pieces", "assemble-peer-pieces", "verify-artifact", "write-import-receipt", "does not download model bytes", "$PeerBaseUrl"]) {
+    for (const required of ["fetch-peer-pieces", "assemble-peer-pieces", "serve-peer-pieces", "verify-artifact", "write-import-receipt", "does not download model bytes", "$PeerBaseUrl"]) {
       if (!peerScriptText.includes(required)) {
         failures.push(`P2P import script missing ${required}: ${peerScriptText}`);
       }
@@ -8805,6 +8808,8 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "validate-manifest",
       "peer-offer",
       "validate-peer-offer",
+      "export-peer-pieces",
+      "serve-peer-pieces",
       ".minimodel-peer-offer",
       "EDIT_ME\\\\model.safetensors",
       "EDIT_ME\\\\SLMComposer.com",

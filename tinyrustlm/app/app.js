@@ -874,7 +874,7 @@
       const messages = {
         local: "Choose a trusted local .slm file. No network is needed.",
         huggingface: "Search returns model cards. Rust conversion decides whether a source can become a runnable .slm.",
-        p2p: "Load MiniModel metadata or save peer-offer proof after a verified local .slm import. Network transfer still needs a peer client."
+        p2p: "Use MiniModel manifests from a consenting peer. Rust fetches pieces, assembles, and revalidates before import."
       };
       el.simpleDiscoveryStatus.textContent = messages[nextOption];
       el.simpleDiscoveryStatus.classList.remove("error");
@@ -2879,6 +2879,10 @@
         expected_peer_base_url: "EDIT_ME_http_peer_base_url",
         expected_piece_dir: "EDIT_ME_peer_pieces_from_consenting_peer",
         assembled_output_slm: match.fileNameHint,
+        peer_side_commands: [
+          "minimodel export-peer-pieces <manifest> <artifact.slm> <piece-dir>",
+          "minimodel serve-peer-pieces <manifest> <piece-dir> <bind-addr>"
+        ],
         rust_commands: [
           "minimodel verify-manifest <manifest>",
           "minimodel fetch-peer-pieces <manifest> <http-peer-base-url> <piece-dir>",
@@ -2908,6 +2912,7 @@
       "# It fetches peer pieces only from the consenting peer URL you enter below.",
       "# MiniModel rejects project-server peer hosts and verifies every piece before assembly.",
       "# Rust then assembles and revalidates the .slm before TinyRustLM imports it.",
+      "# Peer serving counterpart: cargo run -p minimodel -- serve-peer-pieces <manifest> <piece-dir> 127.0.0.1:8123",
       "",
       "$ErrorActionPreference = \"Stop\"",
       "",
@@ -3037,7 +3042,7 @@
 
   function hfSimpleFallbackNote(view) {
     if (view.p2pMatch) {
-      return "P2P Import saves a peer-piece request and Rust reverify script. It does not fetch project-hosted model bytes.";
+      return "P2P Import saves a peer-piece request and Rust fetch/verify script. It does not fetch project-hosted model bytes.";
     }
     if (view.matches.length && state.p2pEnabled === false) {
       return "P2P is disabled for this list, so conversion will use local/manual source files and may take a while.";
@@ -3137,7 +3142,7 @@
       boundary: {
         project_server_runs_model_bytes: false,
         project_server_serves_model_bytes: false,
-        p2p_goal: "Convert once, publish checksum-bound metadata plus a peer-offer proof, then let consenting peers transfer verified .slm bytes when the peer client is implemented."
+        p2p_goal: "Convert once, publish checksum-bound metadata plus a peer-offer proof, then let consenting peers serve MiniModel pieces that receivers fetch, assemble, and reverify locally."
       }
     };
   }
@@ -3200,6 +3205,13 @@
       "",
       "cargo run -p tinyrustlm-slm-pack -- peer-offer $OutputSlm $PeerOffer",
       "cargo run -p tinyrustlm-slm-pack -- validate-peer-offer $OutputSlm $PeerOffer",
+      "",
+      "# Optional after MiniModel admission creates a .minimodel.manifest.v0:",
+      "$MiniModelManifest = \"EDIT_ME\\\\model.minimodel.manifest.v0\"",
+      "$PeerPiecesDir = Join-Path $WorkDir \"peer-pieces\"",
+      "Write-Host \"To become a consenting P2P source after admission, run these from MiniModel.org:\"",
+      "Write-Host \"  cargo run -p minimodel -- export-peer-pieces $MiniModelManifest $OutputSlm $PeerPiecesDir\"",
+      "Write-Host \"  cargo run -p minimodel -- serve-peer-pieces $MiniModelManifest $PeerPiecesDir 127.0.0.1:8123\"",
       "",
       "Write-Host \"Converted .slm:\" $OutputSlm",
       "Write-Host \"MiniModel peer offer proof:\" $PeerOffer",
