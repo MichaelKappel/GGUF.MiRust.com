@@ -1,5 +1,5 @@
-profile: runtime-mirust.long-term-memory-ledger.v165
-updated_utc: 2026-07-01T22:25:00Z
+profile: runtime-mirust.long-term-memory-ledger.v166
+updated_utc: 2026-07-02T04:53:29Z
 storage_mode: hybrid
 ledger_rule:
   pointer_only_not_context_free: true
@@ -12,15 +12,15 @@ records:
     path: workspace.uai
     target_location: workspace.uai
     label: Required For Workspace Authority And Current Boundary
-    summary: Routes agents to SLMComposer active Rust root, MiniModel source options, dashboard memory, deploy gate, processed intake, public boundary, and safetensors evidence binding.
+    summary: Routes agents to TinyRustLM active Rust root, MiniModel source options, conversion-script handoff, deploy gate, processed intake, public boundary, and safetensors evidence binding.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before orienting project state, support boundaries, report routing, or public claim boundaries.
-    checksum_hash: sha256:B53A6BFF66DDE779BC5C782A7AEC0275DA932462C6A72F3B2E149F32037E8522
-    last_reviewed_utc: 2026-07-01T22:25:00Z
+    checksum_hash: sha256:4D84E2A71E01802CF227796C0E7B979CB2EBA4451FBD0D2364CA64A299C5DD69
+    last_reviewed_utc: 2026-07-02T04:53:29Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; hot workspace state lives in the target file.
   - stable_id: runtime_mirust_workspace_guidance_uai
@@ -29,15 +29,15 @@ records:
     path: .uai/workspace-guidance.uai
     target_location: .uai/workspace-guidance.uai
     label: Required For Workspace Memory And Implementation Guidance
-    summary: Routes agents to memory strategy, SLMComposer active root, dashboard route, MiniModel source options, source-site removal, browser evidence binding, and safetensors tails.
+    summary: Routes agents to memory strategy, TinyRustLM active root, dashboard route, MiniModel source options, conversion-script handoff, browser evidence binding, and safetensors tails.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before broad memory loading, report strategy edits, or implementation boundary work.
-    checksum_hash: sha256:CF103DAF57AF35FDCF9B368CC8842FF78532A87D401B9CAC06719ADCE699D5A7
-    last_reviewed_utc: 2026-07-01T22:25:00Z
+    checksum_hash: sha256:28FBB57A87FFDA0C177DAAC6EDC5AE9AEA8B38CAD4C1CF717D36BAF7405DB88E
+    last_reviewed_utc: 2026-07-02T04:53:29Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; hot guidance lives in the target file.
   - stable_id: runtime_mirust_file_handoff_uai
@@ -80,15 +80,15 @@ records:
     path: .uai/report-synthesis.uai
     target_location: .uai/report-synthesis.uai
     label: Required For Processed Report Synthesis Routing
-    summary: Routes agents to processed reports, SLMComposer dashboard memory, MiniModel source options, docs intake, browser evidence binding, safetensors CLI tails, BPE proof, and q8-first preference.
+    summary: Routes agents to processed reports, dashboard memory, MiniModel source options, conversion-script handoff, docs intake, browser evidence binding, safetensors CLI tails, and BPE proof.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before opening bulk reports, report-derived design guidance, or model-breeding research routes.
-    checksum_hash: sha256:87F108F903D61F9957C2DF7111DF967293491F0A0E2A99CFA848CCBECBB2129E
-    last_reviewed_utc: 2026-07-01T22:25:00Z
+    checksum_hash: sha256:FAD55A573B7FC1ACBCEE31300FD40FEC888031C2C9212560E0C2139981D69144
+    last_reviewed_utc: 2026-07-02T04:53:29Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; processed report synthesis lives in the target file.
   - stable_id: runtime_mirust_short_term_memory_uai
@@ -97,15 +97,15 @@ records:
     path: .uai/short-term-memory.uai
     target_location: .uai/short-term-memory.uai
     label: Required For Current State And Report Routes
-    summary: Routes agents to completed site split, SLMComposer dashboard status, active workspace, processed intake, source options, next prompt route, and browser evidence binding.
+    summary: Routes agents to completed site split, TinyRustLM dashboard status, active workspace, processed intake, source options, conversion-script proof, and browser evidence binding.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before resuming current work, locating latest report memory, or choosing next verification.
-    checksum_hash: sha256:7360E8BB25FF0C20BA4E0C4FCA78B4EC0ECE79084712B7E1BCF5B9AE587E4BCF
-    last_reviewed_utc: 2026-07-01T22:25:00Z
+    checksum_hash: sha256:85CBC179385FBD4ECB622476BD5A55EBD9F5C6ACEF77922EA77175F00223D736
+    last_reviewed_utc: 2026-07-02T04:53:29Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; current state and routes live in the target file.
   - stable_id: runtime_mirust_startup_packet_uai
@@ -5344,6 +5344,23 @@ records:
     last_reviewed_utc: 2026-07-01T22:25:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; dashboard report body lives in the target file.
+  - stable_id: tinyrustlm_huggingface_conversion_script_memory
+    memory_domain: runtime-mirust.report_memory.huggingface_conversion_script
+    pointer_type: llmwiki_node
+    path: wiki/runtime-mirust/reports/tinyrustlm-huggingface-conversion-script-memory-2026-07-02.md
+    target_location: https://aiwikis.org/runtime-mirust/reports/tinyrustlm-huggingface-conversion-script-memory-2026-07-02/
+    label: Required For TinyRustLM Hugging Face Conversion Script Memory
+    summary: Routes agents to Hugging Face metadata-search wording, conversion-required result state, local Rust conversion-script handoff, no-download boundary, and chooser open-state smoke proof.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local implementation report
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing Hugging Face source discovery, conversion request/script handoffs, MiniModel metadata matching, or source chooser open-state browser smokes.
+    checksum_hash: sha256:65C25BC60631C525D8F7346387ECEFC1DA512A4AEE7AA4CFE6F1AD3BFB9097CD
+    last_reviewed_utc: 2026-07-02T04:53:29Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; conversion script report body lives in the target file.
   - stable_id: runtime_mirust_tinylm16_bpe_safetensors_plan_memory
     memory_domain: runtime-mirust.report_memory.safetensors_source_plan
     pointer_type: llmwiki_node

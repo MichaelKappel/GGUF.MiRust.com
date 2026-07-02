@@ -1,5 +1,5 @@
-profile: runtime-mirust.report-synthesis.v135
-updated_utc: 2026-07-01T22:25:00Z
+profile: runtime-mirust.report-synthesis.v136
+updated_utc: 2026-07-02T04:53:29Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/runtime-mirust/report-intake-2026-06-25/
@@ -27,6 +27,7 @@ source_authority:
     - wiki/runtime-mirust/reports/slmcomposer-minimodel-catalog-import-memory-2026-07-01.md
     - wiki/runtime-mirust/reports/slmcomposer-progressive-source-ui-memory-2026-07-01.md
     - wiki/runtime-mirust/reports/slmcomposer-local-ai-dashboard-memory-2026-07-01.md
+    - wiki/runtime-mirust/reports/tinyrustlm-huggingface-conversion-script-memory-2026-07-02.md
     - wiki/runtime-mirust/reports/tinylm16-bpe-safetensors-plan-memory-2026-06-30.md
     - wiki/runtime-mirust/reports/enterprise-rust-governance-memory-2026-06-25.md
     - wiki/runtime-mirust/reports/browser-local-runtime-memory-2026-06-25.md

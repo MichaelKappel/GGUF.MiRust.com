@@ -627,6 +627,7 @@
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = safeLocalModelName(fileName);
+    link.addEventListener("click", (event) => event.stopPropagation());
     document.body.append(link);
     link.click();
     link.remove();
@@ -863,9 +864,9 @@
     });
     storageSet(uiStorageKeys.simpleSourceOption, nextOption);
     if (el.simpleDiscoveryStatus) {
-      const messages = {
-        local: "Choose a trusted local .slm file. No network is needed.",
-        huggingface: "Search Hugging Face metadata. Save a conversion request or choose an admitted local .slm.",
+    const messages = {
+      local: "Choose a trusted local .slm file. No network is needed.",
+        huggingface: "Search Hugging Face metadata. Convert accepted sources to .slm before import.",
         p2p: "Load MiniModel metadata or save share metadata after a verified local .slm import. Peer transfer comes after P2P implementation."
       };
       el.simpleDiscoveryStatus.textContent = messages[nextOption];
@@ -2747,6 +2748,8 @@
 
   function hfConversionRequest(entry, matches) {
     const slmFiles = hfSlmSiblings(entry.result);
+    const defaultShape = "tinylm16-bpe";
+    const defaultQuantization = "q8_0";
     return {
       request_kind: "minimodel.huggingface_conversion_request.v0",
       generated_at: new Date().toISOString(),
@@ -2761,8 +2764,17 @@
       requested_artifact: {
         kind: "slm",
         preferred_quantization_order: ["q8_0", "q4_0", "f32"],
+        supported_source_shapes: ["tiny-fixture", "tiny-fixture-tied", "tiny-fixture-bpe", "tinylm16", "tinylm16-tied", "tinylm16-bpe"],
+        default_source_shape: defaultShape,
+        default_quantization: defaultQuantization,
         runtime_target: "TinyRustLM Rust/WASM browser-local runtime",
         browser_import_rule: "User imports the converted .slm with the browser file picker; project servers do not serve model bytes."
+      },
+      local_conversion: {
+        converter: "tinyrustlm-slm-pack",
+        required_local_input: "A user-selected .safetensors file already present on this machine.",
+        command_shape: `cargo run -p tinyrustlm-slm-pack -- convert-safetensors-trained <input.safetensors> ${defaultShape} <output-source-dir> <output.slm> ${defaultQuantization}`,
+        compatibility_rule: "The Rust planner/converter must accept the safetensors tensor names and exact TinyRustLM shape before a .slm is usable."
       },
       conversion_gates: [
         "source license and model-card review",
@@ -2791,6 +2803,67 @@
     };
   }
 
+  function powerShellSingleQuote(value) {
+    return `'${String(value || "").replace(/'/g, "''")}'`;
+  }
+
+  function conversionFileStem(modelId) {
+    const stem = String(modelId || "huggingface-model")
+      .replace(/[\\/]+/g, "__")
+      .replace(/[^A-Za-z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 120);
+    return stem || "huggingface-model";
+  }
+
+  function hfConversionScript(entry, matches) {
+    const request = hfConversionRequest(entry, matches);
+    const stem = conversionFileStem(entry.modelId);
+    const sourceShape = request.requested_artifact.default_source_shape;
+    const quantization = request.requested_artifact.default_quantization;
+    const modelUrl = hfModelUrl(entry.modelId);
+    const lines = [
+      "# TinyRustLM Hugging Face to .slm conversion script",
+      `# Source model: ${entry.modelId}`,
+      `# Model card: ${modelUrl}`,
+      "#",
+      "# This script never downloads model bytes for you.",
+      "# First download or otherwise obtain the source .safetensors file yourself,",
+      "# review the model card/license, then edit $SourceSafetensors below.",
+      "# If the Rust planner rejects the file, this model is not currently compatible",
+      "# with the selected TinyRustLM source shape.",
+      "",
+      "$ErrorActionPreference = \"Stop\"",
+      "",
+      "# Edit these values before running.",
+      "$TinyRustLMWorkspace = \"EDIT_ME\\\\SLMComposer.com\"",
+      "$SourceSafetensors = \"EDIT_ME\\\\model.safetensors\"",
+      `$SourceShape = ${powerShellSingleQuote(sourceShape)}`,
+      `$Quantization = ${powerShellSingleQuote(quantization)}`,
+      `$ModelId = ${powerShellSingleQuote(entry.modelId)}`,
+      `$WorkDir = Join-Path (Get-Location) ${powerShellSingleQuote(`${stem}-tinyrustlm-conversion`)}`,
+      "$SourceDir = Join-Path $WorkDir \"source\"",
+      `$OutputSlm = Join-Path $WorkDir ${powerShellSingleQuote(`${stem}.${quantization}.slm`)}`,
+      "$InspectReport = Join-Path $WorkDir \"source.inspect\"",
+      "$PlanReport = Join-Path $WorkDir \"source.plan\"",
+      "",
+      "New-Item -ItemType Directory -Force -Path $WorkDir | Out-Null",
+      "New-Item -ItemType Directory -Force -Path $SourceDir | Out-Null",
+      "Set-Location $TinyRustLMWorkspace",
+      "",
+      "cargo run -p tinyrustlm-slm-pack -- inspect-safetensors $SourceSafetensors $InspectReport",
+      "cargo run -p tinyrustlm-slm-pack -- plan-safetensors-source $SourceSafetensors $SourceShape $PlanReport",
+      "cargo run -p tinyrustlm-slm-pack -- convert-safetensors-trained $SourceSafetensors $SourceShape $SourceDir $OutputSlm $Quantization",
+      "cargo run -p tinyrustlm-slm-pack -- validate $OutputSlm",
+      "cargo run -p tinyrustlm-slm-pack -- validate-manifest $OutputSlm \"$OutputSlm.manifest\"",
+      "",
+      "Write-Host \"Converted .slm:\" $OutputSlm",
+      "Write-Host \"Next: open TinyRustLM.com, choose Your Local Files, import the .slm, then Save Share Metadata for future P2P availability.\"",
+      ""
+    ];
+    return lines.join("\n");
+  }
+
   function saveHfConversionRequest(entry, matches) {
     const request = hfConversionRequest(entry, matches);
     state.pendingConversionRequest = normalizeConversionRequest(request);
@@ -2798,6 +2871,14 @@
     const fileName = `${entry.modelId.replace(/[\\/]+/g, "__")}.minimodel-conversion-request.json`;
     downloadTextFile(fileName, `${JSON.stringify(request, null, 2)}\n`);
     setHfStatus("conversion request saved locally", false);
+    toggleModelPopover(true);
+  }
+
+  function saveHfConversionScript(entry, matches) {
+    const fileName = `${conversionFileStem(entry.modelId)}.tinyrustlm-convert.ps1`;
+    downloadTextFile(fileName, hfConversionScript(entry, matches), "text/plain");
+    setHfStatus("conversion script saved locally", false);
+    toggleModelPopover(true);
   }
 
   function renderHfResults(results) {
@@ -2851,6 +2932,11 @@
         requestButton.textContent = "Save Conversion Request";
         requestButton.addEventListener("click", () => saveHfConversionRequest(entry, matches));
         actions.append(requestButton);
+        const scriptButton = document.createElement("button");
+        scriptButton.type = "button";
+        scriptButton.textContent = "Save Conversion Script";
+        scriptButton.addEventListener("click", () => saveHfConversionScript(entry, matches));
+        actions.append(scriptButton);
       }
       const slmFiles = hfSlmSiblings(entry.result);
       if (slmFiles.length) {
@@ -2931,6 +3017,13 @@
       requestButton.textContent = "Save Conversion Request";
       requestButton.addEventListener("click", () => saveHfConversionRequest(entry, matches));
       actions.append(requestButton);
+      if (!matches.length) {
+        const scriptButton = document.createElement("button");
+        scriptButton.type = "button";
+        scriptButton.textContent = "Save Conversion Script";
+        scriptButton.addEventListener("click", () => saveHfConversionScript(entry, matches));
+        actions.append(scriptButton);
+      }
       const importButton = document.createElement("button");
       importButton.type = "button";
       importButton.textContent = "Choose converted .slm";
