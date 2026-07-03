@@ -20,6 +20,8 @@ const hfLocalCatalogSmokeMode = smokeMode === "hf-local-catalog-ui";
 const hfPeerAnnouncementSmokeMode = smokeMode === "hf-peer-announcement-ui";
 const hfCatalogAnnouncementRouteSmokeMode = smokeMode === "hf-catalog-announcement-route-ui";
 const hfEmptyCatalogAnnouncementRouteSmokeMode = smokeMode === "hf-empty-catalog-announcement-route-ui";
+const hfTinySourceFixtureSha256 = "e90abc2f35e60239a0efb0dd7f446d7ff464ca5ac3513b2ca87b4b922b184e9a";
+const hfTinySourceFixtureByteCount = 68204618;
 const shareMetadataSmokeMode = smokeMode === "share-metadata-ui";
 const catalogLocalImportSmokeMode = smokeMode === "catalog-local-import";
 const combinedSelectorOperatorFamilyRouteSoakMode = smokeMode === "combined-selector-operator-family-route-soak";
@@ -1700,10 +1702,10 @@ function installHfSearchUiInterceptor(client) {
               { rfilename: "config.json" },
               {
                 rfilename: "model.safetensors",
-                size: 2048,
+                size: hfTinySourceFixtureByteCount,
                 lfs: {
-                  oid: "1111111111111111111111111111111111111111111111111111111111111111",
-                  size: 2048
+                  oid: hfTinySourceFixtureSha256,
+                  size: hfTinySourceFixtureByteCount
                 }
               },
               { rfilename: "tokenizer.json" }
@@ -9394,10 +9396,10 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       if (!String(conversionRequest.local_conversion && conversionRequest.local_conversion.suggested_source_safetensors_url || "").includes("https://huggingface.co/example-org/tiny-source-model/resolve/main/model.safetensors")) {
         failures.push(`conversion request did not carry the direct Hugging Face source URL: ${JSON.stringify(conversionRequest.local_conversion)}`);
       }
-      if (conversionRequest.local_conversion && conversionRequest.local_conversion.suggested_source_safetensors_sha256 !== "sha256:1111111111111111111111111111111111111111111111111111111111111111") {
+      if (conversionRequest.local_conversion && conversionRequest.local_conversion.suggested_source_safetensors_sha256 !== `sha256:${hfTinySourceFixtureSha256}`) {
         failures.push(`conversion request did not carry the source SHA-256 from metadata: ${JSON.stringify(conversionRequest.local_conversion)}`);
       }
-      if (conversionRequest.local_conversion && conversionRequest.local_conversion.suggested_source_safetensors_byte_count !== 2048) {
+      if (conversionRequest.local_conversion && conversionRequest.local_conversion.suggested_source_safetensors_byte_count !== hfTinySourceFixtureByteCount) {
         failures.push(`conversion request did not carry the source byte count from metadata: ${JSON.stringify(conversionRequest.local_conversion)}`);
       }
       if (conversionRequest.local_conversion && conversionRequest.local_conversion.source_input_mode !== "single-safetensors-file") {
@@ -9405,6 +9407,11 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       }
       if (!Array.isArray(conversionRequest.local_conversion && conversionRequest.local_conversion.suggested_source_safetensors_files) || conversionRequest.local_conversion.suggested_source_safetensors_files.length !== 1) {
         failures.push(`conversion request did not carry the full safetensors file list: ${JSON.stringify(conversionRequest.local_conversion)}`);
+      } else {
+        const listedSource = conversionRequest.local_conversion.suggested_source_safetensors_files[0];
+        if (listedSource.sha256 !== `sha256:${hfTinySourceFixtureSha256}` || listedSource.byte_count !== hfTinySourceFixtureByteCount) {
+          failures.push(`conversion request file-list source metadata was ${JSON.stringify(listedSource)}`);
+        }
       }
       if (!String(conversionRequest.local_conversion && conversionRequest.local_conversion.source_acquisition_rule || "").includes("TINYRUSTLM_ALLOW_HF_DOWNLOAD=1")) {
         failures.push(`conversion request did not explain explicit local Hugging Face download opt-in: ${JSON.stringify(conversionRequest.local_conversion)}`);
@@ -9469,8 +9476,8 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "models.v0.json",
       "Known peer URL: http://127.0.0.1:8123/",
       "Suggested direct Hugging Face source URL: https://huggingface.co/example-org/tiny-source-model/resolve/main/model.safetensors",
-      "Expected source SHA-256 from metadata: sha256:1111111111111111111111111111111111111111111111111111111111111111",
-      "Expected source byte count from metadata: 2048",
+      `Expected source SHA-256 from metadata: sha256:${hfTinySourceFixtureSha256}`,
+      `Expected source byte count from metadata: ${hfTinySourceFixtureByteCount}`,
       "reviewed file or shard directory",
       "Listed source file: model.safetensors",
       "Safe to publish",
@@ -9779,6 +9786,12 @@ function executeBrowserGeneratedConversionKit(result) {
   const receiptText = readUtf8(conversionReceipt);
   assertTextContains(receiptText, "request_kind=minimodel.huggingface_conversion_request.v0", "conversion receipt");
   assertTextContains(receiptText, "preflight_report=", "conversion receipt");
+  assertTextContains(receiptText, "source_contract_status=pass", "conversion receipt");
+  assertTextContains(receiptText, "source_expected_file_count=1", "conversion receipt");
+  assertTextContains(receiptText, "source_verified_file_count=1", "conversion receipt");
+  assertTextContains(receiptText, "source_verified_sha256_count=1", "conversion receipt");
+  assertTextContains(receiptText, `source_expected_total_bytes=${hfTinySourceFixtureByteCount}`, "conversion receipt");
+  assertTextContains(receiptText, `source_actual_total_bytes=${hfTinySourceFixtureByteCount}`, "conversion receipt");
   assertTextContains(receiptText, "project_server_serves_model_bytes=false", "conversion receipt");
   assertTextContains(receiptText, "project_server_runs_model_bytes=false", "conversion receipt");
   assertTextContains(receiptText, "project_server_proxies_huggingface_bytes=false", "conversion receipt");
@@ -9787,6 +9800,12 @@ function executeBrowserGeneratedConversionKit(result) {
   const preflightText = readUtf8(conversionPreflight);
   assertTextContains(preflightText, "tinyrustlm_huggingface_conversion_preflight_version=1", "conversion preflight");
   assertTextContains(preflightText, "preflight_status=pass", "conversion preflight");
+  assertTextContains(preflightText, "source_contract_status=pass", "conversion preflight");
+  assertTextContains(preflightText, "source_expected_file_count=1", "conversion preflight");
+  assertTextContains(preflightText, "source_verified_file_count=1", "conversion preflight");
+  assertTextContains(preflightText, "source_verified_sha256_count=1", "conversion preflight");
+  assertTextContains(preflightText, `source_expected_total_bytes=${hfTinySourceFixtureByteCount}`, "conversion preflight");
+  assertTextContains(preflightText, `source_actual_total_bytes=${hfTinySourceFixtureByteCount}`, "conversion preflight");
   assertTextContains(preflightText, "conversion_decision=ready-for-local-conversion", "conversion preflight");
   assertTextContains(preflightText, "project_server_serves_model_bytes=false", "conversion preflight");
 

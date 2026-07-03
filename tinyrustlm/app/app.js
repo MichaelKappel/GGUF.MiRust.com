@@ -1874,7 +1874,7 @@
     if (state.messages.length === 0) {
       const item = document.createElement("li");
       item.className = "empty-message";
-      item.textContent = "No conversation yet. Import a verified local .slm file to run the first real prompt.";
+      item.textContent = "No conversation yet. Messages appear only after a verified local .slm runs through Rust/WASM generation; use local import, P2P Import, or Start Conversion to create one.";
       el.conversation.append(item);
       el.clearChatButton.disabled = true;
       return;

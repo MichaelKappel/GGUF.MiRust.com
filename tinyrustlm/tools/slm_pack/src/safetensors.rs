@@ -10,7 +10,7 @@ use crate::tensor_writer::{
 };
 use crate::tokenizer_writer::{BpeMergeSpec, BpeTokenSpec, ByteTokenizerSection, TokenizerSection};
 use crate::writer::align_to_64;
-use crate::{browser_bundle, provenance, slm_validate, trained_source};
+use crate::{browser_bundle, peer_offer, provenance, slm_validate, trained_source};
 
 const SAFETENSORS_REPORT_VERSION: &str = "1";
 const SAFETENSORS_SOURCE_PLAN_VERSION: &str = "1";
@@ -124,6 +124,22 @@ struct HuggingFaceConversionRequest {
     default_source_shape: String,
     default_quantization: String,
     suggested_source_file: Option<String>,
+    expected_source_files: Vec<HuggingFaceExpectedSourceFile>,
+}
+
+struct HuggingFaceExpectedSourceFile {
+    file_name: String,
+    sha256: Option<String>,
+    byte_count: Option<u64>,
+}
+
+struct HuggingFaceSourceContract {
+    status: &'static str,
+    expected_file_count: usize,
+    verified_file_count: usize,
+    expected_total_bytes: Option<u64>,
+    actual_total_bytes: u64,
+    verified_sha256_count: usize,
 }
 
 struct ReviewArtifactEvidence {
@@ -496,6 +512,39 @@ pub fn convert_huggingface_request_path(
                 shape_name,
                 output_quantization,
                 Some(&failure_reason),
+                None,
+            )?;
+            return Err(error);
+        }
+    };
+    let source_contract = match verify_huggingface_source_contract(&request, input, &plan.inspection)
+    {
+        Ok(contract) => contract,
+        Err(error) => {
+            let failure_reason = error.to_string();
+            fs::write(&inspect_report, render_report(&plan.inspection))?;
+            fs::write(&plan_report, render_source_plan(&plan))?;
+            write_huggingface_conversion_preflight(
+                &preflight_report,
+                &request,
+                request_json,
+                input,
+                output_dir,
+                &inspect_report,
+                &plan_report,
+                Some(&plan),
+                Some(&plan.inspection),
+                shape_name,
+                output_quantization,
+                Some(&failure_reason),
+                Some(&HuggingFaceSourceContract {
+                    status: "fail",
+                    expected_file_count: request.expected_source_files.len(),
+                    verified_file_count: 0,
+                    expected_total_bytes: expected_source_total_bytes(&request),
+                    actual_total_bytes: plan.inspection.file_bytes,
+                    verified_sha256_count: 0,
+                }),
             )?;
             return Err(error);
         }
@@ -515,6 +564,7 @@ pub fn convert_huggingface_request_path(
         shape_name,
         output_quantization,
         None,
+        Some(&source_contract),
     )?;
     convert_source_path(
         input,
@@ -540,6 +590,7 @@ pub fn convert_huggingface_request_path(
         &plan_report,
         &preflight_report,
         &plan,
+        &source_contract,
         shape_name,
         output_quantization,
     )?;
@@ -3855,7 +3906,8 @@ fn parse_huggingface_conversion_request(text: &str) -> io::Result<HuggingFaceCon
         conversion_string_field(requested_artifact, "default_quantization")?.to_string();
     trained_source::validate_output_quantization(&default_quantization)?;
 
-    let suggested_source_file = optional_object_field(&root, "local_conversion")
+    let local_conversion = optional_object_field(&root, "local_conversion");
+    let suggested_source_file = local_conversion
         .and_then(|local_conversion| {
             optional_string_field(local_conversion, "suggested_source_safetensors_file")
         })
@@ -3864,6 +3916,13 @@ fn parse_huggingface_conversion_request(text: &str) -> io::Result<HuggingFaceCon
     if let Some(file_name) = suggested_source_file.as_deref() {
         validate_safe_safetensors_file_name(file_name)?;
     }
+    let expected_source_files = match local_conversion {
+        Some(local_conversion) => parse_huggingface_expected_source_files(
+            local_conversion,
+            suggested_source_file.as_deref(),
+        )?,
+        None => Vec::new(),
+    };
 
     Ok(HuggingFaceConversionRequest {
         source_model_id,
@@ -3871,6 +3930,7 @@ fn parse_huggingface_conversion_request(text: &str) -> io::Result<HuggingFaceCon
         default_source_shape,
         default_quantization,
         suggested_source_file,
+        expected_source_files,
     })
 }
 
@@ -3889,6 +3949,7 @@ fn write_huggingface_conversion_receipt(
     plan_report: &Path,
     preflight_report: &Path,
     plan: &SourcePlan,
+    source_contract: &HuggingFaceSourceContract,
     shape_name: &str,
     output_quantization: &str,
 ) -> io::Result<()> {
@@ -3935,6 +3996,39 @@ fn write_huggingface_conversion_receipt(
         &mut text,
         "source_file_count",
         &plan.inspection.source_file_count.to_string(),
+    );
+    push_receipt_line(
+        &mut text,
+        "source_contract_status",
+        source_contract.status,
+    );
+    push_receipt_line(
+        &mut text,
+        "source_expected_file_count",
+        &source_contract.expected_file_count.to_string(),
+    );
+    push_receipt_line(
+        &mut text,
+        "source_verified_file_count",
+        &source_contract.verified_file_count.to_string(),
+    );
+    push_receipt_line(
+        &mut text,
+        "source_verified_sha256_count",
+        &source_contract.verified_sha256_count.to_string(),
+    );
+    push_receipt_line(
+        &mut text,
+        "source_expected_total_bytes",
+        &source_contract
+            .expected_total_bytes
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| "unavailable".to_string()),
+    );
+    push_receipt_line(
+        &mut text,
+        "source_actual_total_bytes",
+        &source_contract.actual_total_bytes.to_string(),
     );
     push_receipt_line(
         &mut text,
@@ -4086,6 +4180,7 @@ fn write_huggingface_conversion_preflight(
     shape_name: &str,
     output_quantization: &str,
     failure_reason: Option<&str>,
+    source_contract: Option<&HuggingFaceSourceContract>,
 ) -> io::Result<()> {
     let mut text = String::new();
     push_receipt_line(
@@ -4160,13 +4255,55 @@ fn write_huggingface_conversion_preflight(
         push_receipt_line(&mut text, "source_file_bytes", "unavailable");
         push_receipt_line(&mut text, "safetensors_tensor_count", "unavailable");
     }
+    let fallback_contract = HuggingFaceSourceContract {
+        status: if failure_reason.is_some() && !request.expected_source_files.is_empty() {
+            "fail"
+        } else if request.expected_source_files.is_empty() {
+            "not-provided"
+        } else {
+            "unverified"
+        },
+        expected_file_count: request.expected_source_files.len(),
+        verified_file_count: 0,
+        expected_total_bytes: expected_source_total_bytes(request),
+        actual_total_bytes: inspection.map(|value| value.file_bytes).unwrap_or(0),
+        verified_sha256_count: 0,
+    };
+    let source_contract = source_contract.unwrap_or(&fallback_contract);
+    push_receipt_line(
+        &mut text,
+        "source_contract_status",
+        source_contract.status,
+    );
+    push_receipt_line(
+        &mut text,
+        "source_expected_file_count",
+        &source_contract.expected_file_count.to_string(),
+    );
+    push_receipt_line(
+        &mut text,
+        "source_verified_file_count",
+        &source_contract.verified_file_count.to_string(),
+    );
+    push_receipt_line(
+        &mut text,
+        "source_verified_sha256_count",
+        &source_contract.verified_sha256_count.to_string(),
+    );
+    push_receipt_line(
+        &mut text,
+        "source_expected_total_bytes",
+        &source_contract
+            .expected_total_bytes
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| "unavailable".to_string()),
+    );
+    push_receipt_line(
+        &mut text,
+        "source_actual_total_bytes",
+        &source_contract.actual_total_bytes.to_string(),
+    );
     if let Some(plan) = plan {
-        push_receipt_line(&mut text, "preflight_status", "pass");
-        push_receipt_line(
-            &mut text,
-            "conversion_decision",
-            "ready-for-local-conversion",
-        );
         push_receipt_line(
             &mut text,
             "matched_tensor_count",
@@ -4182,12 +4319,39 @@ fn write_huggingface_conversion_preflight(
             "source_plan_mapping_checksum",
             &hex64(source_plan_mapping_checksum(&plan.tensors)),
         );
-        push_receipt_line(&mut text, "output_slm_produced", "pending-conversion");
-        push_receipt_line(
-            &mut text,
-            "required_next_gate",
-            "convert-source-and-validate-slm",
-        );
+        if failure_reason.is_none() {
+            push_receipt_line(&mut text, "preflight_status", "pass");
+            push_receipt_line(
+                &mut text,
+                "conversion_decision",
+                "ready-for-local-conversion",
+            );
+            push_receipt_line(&mut text, "output_slm_produced", "pending-conversion");
+            push_receipt_line(
+                &mut text,
+                "required_next_gate",
+                "convert-source-and-validate-slm",
+            );
+        } else {
+            push_receipt_line(&mut text, "preflight_status", "fail");
+            push_receipt_line(
+                &mut text,
+                "conversion_decision",
+                "source-contract-rejected-before-conversion",
+            );
+            push_receipt_line(&mut text, "failure_stage", "huggingface-source-contract");
+            push_receipt_line(
+                &mut text,
+                "failure_reason",
+                failure_reason.unwrap_or("unavailable"),
+            );
+            push_receipt_line(&mut text, "output_slm_produced", "false");
+            push_receipt_line(
+                &mut text,
+                "required_next_gate",
+                "choose-matching-reviewed-source-or-wait-for-p2p",
+            );
+        }
     } else {
         push_receipt_line(&mut text, "preflight_status", "fail");
         push_receipt_line(
@@ -4227,6 +4391,181 @@ fn selected_shape_supported(request: &HuggingFaceConversionRequest, shape_name: 
         .supported_source_shapes
         .iter()
         .any(|supported| supported == shape_name)
+}
+
+fn parse_huggingface_expected_source_files(
+    local_conversion: &[(String, JsonValue)],
+    suggested_source_file: Option<&str>,
+) -> io::Result<Vec<HuggingFaceExpectedSourceFile>> {
+    let mut files = Vec::new();
+    if let Some(items) = conversion_optional_array_field(
+        local_conversion,
+        "suggested_source_safetensors_files",
+        "Hugging Face conversion request local_conversion.suggested_source_safetensors_files",
+    )? {
+        for item in items {
+            let object = match item {
+                JsonValue::Object(value) => value,
+                _ => {
+                    return Err(invalid(
+                        "Hugging Face conversion request suggested_source_safetensors_files entries must be objects",
+                    ))
+                }
+            };
+            let file_name = conversion_string_field(object, "file_name")?.to_string();
+            validate_safe_safetensors_file_name(&file_name)?;
+            if files
+                .iter()
+                .any(|existing: &HuggingFaceExpectedSourceFile| existing.file_name == file_name)
+            {
+                return Err(invalid(
+                    "Hugging Face conversion request lists the same .safetensors source file twice",
+                ));
+            }
+            let sha256 = optional_string_field(object, "sha256")
+                .filter(|value| !value.trim().is_empty())
+                .map(|value| normalize_conversion_sha256(value, "suggested source sha256"))
+                .transpose()?;
+            let byte_count = conversion_optional_u64_field(
+                object,
+                "byte_count",
+                "Hugging Face conversion request suggested source byte_count",
+            )?;
+            files.push(HuggingFaceExpectedSourceFile {
+                file_name,
+                sha256,
+                byte_count,
+            });
+        }
+    }
+    if files.is_empty() {
+        if let Some(file_name) = suggested_source_file {
+            let sha256 = optional_string_field(local_conversion, "suggested_source_safetensors_sha256")
+                .filter(|value| !value.trim().is_empty())
+                .map(|value| normalize_conversion_sha256(value, "suggested source sha256"))
+                .transpose()?;
+            let byte_count = conversion_optional_u64_field(
+                local_conversion,
+                "suggested_source_safetensors_byte_count",
+                "Hugging Face conversion request suggested_source_safetensors_byte_count",
+            )?;
+            if sha256.is_some() || byte_count.is_some() {
+                files.push(HuggingFaceExpectedSourceFile {
+                    file_name: file_name.to_string(),
+                    sha256,
+                    byte_count,
+                });
+            }
+        }
+    }
+    Ok(files)
+}
+
+fn verify_huggingface_source_contract(
+    request: &HuggingFaceConversionRequest,
+    input: &Path,
+    inspection: &SafetensorsInspection,
+) -> io::Result<HuggingFaceSourceContract> {
+    if request.expected_source_files.is_empty() {
+        return Ok(HuggingFaceSourceContract {
+            status: "not-provided",
+            expected_file_count: 0,
+            verified_file_count: 0,
+            expected_total_bytes: None,
+            actual_total_bytes: inspection.file_bytes,
+            verified_sha256_count: 0,
+        });
+    }
+    if inspection.source_file_count != request.expected_source_files.len() as u64 {
+        return Err(invalid(&format!(
+            "Hugging Face source file count mismatch: request expected {}, local source has {}",
+            request.expected_source_files.len(),
+            inspection.source_file_count
+        )));
+    }
+
+    let mut actual_total_bytes = 0u64;
+    let mut verified_sha256_count = 0usize;
+    for expected in &request.expected_source_files {
+        let source_path = expected_source_path(input, expected, request.expected_source_files.len())?;
+        let actual_bytes = fs::metadata(&source_path)?.len();
+        actual_total_bytes = actual_total_bytes.saturating_add(actual_bytes);
+        if let Some(expected_bytes) = expected.byte_count {
+            if actual_bytes != expected_bytes {
+                return Err(invalid(&format!(
+                    "Hugging Face source byte count mismatch for {}: expected {}, local file has {}",
+                    expected.file_name, expected_bytes, actual_bytes
+                )));
+            }
+        }
+        if let Some(expected_sha256) = expected.sha256.as_deref() {
+            let actual_sha256 = file_sha256_prefixed(&source_path)?;
+            if actual_sha256 != expected_sha256 {
+                return Err(invalid(&format!(
+                    "Hugging Face source SHA-256 mismatch for {}: expected {}, local file has {}",
+                    expected.file_name, expected_sha256, actual_sha256
+                )));
+            }
+            verified_sha256_count += 1;
+        }
+    }
+    Ok(HuggingFaceSourceContract {
+        status: "pass",
+        expected_file_count: request.expected_source_files.len(),
+        verified_file_count: request.expected_source_files.len(),
+        expected_total_bytes: expected_source_total_bytes(request),
+        actual_total_bytes,
+        verified_sha256_count,
+    })
+}
+
+fn expected_source_path(
+    input: &Path,
+    expected: &HuggingFaceExpectedSourceFile,
+    expected_count: usize,
+) -> io::Result<PathBuf> {
+    if input.is_dir() {
+        return Ok(input.join(&expected.file_name));
+    }
+    if expected_count != 1 {
+        return Err(invalid(
+            "Hugging Face conversion request expects multiple .safetensors files; use a source directory",
+        ));
+    }
+    let actual_name = input
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("");
+    if actual_name != expected.file_name {
+        return Err(invalid(&format!(
+            "Hugging Face source file name mismatch: expected {}, local file is {}",
+            expected.file_name, actual_name
+        )));
+    }
+    Ok(input.to_path_buf())
+}
+
+fn file_sha256_prefixed(path: &Path) -> io::Result<String> {
+    Ok(peer_offer::sha256_prefixed(&fs::read(path)?))
+}
+
+fn expected_source_total_bytes(request: &HuggingFaceConversionRequest) -> Option<u64> {
+    let mut total = 0u64;
+    for file in &request.expected_source_files {
+        let bytes = file.byte_count?;
+        total = total.saturating_add(bytes);
+    }
+    Some(total)
+}
+
+fn normalize_conversion_sha256(value: &str, label: &str) -> io::Result<String> {
+    let digest = value.trim().strip_prefix("sha256:").unwrap_or(value.trim());
+    if digest.len() != 64 || !digest.as_bytes().iter().all(u8::is_ascii_hexdigit) {
+        return Err(invalid(&format!(
+            "Hugging Face conversion request {label} must be sha256: plus 64 hex characters"
+        )));
+    }
+    Ok(format!("sha256:{}", digest.to_ascii_lowercase()))
 }
 
 fn conversion_object_field<'a>(
@@ -4278,6 +4617,33 @@ fn optional_string_array_field(
             Ok(Some(values))
         }
         Some(_) => Err(invalid(&format!("{label} must be an array"))),
+        None => Ok(None),
+    }
+}
+
+fn conversion_optional_array_field<'a>(
+    object: &'a [(String, JsonValue)],
+    key: &str,
+    label: &str,
+) -> io::Result<Option<&'a [JsonValue]>> {
+    match find_object_field(object, key) {
+        Some(JsonValue::Array(items)) => Ok(Some(items)),
+        Some(_) => Err(invalid(&format!("{label} must be an array"))),
+        None => Ok(None),
+    }
+}
+
+fn conversion_optional_u64_field(
+    object: &[(String, JsonValue)],
+    key: &str,
+    label: &str,
+) -> io::Result<Option<u64>> {
+    match find_object_field(object, key) {
+        Some(JsonValue::Number(value)) => value.parse::<u64>().map(Some).map_err(|_| {
+            invalid(&format!("{label} must be an unsigned integer"))
+        }),
+        Some(JsonValue::Null) => Ok(None),
+        Some(_) => Err(invalid(&format!("{label} must be a number"))),
         None => Ok(None),
     }
 }
@@ -6028,24 +6394,37 @@ mod tests {
         let request = dir.join("example-org__tiny-source-model.minimodel-conversion-request.json");
         let output_dir = dir.join("request-output");
         write_template_source_extract_safetensors_with_hf_aliases(&input, "tiny-fixture");
+        let source_sha256 = file_sha256_prefixed(&input).unwrap();
+        let source_byte_count = fs::metadata(&input).unwrap().len();
         fs::write(
             &request,
-            r#"{
+            format!(
+                r#"{{
   "request_kind": "minimodel.huggingface_conversion_request.v0",
-  "source": {
+  "source": {{
     "kind": "huggingface_model",
     "model_id": "example-org/tiny-source-model"
-  },
-  "requested_artifact": {
+  }},
+  "requested_artifact": {{
     "kind": "slm",
     "default_source_shape": "tiny-fixture",
     "default_quantization": "q8_0"
-  },
-  "local_conversion": {
-    "suggested_source_safetensors_file": "tiny-hf-source.safetensors"
-  }
-}
+  }},
+  "local_conversion": {{
+    "suggested_source_safetensors_file": "tiny-hf-source.safetensors",
+    "suggested_source_safetensors_files": [
+      {{
+        "file_name": "tiny-hf-source.safetensors",
+        "sha256": "{source_sha256}",
+        "byte_count": {source_byte_count}
+      }}
+    ],
+    "suggested_source_safetensors_sha256": "{source_sha256}",
+    "suggested_source_safetensors_byte_count": {source_byte_count}
+  }}
+}}
 "#,
+            ),
         )
         .unwrap();
 
@@ -6073,6 +6452,12 @@ mod tests {
         assert!(preflight.contains("tinyrustlm_huggingface_conversion_preflight_version=1"));
         assert!(preflight.contains("source_model_id=example-org/tiny-source-model"));
         assert!(preflight.contains("preflight_status=pass"));
+        assert!(preflight.contains("source_contract_status=pass"));
+        assert!(preflight.contains("source_expected_file_count=1"));
+        assert!(preflight.contains("source_verified_file_count=1"));
+        assert!(preflight.contains("source_verified_sha256_count=1"));
+        assert!(preflight.contains(&format!("source_expected_total_bytes={source_byte_count}")));
+        assert!(preflight.contains(&format!("source_actual_total_bytes={source_byte_count}")));
         assert!(preflight.contains("conversion_decision=ready-for-local-conversion"));
         assert!(preflight.contains("output_slm_produced=pending-conversion"));
         assert!(preflight.contains("project_server_serves_model_bytes=false"));
@@ -6085,6 +6470,12 @@ mod tests {
         assert!(receipt.contains("source_kind=huggingface_model"));
         assert!(receipt.contains("source_model_id=example-org/tiny-source-model"));
         assert!(receipt.contains("suggested_source_safetensors_file=tiny-hf-source.safetensors"));
+        assert!(receipt.contains("source_contract_status=pass"));
+        assert!(receipt.contains("source_expected_file_count=1"));
+        assert!(receipt.contains("source_verified_file_count=1"));
+        assert!(receipt.contains("source_verified_sha256_count=1"));
+        assert!(receipt.contains(&format!("source_expected_total_bytes={source_byte_count}")));
+        assert!(receipt.contains(&format!("source_actual_total_bytes={source_byte_count}")));
         assert!(receipt.contains("target_model_shape=tiny-fixture"));
         assert!(receipt.contains("output_quantization=q8_0"));
         assert!(receipt.contains("preflight_report="));
@@ -6121,6 +6512,70 @@ mod tests {
         assert!(receipt.contains(
             "converted_once_publication_rule=publish-catalog-json-and-peer-source-announcement-json-only"
         ));
+    }
+
+    #[test]
+    fn rejects_huggingface_request_when_source_sha256_does_not_match() {
+        let dir = unique_dir("source-convert-hf-request-sha-drift");
+        fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("tiny-hf-source.safetensors");
+        let request = dir.join("example-org__tiny-source-model.minimodel-conversion-request.json");
+        let output_dir = dir.join("request-output");
+        write_template_source_extract_safetensors_with_hf_aliases(&input, "tiny-fixture");
+        let source_byte_count = fs::metadata(&input).unwrap().len();
+        fs::write(
+            &request,
+            format!(
+                r#"{{
+  "request_kind": "minimodel.huggingface_conversion_request.v0",
+  "source": {{
+    "kind": "huggingface_model",
+    "model_id": "example-org/tiny-source-model"
+  }},
+  "requested_artifact": {{
+    "kind": "slm",
+    "default_source_shape": "tiny-fixture",
+    "default_quantization": "q8_0"
+  }},
+  "local_conversion": {{
+    "suggested_source_safetensors_file": "tiny-hf-source.safetensors",
+    "suggested_source_safetensors_files": [
+      {{
+        "file_name": "tiny-hf-source.safetensors",
+        "sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "byte_count": {source_byte_count}
+      }}
+    ]
+  }}
+}}
+"#,
+            ),
+        )
+        .unwrap();
+
+        let error = convert_huggingface_request_path(&request, &input, &output_dir, None, None)
+            .unwrap_err();
+
+        assert!(error.to_string().contains("source SHA-256 mismatch"));
+        assert!(output_dir.join("source.inspect").exists());
+        assert!(output_dir.join("source.plan").exists());
+        assert!(!output_dir.join("tinyrustlm-conversion.receipt").exists());
+        assert!(!huggingface_conversion_output_slm_path(
+            &output_dir,
+            "example-org/tiny-source-model",
+            "q8_0",
+        )
+        .exists());
+        let preflight =
+            fs::read_to_string(output_dir.join("tinyrustlm-conversion.preflight")).unwrap();
+        assert!(preflight.contains("preflight_status=fail"));
+        assert!(preflight.contains("source_contract_status=fail"));
+        assert!(preflight.contains("source_expected_file_count=1"));
+        assert!(preflight.contains("conversion_decision=source-contract-rejected-before-conversion"));
+        assert!(preflight.contains("failure_stage=huggingface-source-contract"));
+        assert!(preflight.contains("required_next_gate=choose-matching-reviewed-source-or-wait-for-p2p"));
+        assert!(preflight.contains("project_server_serves_model_bytes=false"));
+        assert!(preflight.contains("project_server_runs_model_bytes=false"));
     }
 
     #[test]

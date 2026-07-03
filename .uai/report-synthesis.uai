@@ -1,5 +1,5 @@
-profile: runtime-mirust.report-synthesis.v156
-updated_utc: 2026-07-03T21:02:53Z
+profile: runtime-mirust.report-synthesis.v157
+updated_utc: 2026-07-03T21:42:04Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/runtime-mirust/report-intake-2026-06-25/
@@ -48,6 +48,7 @@ source_authority:
     - wiki/runtime-mirust/reports/tinyrustlm-local-share-kit-memory-2026-07-03.md
     - wiki/runtime-mirust/reports/tinyrustlm-huggingface-self-contained-conversion-script-memory-2026-07-03.md
     - wiki/runtime-mirust/reports/tinyrustlm-huggingface-local-download-opt-in-memory-2026-07-03.md
+    - wiki/runtime-mirust/reports/tinyrustlm-huggingface-source-contract-memory-2026-07-03.md
     - wiki/runtime-mirust/reports/tinyrustlm-huggingface-supported-source-gate-memory-2026-07-03.md
     - wiki/runtime-mirust/reports/tinyrustlm-huggingface-source-size-risk-memory-2026-07-03.md
     - wiki/runtime-mirust/reports/tinyrustlm-huggingface-sharded-source-directory-memory-2026-07-03.md
@@ -333,6 +334,10 @@ tinyrustlm_huggingface_local_download_opt_in_2026_07_03:
   route: wiki/runtime-mirust/reports/tinyrustlm-huggingface-local-download-opt-in-memory-2026-07-03.md
   checksum_sha256: 605261901E2BA23BD46DA052C9F68BCEBDDAF47E12D24B8ECDB72D4DA7370107
   synthesis: Hugging Face search remains browser metadata-only, while `Start Conversion` carries source URL/hash/byte hints into the local kit; the generated script downloads directly from Hugging Face only after `TINYRUSTLM_ALLOW_HF_DOWNLOAD=1` and verifies evidence before Rust conversion.
+tinyrustlm_huggingface_source_contract_2026_07_03:
+  route: wiki/runtime-mirust/reports/tinyrustlm-huggingface-source-contract-memory-2026-07-03.md
+  checksum_sha256: 6079F4E433DCE9FBBE45B0868396039D2AB91E0A2380E2C6A2F600EAF5735ABB
+  synthesis: `convert-huggingface-request` enforces request-listed `.safetensors` file names, byte counts, and SHA-256 values before conversion; source-contract drift writes failed preflight evidence and produces no `.slm` or receipt.
 tinyrustlm_huggingface_supported_source_gate_2026_07_03:
   route: wiki/runtime-mirust/reports/tinyrustlm-huggingface-supported-source-gate-memory-2026-07-03.md
   synthesis: Hugging Face rows without `.safetensors` metadata no longer get simple `Start Conversion`; the UI now reports no-supported-source separately while preserving source-backed conversion and P2P-ready import actions.

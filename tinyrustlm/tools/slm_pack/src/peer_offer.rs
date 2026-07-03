@@ -227,7 +227,7 @@ fn safe_file_name(path: &Path) -> String {
         .to_string()
 }
 
-fn sha256_prefixed(bytes: &[u8]) -> String {
+pub(crate) fn sha256_prefixed(bytes: &[u8]) -> String {
     format!("sha256:{}", bytes_to_hex(&sha256(bytes)))
 }
 

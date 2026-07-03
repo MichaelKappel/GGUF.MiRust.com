@@ -1,7 +1,7 @@
-profile: tinyrustlm.source-workspace.v166
+profile: tinyrustlm.source-workspace.v167
 project_name: TinyRustLM
 canonical_root: E:\Source\Rust\SLMComposer.com
-updated_utc: 2026-07-03T21:02:53Z
+updated_utc: 2026-07-03T21:42:04Z
 version_authority:
   current_version: 0.1.0
   next_version: 0.1.0
@@ -21,6 +21,7 @@ active_product:
   converted_once_publication_package: Hugging Face `Start Conversion` scripts now create a metadata publication package after local Rust conversion: with a consenting KnownPeerBaseUrl, the script writes a peer-source announcement, `peer-source-announcements.v0.json`, feed-bound `models.with-announcement-feed.v0.json`, and `converted-once-p2p-publish.README.txt`; catalog maintainers may publish those metadata files, but never `.slm` bytes or peer-piece directories.
   converted_once_command_smoke: `node tinyrustlm/tools/converted-once-p2p-smoke.js` proves deterministic Hugging Face-style local `.safetensors` fixture generation, Rust `convert-huggingface-request` `.slm` conversion/receipt, MiniModel `prepare-peer-share`, peer-source announcement/feed metadata, feed-bound catalog snapshot, and metadata-only no-server-byte assertions in one command-level workflow.
   browser_generated_conversion_kit_exec: `node tinyrustlm/tools/browser-smoke.js <app-url> <cdp-port> tinylm16q8 hf-conversion-kit-exec` proves the exact browser-generated `Start Conversion` downloads can be written to disk and executed with a local `tinylm16-bpe` safetensors fixture, producing a verified `.slm`, conversion receipt, MiniModel manifest, peer pieces, catalog snapshots, peer-source announcement feed, serve helper, and publish README.
+  huggingface_source_contract: Hugging Face conversion requests are source-contract-bound when metadata provides expected `.safetensors` file names, byte counts, and SHA-256 values; Rust `convert-huggingface-request` rejects mismatched local files or shard directories during preflight, writes `source_contract_status=fail`, produces no `.slm` or receipt, and records pass evidence in both preflight and receipt when local source bytes match.
   huggingface_sharded_source_directory: Rust `convert-huggingface-request` accepts either one reviewed local `.safetensors` file or a reviewed directory of `.safetensors` shards. Browser Hugging Face metadata records `source_input_mode`, a full shard list, aggregate source byte warnings, and a generated conversion kit that resolves a file or shard directory without project-server model bytes.
   huggingface_availability_summary: The simple Hugging Face panel renders compact availability chips from the same row decision state that chooses `P2P Import`, `Set Peer URL`, `Start Conversion`, review, local `.slm`, no-source, and P2P-disabled actions; the chips clarify real availability without introducing desktop or network requirements into first-run search.
   simple_local_catalog_and_hf_prioritization: The simple P2P panel exposes `Local models.v0.json` / `Load Local Catalog`, so beginner users can load converted-once metadata snapshots without Advanced Tools; Hugging Face search fetches a wider metadata page and ranks visible rows by real availability before showing no-source rows.
