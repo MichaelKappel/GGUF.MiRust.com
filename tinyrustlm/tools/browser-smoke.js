@@ -2643,7 +2643,8 @@ async function runPageShareMetadataSmoke(client) {
             byId("importConversionRequestButton") &&
             byId("localModelFile") &&
             byId("importLocalModelButton") &&
-            byId("saveShareMetadataButton")
+            byId("saveShareMetadataButton") &&
+            byId("saveShareKitButton")
           ) {
             return true;
           }
@@ -2691,7 +2692,11 @@ async function runPageShareMetadataSmoke(client) {
         const originalRevokeObjectUrl = URL.revokeObjectURL.bind(URL);
         URL.createObjectURL = (blob) => {
           const url = originalCreateObjectUrl(blob);
-          blob.text().then((text) => window.__tinyrustlmDownloads.push({ text, type: blob.type }));
+          const record = { text: "", type: blob.type };
+          window.__tinyrustlmDownloads.push(record);
+          blob.text().then((text) => {
+            record.text = text;
+          });
           return url;
         };
         URL.revokeObjectURL = (url) => originalRevokeObjectUrl(url);
@@ -2720,7 +2725,23 @@ async function runPageShareMetadataSmoke(client) {
           }
           await sleep(100);
         }
+        byId("saveShareKitButton").click();
+        for (let index = 0; index < 600; index += 1) {
+          if (window.__tinyrustlmDownloadNames.some((name) => name.endsWith(".minimodel-share-kit.ps1"))) {
+            break;
+          }
+          await sleep(100);
+        }
+        for (let index = 0; index < 600; index += 1) {
+          const kitIndex = window.__tinyrustlmDownloadNames.findIndex((name) => name.endsWith(".minimodel-share-kit.ps1"));
+          if (kitIndex >= 0 && window.__tinyrustlmDownloads[kitIndex] && window.__tinyrustlmDownloads[kitIndex].text) {
+            break;
+          }
+          await sleep(100);
+        }
         const downloaded = window.__tinyrustlmDownloads[0] || { text: "" };
+        const kitIndex = window.__tinyrustlmDownloadNames.findIndex((name) => name.endsWith(".minimodel-share-kit.ps1"));
+        const kitDownload = kitIndex >= 0 ? window.__tinyrustlmDownloads[kitIndex] || { text: "", type: "" } : { text: "", type: "" };
         const parsed = downloaded.text ? JSON.parse(downloaded.text) : {};
         return JSON.stringify({
           runtimeStatus: byId("runtimeStatus").textContent,
@@ -2728,6 +2749,8 @@ async function runPageShareMetadataSmoke(client) {
           shareMetadataState: byId("shareMetadataState").textContent,
           conversionRequestState: byId("conversionRequestState").textContent,
           downloadNames: window.__tinyrustlmDownloadNames,
+          shareKitScriptText: kitDownload.text || "",
+          shareKitScriptType: kitDownload.type || "",
           bundle: parsed,
           fixtureSha256: ${JSON.stringify(fixture.sha256)},
           fixtureBytes: ${JSON.stringify(fixture.modelBytes)}
@@ -9440,6 +9463,9 @@ function assertShareMetadataSmoke(result, networkRequests) {
   if (!result.downloadNames || !result.downloadNames.some((name) => String(name).endsWith(".minimodel-share-metadata.json"))) {
     failures.push(`share metadata download name was ${JSON.stringify(result.downloadNames)}`);
   }
+  if (!result.downloadNames || !result.downloadNames.some((name) => String(name).endsWith(".minimodel-share-kit.ps1"))) {
+    failures.push(`share kit download name was ${JSON.stringify(result.downloadNames)}`);
+  }
   if (entry.artifact_sha256 !== result.fixtureSha256 || offer.artifact_sha256 !== result.fixtureSha256) {
     failures.push(`artifact SHA-256 mismatch in share metadata: ${entry.artifact_sha256}/${offer.artifact_sha256}/${result.fixtureSha256}`);
   }
@@ -9470,8 +9496,29 @@ function assertShareMetadataSmoke(result, networkRequests) {
   if (!Array.isArray(chunks.entries) || chunks.entries.length !== 1 || chunks.entries[0].sha256 !== result.fixtureSha256) {
     failures.push(`chunk entries were ${JSON.stringify(chunks.entries)}`);
   }
-  if (!String(result.shareMetadataState || "").includes("share metadata saved locally")) {
+  if (!String(result.shareMetadataState || "").includes("P2P share kit saved locally")) {
     failures.push(`share metadata status was ${result.shareMetadataState}`);
+  }
+  const scriptText = String(result.shareKitScriptText || "");
+  for (const required of [
+    "prepare-peer-share",
+    "serve-peer-pieces",
+    "write-peer-source-announcement",
+    "write-peer-source-announcement-feed",
+    "write-catalog-snapshot-with-announcement-feed",
+    "write-catalog-snapshot",
+    "TINYRUSTLM_LOCAL_SLM",
+    "ExpectedArtifactSha256",
+    "Get-FileHash",
+    "never uploads model bytes",
+    "Do not upload peer pieces or .slm bytes to project servers"
+  ]) {
+    if (!scriptText.includes(required)) {
+      failures.push(`share kit script missing ${required}: ${scriptText}`);
+    }
+  }
+  if (!String(result.shareKitScriptType || "").startsWith("text/plain")) {
+    failures.push(`share kit script type was ${result.shareKitScriptType}`);
   }
   for (const requestUrl of networkRequests) {
     if (requestUrl.includes("huggingface.co") || requestUrl.includes("MiniModel.org") || requestUrl.includes("minimodel.org")) {

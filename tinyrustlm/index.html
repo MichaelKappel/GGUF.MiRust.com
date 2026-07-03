@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TinyRustLM</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="./app/app.css?v=20260702-p2pselflocating">
+  <link rel="stylesheet" href="./app/app.css?v=20260703-sharekit">
 </head>
 <body>
   <svg class="icon-sprite" aria-hidden="true" focusable="false">
@@ -186,6 +186,7 @@
           <input id="simplePeerAnnouncementFile" type="file" accept=".json,application/json">
           <button id="simpleApplyPeerAnnouncementButton" class="secondary-action" type="button">Apply Peer Announcement</button>
           <button id="simpleSaveShareMetadataButton" class="secondary-action" type="button">Save Share Metadata</button>
+          <button id="simpleSaveShareKitButton" class="secondary-action" type="button">Save P2P Share Kit</button>
           <p id="simpleShareMetadataStatus" class="inline-status">import a local .slm first</p>
           <ol id="simpleCatalogResults" class="model-results"></ol>
         </div>
@@ -348,6 +349,7 @@
             <ol id="hfResults" class="model-results"></ol>
 
             <button id="saveShareMetadataButton" class="secondary-action" type="button">Save MiniModel Share Metadata</button>
+            <button id="saveShareKitButton" class="secondary-action" type="button">Save P2P Share Kit</button>
             <p id="shareMetadataState" class="inline-status">import a local .slm first</p>
           </details>
         </section>
@@ -533,6 +535,6 @@
       <span id="currentModelSummary" class="model-summary">No model loaded</span>
     </footer>
   </main>
-  <script src="./app/app.js?v=20260702-p2pselflocating"></script>
+  <script src="./app/app.js?v=20260703-sharekit"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
-profile: runtime-mirust.report-synthesis.v145
-updated_utc: 2026-07-03T05:55:00Z
+profile: runtime-mirust.report-synthesis.v147
+updated_utc: 2026-07-03T09:05:00Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/runtime-mirust/report-intake-2026-06-25/
@@ -21,6 +21,9 @@ source_authority:
   docs_report_intake_2026_07_02_followup: docs/report-intake/2026-07-02-followup/
   docs_report_manifest_2026_07_02_followup: docs/report-intake/2026-07-02-followup/MANIFEST.md
   docs_report_synthesis_2026_07_02_followup: docs/report-intake/2026-07-02-followup/tinyrustlm-followup-intake-synthesis-2026-07-02.md
+  docs_report_intake_2026_07_03: docs/report-intake/2026-07-03/
+  docs_report_manifest_2026_07_03: docs/report-intake/2026-07-03/MANIFEST.md
+  docs_report_synthesis_2026_07_03: docs/report-intake/2026-07-03/tinyrustlm-desktop-p2p-intake-synthesis-2026-07-03.md
   raw_manifest: raw/runtime-mirust/MANIFEST.md
   durable_index: wiki/runtime-mirust/reports/report-intake-index-2026-06-25.md
   durable_index_2026_06_26: wiki/runtime-mirust/reports/report-intake-index-2026-06-26.md
@@ -42,6 +45,8 @@ source_authority:
     - wiki/runtime-mirust/reports/tinyrustlm-self-locating-conversion-kit-memory-2026-07-02.md
     - wiki/runtime-mirust/reports/tinyrustlm-self-locating-peer-import-kit-memory-2026-07-02.md
     - wiki/runtime-mirust/reports/tinyrustlm-followup-intake-announcement-feed-memory-2026-07-02.md
+    - wiki/runtime-mirust/reports/tinyrustlm-local-share-kit-memory-2026-07-03.md
+    - wiki/runtime-mirust/reports/tinyrustlm-desktop-p2p-companion-intake-memory-2026-07-03.md
     - wiki/runtime-mirust/reports/tinylm16-bpe-safetensors-plan-memory-2026-06-30.md
     - wiki/runtime-mirust/reports/enterprise-rust-governance-memory-2026-06-25.md
     - wiki/runtime-mirust/reports/browser-local-runtime-memory-2026-06-25.md
@@ -252,6 +257,15 @@ docs_report_intake_2026_07_02_followup:
   disposition: preserved-to-docs-and-source-site-copies-removed
   synthesis: The follow-up batch reinforces honest Hugging Face metadata, local Rust conversion before `.slm` import, P2P discoverability through checksum-bound metadata, progressive disclosure, and no project-server model bytes.
   implementation_use: Use this batch before changing `Start Conversion`, MiniModel announcement feeds, same-origin feed routes, MiniModel.MiRust.com developer docs, or any claim that converted-once models become P2P-ready for later users.
+docs_report_intake_2026_07_03:
+  manifest: docs/report-intake/2026-07-03/MANIFEST.md
+  synthesis_route: docs/report-intake/2026-07-03/tinyrustlm-desktop-p2p-intake-synthesis-2026-07-03.md
+  durable_memory_route: wiki/runtime-mirust/reports/tinyrustlm-desktop-p2p-companion-intake-memory-2026-07-03.md
+  source_bucket: E:\Source\Rust\TinyRustLM.com\agent-file-handoff\Improvement\
+  source_count: 6
+  disposition: preserved-to-docs-and-source-site-copies-removed
+  synthesis: The desktop/P2P batch routes a later optional user-run MiniModel Peer Companion for peer identity, local piece stores, cache quotas, consent prompts, direct serve/fetch controls, and receipts while keeping TinyRustLM browser-local and MiniModel.org metadata-only.
+  implementation_use: Use this batch before designing a desktop peer app, choosing Tauri or pure Rust UI, adding P2P discovery/NAT traversal, changing local share kit scope, or making claims about browser P2P transfer.
 huggingface_api_source_options_2026_07_01:
   route: wiki/runtime-mirust/research/huggingface-api-source-options-2026-07-01.md
   source_report: docs/report-intake/2026-07-01/Hugging Face API Endpoint Overview.md
@@ -294,6 +308,12 @@ tinyrustlm_followup_intake_announcement_feed_2026_07_02:
   route: wiki/runtime-mirust/reports/tinyrustlm-followup-intake-announcement-feed-memory-2026-07-02.md
   checksum_sha256: 4C0CC049BA87C76F47FC18682AA3BF1DADDD15D0FADF8CB3CF9E6352B507B02C
   synthesis: Three follow-up reports were preserved, active intake cleared, and MiniModel now writes validated peer-source announcement feeds plus route-bound catalog snapshots while docs keep the metadata-only/no-server-byte boundary explicit.
+tinyrustlm_local_share_kit_2026_07_03:
+  route: wiki/runtime-mirust/reports/tinyrustlm-local-share-kit-memory-2026-07-03.md
+  synthesis: After verified local `.slm` import, TinyRustLM can save checksum-bound share metadata plus a local P2P share kit script that verifies the artifact, prepares MiniModel peer pieces and catalog metadata, optionally writes peer-source announcement/feed files, and preserves no-project-server model-byte boundaries.
+tinyrustlm_desktop_p2p_companion_2026_07_03:
+  route: wiki/runtime-mirust/reports/tinyrustlm-desktop-p2p-companion-intake-memory-2026-07-03.md
+  synthesis: Six desktop/P2P reports support a later optional user-run companion for advanced peer duties; the current source remains a browser-local TinyRustLM app plus Rust-owned MiniModel verifier and local share/import scripts.
 dare_operator_2026_06_29:
   route: wiki/runtime-mirust/reports/dare-operator-memory-2026-06-29.md
   synthesis: DARE now has an offline `dare-candidate` and `validate-dare-candidate` receipt lane with signed task-delta weights, keep/drop ppm, dropout seed, mask checksum, raw delta checksum, rescaled delta checksum, focused parameter tests, and q8 CLI proof before downstream candidate manifests.

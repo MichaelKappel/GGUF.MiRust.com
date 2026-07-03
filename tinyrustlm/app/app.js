@@ -374,6 +374,7 @@
     simplePeerAnnouncementFile: document.getElementById("simplePeerAnnouncementFile"),
     simpleApplyPeerAnnouncementButton: document.getElementById("simpleApplyPeerAnnouncementButton"),
     simpleSaveShareMetadataButton: document.getElementById("simpleSaveShareMetadataButton"),
+    simpleSaveShareKitButton: document.getElementById("simpleSaveShareKitButton"),
     simpleShareMetadataStatus: document.getElementById("simpleShareMetadataStatus"),
     simpleOpenAdvancedDiscoveryButton: document.getElementById("simpleOpenAdvancedDiscoveryButton"),
     simpleDiscoveryStatus: document.getElementById("simpleDiscoveryStatus"),
@@ -428,6 +429,7 @@
     hfStatus: document.getElementById("hfStatus"),
     hfResults: document.getElementById("hfResults"),
     saveShareMetadataButton: document.getElementById("saveShareMetadataButton"),
+    saveShareKitButton: document.getElementById("saveShareKitButton"),
     shareMetadataState: document.getElementById("shareMetadataState"),
     adapterSelect: document.getElementById("adapterSelect"),
     applyAdapterButton: document.getElementById("applyAdapterButton"),
@@ -1532,6 +1534,14 @@
       el.simpleSaveShareMetadataButton.addEventListener("click", () => {
         setSimpleSourceOption("p2p", true);
         saveShareMetadata().catch((error) => {
+          setShareMetadataStatus(errorMessage(error), true);
+        });
+      });
+    }
+    if (el.simpleSaveShareKitButton) {
+      el.simpleSaveShareKitButton.addEventListener("click", () => {
+        setSimpleSourceOption("p2p", true);
+        saveShareKit().catch((error) => {
           setShareMetadataStatus(errorMessage(error), true);
         });
       });
@@ -3046,12 +3056,19 @@
 
   function updateShareMetadataControls() {
     const disabled = !hasVerifiedLocalModelFile();
-    for (const button of [el.saveShareMetadataButton, el.simpleSaveShareMetadataButton]) {
+    for (const button of [
+      el.saveShareMetadataButton,
+      el.simpleSaveShareMetadataButton,
+      el.saveShareKitButton,
+      el.simpleSaveShareKitButton
+    ]) {
       if (button) {
         button.disabled = disabled;
         button.title = disabled
-          ? "Import and load a Rust-validated local .slm before saving share metadata."
-          : "Save checksum-bound MiniModel metadata for this verified local .slm.";
+          ? "Import and load a Rust-validated local .slm before exporting MiniModel share files."
+          : button === el.saveShareKitButton || button === el.simpleSaveShareKitButton
+            ? "Save a local Rust script that prepares peer pieces and P2P availability metadata for this verified .slm."
+            : "Save checksum-bound MiniModel metadata for this verified local .slm.";
       }
     }
     if (disabled) {
@@ -3258,6 +3275,150 @@
     const fileName = `${slugForShareMetadata(bundle.catalog_entry.model_id)}.minimodel-share-metadata.json`;
     downloadTextFile(fileName, `${JSON.stringify(bundle, null, 2)}\n`);
     setShareMetadataStatus(`${bundle.peer_offer.chunks.chunk_count} chunks / share metadata saved locally`, false);
+  }
+
+  function localShareKitScript(bundle) {
+    const entry = bundle.catalog_entry || {};
+    const offer = bundle.peer_offer || {};
+    const chunks = offer.chunks || {};
+    const modelId = catalogText(entry.model_id) || "local/slm";
+    const displayName = catalogText(entry.display_name) || modelId;
+    const artifactFileName = safeLocalModelName(entry.artifact_file_name || "local-model.slm");
+    const artifactStem = artifactFileName.replace(/\.slm$/i, "") || "local-model";
+    const sourceHuggingFaceModelId = catalogText(entry.source_huggingface_model_id);
+    const expectedSha256 = catalogText(entry.artifact_sha256 || offer.artifact_sha256);
+    const expectedByteCount = Number.isFinite(entry.artifact_byte_count)
+      ? entry.artifact_byte_count
+      : Number.isFinite(offer.artifact_byte_count)
+        ? offer.artifact_byte_count
+        : 0;
+    const scriptStem = safeLocalModelName(`${slugForShareMetadata(modelId)}.minimodel-share`);
+    const lines = [
+      "# TinyRustLM local .slm to MiniModel P2P share kit",
+      `# Model: ${displayName} (${modelId})`,
+      "#",
+      "# This script never uploads model bytes to TinyRustLM.com, MiniModel.org, or any project server.",
+      "# It prepares local peer pieces, metadata, and optional peer-source announcement files.",
+      "# Put the verified .slm beside this script, under ./source/, or set TINYRUSTLM_LOCAL_SLM.",
+      "# Set KnownPeerBaseUrl only when you consent to serve pieces from your own peer endpoint.",
+      "",
+      "$ErrorActionPreference = \"Stop\"",
+      "",
+      "function Resolve-ExistingPath {",
+      "  param(",
+      "    [string[]] $Candidates,",
+      "    [string] $Label,",
+      "    [string] $Help",
+      "  )",
+      "  foreach ($Candidate in $Candidates) {",
+      "    if ([string]::IsNullOrWhiteSpace($Candidate)) { continue }",
+      "    if ($Candidate -like \"EDIT_ME*\") { continue }",
+      "    if (Test-Path -LiteralPath $Candidate) {",
+      "      return (Resolve-Path -LiteralPath $Candidate).Path",
+      "    }",
+      "  }",
+      "  throw \"$Label not found. $Help\"",
+      "}",
+      "",
+      "# Optional overrides:",
+      "#   $env:MINIMODEL_WORKSPACE = full path to the MiniModel.org Rust workspace",
+      "#   $env:TINYRUSTLM_LOCAL_SLM = full path to the verified local .slm file",
+      "$CandidateMiniModelWorkspaces = @(",
+      "  $env:MINIMODEL_WORKSPACE,",
+      "  \"E:/Source/Rust/MiniModel.org\",",
+      "  (Join-Path $PSScriptRoot \"MiniModel.org\"),",
+      "  (Join-Path $PSScriptRoot \"..\\MiniModel.org\"),",
+      "  (Join-Path $PSScriptRoot \"..\\..\\MiniModel.org\")",
+      ")",
+      `$LocalSlmFileName = ${powerShellSingleQuote(artifactFileName)}`,
+      "$LocalSlmCandidates = @(",
+      "  $env:TINYRUSTLM_LOCAL_SLM,",
+      "  (Join-Path $PSScriptRoot $LocalSlmFileName),",
+      "  (Join-Path $PSScriptRoot (Join-Path \"source\" $LocalSlmFileName))",
+      ")",
+      "$MiniModelWorkspace = Resolve-ExistingPath $CandidateMiniModelWorkspaces \"MiniModel Rust workspace\" \"Set MINIMODEL_WORKSPACE or edit `$CandidateMiniModelWorkspaces.\"",
+      "$LocalSlm = Resolve-ExistingPath $LocalSlmCandidates \"Verified local .slm\" \"Put the verified .slm beside this script, under ./source/, set TINYRUSTLM_LOCAL_SLM, or edit `$LocalSlmCandidates.\"",
+      `$ExpectedArtifactSha256 = ${powerShellDoubleQuote(expectedSha256)}`,
+      `$ExpectedArtifactByteCount = ${Math.max(0, Math.trunc(expectedByteCount))}`,
+      `$ModelId = ${powerShellSingleQuote(modelId)}`,
+      `$SourceHuggingFaceModelId = ${powerShellSingleQuote(sourceHuggingFaceModelId)}`,
+      "$KnownPeerBaseUrl = \"\" # Optional, for example http://127.0.0.1:8123/",
+      "$BindAddr = \"127.0.0.1:8123\"",
+      `$WorkDir = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${scriptStem}-kit`)}`,
+      "$ShareDir = Join-Path $WorkDir \"minimodel-peer-share\"",
+      `$Manifest = Join-Path $ShareDir ${powerShellSingleQuote(`${artifactStem}.minimodel.manifest.v0`)}`,
+      `$PeerPiecesDir = Join-Path $ShareDir ${powerShellSingleQuote(`${artifactStem}.peer-pieces`)}`,
+      `$CatalogEntry = Join-Path $ShareDir ${powerShellSingleQuote(`${artifactStem}.catalog-entry.v0.json`)}`,
+      `$CatalogEntryWithPeer = Join-Path $ShareDir ${powerShellSingleQuote(`${artifactStem}.catalog-entry.with-peer.v0.json`)}`,
+      `$PeerSourceAnnouncement = Join-Path $WorkDir ${powerShellSingleQuote(`${artifactStem}.peer-source-announcement.v0.json`)}`,
+      "$PeerSourceAnnouncementFeed = Join-Path $WorkDir \"peer-source-announcements.v0.json\"",
+      "$CatalogSnapshot = Join-Path $WorkDir \"models.v0.json\"",
+      "$CatalogSnapshotWithFeed = Join-Path $WorkDir \"models.with-announcement-feed.v0.json\"",
+      "",
+      "$ActualArtifactByteCount = (Get-Item -LiteralPath $LocalSlm).Length",
+      "if ($ExpectedArtifactByteCount -gt 0 -and $ActualArtifactByteCount -ne $ExpectedArtifactByteCount) {",
+      "  throw \"Local .slm byte count mismatch. Expected $ExpectedArtifactByteCount, got $ActualArtifactByteCount.\"",
+      "}",
+      "$ActualArtifactSha256 = \"sha256:\" + ((Get-FileHash -Algorithm SHA256 -LiteralPath $LocalSlm).Hash.ToLowerInvariant())",
+      "if ($ExpectedArtifactSha256.Trim().Length -gt 0 -and $ActualArtifactSha256 -ne $ExpectedArtifactSha256) {",
+      "  throw \"Local .slm SHA-256 mismatch. Expected $ExpectedArtifactSha256, got $ActualArtifactSha256.\"",
+      "}",
+      "",
+      "Write-Host \"MiniModel workspace:\" $MiniModelWorkspace",
+      "Write-Host \"Verified local .slm:\" $LocalSlm",
+      "Write-Host \"Artifact SHA-256:\" $ActualArtifactSha256",
+      "Write-Host \"Output directory:\" $WorkDir",
+      "New-Item -ItemType Directory -Force -Path $WorkDir | Out-Null",
+      "Set-Location $MiniModelWorkspace",
+      "",
+      "# Prepare checksum-bound manifest, peer-offer proof, local peer pieces, and catalog entry.",
+      "$PrepareArgs = @(\"run\", \"-p\", \"minimodel\", \"--\", \"prepare-peer-share\", $LocalSlm, $ShareDir, $ModelId)",
+      "if ($SourceHuggingFaceModelId.Trim().Length -gt 0) {",
+      "  $PrepareArgs += $SourceHuggingFaceModelId",
+      "}",
+      "& cargo @PrepareArgs",
+      "",
+      "$CatalogEntryForSnapshot = $CatalogEntry",
+      "if ($KnownPeerBaseUrl.Trim().Length -gt 0) {",
+      "  cargo run -p minimodel -- add-peer-source $CatalogEntry $CatalogEntryWithPeer $KnownPeerBaseUrl",
+      "  cargo run -p minimodel -- write-peer-source-announcement $CatalogEntry $PeerSourceAnnouncement $KnownPeerBaseUrl",
+      "  cargo run -p minimodel -- write-peer-source-announcement-feed $PeerSourceAnnouncementFeed $PeerSourceAnnouncement",
+      "  cargo run -p minimodel -- write-catalog-snapshot-with-announcement-feed $CatalogSnapshotWithFeed \"peer-source-announcements.v0.json\" $PeerSourceAnnouncementFeed $CatalogEntry",
+      "  $CatalogEntryForSnapshot = $CatalogEntryWithPeer",
+      "}",
+      "cargo run -p minimodel -- write-catalog-snapshot $CatalogSnapshot $CatalogEntryForSnapshot",
+      "",
+      "Write-Host \"MiniModel manifest:\" $Manifest",
+      "Write-Host \"Peer pieces directory:\" $PeerPiecesDir",
+      "Write-Host \"Catalog snapshot:\" $CatalogSnapshot",
+      "if ($KnownPeerBaseUrl.Trim().Length -gt 0) {",
+      "  Write-Host \"Peer-source announcement:\" $PeerSourceAnnouncement",
+      "  Write-Host \"Peer-source announcement feed:\" $PeerSourceAnnouncementFeed",
+      "  Write-Host \"Feed-bound catalog snapshot:\" $CatalogSnapshotWithFeed",
+      "  Write-Host \"Send only metadata JSON to a catalog maintainer. Do not upload peer pieces or .slm bytes to project servers.\"",
+      "} else {",
+      "  Write-Host \"To publish P2P availability later, rerun with KnownPeerBaseUrl set to your consenting peer URL.\"",
+      "}",
+      "Write-Host \"To serve from this machine, run:\"",
+      "Write-Host \"cargo run -p minimodel -- serve-peer-pieces '$Manifest' '$PeerPiecesDir' $BindAddr\"",
+      "Write-Host \"Future users import by selecting the P2P-ready row, saving its import kit, and running MiniModel import-peer-request.\"",
+      "",
+      "# Share metadata summary:",
+      `# artifact_sha256: ${expectedSha256 || "unavailable"}`,
+      `# artifact_byte_count: ${expectedByteCount || "unavailable"}`,
+      `# chunk_count: ${chunks.chunk_count || "unavailable"}`,
+      `# merkle_root_sha256: ${chunks.merkle_root_sha256 || "unavailable"}`
+    ];
+    return `${lines.join("\n")}\n`;
+  }
+
+  async function saveShareKit() {
+    setShareMetadataStatus("building P2P share kit", false);
+    const bundle = await buildShareMetadataBundle();
+    const stem = safeLocalModelName(slugForShareMetadata(bundle.catalog_entry.model_id));
+    downloadTextFile(`${stem}.minimodel-share-metadata.json`, `${JSON.stringify(bundle, null, 2)}\n`);
+    downloadTextFile(`${stem}.minimodel-share-kit.ps1`, localShareKitScript(bundle), "text/plain");
+    setShareMetadataStatus(`${bundle.peer_offer.chunks.chunk_count} chunks / P2P share kit saved locally`, false);
   }
 
   async function importLocalModelFile() {
@@ -9499,6 +9660,12 @@
 
   el.saveShareMetadataButton.addEventListener("click", function () {
     saveShareMetadata().catch((error) => {
+      setShareMetadataStatus(errorMessage(error), true);
+    });
+  });
+
+  el.saveShareKitButton.addEventListener("click", function () {
+    saveShareKit().catch((error) => {
       setShareMetadataStatus(errorMessage(error), true);
     });
   });

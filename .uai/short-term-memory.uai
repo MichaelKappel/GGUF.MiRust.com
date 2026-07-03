@@ -1,5 +1,5 @@
-profile: runtime-mirust.short-term-memory.v195
-updated_utc: 2026-07-03T05:55:00Z
+profile: runtime-mirust.short-term-memory.v197
+updated_utc: 2026-07-03T09:05:00Z
 current_state:
   - 2026-07-01 project layout cleanup is complete: `E:\Source\Rust\SLMComposer.com` remains the active Rust/WASM app workspace, and Runtime.MiRust.com is the plain-PHP documentation site.
   - 2026-07-01 source-control cleanup is complete for the canonical source folders: MiniModel.org, MiRust.com, Runtime.MiRust.com, SLMComposer.com, and TinyRustLM.MiRust.com each have local git history; archive/package/staging material is outside the active source roots.
@@ -44,6 +44,8 @@ current_state:
   - 2026-07-02 continuation simplified the receiver-side P2P handoff: MiniModel now owns `import-peer-request <request-json> <manifest> <output-dir>`, and TinyRustLM-generated peer-import scripts call that one Rust command instead of making users run separate fetch/assemble/verify/receipt commands.
   - 2026-07-02 root/app shell drift guard added: `tinyrustlm/tools/static-server.js` now serves `/` directly instead of redirecting to `/app/`, `tinyrustlm/index.html` has the same Known peer URL controls as `tinyrustlm/app/index.html`, and `tinyrustlm/tools/static-shell-parity.js` fails if the duplicated shells drift after normalizing root/app asset paths.
   - 2026-07-02 TinyRustLM local share metadata export added for the conversion-once/P2P path: after Rust/WASM imports a verified local `.slm`, the app can save `minimodel.local_slm_share_metadata.v0` with catalog-entry candidate, artifact SHA-256, per-chunk SHA-256 rows, chunk-list SHA-256, Merkle root, optional Hugging Face source id from a bound conversion request, and explicit `peer_transfer_implemented=false` plus `network_transfer_available=false` flags; `share-metadata-ui` proves the exported JSON from a real local q8 `.slm` fixture.
+  - 2026-07-03 TinyRustLM local P2P share kit added and routed through `wiki/runtime-mirust/reports/tinyrustlm-local-share-kit-memory-2026-07-03.md`: after verified local `.slm` import, the app can save metadata plus a `.minimodel-share-kit.ps1` script that resolves `MINIMODEL_WORKSPACE`/`TINYRUSTLM_LOCAL_SLM`, verifies SHA-256 and byte count, runs MiniModel `prepare-peer-share`, optional peer-source announcement/feed publication, `write-catalog-snapshot`, and prints `serve-peer-pieces` while keeping project servers metadata-only.
+  - 2026-07-03 desktop/P2P intake preserved and routed through `docs/report-intake/2026-07-03/MANIFEST.md`, `docs/report-intake/2026-07-03/tinyrustlm-desktop-p2p-intake-synthesis-2026-07-03.md`, and `wiki/runtime-mirust/reports/tinyrustlm-desktop-p2p-companion-intake-memory-2026-07-03.md`: the useful guidance is a later optional user-run MiniModel Peer Companion for advanced local peer duties, not a hosted model service and not a replacement for browser-local TinyRustLM.
   - MiniModel.org now publishes `catalog/models.v0.json` as a metadata-only endpoint with TinyRustLM fixture entries, no artifact URL, explicit no-server-byte/no-server-execution flags, local filename hints, SHA-256 hashes, and docs/license routes.
   - 2026-07-01 live redeploy verification passed: `https://slmcomposer.com/` now returns HTTP 302 to `/app/`, `/app/` exposes the default MiniModel catalog URL plus local-list controls, `https://MiniModel.org/catalog/models.v0.json` is CORS-readable metadata only, live app/runtime/catalog hashes match local source, model-byte routes return 404, live root `catalog-local-import` generated `e` from a user-selected local `.slm`, and a live CDP smoke clicked the default MiniModel catalog Load button, rendered two remote metadata entries, selected one, imported the matching local `.slm`, verified SHA-256, and generated `e` without model-byte network requests.
   - Verification passed for catalog import: JS syntax checks, `catalog-local-import` browser smoke loaded a local JSON list plus local q8 `.slm` and generated `e`, and `public-local-only` proved the public host shows the MiniModel URL idle without `/models/`, MiniModel, or Hugging Face requests on load.
@@ -894,12 +896,18 @@ current_state:
 active_handoff_state:
   content_bucket_non_placeholder_files: 0
   improvement_bucket_non_placeholder_files: 0
-  disposition: all prior processed reports plus 6 follow-up 2026-06-29 Improvement research files are preserved to durable raw/wiki memory; nine 2026-06-30 Improvement reports, the 2026-07-01 MiniModel/Hugging Face/SLMComposer UI batches, and the 2026-07-02 TinyRustLM/MiniModel batch are preserved to docs/report-intake/ and active source-site copies were removed after byte-exact checksum preservation.
+  disposition: all prior processed reports plus 6 follow-up 2026-06-29 Improvement research files are preserved to durable raw/wiki memory; nine 2026-06-30 Improvement reports, the 2026-07-01 MiniModel/Hugging Face/SLMComposer UI batches, the 2026-07-02 TinyRustLM/MiniModel batches, and the 2026-07-03 desktop/P2P batch are preserved to docs/report-intake/ and active source-site copies were removed after byte-exact checksum preservation.
 current_report_routes:
   strategy_source: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
-  active_bucket_scan: agent-file-handoff/Content/ contains no non-placeholder files; agent-file-handoff/Improvement/ contains no non-placeholder files after source-site removal of processed docs-preserved report originals; TinyRustLM.com active handoff buckets are also README-only after the 2026-07-02 batch preservation.
+  active_bucket_scan: agent-file-handoff/Content/ contains no non-placeholder files; agent-file-handoff/Improvement/ contains no non-placeholder files after source-site removal of processed docs-preserved report originals; TinyRustLM.com active handoff buckets are also README-only after the 2026-07-03 desktop/P2P batch preservation.
   uaix_strategy_dogfood: docs/dogfood/uaix-file-handoff-memory-strategy-2026-06-26.md
-  report_pointer_audit: All current wiki/runtime-mirust/reports/*.md, wiki/runtime-mirust/research/*.md, docs/report-intake/2026-06-30/*.md, docs/report-intake/2026-07-01/*.md, docs/report-intake/2026-07-02/*.md, and docs/report-intake/2026-07-02-followup/*.md pages must be represented in .uai/long-term-memory.uai before final pointer audit.
+  report_pointer_audit: All current wiki/runtime-mirust/reports/*.md, wiki/runtime-mirust/research/*.md, docs/report-intake/2026-06-30/*.md, docs/report-intake/2026-07-01/*.md, docs/report-intake/2026-07-02/*.md, docs/report-intake/2026-07-02-followup/*.md, and docs/report-intake/2026-07-03/*.md pages must be represented in .uai/long-term-memory.uai before final pointer audit.
+  docs_preserved_report_intake_2026_07_03:
+    manifest: docs/report-intake/2026-07-03/MANIFEST.md
+    synthesis: docs/report-intake/2026-07-03/tinyrustlm-desktop-p2p-intake-synthesis-2026-07-03.md
+    desktop_p2p_companion_memory: wiki/runtime-mirust/reports/tinyrustlm-desktop-p2p-companion-intake-memory-2026-07-03.md
+    source_bucket: E:\Source\Rust\TinyRustLM.com\agent-file-handoff\Improvement\
+    cleanup_result: active source-site copies removed after exact docs preservation and pointer audit; active intake is empty or placeholder-only
   docs_preserved_report_intake_2026_07_02:
     manifest: docs/report-intake/2026-07-02/MANIFEST.md
     synthesis: docs/report-intake/2026-07-02/tinyrustlm-minimodel-intake-synthesis-2026-07-02.md
