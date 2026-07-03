@@ -1,0 +1,40 @@
+# TinyRustLM Hugging Face Real Conversion Script Memory - 2026-07-03
+
+## Scope
+
+This report records the hardening pass after user review of the fake first-run chat transcript and the Hugging Face conversion/P2P source flow. The product requirement is that Hugging Face rows must not imply that arbitrary Hub models already run in TinyRustLM. Rows either route to an already converted MiniModel P2P import path, or they produce a local Rust conversion script that can create a verified `.slm` from a reviewed local `.safetensors` file.
+
+## Durable Decisions
+
+- First-run chat must stay empty except for the real empty state. Seed/example transcript messages such as `Can you explain the benefits of edge computing` and fake recent-chat rows are not allowed.
+- Hugging Face search remains metadata-only. The browser may request `https://huggingface.co/api/models` after explicit user action, but it must not fetch Hub `/resolve/` model bytes.
+- `Start Conversion` saves both `minimodel.huggingface_conversion_request.v0` JSON and a `.tinyrustlm-convert.ps1` script.
+- The conversion script resolves `TINYRUSTLM_WORKSPACE`, `MINIMODEL_WORKSPACE`, and `TINYRUSTLM_SOURCE_SAFETENSORS`, with nearby-path fallbacks and a reviewed source file beside the script or under `source/`.
+- The conversion script runs `cargo run -p tinyrustlm-slm-pack -- convert-huggingface-request <request-json> <input.safetensors> <output-dir> <source-shape> <quantization>`.
+- After conversion, the script discovers the `.slm` and `tinyrustlm-conversion.receipt` produced by Rust instead of guessing output filenames.
+- After `minimodel prepare-peer-share`, the script discovers the generated MiniModel manifest, catalog entry, and peer-piece directory instead of guessing output filenames.
+- The script still writes metadata-only `models.v0.json` and optional peer-source announcement metadata; it does not upload, proxy, run, or serve model bytes from project servers.
+- P2P import remains the preferred converted-once reuse lane when MiniModel metadata has peer-offer proof and a consenting peer source. Otherwise the user starts local conversion once, then publishes metadata so later users can see `P2P Import`.
+
+## Changed Files
+
+- `tinyrustlm/app/app.js`
+- `tinyrustlm/app/index.html`
+- `tinyrustlm/index.html`
+- `tinyrustlm/tools/browser-smoke.js`
+- `tinyrustlm/docs/browser-runtime.md`
+- `E:\Source\Rust\TinyRustLM.MiRust.com\docs\runtime-portal\runtime-docs\implementation\slmcomposer-source-options-ui-v1.0.7.md`
+- `E:\Source\Rust\TinyRustLM.MiRust.com\data\pages.php`
+- `E:\Source\Rust\TinyRustLM.MiRust.com\llms-full.txt`
+
+## Verification
+
+- `node --check .\tinyrustlm\app\app.js`
+- `node --check .\tinyrustlm\tools\browser-smoke.js`
+- `node .\tinyrustlm\tools\browser-smoke.js http://127.0.0.1:8080/ 9236 noop hf-search-ui`
+- `node .\tinyrustlm\tools\browser-smoke.js http://127.0.0.1:8080/ 9237 noop source-options-ui`
+- `cargo test -p tinyrustlm-slm-pack huggingface --quiet`
+
+## Follow-Up
+
+The browser still cannot run arbitrary Hugging Face models directly. That remains correct until Rust supports their exact tensor/tokenizer/config shape and converts them into `.slm`. The next real-product step is to make a catalog-maintainer flow for accepting peer-source announcement metadata easier, so the "converted once, P2P available later" loop requires less manual command-line stitching.

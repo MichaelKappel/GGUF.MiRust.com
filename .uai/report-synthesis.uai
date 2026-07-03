@@ -1,5 +1,5 @@
-profile: runtime-mirust.report-synthesis.v147
-updated_utc: 2026-07-03T09:05:00Z
+profile: runtime-mirust.report-synthesis.v148
+updated_utc: 2026-07-03T10:20:00Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/runtime-mirust/report-intake-2026-06-25/
@@ -311,6 +311,9 @@ tinyrustlm_followup_intake_announcement_feed_2026_07_02:
 tinyrustlm_local_share_kit_2026_07_03:
   route: wiki/runtime-mirust/reports/tinyrustlm-local-share-kit-memory-2026-07-03.md
   synthesis: After verified local `.slm` import, TinyRustLM can save checksum-bound share metadata plus a local P2P share kit script that verifies the artifact, prepares MiniModel peer pieces and catalog metadata, optionally writes peer-source announcement/feed files, and preserves no-project-server model-byte boundaries.
+tinyrustlm_huggingface_real_conversion_script_2026_07_03:
+  route: wiki/runtime-mirust/reports/tinyrustlm-huggingface-real-conversion-script-memory-2026-07-03.md
+  synthesis: Hugging Face `Start Conversion` now saves a script that follows Rust-produced conversion and MiniModel output paths instead of guessed filenames, while `hf-search-ui` still proves no fake transcript text or model-byte fetches.
 tinyrustlm_desktop_p2p_companion_2026_07_03:
   route: wiki/runtime-mirust/reports/tinyrustlm-desktop-p2p-companion-intake-memory-2026-07-03.md
   synthesis: Six desktop/P2P reports support a later optional user-run companion for advanced peer duties; the current source remains a browser-local TinyRustLM app plus Rust-owned MiniModel verifier and local share/import scripts.

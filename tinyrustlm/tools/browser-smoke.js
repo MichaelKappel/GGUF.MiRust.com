@@ -9203,7 +9203,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     if (!String(result.statusAfterSearch || "").includes("2 external records") || !String(result.hfStatusAfterSearch || "").includes("2 external records")) {
       failures.push(`Hugging Face status after search was ${result.statusAfterSearch}/${result.hfStatusAfterSearch}`);
     }
-    if (!String(result.status || "").includes("conversion kit saved") || !String(result.hfStatus || "").includes("conversion kit saved")) {
+    if (!String(result.status || "").includes("Rust conversion script saved") || !String(result.hfStatus || "").includes("Rust conversion script saved")) {
       failures.push(`Hugging Face status after Start Conversion was ${result.status}/${result.hfStatus}`);
     }
     if (!Array.isArray(result.conversionDownloadNames) || result.conversionDownloadNames.length < 2) {
@@ -9265,6 +9265,8 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "SuggestedSourceSafetensorsFileName",
       "$ConversionRequest",
       "Resolve-ExistingPath",
+      "Resolve-GeneratedFile",
+      "Resolve-GeneratedDirectory",
       "TINYRUSTLM_WORKSPACE",
       "MINIMODEL_WORKSPACE",
       "TINYRUSTLM_SOURCE_SAFETENSORS",
@@ -9275,6 +9277,10 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "TinyRustLM workspace:",
       "MiniModel workspace:",
       "Source safetensors:",
+      "$OutputSlm = Resolve-GeneratedFile",
+      "$MiniModelCatalogEntry = Resolve-GeneratedFile",
+      "$MiniModelManifest = Resolve-GeneratedFile",
+      "$MiniModelPieceDir = Resolve-GeneratedDirectory",
       "tinyrustlm-conversion.receipt",
       "KnownPeerBaseUrl",
       "MiniModelCatalogEntryWithPeer",
@@ -9282,11 +9288,16 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "MiniModelPeerSourceAnnouncement",
       "MiniModelCatalogSnapshot",
       "models.v0.json",
+      "MiniModel manifest:",
+      "MiniModel peer pieces:",
       "TinyRustLM.com"
     ]) {
       if (!scriptText.includes(required)) {
         failures.push(`conversion script missing ${required}: ${scriptText}`);
       }
+    }
+    if (scriptText.includes("$OutputSlm = Join-Path $WorkDir")) {
+      failures.push("conversion script guessed the output .slm path instead of using Rust-produced output discovery");
     }
     for (const removedPlaceholder of ["EDIT_ME\\model.safetensors", "EDIT_ME\\\\SLMComposer.com", "EDIT_ME\\\\MiniModel.org"]) {
       if (scriptText.includes(removedPlaceholder)) {

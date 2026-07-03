@@ -3820,7 +3820,7 @@
     const stem = conversionFileStem(entry.modelId);
     downloadTextFile(`${stem}.minimodel-conversion-request.json`, `${JSON.stringify(request, null, 2)}\n`);
     downloadTextFile(`${stem}.tinyrustlm-convert.ps1`, hfConversionScript(entry, matches), "text/plain");
-    setHfStatus("conversion kit saved: run the local Rust script after reviewing the source file", false);
+    setHfStatus("Rust conversion script saved: add the reviewed local .safetensors and run it to create .slm plus MiniModel P2P metadata", false);
     holdModelPopoverOpen(2500);
   }
 
@@ -3922,7 +3922,7 @@
     if (view.hasPeerOffer) {
       return "MiniModel has a peer-offer proof. Enter one consenting peer URL in P2P Exchange to import without repeating source conversion.";
     }
-    return "No converted peer is listed yet. Create a local conversion kit, then publish peer-source metadata so future users see a peer-ready import action.";
+    return "No converted peer is listed yet. Start Conversion saves a Rust script that turns one reviewed local .safetensors into a verified .slm, prepares peer pieces, and writes metadata so future users can import by P2P.";
   }
 
   function appendHfSlmFileNotes(actions, slmFiles, actionWord) {
@@ -3951,7 +3951,7 @@
       actions.append(elementWithText(
         "span",
         "model-result-meta",
-        `Source file listed: ${safeLocalModelName(file.file_name)}${size}. Download/review locally; the conversion kit will not fetch it.`
+        `Source file listed: ${safeLocalModelName(file.file_name)}${size}. Download/review locally; the conversion script will not fetch it.`
       ));
     }
     if (safetensorsFiles.length > 2) {
@@ -4200,6 +4200,32 @@
       "  throw \"$Label not found. $Help\"",
       "}",
       "",
+      "function Resolve-GeneratedFile {",
+      "  param(",
+      "    [string] $Directory,",
+      "    [string] $Filter,",
+      "    [string] $Label",
+      "  )",
+      "  $Matches = @(Get-ChildItem -LiteralPath $Directory -File -Filter $Filter | Sort-Object LastWriteTimeUtc -Descending)",
+      "  if ($Matches.Count -lt 1) {",
+      "    throw \"$Label was not produced in $Directory\"",
+      "  }",
+      "  return $Matches[0].FullName",
+      "}",
+      "",
+      "function Resolve-GeneratedDirectory {",
+      "  param(",
+      "    [string] $Directory,",
+      "    [string] $Filter,",
+      "    [string] $Label",
+      "  )",
+      "  $Matches = @(Get-ChildItem -LiteralPath $Directory -Directory -Filter $Filter | Sort-Object LastWriteTimeUtc -Descending)",
+      "  if ($Matches.Count -lt 1) {",
+      "    throw \"$Label was not produced in $Directory\"",
+      "  }",
+      "  return $Matches[0].FullName",
+      "}",
+      "",
       "# Optional overrides:",
       "#   $env:TINYRUSTLM_WORKSPACE = full path to SLMComposer.com / TinyRustLM Rust workspace",
       "#   $env:MINIMODEL_WORKSPACE = full path to MiniModel.org Rust workspace",
@@ -4235,13 +4261,8 @@
       `$MiniModelModelId = ${powerShellSingleQuote(minimodelModelId)}`,
       "$KnownPeerBaseUrl = \"\" # Optional, for example http://127.0.0.1:8123/",
       `$WorkDir = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${stem}-tinyrustlm-conversion`)}`,
-      `$OutputSlm = Join-Path $WorkDir ${powerShellSingleQuote(`${stem}.${quantization}.slm`)}`,
       "$MiniModelShareDir = Join-Path $WorkDir \"minimodel-peer-share\"",
-      `$MiniModelCatalogEntry = Join-Path $MiniModelShareDir ${powerShellSingleQuote(`${stem}.${quantization}.catalog-entry.v0.json`)}`,
-      `$MiniModelCatalogEntryWithPeer = Join-Path $MiniModelShareDir ${powerShellSingleQuote(`${stem}.${quantization}.catalog-entry.with-peer.v0.json`)}`,
-      `$MiniModelPeerSourceAnnouncement = Join-Path $MiniModelShareDir ${powerShellSingleQuote(`${stem}.${quantization}.peer-source-announcement.v0.json`)}`,
       "$MiniModelCatalogSnapshot = Join-Path $WorkDir \"models.v0.json\"",
-      "$ConversionReceipt = Join-Path $WorkDir \"tinyrustlm-conversion.receipt\"",
       "",
       "if (!(Test-Path -LiteralPath $ConversionRequest)) {",
       "  throw \"Conversion request JSON not found beside this script: $ConversionRequest\"",
@@ -4258,12 +4279,20 @@
       "# The browser saved this request JSON beside this script.",
       "# Rust performs inspect, plan, convert, validate, manifest validation, and receipt writing.",
       "cargo run -p tinyrustlm-slm-pack -- convert-huggingface-request $ConversionRequest $SourceSafetensors $WorkDir $SourceShape $Quantization",
+      "$OutputSlm = Resolve-GeneratedFile $WorkDir \"*.slm\" \"Converted .slm\"",
+      "$ConversionReceipt = Resolve-GeneratedFile $WorkDir \"tinyrustlm-conversion.receipt\" \"Conversion receipt\"",
       "",
       "# Prepare checksum-bound MiniModel metadata and local peer pieces in one Rust step.",
       "# This does not upload model bytes and does not serve them from project servers.",
       "Set-Location $MiniModelWorkspace",
       "$PrepareArgs = @(\"run\", \"-p\", \"minimodel\", \"--\", \"prepare-peer-share\", $OutputSlm, $MiniModelShareDir, $MiniModelModelId, $ModelId)",
       "& cargo @PrepareArgs",
+      "$MiniModelCatalogEntry = Resolve-GeneratedFile $MiniModelShareDir \"*.catalog-entry.v0.json\" \"MiniModel catalog entry\"",
+      "$MiniModelManifest = Resolve-GeneratedFile $MiniModelShareDir \"*.minimodel.manifest.v0\" \"MiniModel manifest\"",
+      "$MiniModelPieceDir = Resolve-GeneratedDirectory $MiniModelShareDir \"*.peer-pieces\" \"MiniModel peer pieces\"",
+      "$CatalogStem = ([System.IO.Path]::GetFileNameWithoutExtension($MiniModelCatalogEntry)) -replace \"\\.catalog-entry\\.v0$\", \"\"",
+      "$MiniModelCatalogEntryWithPeer = Join-Path $MiniModelShareDir \"$CatalogStem.catalog-entry.with-peer.v0.json\"",
+      "$MiniModelPeerSourceAnnouncement = Join-Path $MiniModelShareDir \"$CatalogStem.peer-source-announcement.v0.json\"",
       "$MiniModelCatalogEntryForSnapshot = $MiniModelCatalogEntry",
       "if ($KnownPeerBaseUrl.Trim().Length -gt 0) {",
       "  cargo run -p minimodel -- add-peer-source $MiniModelCatalogEntry $MiniModelCatalogEntryWithPeer $KnownPeerBaseUrl",
@@ -4277,6 +4306,8 @@
       "",
       "Write-Host \"Converted .slm:\" $OutputSlm",
       "Write-Host \"Conversion receipt:\" $ConversionReceipt",
+      "Write-Host \"MiniModel manifest:\" $MiniModelManifest",
+      "Write-Host \"MiniModel peer pieces:\" $MiniModelPieceDir",
       "Write-Host \"MiniModel share directory:\" $MiniModelShareDir",
       "Write-Host \"MiniModel catalog snapshot:\" $MiniModelCatalogSnapshot",
       "if ($KnownPeerBaseUrl.Trim().Length -eq 0) {",
