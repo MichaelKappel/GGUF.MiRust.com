@@ -291,6 +291,8 @@ node .\tinyrustlm\tools\static-server.js .\tinyrustlm 8080
 
 Browser smoke verification:
 
+`public-local-only` maps public hostnames to loopback only for local `http://tinyrustlm.com:PORT/` simulations. When the target is the real live `https://tinyrustlm.com/` site, the smoke leaves DNS live and verifies the deployed app, runtime manifest, and WASM without requesting `/models/`, Hugging Face, or MiniModel routes before user action. Set `TINYRUSTLM_PUBLIC_SMOKE_HOST_MAP=1` only for an intentional HTTPS loopback lab.
+
 ```powershell
 node .\tinyrustlm\tools\static-shell-parity.js .\tinyrustlm
 node .\tinyrustlm\tools\browser-smoke.js http://127.0.0.1:8080/ 9224

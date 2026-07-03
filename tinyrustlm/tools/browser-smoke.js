@@ -12433,7 +12433,14 @@ async function main() {
     `--remote-debugging-port=${port}`,
     `--user-data-dir=${profile}`
   ];
-  if (publicLocalOnlySmokeMode) {
+  const publicSmokeUrl = new URL(appUrl);
+  const publicSmokeHostMapMode = process.env.TINYRUSTLM_PUBLIC_SMOKE_HOST_MAP || "auto";
+  const shouldMapPublicSmokeHost =
+    publicLocalOnlySmokeMode &&
+    (publicSmokeUrl.hostname === "tinyrustlm.com" || publicSmokeUrl.hostname === "www.tinyrustlm.com") &&
+    publicSmokeHostMapMode !== "0" &&
+    (publicSmokeHostMapMode === "1" || publicSmokeUrl.protocol === "http:");
+  if (shouldMapPublicSmokeHost) {
     browserArgs.push("--host-resolver-rules=MAP tinyrustlm.com 127.0.0.1,MAP www.tinyrustlm.com 127.0.0.1");
   }
   browserArgs.push(appUrl);
