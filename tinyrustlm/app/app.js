@@ -4110,7 +4110,7 @@
   }
 
   function hfConversionActionLabel(view) {
-    return hfSourceByteRisk(view) === "normal" ? "Start Conversion" : "Prepare Conversion";
+    return hfSourceByteRisk(view) === "normal" ? "Start Conversion" : "Review Conversion";
   }
 
   function hfCompatibilityClass(view) {

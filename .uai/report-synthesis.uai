@@ -1,5 +1,5 @@
-profile: runtime-mirust.report-synthesis.v155
-updated_utc: 2026-07-03T19:50:00Z
+profile: runtime-mirust.report-synthesis.v156
+updated_utc: 2026-07-03T20:40:00Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/runtime-mirust/report-intake-2026-06-25/
@@ -337,7 +337,7 @@ tinyrustlm_huggingface_supported_source_gate_2026_07_03:
   synthesis: Hugging Face rows without `.safetensors` metadata no longer get simple `Start Conversion`; the UI now reports no-supported-source separately while preserving source-backed conversion and P2P-ready import actions.
 tinyrustlm_huggingface_source_size_risk_2026_07_03:
   route: wiki/runtime-mirust/reports/tinyrustlm-huggingface-source-size-risk-memory-2026-07-03.md
-  synthesis: Hugging Face rows with large or unknown-size `.safetensors` sources now use `Prepare Conversion` plus review/P2P-preferred guidance, while normal source rows keep `Start Conversion` and P2P-ready rows keep `P2P Import`.
+  synthesis: Hugging Face rows with large or unknown-size `.safetensors` sources now use `Review Conversion` plus review/P2P-preferred guidance, while normal source rows keep `Start Conversion`, P2P-ready rows keep `P2P Import`, and no-source rows stay blocked from conversion actions.
 tinyrustlm_huggingface_availability_summary_2026_07_03:
   route: wiki/runtime-mirust/reports/tinyrustlm-huggingface-availability-summary-memory-2026-07-03.md
   checksum_sha256: 60E06A3A8B69475D00C1DD37EBA2E4BCCD21647AD12EAA51323A2A83F4E5C0AF

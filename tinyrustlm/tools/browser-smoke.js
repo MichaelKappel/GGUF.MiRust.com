@@ -9193,7 +9193,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     if (!resultText.includes("No supported source listed") || !resultText.includes("no .safetensors source listed")) {
       failures.push(`unsupported Hugging Face result did not block fake conversion path: ${resultText}`);
     }
-    if (!resultText.includes("Large source; P2P preferred") || !resultText.includes("Large source warning: 10.0 GiB across 2 source files") || !resultText.includes("Prepare Conversion")) {
+    if (!resultText.includes("Large source; P2P preferred") || !resultText.includes("Large source warning: 10.0 GiB across 2 source files") || !resultText.includes("Review Conversion")) {
       failures.push(`large Hugging Face source did not steer users toward P2P/review before local conversion: ${resultText}`);
     }
     if (!String(result.p2pStatusAfterSearch || "").includes("P2P on") || result.p2pWarningVisibleAfterSearch) {
@@ -9226,7 +9226,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     if (result.simpleSourceHintCountAfterSearch < 1 || result.advancedSourceHintCountAfterSearch < 1) {
       failures.push(`source-file hint drifted between simple and advanced Hugging Face rows: simple=${result.simpleSourceHintCountAfterSearch}, advanced=${result.advancedSourceHintCountAfterSearch}`);
     }
-    if (primaryActionsAfterSearch.length !== 3 || !primaryActionsAfterSearch.includes("Start Conversion") || !primaryActionsAfterSearch.includes("P2P Import") || !primaryActionsAfterSearch.includes("Prepare Conversion")) {
+    if (primaryActionsAfterSearch.length !== 3 || !primaryActionsAfterSearch.includes("Start Conversion") || !primaryActionsAfterSearch.includes("P2P Import") || !primaryActionsAfterSearch.includes("Review Conversion")) {
       failures.push(`simple Hugging Face primary actions with P2P on were ${JSON.stringify(primaryActionsAfterSearch)}`);
     }
     if (!Array.isArray(result.peerImportDownloadNames) || !result.peerImportDownloadNames.some((name) => String(name).endsWith(".minimodel-peer-import-request.json")) || !result.peerImportDownloadNames.some((name) => String(name).endsWith(".minimodel-peer-import.ps1"))) {
@@ -9333,7 +9333,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     if (!simpleActionTextAfterP2pDisable.includes("Start Conversion")) {
       failures.push(`Start Conversion was not available after disabling P2P: ${simpleActionTextAfterP2pDisable}`);
     }
-    if (primaryActionsAfterP2pDisable.length !== 2 || !primaryActionsAfterP2pDisable.includes("Start Conversion") || !primaryActionsAfterP2pDisable.includes("Prepare Conversion")) {
+    if (primaryActionsAfterP2pDisable.length !== 2 || !primaryActionsAfterP2pDisable.includes("Start Conversion") || !primaryActionsAfterP2pDisable.includes("Review Conversion")) {
       failures.push(`simple Hugging Face primary actions with P2P off were ${JSON.stringify(primaryActionsAfterP2pDisable)}`);
     }
     for (const removedSimpleAction of ["Choose converted .slm", "Save Conversion Request", "Save Rust Conversion Script"]) {
