@@ -2033,6 +2033,7 @@ async function runPageSourceOptionsSmoke(client) {
         railVisible: visible(byId("diagnosticsRail")),
         promptVisible: visible(byId("prompt")),
         generateVisible: visible(byId("generateButton")),
+        attachmentButtonCount: document.querySelectorAll(".attachment-button").length,
         starterCardCount: document.querySelectorAll(".starter-action").length,
         starterLabels: Array.from(document.querySelectorAll(".starter-action")).map((button) => button.textContent.replace(/\\s+/g, " ").trim()),
         modeButtonLabels: Array.from(document.querySelectorAll(".mode-button")).map((button) => button.textContent.replace(/\\s+/g, " ").trim()),
@@ -8979,6 +8980,9 @@ function assertSourceOptionsSmoke(result, networkRequests) {
     if (!result.initial.promptVisible || !result.initial.generateVisible) {
       failures.push("chat prompt and Generate were not visible in initial Simple Mode");
     }
+    if (result.initial.attachmentButtonCount !== 0) {
+      failures.push(`unimplemented attachment affordance was still visible: ${result.initial.attachmentButtonCount}`);
+    }
     if (result.initial.starterCardCount < 4) {
       failures.push(`starter cards were missing in initial Simple Mode: ${result.initial.starterCardCount}`);
     }
@@ -9213,6 +9217,11 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     }
     if (!String(result.statusAfterSearch || "").includes("2 external records") || !String(result.hfStatusAfterSearch || "").includes("2 external records")) {
       failures.push(`Hugging Face status after search was ${result.statusAfterSearch}/${result.hfStatusAfterSearch}`);
+    }
+    for (const summaryText of ["1 P2P-ready match", "1 model needs Rust conversion"]) {
+      if (!String(result.statusAfterSearch || "").includes(summaryText) || !String(result.hfStatusAfterSearch || "").includes(summaryText)) {
+        failures.push(`Hugging Face availability summary missed ${summaryText}: ${result.statusAfterSearch}/${result.hfStatusAfterSearch}`);
+      }
     }
     if (!String(result.status || "").includes("Rust conversion script saved") || !String(result.hfStatus || "").includes("Rust conversion script saved")) {
       failures.push(`Hugging Face status after Start Conversion was ${result.status}/${result.hfStatus}`);

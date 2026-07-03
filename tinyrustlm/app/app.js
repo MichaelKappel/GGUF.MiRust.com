@@ -1606,6 +1606,22 @@
         }
       });
     }
+    if (el.prompt) {
+      el.prompt.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey || event.isComposing) {
+          return;
+        }
+        if (!el.generateButton || el.generateButton.disabled || !el.form) {
+          return;
+        }
+        event.preventDefault();
+        if (typeof el.form.requestSubmit === "function") {
+          el.form.requestSubmit(el.generateButton);
+        } else {
+          el.form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+        }
+      });
+    }
     if (el.simpleHfP2pToggle) {
       el.simpleHfP2pToggle.addEventListener("change", () => {
         setHfP2pEnabled(el.simpleHfP2pToggle.checked);
@@ -4493,6 +4509,54 @@
     renderSimpleHfResults(accepted);
   }
 
+  function pluralCount(count, singular, plural = `${singular}s`) {
+    return `${count} ${count === 1 ? singular : plural}`;
+  }
+
+  function hfAvailabilitySummary(accepted) {
+    const summary = {
+      p2pReady: 0,
+      peerUrlNeeded: 0,
+      localSlmNeeded: 0,
+      externalSlmListed: 0,
+      conversionNeeded: 0
+    };
+    for (const entry of accepted) {
+      const view = hfResultView(entry);
+      if (view.p2pMatch) {
+        summary.p2pReady += 1;
+      } else if (view.hasPeerOffer && state.p2pEnabled !== false) {
+        summary.peerUrlNeeded += 1;
+      } else if (view.matches.length) {
+        summary.localSlmNeeded += 1;
+      } else if (view.slmFiles.length) {
+        summary.externalSlmListed += 1;
+      } else {
+        summary.conversionNeeded += 1;
+      }
+    }
+    const parts = [pluralCount(accepted.length, "external record")];
+    if (summary.p2pReady) {
+      parts.push(pluralCount(summary.p2pReady, "P2P-ready match"));
+    }
+    if (summary.peerUrlNeeded) {
+      parts.push(`${pluralCount(summary.peerUrlNeeded, "proof-ready match", "proof-ready matches")} ${summary.peerUrlNeeded === 1 ? "needs" : "need"} peer URL`);
+    }
+    if (summary.localSlmNeeded) {
+      parts.push(`${pluralCount(summary.localSlmNeeded, "metadata match", "metadata matches")} ${summary.localSlmNeeded === 1 ? "needs" : "need"} local .slm`);
+    }
+    if (summary.externalSlmListed) {
+      parts.push(`${pluralCount(summary.externalSlmListed, "external .slm listing")} ${summary.externalSlmListed === 1 ? "needs" : "need"} local review`);
+    }
+    if (summary.conversionNeeded) {
+      parts.push(`${pluralCount(summary.conversionNeeded, "model")} ${summary.conversionNeeded === 1 ? "needs" : "need"} Rust conversion`);
+    }
+    if (state.p2pEnabled === false) {
+      parts.push("P2P off");
+    }
+    return parts.join(" / ");
+  }
+
   function refreshHfResultsForCatalogChange() {
     if (state.hfLastAccepted && state.hfLastAccepted.length) {
       renderAcceptedHfResults(state.hfLastAccepted);
@@ -4517,7 +4581,7 @@
       return;
     }
     renderAcceptedHfResults(accepted);
-    setHfStatus(`${accepted.length} external records; local .slm verification required`, false);
+    setHfStatus(`${hfAvailabilitySummary(accepted)}; local .slm verification required`, false);
   }
 
   function renderSimpleHfResults(accepted) {

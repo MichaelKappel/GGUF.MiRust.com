@@ -1186,26 +1186,17 @@ input[type="file"] {
 
 .composer-footer {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) 48px;
+  grid-template-columns: minmax(0, 1fr) 48px;
   gap: 12px;
   align-items: center;
   margin-top: 10px;
 }
 
-.attachment-button,
 .send-button {
   display: grid;
   place-items: center;
   padding: 0;
   border-radius: 13px;
-}
-
-.attachment-button {
-  width: 42px;
-  height: 42px;
-  color: var(--text-secondary);
-  background: rgba(15, 28, 45, .86);
-  border: 1px solid var(--border);
 }
 
 .composer-footer > span {
@@ -2433,7 +2424,7 @@ pre {
   }
 
   .composer-footer {
-    grid-template-columns: 42px minmax(0, 1fr) 46px;
+    grid-template-columns: minmax(0, 1fr) 46px;
   }
 
   .composer-footer > span {

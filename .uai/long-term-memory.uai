@@ -1,5 +1,5 @@
-﻿profile: runtime-mirust.long-term-memory-ledger.v200
-updated_utc: 2026-07-03T13:45:00Z
+﻿profile: runtime-mirust.long-term-memory-ledger.v201
+updated_utc: 2026-07-03T15:30:00Z
 storage_mode: hybrid
 ledger_rule:
   pointer_only_not_context_free: true
@@ -19,8 +19,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before orienting project state, support boundaries, report routing, or public claim boundaries.
-    checksum_hash: sha256:ECEEA6486D9EE8258C29FE422783F5F71DD1784AA3994FF9EE760D13FB313752
-    last_reviewed_utc: 2026-07-03T13:20:00Z
+    checksum_hash: sha256:68F853F68285C82681721747CC9FA48D77EFB3CFDB689FF48A89C285608FC13F
+    last_reviewed_utc: 2026-07-03T15:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; hot workspace state lives in the target file.
   - stable_id: runtime_mirust_workspace_guidance_uai
@@ -104,8 +104,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before resuming current work, locating latest report memory, or choosing next verification.
-    checksum_hash: sha256:1839B79A3A334F7928B3923CC867AC8BEE93F5A34A9F9A8A5F96EDAD9FFDE6BA
-    last_reviewed_utc: 2026-07-03T13:20:00Z
+    checksum_hash: sha256:847DDB2E99239A1091A5FA46355466708A207E62D994B9085022CAC38EDC5254
+    last_reviewed_utc: 2026-07-03T15:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; current state and routes live in the target file.
   - stable_id: runtime_mirust_startup_packet_uai
@@ -257,8 +257,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before building, testing, serving, or claiming TinyRustLM runtime support.
-    checksum_hash: sha256:432DE3F925E1A95C455AB33EA609B14AD36C01869912E72E09BD0FC8C516B41C
-    last_reviewed_utc: 2026-07-03T13:45:00Z
+    checksum_hash: sha256:531A62173746DE02E953B489D4BA1164023FDBB562746E22782229809BE6950A
+    last_reviewed_utc: 2026-07-03T15:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; durable build detail lives in the target file.
   - stable_id: runtime_mirust_root_readme
@@ -410,8 +410,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing app.js, app.css, app HTML, local fetch paths, or browser diagnostics.
-    checksum_hash: sha256:291CB19047389D92B43CB91B975C420821F82604F32CBAC095FCD4F9FCD2779F
-    last_reviewed_utc: 2026-07-03T13:45:00Z
+    checksum_hash: sha256:16BB5C8DD345C2C1D7F7951EF37FCAA2DA7AAC14BD6DECBB909914B554F06389
+    last_reviewed_utc: 2026-07-03T15:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; browser runtime detail lives in the target file.
   - stable_id: tinyrustlm_browser_app_html
@@ -427,8 +427,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing visible browser panels, product shell, or static app layout.
-    checksum_hash: sha256:81EAEDAA3DA66B7CAD061990335F872FE096E3522146C6F642B75086798EEAE6
-    last_reviewed_utc: 2026-07-03T13:45:00Z
+    checksum_hash: sha256:8A003EFD276A27C4D31A3F623A571BEC64A7DFF2A670286C9AE7AEA023B00F17
+    last_reviewed_utc: 2026-07-03T15:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; implementation lives in the target file.
   - stable_id: tinyrustlm_browser_root_handoff_html
@@ -444,8 +444,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing public root routing, deployment layout, static host entrypoints, or SLMComposer.com launch behavior.
-    checksum_hash: sha256:6C996EE1E805925FC20D90447DFA6DF30C0AB1E438D6D6FCA705853E4EC7FB4F
-    last_reviewed_utc: 2026-07-03T13:45:00Z
+    checksum_hash: sha256:55CF4AE87AF654E141EF257E71B916CCB28D35B727A6F0FB5D7321EF97547D5C
+    last_reviewed_utc: 2026-07-03T15:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; root app markup lives in the target file.
   - stable_id: tinyrustlm_browser_root_htaccess
@@ -478,8 +478,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing browser host behavior, local fetches, model selection, provenance rendering, or WASM calls.
-    checksum_hash: sha256:4B63A39CF8D8DBEC144FF13C8A14D2637D417387F85C206A08CFE5D042FF71E3
-    last_reviewed_utc: 2026-07-03T13:45:00Z
+    checksum_hash: sha256:8236FDE13267D172B1689F28FC8B69741C45D8ED273A5D103B3BA4C25F911316
+    last_reviewed_utc: 2026-07-03T15:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; implementation lives in the target file.
   - stable_id: tinyrustlm_browser_app_css
@@ -495,8 +495,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing app layout, responsive behavior, or visible UI styling.
-    checksum_hash: sha256:2F48042BB0D46F0C6693CE62690F901461730CCD3AF38B7B2F6BEBEFED5C29AA
-    last_reviewed_utc: 2026-07-03T04:20:00Z
+    checksum_hash: sha256:EFC4E80B5DAAEF17CFC04499693015FF95506E61D53D3D522A21B2FB2CA11DF1
+    last_reviewed_utc: 2026-07-03T15:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; implementation lives in the target file.
   - stable_id: tinyrustlm_diagnostics_source
@@ -1311,8 +1311,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Run after app, WASM, server, adapter sidecar, registry, or model selector changes.
-    checksum_hash: sha256:9E03B471ED05DD34BC499CFA38FB45253F15EFBCC2B60477BA52563E4B7BAE43
-    last_reviewed_utc: 2026-07-03T13:45:00Z
+    checksum_hash: sha256:AD11FBD1BC750A1F4012BE6EBC3E061B428B61CB871123D7D3475CCFE3AE6391
+    last_reviewed_utc: 2026-07-03T15:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; executable test behavior lives in the target file.
   - stable_id: tinyrustlm_wasm_abi_smoke_tool
@@ -6088,8 +6088,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing Hugging Face Start Conversion scripts, output path assumptions, first-run transcript state, or hf-search-ui/source-options-ui smoke assertions.
-    checksum_hash: sha256:84A36652B337EF606F494FEF8E627450076C257922E7729193475B6246107D13
-    last_reviewed_utc: 2026-07-03T13:20:00Z
+    checksum_hash: sha256:B5CD24AF6037EE7E93E667A2ECCD3C25438ECEFB70AE9354660C37F975189EF9
+    last_reviewed_utc: 2026-07-03T15:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; Hugging Face real-conversion-script report body lives in the target file.
   - stable_id: tinyrustlm_huggingface_self_contained_conversion_script_memory
