@@ -1,5 +1,5 @@
-﻿profile: runtime-mirust.long-term-memory-ledger.v217
-updated_utc: 2026-07-04T02:35:00Z
+﻿profile: runtime-mirust.long-term-memory-ledger.v218
+updated_utc: 2026-07-04T03:05:00Z
 storage_mode: hybrid
 ledger_rule:
   pointer_only_not_context_free: true
@@ -12,15 +12,15 @@ records:
     path: workspace.uai
     target_location: workspace.uai
     label: Required For Workspace Authority And Current Boundary
-    summary: Routes agents to TinyRustLM root, sharded Hugging Face conversion, self-contained scripts, P2P hints, serve helpers, local share kit, optional peer companion guidance, no-byte boundaries, and deploy gate.
+    summary: Routes agents to TinyRustLM root, sharded Hugging Face conversion, P2P kits, optional peer companion, split-memory rule, no-byte boundaries, and deploy gate.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before orienting project state, support boundaries, report routing, or public claim boundaries.
-    checksum_hash: sha256:86DF20D502BDCE3EE781123C16BA5A87C250383AF93CA15FA46A94151B8E009C
-    last_reviewed_utc: 2026-07-04T02:35:00Z
+    checksum_hash: sha256:8F8BCC4BB937DC7DD3976FBA39BD9348E23F3EC55AB8D57DFFF54C4F635C93CD
+    last_reviewed_utc: 2026-07-04T03:05:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; hot workspace state lives in the target file.
   - stable_id: runtime_mirust_workspace_guidance_uai
@@ -29,15 +29,15 @@ records:
     path: .uai/workspace-guidance.uai
     target_location: .uai/workspace-guidance.uai
     label: Required For Workspace Memory And Implementation Guidance
-    summary: Routes agents to memory strategy, TinyRustLM active root, MiniModel source options, peer proof, self-locating peer import, browser evidence, and safetensors tails.
+    summary: Routes agents to split-memory strategy, TinyRustLM active root, MiniModel source options, peer proof, self-locating peer import, browser evidence, and safetensors tails.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before broad memory loading, report strategy edits, or implementation boundary work.
-    checksum_hash: sha256:7F468C5BD8CBC6ACC30645962D5EB985C6775C3FDAA4294A85F6E9C5ADFC2E27
-    last_reviewed_utc: 2026-07-03T05:35:00Z
+    checksum_hash: sha256:F24B64D628DE8205DA272C40132D0E2DA3D24135FCC84DD6F5115362CB53DCA1
+    last_reviewed_utc: 2026-07-04T03:05:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; hot guidance lives in the target file.
   - stable_id: runtime_mirust_file_handoff_uai

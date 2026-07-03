@@ -1,5 +1,5 @@
-profile: runtime-mirust.workspace-guidance.v129
-updated_utc: 2026-07-03T03:45:00Z
+profile: runtime-mirust.workspace-guidance.v130
+updated_utc: 2026-07-04T03:05:00Z
 canonical_root: E:\Source\Rust\SLMComposer.com
 startup_rule: Read AGENTS.md, workspace.uai, and local .uai startup files before broad loading.
 memory_strategy:
@@ -7,6 +7,8 @@ memory_strategy:
   durable_memory: wiki/runtime-mirust/ and docs/ deep-linked from .uai/long-term-memory.uai
   public_durable_target: https://aiwikis.org/runtime-mirust/
   note: LLM Wiki and docs-based durable Markdown are both valid when deep-linked from .uai with routing summaries and review status.
+  split_memory_architecture_rule: Hot `.uai` memory remains active startup, current-state, handoff, and operational memory even when durable wiki, docs, database, or NeuralWikis-style memory exists; durable memory augments `.uai` and must not retire, replace, ignore, or make `.uai` emergency-only.
+  hot_memory_current_state_rule: Keep hot `.uai` compact and current-state oriented; store bulky dated evidence, report bodies, and historical proof in docs/wiki/report-intake and route it through checksum-bearing pointers.
   hot_report_synthesis: .uai/report-synthesis.uai must summarize processed reports enough for cold-start routing before durable wiki loading.
   hot_short_term_report_pointer: .uai/short-term-memory.uai must reference current report-intake indexes and durable synthesis nodes after each processed handoff batch.
   site_voice_hot_memory: .uai/taboo.uai governs public copy and product positioning for this website.

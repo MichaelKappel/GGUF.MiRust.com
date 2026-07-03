@@ -1,7 +1,7 @@
 profile: tinyrustlm.source-workspace.v164
 project_name: TinyRustLM
 canonical_root: E:\Source\Rust\SLMComposer.com
-updated_utc: 2026-07-04T01:35:00Z
+updated_utc: 2026-07-04T03:05:00Z
 version_authority:
   current_version: 0.1.0
   next_version: 0.1.0
@@ -105,6 +105,7 @@ memory_authority:
   aiwikis_public_namespace: https://aiwikis.org/runtime-mirust/
   file_handoff_root: agent-file-handoff/
   site_voice_hot_memory: .uai/taboo.uai
+  split_memory_architecture_rule: Hot `.uai` files remain active startup/current-state/operational memory even when durable wiki/docs memory exists; durable memory augments `.uai`, and agents must not retire, ignore, or make `.uai` emergency-only because long-term memory is available.
   uaix_file_handoff_strategy_source: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
   report_storage_strategy: hot_uai_routes_current_state_and_synthesis; durable_reports_live_in_wiki_raw_evidence_and_pointer_ledgers
   research_reference_strategy: diverse_model_breeding_reference_bodies_live_in_wiki_research_and_route_through_short_term_memory_report_synthesis_and_long_term_checksum_pointers; lanes include compatible_merge_dare_dropout_rescaled_task_delta_sparse_lineage_adapter_ecology_with_trained_source_alr1_and_adp1_asp1_alr1_population_search_federated_local_update_browser_constrained_assembly_uaix_memory_strategy_heritable_artifacts_mate_selection_phenotype_evidence_speciation_fit_genome_fitness_novelty_and_zero_dependency_browser_runtime_guidance
