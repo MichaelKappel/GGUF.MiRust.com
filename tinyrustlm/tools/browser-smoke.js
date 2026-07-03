@@ -2070,6 +2070,8 @@ async function runPageSourceOptionsSmoke(client) {
         localVisible: visible(byId("simpleLocalSourcePanel")),
         hfVisible: visible(byId("simpleHfSourcePanel")),
         p2pVisible: visible(byId("simpleP2pSourcePanel")),
+        simpleLocalCatalogVisible: visible(byId("simpleLocalCatalogFile")),
+        simpleImportLocalCatalogVisible: visible(byId("simpleImportLocalCatalogButton")),
         advancedModelVisible: visible(byId("modelSelect")),
         maxTokensVisible: visible(byId("maxTokens")),
         hfAdvancedVisible: visible(byId("hfSearchInput")),
@@ -2401,6 +2403,8 @@ async function runPageHfLocalCatalogSmoke(client, options = {}) {
             byId("wasmState").textContent !== "waiting" &&
             byId("localCatalogFile") &&
             byId("importLocalCatalogButton") &&
+            byId("simpleLocalCatalogFile") &&
+            byId("simpleImportLocalCatalogButton") &&
             byId("peerAnnouncementFile") &&
             byId("applyPeerAnnouncementButton") &&
             byId("simpleHfSearchButton")
@@ -2419,7 +2423,7 @@ async function runPageHfLocalCatalogSmoke(client, options = {}) {
       timeout: 90000
     }));
     if (fixture) {
-      await setFileInputFiles(client, "#localCatalogFile", [fixture.catalogPath]);
+      await setFileInputFiles(client, "#simpleLocalCatalogFile", [fixture.catalogPath]);
     }
     if (fixture && fixture.announcementPath) {
       await setFileInputFiles(client, "#peerAnnouncementFile", [fixture.announcementPath]);
@@ -2467,8 +2471,12 @@ async function runPageHfLocalCatalogSmoke(client, options = {}) {
           byId("catalogUrlInput").value = remoteCatalogUrl;
           byId("catalogLoadButton").click();
         } else {
-          byId("localCatalogFile").dispatchEvent(new Event("change", { bubbles: true }));
-          byId("importLocalCatalogButton").click();
+          byId("modelEditButton").click();
+          await sleep(50);
+          byId("simpleP2pSourceButton").click();
+          await sleep(50);
+          byId("simpleLocalCatalogFile").dispatchEvent(new Event("change", { bubbles: true }));
+          byId("simpleImportLocalCatalogButton").click();
         }
         for (let index = 0; index < 120; index += 1) {
           const status = byId("catalogStatus").textContent || "";
@@ -9115,6 +9123,9 @@ function assertSourceOptionsSmoke(result, networkRequests) {
     }
     if (result.p2p.activeSource !== "p2p" || !result.p2p.p2pVisible || result.p2p.hfVisible) {
       failures.push(`p2p source state was ${JSON.stringify(result.p2p)}`);
+    }
+    if (!result.p2p.simpleLocalCatalogVisible || !result.p2p.simpleImportLocalCatalogVisible) {
+      failures.push(`simple P2P source did not expose local catalog import: ${JSON.stringify(result.p2p)}`);
     }
     if (result.local.activeSource !== "local" || !result.local.localVisible || result.local.p2pVisible) {
       failures.push(`local source state was ${JSON.stringify(result.local)}`);

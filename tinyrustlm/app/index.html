@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TinyRustLM</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="./app.css?v=20260703-review-conversion">
+  <link rel="stylesheet" href="./app.css?v=20260703-simple-local-catalog">
 </head>
 <body>
   <svg class="icon-sprite" aria-hidden="true" focusable="false">
@@ -183,6 +183,9 @@
           </div>
           <p id="simplePeerUrlStatus" class="inline-status">Enter the consenting peer URL once; P2P imports will use it.</p>
           <button id="simpleLoadCatalogButton" class="secondary-action" type="button">Load MiniModel Metadata</button>
+          <label for="simpleLocalCatalogFile">Local models.v0.json</label>
+          <input id="simpleLocalCatalogFile" type="file" accept=".json,application/json">
+          <button id="simpleImportLocalCatalogButton" class="secondary-action" type="button">Load Local Catalog</button>
           <label for="simplePeerAnnouncementFile">Peer-source announcement JSON</label>
           <input id="simplePeerAnnouncementFile" type="file" accept=".json,application/json">
           <button id="simpleApplyPeerAnnouncementButton" class="secondary-action" type="button">Apply Peer Announcement</button>
@@ -533,6 +536,6 @@
       <span id="currentModelSummary" class="model-summary">No model loaded</span>
     </footer>
   </main>
-  <script src="./app.js?v=20260703-review-conversion"></script>
+  <script src="./app.js?v=20260703-simple-local-catalog"></script>
 </body>
 </html>

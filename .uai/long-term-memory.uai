@@ -1,5 +1,5 @@
 ﻿profile: runtime-mirust.long-term-memory-ledger.v220
-updated_utc: 2026-07-04T03:40:00Z
+updated_utc: 2026-07-03T21:02:53Z
 storage_mode: hybrid
 ledger_rule:
   pointer_only_not_context_free: true
@@ -12,15 +12,15 @@ records:
     path: workspace.uai
     target_location: workspace.uai
     label: Required For Workspace Authority And Current Boundary
-    summary: Routes agents to TinyRustLM root, Hugging Face availability chips, review-first conversion labels, sharded conversion, P2P kits, optional peer companion, no-byte boundaries, and deploy gate.
+    summary: Routes agents to TinyRustLM root, simple local catalog reuse, prioritized Hugging Face search, P2P kits, optional peer companion, no-byte boundaries, and deploy gate.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before orienting project state, support boundaries, report routing, or public claim boundaries.
-    checksum_hash: sha256:8A71E5DD3D6B573FAFEC366D0410E5EB5087E8538D8D24AA504F83B3DC6AF149
-    last_reviewed_utc: 2026-07-03T20:40:00Z
+    checksum_hash: sha256:D172B810D82F60858C619913C23A197603834032AB3CDB2EED34301E241E830C
+    last_reviewed_utc: 2026-07-03T21:02:53Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; hot workspace state lives in the target file.
   - stable_id: runtime_mirust_workspace_guidance_uai
@@ -80,15 +80,15 @@ records:
     path: .uai/report-synthesis.uai
     target_location: .uai/report-synthesis.uai
     label: Required For Processed Report Synthesis Routing
-    summary: Routes agents to processed reports, Hugging Face availability chips, review conversion labels, sharded source conversion, source-size risk, self-contained scripts, preflight evidence, local share kit, and feeds.
+    summary: Routes agents to processed reports, simple local catalog reuse, prioritized Hugging Face search, availability chips, sharded conversion, preflight evidence, local share kit, and feeds.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before opening bulk reports, report-derived design guidance, or model-breeding research routes.
-    checksum_hash: sha256:7D267CEBC19F5F284BD24D2D37EF859F4EDBCFC97B6615E57C7FFF48EEA60317
-    last_reviewed_utc: 2026-07-03T20:40:00Z
+    checksum_hash: sha256:F78CF419635CEF736720130B4FEEA897ED5CEFCAE3A6022F116AB279A1576288
+    last_reviewed_utc: 2026-07-03T21:02:53Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; processed report synthesis lives in the target file.
   - stable_id: runtime_mirust_short_term_memory_uai
@@ -97,15 +97,15 @@ records:
     path: .uai/short-term-memory.uai
     target_location: .uai/short-term-memory.uai
     label: Required For Current State And Report Routes
-    summary: Routes agents to current state, TinyRustLM.com source mirror sync, Hugging Face availability chips, Review Conversion labels, sharded conversion, preflight evidence, self-contained scripts, P2P hints, and feeds.
+    summary: Routes agents to current state, simple local catalog reuse, prioritized Hugging Face search, TinyRustLM.com mirror sync, availability chips, sharded conversion, P2P hints, and feeds.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before resuming current work, locating latest report memory, or choosing next verification.
-    checksum_hash: sha256:6DCA01C1ECC59AD74F5BCBACF86E6A0FC8D2016BD889F9F22E7E1ADAE748A007
-    last_reviewed_utc: 2026-07-03T20:40:00Z
+    checksum_hash: sha256:2FBFC021018FCA1D8E117503F04669A25E652132DE7D57E35F831060C4321A8D
+    last_reviewed_utc: 2026-07-03T21:02:53Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; current state and routes live in the target file.
   - stable_id: runtime_mirust_startup_packet_uai
@@ -182,15 +182,15 @@ records:
     path: .uai/test-plan.uai
     target_location: .uai/test-plan.uai
     label: Required For Test Plan And Evidence
-    summary: Routes agents to tools, verification commands, TinyRustLM.com mirror checks, Hugging Face review labels, sharded conversion, conversion preflight, peer-import preflight, browser checks, and tests.
+    summary: Routes agents to tools, verification commands, simple catalog/Hugging Face ranking checks, TinyRustLM.com mirror checks, sharded conversion, conversion preflight, peer-import preflight, and tests.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before planning or auditing verification for source changes.
-    checksum_hash: sha256:BF27B7F108E50ED6B49DCF32F2F8BEA1A2DA979EB7104D2F52AC0EB8BA9427A7
-    last_reviewed_utc: 2026-07-04T03:40:00Z
+    checksum_hash: sha256:D49BA107AFEE3635E4C2647D6C94148A9122A5EE0DFE3C3262A9ABD45A9F3717
+    last_reviewed_utc: 2026-07-03T21:02:53Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; test plan lives in the target file.
   - stable_id: runtime_mirust_uai_index
@@ -216,15 +216,15 @@ records:
     path: .uai/next-recursive-prompt.uai
     target_location: .uai/next-recursive-prompt.uai
     label: Required For Reopen Goal Prompt
-    summary: Routes agents to TinyRustLM root, mirror refresh/deploy gate, sharded Hugging Face conversion, follow-up intake, self-locating kits, MiniModel feeds, P2P handoff, and no-byte rules.
+    summary: Routes agents to TinyRustLM root, mirror refresh/deploy gate, simple local catalog reuse, prioritized Hugging Face search, self-locating kits, MiniModel feeds, P2P handoff, and no-byte rules.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before resuming after the IDE is reopened or before processing queued MiniModel intake.
-    checksum_hash: sha256:1D035C54521667082C64E5CB64E5DE77780F8447F1E0A0993918736345F0480D
-    last_reviewed_utc: 2026-07-04T02:35:00Z
+    checksum_hash: sha256:E476606C507D24749D0BDA42C9516FA46186DD0FCBEC35538759B56ABD0CCD42
+    last_reviewed_utc: 2026-07-03T21:02:53Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; next prompt lives in the target file.
   - stable_id: runtime_mirust_receiver_brief_uai
@@ -250,15 +250,15 @@ records:
     path: tinyrustlm/README.md
     target_location: tinyrustlm/README.md
     label: Required For TinyRustLM Build And Run Instructions
-    summary: Routes agents to TinyRustLM commands, Model Setup, Hugging Face availability chips, Review Conversion labels, sharded source conversion, receipt P2P hints, local share kit, import kits, catalogs, and feeds.
+    summary: Routes agents to TinyRustLM commands, Model Setup, simple catalog reuse, prioritized Hugging Face search, availability chips, sharded conversion, local share/import kits, catalogs, and feeds.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed implementation doc
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before building, testing, serving, or claiming TinyRustLM runtime support.
-    checksum_hash: sha256:42156CC788BAD5CA08D14442029A970013D5C873D9613849D0CDC9AA75B3CE70
-    last_reviewed_utc: 2026-07-03T20:40:00Z
+    checksum_hash: sha256:5FBBEED369DBD7E808642A67276E7DA370A2653762602C4A6328992EDE90D029
+    last_reviewed_utc: 2026-07-03T21:02:53Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; durable build detail lives in the target file.
   - stable_id: runtime_mirust_root_readme
@@ -1865,15 +1865,15 @@ records:
     path: wiki/runtime-mirust/source-memory-guide.md
     target_location: https://aiwikis.org/runtime-mirust/source-memory-guide/
     label: Required For Runtime.MiRust.com Source Memory Routing
-    summary: Routes agents to hot memory, durable wiki files, MiniModel source options, Hugging Face review-label and sharded-source routes, follow-up intake, announcement feeds, safetensors research, and boundaries.
+    summary: Routes agents to hot memory, durable wiki files, MiniModel source options, Hugging Face ranking/review/sharded routes, follow-up intake, announcement feeds, safetensors research, and boundaries.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local reviewed LLM Wiki source
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before loading durable project memory or processing handoff intake.
-    checksum_hash: sha256:A96DFBE8BF4A45FB7CF223F8E3CB5CFB652AF1B43DE452B863CC20777A04BC2F
-    last_reviewed_utc: 2026-07-04T03:40:00Z
+    checksum_hash: sha256:FC299119ABB610699CAAB0805B8A03E063E6BCFF974D3C80DA046C52BBF56F44
+    last_reviewed_utc: 2026-07-03T21:02:53Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; durable source guide body lives in the target file.
   - stable_id: runtime_mirust_knowledge_map
@@ -6413,6 +6413,23 @@ records:
     contextual_trigger: Read before changing simple Hugging Face result summaries, availability labels, P2P-disabled behavior, or beginner source-flow copy.
     checksum_hash: sha256:60E06A3A8B69475D00C1DD37EBA2E4BCCD21647AD12EAA51323A2A83F4E5C0AF
     last_reviewed_utc: 2026-07-03T19:50:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; implementation detail lives in the app source and smoke tool.
+  - stable_id: tinyrustlm_simple_local_catalog_prioritized_hf_memory
+    memory_domain: runtime-mirust.report_memory.tinyrustlm_simple_local_catalog_prioritized_hf
+    pointer_type: llmwiki_node
+    path: wiki/runtime-mirust/reports/tinyrustlm-simple-local-catalog-prioritized-hf-memory-2026-07-03.md
+    target_location: https://aiwikis.org/runtime-mirust/reports/tinyrustlm-simple-local-catalog-prioritized-hf-memory-2026-07-03/
+    label: Required For TinyRustLM Simple Local Catalog And Prioritized Hugging Face Memory
+    summary: Routes agents to beginner local `models.v0.json` loading, wider Hugging Face metadata search, actionability ranking, converted-once catalog reuse, and optional companion boundaries.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local implementation memory report
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing simple P2P catalog import, Hugging Face result sorting, local catalog reuse, or beginner source-flow proof.
+    checksum_hash: sha256:0B4917CCF193C933D680DEC9A39AD8FDC322B6E7A067490ADE6C938F628731D0
+    last_reviewed_utc: 2026-07-03T21:02:53Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; implementation detail lives in the app source and smoke tool.
   - stable_id: tinyrustlm_minimodel_empty_announcement_feed_memory

@@ -1,5 +1,5 @@
 profile: runtime-mirust.report-synthesis.v156
-updated_utc: 2026-07-03T20:40:00Z
+updated_utc: 2026-07-03T21:02:53Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/runtime-mirust/report-intake-2026-06-25/
@@ -52,6 +52,7 @@ source_authority:
     - wiki/runtime-mirust/reports/tinyrustlm-huggingface-source-size-risk-memory-2026-07-03.md
     - wiki/runtime-mirust/reports/tinyrustlm-huggingface-sharded-source-directory-memory-2026-07-03.md
     - wiki/runtime-mirust/reports/tinyrustlm-huggingface-availability-summary-memory-2026-07-03.md
+    - wiki/runtime-mirust/reports/tinyrustlm-simple-local-catalog-prioritized-hf-memory-2026-07-03.md
     - wiki/runtime-mirust/reports/tinyrustlm-desktop-p2p-companion-intake-memory-2026-07-03.md
     - wiki/runtime-mirust/reports/tinylm16-bpe-safetensors-plan-memory-2026-06-30.md
     - wiki/runtime-mirust/reports/enterprise-rust-governance-memory-2026-06-25.md
@@ -342,6 +343,10 @@ tinyrustlm_huggingface_availability_summary_2026_07_03:
   route: wiki/runtime-mirust/reports/tinyrustlm-huggingface-availability-summary-memory-2026-07-03.md
   checksum_sha256: 60E06A3A8B69475D00C1DD37EBA2E4BCCD21647AD12EAA51323A2A83F4E5C0AF
   synthesis: Simple Hugging Face search now renders availability chips for P2P import, peer URL, conversion, review, local `.slm`, no-source, and P2P-disabled states from the same row decision state, while keeping the desktop/P2P companion as a later optional user-run wrapper.
+tinyrustlm_simple_local_catalog_prioritized_hf_2026_07_03:
+  route: wiki/runtime-mirust/reports/tinyrustlm-simple-local-catalog-prioritized-hf-memory-2026-07-03.md
+  checksum_sha256: 0B4917CCF193C933D680DEC9A39AD8FDC322B6E7A067490ADE6C938F628731D0
+  synthesis: The simple P2P panel now exposes local `models.v0.json` loading, and Hugging Face search fetches a wider metadata page then ranks visible rows by real P2P/conversion/review actionability before no-source rows.
 tinyrustlm_minimodel_peer_import_preflight_2026_07_03:
   route: wiki/runtime-mirust/reports/tinyrustlm-minimodel-peer-import-preflight-memory-2026-07-03.md
   checksum_sha256: 600B3AEF139BF7F891714D52A5377765EDFD9FD68D152A821DAED8D3A2200818

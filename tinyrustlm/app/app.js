@@ -97,6 +97,7 @@
   const hfDiscoveryScheme = "https";
   const hfDiscoveryHost = "huggingface.co";
   const hfSearchLimit = 8;
+  const hfSearchApiLimit = 24;
   const hfLargeSourceWarningBytes = 2 * 1024 * 1024 * 1024;
   const blockedPeerHosts = new Set([
     "minimodel.org",
@@ -380,6 +381,8 @@
     simpleCatalogResults: document.getElementById("simpleCatalogResults"),
     simpleHfResults: document.getElementById("simpleHfResults"),
     simpleLoadCatalogButton: document.getElementById("simpleLoadCatalogButton"),
+    simpleLocalCatalogFile: document.getElementById("simpleLocalCatalogFile"),
+    simpleImportLocalCatalogButton: document.getElementById("simpleImportLocalCatalogButton"),
     simplePeerAnnouncementFile: document.getElementById("simplePeerAnnouncementFile"),
     simpleApplyPeerAnnouncementButton: document.getElementById("simpleApplyPeerAnnouncementButton"),
     simpleSaveShareMetadataButton: document.getElementById("simpleSaveShareMetadataButton"),
@@ -2710,8 +2713,8 @@
     setCatalogStatus(`${entries.length} metadata entries`, false);
   }
 
-  async function importLocalCatalogFile() {
-    const file = el.localCatalogFile && el.localCatalogFile.files ? el.localCatalogFile.files[0] : null;
+  async function importLocalCatalogFile(input = el.localCatalogFile) {
+    const file = input && input.files ? input.files[0] : null;
     if (!file) {
       throw new Error("Choose a local models.v0.json catalog snapshot");
     }
@@ -5126,18 +5129,64 @@
     }
   }
 
+  function hfResultActionRank(entry) {
+    const view = hfResultView(entry);
+    if (view.p2pMatch) {
+      return 700;
+    }
+    if (view.hasPeerOffer) {
+      return 650;
+    }
+    if (view.matches.length) {
+      return 600;
+    }
+    if (view.slmFiles.length) {
+      return 500;
+    }
+    if (hfCanStartConversion(view)) {
+      const risk = hfSourceByteRisk(view);
+      if (risk === "normal") {
+        return 400;
+      }
+      if (risk === "unknown") {
+        return 350;
+      }
+      return 300;
+    }
+    return 0;
+  }
+
+  function prioritizeHfResults(candidates) {
+    return candidates
+      .map((entry, index) => ({
+        entry,
+        index,
+        rank: hfResultActionRank(entry),
+        downloads: Number.isFinite(entry.result && entry.result.downloads) ? entry.result.downloads : 0
+      }))
+      .sort((left, right) => {
+        if (right.rank !== left.rank) {
+          return right.rank - left.rank;
+        }
+        if (right.downloads !== left.downloads) {
+          return right.downloads - left.downloads;
+        }
+        return left.index - right.index;
+      })
+      .slice(0, hfSearchLimit)
+      .map((item) => item.entry);
+  }
+
   function renderHfResults(results) {
     clearHfResults();
-    const accepted = [];
+    const candidates = [];
     for (const result of results) {
       const modelId = hfModelId(result);
       if (modelId) {
-        accepted.push({ result, modelId });
-      }
-      if (accepted.length >= hfSearchLimit) {
-        break;
+        candidates.push({ result, modelId });
       }
     }
+    const accepted = prioritizeHfResults(candidates);
     state.hfLastAccepted = accepted;
     if (!accepted.length) {
       setHfStatus("no model records returned", false);
@@ -5191,7 +5240,7 @@
     url.searchParams.set("filter", "text-generation");
     url.searchParams.set("sort", "downloads");
     url.searchParams.set("direction", "-1");
-    url.searchParams.set("limit", String(hfSearchLimit));
+    url.searchParams.set("limit", String(hfSearchApiLimit));
     url.searchParams.set("full", "true");
     const response = await fetch(url.toString(), {
       cache: "no-store",
@@ -10403,8 +10452,23 @@
     });
   });
 
+  el.simpleImportLocalCatalogButton.addEventListener("click", function () {
+    importLocalCatalogFile(el.simpleLocalCatalogFile).catch((error) => {
+      setCatalogStatus(errorMessage(error), true);
+    });
+  });
+
   el.localCatalogFile.addEventListener("change", function () {
     const file = el.localCatalogFile.files && el.localCatalogFile.files[0];
+    if (!file) {
+      setCatalogStatus("idle", false);
+      return;
+    }
+    setCatalogStatus(`${safeLocalModelName(file.name)} / ${formatByteCount(file.size)} local catalog selected`, false);
+  });
+
+  el.simpleLocalCatalogFile.addEventListener("change", function () {
+    const file = el.simpleLocalCatalogFile.files && el.simpleLocalCatalogFile.files[0];
     if (!file) {
       setCatalogStatus("idle", false);
       return;
