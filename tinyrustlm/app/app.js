@@ -4128,6 +4128,15 @@
     return `"${String(value || "").replace(/[`"$]/g, "`$&")}"`;
   }
 
+  function base64Utf8(value) {
+    const bytes = state.encoder.encode(String(value || ""));
+    let binary = "";
+    for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+      binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+    }
+    return btoa(binary);
+  }
+
   function conversionFileStem(modelId) {
     const stem = String(modelId || "huggingface-model")
       .replace(/[\\/]+/g, "__")
@@ -4150,6 +4159,8 @@
 
   function hfConversionScript(entry, matches) {
     const request = hfConversionRequest(entry, matches);
+    const requestJson = `${JSON.stringify(request, null, 2)}\n`;
+    const requestBase64 = base64Utf8(requestJson);
     const stem = conversionFileStem(entry.modelId);
     const sourceShape = request.requested_artifact.default_source_shape;
     const quantization = request.requested_artifact.default_quantization;
@@ -4247,6 +4258,7 @@
       ")",
       `$SuggestedSourceSafetensorsFileName = ${powerShellSingleQuote(suggestedSourceFile)}`,
       `$ConversionRequest = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${stem}.minimodel-conversion-request.json`)}`,
+      `$EmbeddedConversionRequestBase64 = ${powerShellSingleQuote(requestBase64)}`,
       "$SourceSafetensorsCandidates = @(",
       "  $env:TINYRUSTLM_SOURCE_SAFETENSORS,",
       "  (Join-Path $PSScriptRoot $SuggestedSourceSafetensorsFileName),",
@@ -4265,7 +4277,9 @@
       "$MiniModelCatalogSnapshot = Join-Path $WorkDir \"models.v0.json\"",
       "",
       "if (!(Test-Path -LiteralPath $ConversionRequest)) {",
-      "  throw \"Conversion request JSON not found beside this script: $ConversionRequest\"",
+      "  $EmbeddedConversionRequestJson = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($EmbeddedConversionRequestBase64))",
+      "  [System.IO.File]::WriteAllText($ConversionRequest, $EmbeddedConversionRequestJson, [System.Text.Encoding]::UTF8)",
+      "  Write-Host \"Wrote embedded conversion request:\" $ConversionRequest",
       "}",
       "Write-Host \"TinyRustLM workspace:\" $TinyRustLMWorkspace",
       "Write-Host \"MiniModel workspace:\" $MiniModelWorkspace",
@@ -4276,7 +4290,7 @@
       "New-Item -ItemType Directory -Force -Path $WorkDir | Out-Null",
       "Set-Location $TinyRustLMWorkspace",
       "",
-      "# The browser saved this request JSON beside this script.",
+      "# The script writes the embedded request JSON beside itself when it is missing.",
       "# Rust performs inspect, plan, convert, validate, manifest validation, and receipt writing.",
       "cargo run -p tinyrustlm-slm-pack -- convert-huggingface-request $ConversionRequest $SourceSafetensors $WorkDir $SourceShape $Quantization",
       "$OutputSlm = Resolve-GeneratedFile $WorkDir \"*.slm\" \"Converted .slm\"",

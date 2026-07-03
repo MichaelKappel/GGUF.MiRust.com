@@ -9264,6 +9264,9 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "model.safetensors",
       "SuggestedSourceSafetensorsFileName",
       "$ConversionRequest",
+      "$EmbeddedConversionRequestBase64",
+      "Wrote embedded conversion request:",
+      "[System.Convert]::FromBase64String",
       "Resolve-ExistingPath",
       "Resolve-GeneratedFile",
       "Resolve-GeneratedDirectory",
@@ -9298,6 +9301,9 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     }
     if (scriptText.includes("$OutputSlm = Join-Path $WorkDir")) {
       failures.push("conversion script guessed the output .slm path instead of using Rust-produced output discovery");
+    }
+    if (scriptText.includes("Conversion request JSON not found beside this script")) {
+      failures.push(`conversion script still fails when the sidecar request JSON is missing: ${scriptText}`);
     }
     for (const removedPlaceholder of ["EDIT_ME\\model.safetensors", "EDIT_ME\\\\SLMComposer.com", "EDIT_ME\\\\MiniModel.org"]) {
       if (scriptText.includes(removedPlaceholder)) {
