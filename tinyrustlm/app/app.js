@@ -2624,6 +2624,17 @@
     }
   }
 
+  function catalogAnnouncementRouteStatusText(routeResult) {
+    const appliedText = `${routeResult.appliedCount} peer-source announcement${routeResult.appliedCount === 1 ? "" : "s"} applied`;
+    const duplicateText = routeResult.duplicateCount
+      ? `; ${routeResult.duplicateCount} duplicate${routeResult.duplicateCount === 1 ? "" : "s"} already loaded`
+      : "";
+    const emptyText = routeResult.emptyFeedCount
+      ? `; ${routeResult.emptyFeedCount} availability feed${routeResult.emptyFeedCount === 1 ? "" : "s"} checked with no peer sources`
+      : "";
+    return `${appliedText}${duplicateText}${emptyText}`;
+  }
+
   async function loadCatalogFromUrl() {
     const rawUrl = catalogText(el.catalogUrlInput && el.catalogUrlInput.value);
     if (!rawUrl) {
@@ -2665,11 +2676,7 @@
     renderCatalogResults(entries);
     if (announcementRoutes.length) {
       const routeResult = await applyCatalogAnnouncementRoutes(announcementRoutes, controller.signal);
-      const appliedText = `${routeResult.appliedCount} peer-source announcement${routeResult.appliedCount === 1 ? "" : "s"} applied`;
-      const duplicateText = routeResult.duplicateCount
-        ? `; ${routeResult.duplicateCount} duplicate${routeResult.duplicateCount === 1 ? "" : "s"} already loaded`
-        : "";
-      setCatalogStatus(`${entries.length} metadata entries; ${appliedText}${duplicateText}`, false);
+      setCatalogStatus(`${entries.length} metadata entries; ${catalogAnnouncementRouteStatusText(routeResult)}`, false);
       return;
     }
     setCatalogStatus(`${entries.length} metadata entries`, false);
@@ -2795,9 +2802,6 @@
     const announcements = rawAnnouncements.map((announcement, index) => (
       peerSourceAnnouncementFromRaw(announcement, index)
     ));
-    if (!announcements.length) {
-      throw new Error(`${sourceLabel} did not list any peer-source announcements`);
-    }
     return announcements;
   }
 
@@ -2926,6 +2930,10 @@
     const text = await file.text();
     const body = JSON.parse(text);
     const announcements = peerSourceAnnouncementsFromBody(body, fileName);
+    if (!announcements.length) {
+      setCatalogStatus(`0 peer-source announcements found in ${fileName}`, false);
+      return;
+    }
     const result = applyPeerSourceAnnouncements(announcements);
     const appliedText = `${result.appliedCount} peer-source announcement${result.appliedCount === 1 ? "" : "s"} applied`;
     const duplicateText = result.duplicateCount
@@ -2937,6 +2945,7 @@
   async function applyCatalogAnnouncementRoutes(routes, signal) {
     let appliedCount = 0;
     let duplicateCount = 0;
+    let emptyFeedCount = 0;
     for (const route of routes) {
       const response = await fetch(route.url, {
         cache: "no-store",
@@ -2956,11 +2965,15 @@
       }
       const body = JSON.parse(text);
       const announcements = peerSourceAnnouncementsFromBody(body, route.url);
+      if (!announcements.length) {
+        emptyFeedCount += 1;
+        continue;
+      }
       const result = applyPeerSourceAnnouncements(announcements);
       appliedCount += result.appliedCount;
       duplicateCount += result.duplicateCount;
     }
-    return { routeCount: routes.length, appliedCount, duplicateCount };
+    return { routeCount: routes.length, appliedCount, duplicateCount, emptyFeedCount };
   }
 
   const peerShareChunkBytes = 1024 * 1024;
@@ -4150,10 +4163,13 @@
       state.catalogEntries = catalogEntriesFromBody(body, "MiniModel.org", defaultCatalogUrl);
       if (announcementRoutes.length) {
         try {
-          await applyCatalogAnnouncementRoutes(announcementRoutes);
+          const routeResult = await applyCatalogAnnouncementRoutes(announcementRoutes);
+          setCatalogStatus(`${state.catalogEntries.length} metadata entries; ${catalogAnnouncementRouteStatusText(routeResult)}`, false);
         } catch (_error) {
           // Keep the base proof-ready metadata, but fail closed on optional peer sources.
         }
+      } else {
+        setCatalogStatus(`${state.catalogEntries.length} metadata entries`, false);
       }
     } catch (_error) {
       state.catalogEntries = [];

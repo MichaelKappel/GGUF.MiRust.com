@@ -17,6 +17,7 @@ const hfSearchUiSmokeMode = smokeMode === "hf-search-ui";
 const hfLocalCatalogSmokeMode = smokeMode === "hf-local-catalog-ui";
 const hfPeerAnnouncementSmokeMode = smokeMode === "hf-peer-announcement-ui";
 const hfCatalogAnnouncementRouteSmokeMode = smokeMode === "hf-catalog-announcement-route-ui";
+const hfEmptyCatalogAnnouncementRouteSmokeMode = smokeMode === "hf-empty-catalog-announcement-route-ui";
 const shareMetadataSmokeMode = smokeMode === "share-metadata-ui";
 const catalogLocalImportSmokeMode = smokeMode === "catalog-local-import";
 const combinedSelectorOperatorFamilyRouteSoakMode = smokeMode === "combined-selector-operator-family-route-soak";
@@ -1659,20 +1660,20 @@ function sha256Json(value) {
   return `sha256:${crypto.createHash("sha256").update(jsonText(value)).digest("hex")}`;
 }
 
-function hfPeerSourceAnnouncementFeed() {
+function hfPeerSourceAnnouncementFeed(options = {}) {
   return {
     announcement_catalog_version: 0,
     announcement_catalog_kind: "minimodel.peer_source_announcement_catalog",
     project_server_serves_model_bytes: false,
     project_server_runs_model_bytes: false,
     project_server_proxies_model_bytes: false,
-    announcements: [hfPeerSourceAnnouncement()]
+    announcements: options.empty ? [] : [hfPeerSourceAnnouncement()]
   };
 }
 
-function hfCatalogAnnouncementRouteSnapshot() {
+function hfCatalogAnnouncementRouteSnapshot(options = {}) {
   const catalog = hfProofReadyCatalogSnapshot("browser-smoke-catalog-announcement-route");
-  const feed = hfPeerSourceAnnouncementFeed();
+  const feed = hfPeerSourceAnnouncementFeed(options);
   catalog.peer_source_announcement_routes = [
     {
       route: "peer-source-announcements.v0.json",
@@ -1715,14 +1716,14 @@ function installHfSearchUiInterceptor(client) {
         await fulfillJsonRequest(
           client,
           params.requestId,
-          hfCatalogAnnouncementRouteSmokeMode
-            ? hfCatalogAnnouncementRouteSnapshot()
+          hfCatalogAnnouncementRouteSmokeMode || hfEmptyCatalogAnnouncementRouteSmokeMode
+            ? hfCatalogAnnouncementRouteSnapshot({ empty: hfEmptyCatalogAnnouncementRouteSmokeMode })
             : hfReadyCatalogSnapshot("browser-smoke-default-catalog")
         );
         return;
       }
       if (/^https?:\/\/minimodel\.org\/catalog\/peer-source-announcements\.v0\.json\b/i.test(requestUrl)) {
-        await fulfillJsonRequest(client, params.requestId, hfPeerSourceAnnouncementFeed());
+        await fulfillJsonRequest(client, params.requestId, hfPeerSourceAnnouncementFeed({ empty: hfEmptyCatalogAnnouncementRouteSmokeMode }));
         return;
       }
       await continuePausedRequest(client, params.requestId);
@@ -2190,6 +2191,7 @@ async function runPageHfSearchUiSmoke(client) {
       const p2pVisibleAfterSearch = visible(byId("simpleP2pSourcePanel"));
       const statusAfterSearch = byId("simpleDiscoveryStatus") ? byId("simpleDiscoveryStatus").textContent : "";
       const hfStatusAfterSearch = byId("hfStatus") ? byId("hfStatus").textContent : "";
+      const catalogStatusAfterSearch = byId("catalogStatus") ? byId("catalogStatus").textContent : "";
       const p2pStatusAfterSearch = byId("simpleHfP2pStatus") ? byId("simpleHfP2pStatus").textContent : "";
       const p2pWarningVisibleAfterSearch = visible(byId("simpleHfP2pWarning"));
       const actionTextsAfterSearch = textList("#simpleHfResults button, #simpleHfResults a, #simpleHfResults .compatibility-pill, #simpleHfResults .model-result-meta");
@@ -2260,6 +2262,7 @@ async function runPageHfSearchUiSmoke(client) {
         p2pVisibleAfterSearch,
         statusAfterSearch,
         hfStatusAfterSearch,
+        catalogStatusAfterSearch,
         p2pStatusAfterSearch,
         p2pWarningVisibleAfterSearch,
         peerUrlStatusBeforeImport,
@@ -9392,6 +9395,73 @@ function assertHfCatalogAnnouncementRouteSmoke(result, networkRequests) {
   }
 }
 
+function assertHfEmptyCatalogAnnouncementRouteSmoke(result, networkRequests) {
+  const failures = [];
+  const requests = networkRequests.filter((requestUrl) => requestUrl.startsWith("http://") || requestUrl.startsWith("https://"));
+  if (!requests.some((requestUrl) => requestUrl.includes("huggingface.co/api/models"))) {
+    failures.push(`Hugging Face API metadata request was not observed: ${JSON.stringify(requests)}`);
+  }
+  if (!requests.some((requestUrl) => requestUrl.toLowerCase().includes("minimodel.org/catalog/models.v0.json"))) {
+    failures.push(`MiniModel catalog metadata request was not observed: ${JSON.stringify(requests)}`);
+  }
+  if (!requests.some((requestUrl) => requestUrl.toLowerCase().includes("minimodel.org/catalog/peer-source-announcements.v0.json"))) {
+    failures.push(`catalog-declared empty peer-source announcement feed was not requested: ${JSON.stringify(requests)}`);
+  }
+  for (const requestUrl of requests) {
+    if (requestUrl.includes("/resolve/")) {
+      failures.push(`Hugging Face model bytes were requested: ${requestUrl}`);
+    }
+    if (requestUrl.toLowerCase().includes("minimodel.org/models/") || requestUrl.toLowerCase().includes("minimodel.org/catalog/models/")) {
+      failures.push(`MiniModel model-byte route was requested: ${requestUrl}`);
+    }
+  }
+  const primaryActionsAfterSearch = Array.isArray(result && result.primaryActionTextsAfterSearch)
+    ? result.primaryActionTextsAfterSearch
+    : [];
+  const peerImportDownloads = Array.isArray(result && result.peerImportDownloadNames)
+    ? result.peerImportDownloadNames
+    : [];
+  const resultText = [
+    ...(Array.isArray(result && result.actionTextsAfterSearch) ? result.actionTextsAfterSearch : []),
+    ...(Array.isArray(result && result.simpleTexts) ? result.simpleTexts : []),
+    ...(Array.isArray(result && result.advancedTexts) ? result.advancedTexts : [])
+  ].join(" ");
+  if (primaryActionsAfterSearch.includes("P2P Import")) {
+    failures.push(`empty availability feed made a proof-ready row P2P-ready: ${JSON.stringify(primaryActionsAfterSearch)}`);
+  }
+  if (!primaryActionsAfterSearch.includes("Set Peer URL")) {
+    failures.push(`empty availability feed did not leave proof-ready row at Set Peer URL: ${JSON.stringify(primaryActionsAfterSearch)}`);
+  }
+  if (!primaryActionsAfterSearch.includes("Start Conversion")) {
+    failures.push(`unmatched Hugging Face result did not keep Start Conversion: ${JSON.stringify(primaryActionsAfterSearch)}`);
+  }
+  if (peerImportDownloads.length) {
+    failures.push(`empty availability feed produced peer import downloads: ${JSON.stringify(peerImportDownloads)}`);
+  }
+  if (!String(result && result.statusAfterSearch || "").includes("1 proof-ready match needs peer URL")
+      || !String(result && result.hfStatusAfterSearch || "").includes("1 proof-ready match needs peer URL")) {
+    failures.push(`empty availability feed did not report peer URL needed: ${result && result.statusAfterSearch}/${result && result.hfStatusAfterSearch}`);
+  }
+  if (!String(result && result.statusAfterSearch || "").includes("1 model needs Rust conversion")
+      || !String(result && result.hfStatusAfterSearch || "").includes("1 model needs Rust conversion")) {
+    failures.push(`empty availability feed did not keep conversion-needed summary: ${result && result.statusAfterSearch}/${result && result.hfStatusAfterSearch}`);
+  }
+  const feedStatusText = [
+    result && result.statusAfterSearch,
+    result && result.hfStatusAfterSearch,
+    result && result.catalogStatusAfterSearch
+  ].filter(Boolean).join(" / ");
+  if (!feedStatusText.includes("availability feed")) {
+    failures.push(`empty availability feed was not mentioned in status: ${feedStatusText}`);
+  }
+  if (resultText.includes("P2P source listed") || resultText.includes("P2P available")) {
+    failures.push(`empty availability feed exposed peer availability copy: ${resultText}`);
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
 function assertHfLocalCatalogSmoke(result, networkRequests) {
   const failures = [];
   if (!result || typeof result !== "object") {
@@ -12523,7 +12593,7 @@ async function main() {
         ]
       });
     }
-    if (hfSearchUiSmokeMode || hfLocalCatalogSmokeMode || hfPeerAnnouncementSmokeMode || hfCatalogAnnouncementRouteSmokeMode) {
+    if (hfSearchUiSmokeMode || hfLocalCatalogSmokeMode || hfPeerAnnouncementSmokeMode || hfCatalogAnnouncementRouteSmokeMode || hfEmptyCatalogAnnouncementRouteSmokeMode) {
       installHfSearchUiInterceptor(client);
       await client.send("Fetch.enable", {
         patterns: [
@@ -12746,6 +12816,21 @@ async function main() {
         }
       }
       assertHfCatalogAnnouncementRouteSmoke(result, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (hfEmptyCatalogAnnouncementRouteSmokeMode) {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageHfSearchUiSmoke(client);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertHfEmptyCatalogAnnouncementRouteSmoke(result, networkRequests);
       result.networkRequests = networkRequests;
     } else if (hfLocalCatalogSmokeMode) {
       await client.send("Page.reload", { ignoreCache: true });
