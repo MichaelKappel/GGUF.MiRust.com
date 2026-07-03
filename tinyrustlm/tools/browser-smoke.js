@@ -9263,11 +9263,17 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       if (!String(conversionRequest.local_conversion.peer_source_announcement_shape || "").includes("write-peer-source-announcement")) {
         failures.push(`conversion request announcement shape did not use write-peer-source-announcement: ${conversionRequest.local_conversion.peer_source_announcement_shape}`);
       }
+      if (!String(conversionRequest.local_conversion.peer_source_announcement_feed_shape || "").includes("write-peer-source-announcement-feed")) {
+        failures.push(`conversion request announcement feed shape did not use write-peer-source-announcement-feed: ${conversionRequest.local_conversion.peer_source_announcement_feed_shape}`);
+      }
       if (!String(conversionRequest.local_conversion.peer_source_apply_shape || "").includes("apply-peer-source-announcements")) {
         failures.push(`conversion request announcement apply shape did not use apply-peer-source-announcements: ${conversionRequest.local_conversion.peer_source_apply_shape}`);
       }
       if (!String(conversionRequest.local_conversion.peer_source_batch_snapshot_shape || "").includes("write-catalog-snapshot-with-announcements")) {
         failures.push(`conversion request batch snapshot shape did not use write-catalog-snapshot-with-announcements: ${conversionRequest.local_conversion.peer_source_batch_snapshot_shape}`);
+      }
+      if (!String(conversionRequest.local_conversion.peer_source_feed_snapshot_shape || "").includes("write-catalog-snapshot-with-announcement-feed")) {
+        failures.push(`conversion request feed snapshot shape did not use write-catalog-snapshot-with-announcement-feed: ${conversionRequest.local_conversion.peer_source_feed_snapshot_shape}`);
       }
     }
     const scriptText = String(result.conversionScriptText || "");
@@ -9279,8 +9285,10 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "prepare-peer-share",
       "add-peer-source",
       "write-peer-source-announcement",
+      "write-peer-source-announcement-feed",
       "apply-peer-source-announcements",
       "write-catalog-snapshot-with-announcements",
+      "write-catalog-snapshot-with-announcement-feed",
       "write-catalog-snapshot",
       "serve-peer-pieces",
       "Hugging Face metadata source-file candidates",
@@ -9315,11 +9323,20 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "MiniModelCatalogEntryWithPeer",
       "MiniModelCatalogEntryForSnapshot",
       "MiniModelPeerSourceAnnouncement",
+      "MiniModelPeerSourceAnnouncementFeed",
+      "MiniModelCatalogSnapshotWithFeed",
       "MiniModelCatalogSnapshot",
+      "MiniModelPublishReadme",
       "models.v0.json",
+      "converted-once-p2p-publish.README.txt",
       "MiniModel manifest:",
       "MiniModel peer pieces:",
+      "MiniModel peer-source announcement feed:",
+      "MiniModel feed-bound catalog snapshot:",
       "MiniModel serve script:",
+      "Converted-once publication notes:",
+      "Do not send .slm files or *.peer-pieces directories to project servers",
+      "Later users get P2P Import only after metadata names a consenting peer",
       "powershell -ExecutionPolicy Bypass -File",
       "Project servers are not serving, proxying, caching, or running these model bytes",
       "TinyRustLM.com"
