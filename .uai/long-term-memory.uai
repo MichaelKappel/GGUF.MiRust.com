@@ -1,5 +1,5 @@
-profile: runtime-mirust.long-term-memory-ledger.v197
-updated_utc: 2026-07-03T11:45:00Z
+profile: runtime-mirust.long-term-memory-ledger.v198
+updated_utc: 2026-07-03T12:30:00Z
 storage_mode: hybrid
 ledger_rule:
   pointer_only_not_context_free: true
@@ -46,15 +46,15 @@ records:
     path: .uai/file-handoff.uai
     target_location: .uai/file-handoff.uai
     label: Required For File Handoff Strategy
-    summary: Routes agents to UAIX buckets, July 2 follow-up intake, MiniModel announcement-feed checksums, source-site removal proof, and active intake state.
+    summary: Routes agents to UAIX buckets, July 3 desktop/P2P intake, optional Peer Companion guidance, source-site removal proof, and active intake state.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before scanning, preserving, removing, or keeping active handoff files.
-    checksum_hash: sha256:C662E119297B5D02E866A1AA3030910226DD92577480CA52AD6FDE41156DBB7C
-    last_reviewed_utc: 2026-07-03T05:55:00Z
+    checksum_hash: sha256:9DDB69505A87C133C41BBC3AD8EFA1AF80FFE1160F07D6106E661A078A7CFE3A
+    last_reviewed_utc: 2026-07-03T12:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; active handoff strategy lives in the target file.
   - stable_id: runtime_mirust_intake_outcome_ledger_uai
@@ -63,15 +63,15 @@ records:
     path: .uai/intake-outcome-ledger.uai
     target_location: .uai/intake-outcome-ledger.uai
     label: Required For Intake Outcome Ledger
-    summary: Routes agents to active scan outcomes, July 2 follow-up intake dispositions, announcement-feed implementation, docs routing, source-site removal proof, and active-clear completion.
+    summary: Routes agents to active scan outcomes, July 3 desktop/P2P dispositions, optional companion boundary, docs routing, source-site removal proof, and active-clear completion.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before deciding whether handoff input was preserved, used, cleared, or remains active.
-    checksum_hash: sha256:B29AA628744BDF05DD2A6739842F39108D103F72494315974302CEF1FE2BB141
-    last_reviewed_utc: 2026-07-03T05:55:00Z
+    checksum_hash: sha256:D792BEE519FF5A38B89C878A101E15DA2DA1BF09865703A861AE9D1912CBEF59
+    last_reviewed_utc: 2026-07-03T12:30:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; intake outcome state lives in the target file.
   - stable_id: runtime_mirust_report_synthesis_uai

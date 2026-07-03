@@ -1,12 +1,12 @@
-profile: runtime-mirust.intake-outcome-ledger.v25
-updated_utc: 2026-07-03T05:55:00Z
+profile: runtime-mirust.intake-outcome-ledger.v26
+updated_utc: 2026-07-03T12:30:00Z
 active_scan:
   content_bucket: agent-file-handoff/Content/
   improvement_bucket: agent-file-handoff/Improvement/
   content_non_placeholder_files: 0
   improvement_non_placeholder_files: 0
-  result: 2026_07_02_tinyrustlm_minimodel_followup_docs_report_intake_preserved_to_docs_hot_memory_feed_work_and_removed_processed_source_site_copies
-  latest_scan_utc: 2026-07-03T05:55:00Z
+  result: 2026_07_03_tinyrustlm_desktop_p2p_docs_report_intake_preserved_to_docs_hot_memory_and_removed_processed_source_site_copies
+  latest_scan_utc: 2026-07-03T12:30:00Z
   ide_adjacent_handoff_checked: E:\Source\WP\MikeKappel\agent-file-handoff\
   ide_adjacent_non_placeholder_files: 0
   attachment_scan_result: active_ide_attachment_path_absent_recent_attachment_material_2026_06_27_or_older_no_new_current_gguf_handoff_research
@@ -14,7 +14,7 @@ active_scan:
 post_processing_scan:
   content_non_placeholder_files: 0
   improvement_non_placeholder_files: 0
-  result: active_intake_clear_after_tinyrustlm_minimodel_followup_docs_preserved_report_processing
+  result: active_intake_clear_after_tinyrustlm_desktop_p2p_docs_preserved_report_processing
 uaix_cleanup_correction_2026_06_30:
   source_reviewed: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
   reviewed_utc: 2026-06-30T23:58:00Z
@@ -25,12 +25,58 @@ uaix_cleanup_correction_2026_06_30:
   next_agent_action: Process any future non-placeholder intake file through disposition, actual project work, durable evidence, hot-memory update, pointer ledger, checks, and source-site removal unless an explicit keep-active blocker is recorded.
 shared_disposition_context:
   disposition: preserved-to-durable-memory
-  actual_source_work: Processed prior Improvement batches, 9 docs-preserved reports on 2026-06-30, the 2026-07-01 MiniModel/Hugging Face/SLMComposer UI docs batches, the 2026-07-02 TinyRustLM/MiniModel docs batch, and the 2026-07-02 follow-up batch into distributed long-term memory; preserved exact originals under raw/runtime-mirust/ or docs/report-intake/; updated roadmap/report/product navigation, peer-source publication, batch announcement snapshot implementation, TinyRustLM local peer-source announcement overlay implementation, and MiniModel announcement-feed publication implementation.
-  hot_memory_update: .uai/short-term-memory.uai, .uai/report-synthesis.uai, .uai/file-handoff.uai, .uai/intake-outcome-ledger.uai, .uai/long-term-memory.uai, workspace.uai, .uai/index.uai, .uai/workspace-guidance.uai, .uai/next-recursive-prompt.uai, and MiniModel.org/ROADMAP.md updated.
-  durable_preservation_evidence: raw/runtime-mirust/MANIFEST.md plus report intake indexes for 2026-06-25 through 2026-06-29-followup, docs/report-intake/2026-06-30/, docs/report-intake/2026-07-01/MANIFEST.md, docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md, docs/report-intake/2026-07-01/slmcomposer-dashboard-ui-synthesis-2026-07-01.md, docs/report-intake/2026-07-02/MANIFEST.md, docs/report-intake/2026-07-02/tinyrustlm-minimodel-intake-synthesis-2026-07-02.md, docs/report-intake/2026-07-02-followup/MANIFEST.md, docs/report-intake/2026-07-02-followup/tinyrustlm-followup-intake-synthesis-2026-07-02.md, wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md, wiki/runtime-mirust/research/huggingface-api-source-options-2026-07-01.md, wiki/runtime-mirust/reports/slmcomposer-local-ai-dashboard-memory-2026-07-01.md, wiki/runtime-mirust/reports/tinyrustlm-minimodel-add-peer-source-intake-memory-2026-07-02.md, wiki/runtime-mirust/reports/tinyrustlm-minimodel-peer-source-announcement-memory-2026-07-02.md, wiki/runtime-mirust/reports/tinyrustlm-minimodel-batch-announcement-snapshot-memory-2026-07-02.md, wiki/runtime-mirust/reports/tinyrustlm-peer-source-announcement-overlay-memory-2026-07-02.md, and wiki/runtime-mirust/reports/tinyrustlm-followup-intake-announcement-feed-memory-2026-07-02.md.
-  checks: live bucket scan, raw copy counts 23, 26, 4, 7, and 6, docs copy counts 9, 13, 6, and 3 plus generated syntheses, intake-time source-to-docs SHA256 verification, report synthesis/roadmap/dashboard memory creation, peer-source publication implementation, TinyRustLM peer-source announcement overlay browser smoke proof, MiniModel announcement-feed CLI smoke proof, wiki/docs route update, and report/research/docs pointer audits.
+  actual_source_work: Processed prior Improvement batches, 9 docs-preserved reports on 2026-06-30, the 2026-07-01 MiniModel/Hugging Face/SLMComposer UI docs batches, the 2026-07-02 TinyRustLM/MiniModel docs batch, the 2026-07-02 follow-up batch, and the 2026-07-03 desktop/P2P companion batch into distributed long-term memory; preserved exact originals under raw/runtime-mirust/ or docs/report-intake/; updated roadmap/report/product navigation, peer-source publication, batch announcement snapshot implementation, TinyRustLM local peer-source announcement overlay implementation, MiniModel announcement-feed publication implementation, and optional Peer Companion boundary docs.
+  hot_memory_update: .uai/short-term-memory.uai, .uai/report-synthesis.uai, .uai/file-handoff.uai, .uai/intake-outcome-ledger.uai, .uai/long-term-memory.uai, workspace.uai, .uai/index.uai, .uai/workspace-guidance.uai, .uai/next-recursive-prompt.uai, MiniModel.org/ROADMAP.md, and public MiniModel/TinyRustLM documentation routes updated or verified.
+  durable_preservation_evidence: raw/runtime-mirust/MANIFEST.md plus report intake indexes for 2026-06-25 through 2026-06-29-followup, docs/report-intake/2026-06-30/, docs/report-intake/2026-07-01/MANIFEST.md, docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md, docs/report-intake/2026-07-01/slmcomposer-dashboard-ui-synthesis-2026-07-01.md, docs/report-intake/2026-07-02/MANIFEST.md, docs/report-intake/2026-07-02/tinyrustlm-minimodel-intake-synthesis-2026-07-02.md, docs/report-intake/2026-07-02-followup/MANIFEST.md, docs/report-intake/2026-07-02-followup/tinyrustlm-followup-intake-synthesis-2026-07-02.md, docs/report-intake/2026-07-03/MANIFEST.md, docs/report-intake/2026-07-03/tinyrustlm-desktop-p2p-intake-synthesis-2026-07-03.md, wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md, wiki/runtime-mirust/research/huggingface-api-source-options-2026-07-01.md, wiki/runtime-mirust/reports/slmcomposer-local-ai-dashboard-memory-2026-07-01.md, wiki/runtime-mirust/reports/tinyrustlm-minimodel-add-peer-source-intake-memory-2026-07-02.md, wiki/runtime-mirust/reports/tinyrustlm-minimodel-peer-source-announcement-memory-2026-07-02.md, wiki/runtime-mirust/reports/tinyrustlm-minimodel-batch-announcement-snapshot-memory-2026-07-02.md, wiki/runtime-mirust/reports/tinyrustlm-peer-source-announcement-overlay-memory-2026-07-02.md, wiki/runtime-mirust/reports/tinyrustlm-followup-intake-announcement-feed-memory-2026-07-02.md, and wiki/runtime-mirust/reports/tinyrustlm-desktop-p2p-companion-intake-memory-2026-07-03.md.
+  checks: live bucket scan, raw copy counts 23, 26, 4, 7, and 6, docs copy counts 9, 13, 6, 3, and 6 plus generated syntheses, intake-time source-to-docs SHA256 verification, report synthesis/roadmap/dashboard memory creation, peer-source publication implementation, TinyRustLM peer-source announcement overlay browser smoke proof, MiniModel announcement-feed CLI smoke proof, optional Peer Companion documentation verification, wiki/docs route update, and report/research/docs pointer audits.
   blockers: none_current
   source_site_removal_or_keep_active_reason: Processed source-site copies are removed from active intake after durable preservation; keep-active is exceptional and needs a named human request or blocker.
+report_intake_2026_07_03_tinyrustlm_desktop_p2p_docs:
+  source_bucket: E:\Source\Rust\TinyRustLM.com\agent-file-handoff\Improvement\
+  docs_evidence_path: docs/report-intake/2026-07-03/
+  durable_manifest: docs/report-intake/2026-07-03/MANIFEST.md
+  durable_synthesis: docs/report-intake/2026-07-03/tinyrustlm-desktop-p2p-intake-synthesis-2026-07-03.md
+  durable_memory: wiki/runtime-mirust/reports/tinyrustlm-desktop-p2p-companion-intake-memory-2026-07-03.md
+  source_count: 6
+  duplicate_groups: none_detected
+  disposition: preserved-to-durable-memory
+  actual_source_work: Preserved the desktop/P2P reports and used them to route the optional MiniModel Peer Companion as a later user-run local app for peer identity, local piece stores, consent prompts, cache quotas, direct serve/fetch controls, import receipts, logs, and TinyRustLM handoff. No current browser replacement or hosted byte service was accepted from this batch.
+  hot_memory_update: Updated workspace route, report synthesis, short-term memory, file handoff, intake ledger, long-term pointer routing, MiniModel.org roadmap, and MiniModel/TinyRustLM public docs routes for optional companion boundaries.
+  durable_preservation_evidence: docs/report-intake/2026-07-03/MANIFEST.md, docs/report-intake/2026-07-03/tinyrustlm-desktop-p2p-intake-synthesis-2026-07-03.md, and wiki/runtime-mirust/reports/tinyrustlm-desktop-p2p-companion-intake-memory-2026-07-03.md.
+  checks: checksum-bound docs manifest, active bucket rescan content=0 improvement=0, route audit showing MiniModel.org ROADMAP.md and MiniModel.MiRust.com documentation carry the optional Peer Companion boundary, plus report/docs pointer audit requirements.
+  blockers: none_current
+  source_site_removal_or_keep_active_reason: Removed processed originals from TinyRustLM.com agent-file-handoff/Improvement/ after byte-exact docs preservation and proof-of-use; durable docs copies remain checksum-bound under docs/report-intake/2026-07-03/.
+entries_2026_07_03_tinyrustlm_desktop_p2p_docs:
+  - source_path: TinyRustLM.com/agent-file-handoff/Improvement/Investigating Optional Rust P2P App.md
+    docs_evidence_path: docs/report-intake/2026-07-03/Investigating Optional Rust P2P App.md
+    disposition: preserved-to-durable-memory
+    durable_memory: docs/report-intake/2026-07-03/tinyrustlm-desktop-p2p-intake-synthesis-2026-07-03.md
+    routing_summary: Routes agents to optional Rust/Tauri-style desktop shell tradeoffs, TinyRustLM boundary review, and user-run P2P app framing.
+  - source_path: TinyRustLM.com/agent-file-handoff/Improvement/Investigating Optional Rust P2P Application.md
+    docs_evidence_path: docs/report-intake/2026-07-03/Investigating Optional Rust P2P Application.md
+    disposition: preserved-to-durable-memory
+    durable_memory: docs/report-intake/2026-07-03/tinyrustlm-desktop-p2p-intake-synthesis-2026-07-03.md
+    routing_summary: Routes agents to optional peer companion architecture, UI shell choices, and preserving Rust verifier authority.
+  - source_path: TinyRustLM.com/agent-file-handoff/Improvement/P2P Web Desktop Architecture.md
+    docs_evidence_path: docs/report-intake/2026-07-03/P2P Web Desktop Architecture.md
+    disposition: preserved-to-durable-memory
+    durable_memory: docs/report-intake/2026-07-03/tinyrustlm-desktop-p2p-intake-synthesis-2026-07-03.md
+    routing_summary: Routes agents to web/desktop peer bridge patterns, local transfer consent, and keeping project servers out of model-byte paths.
+  - source_path: TinyRustLM.com/agent-file-handoff/Improvement/Rust Desktop App Best Practices Guide.md
+    docs_evidence_path: docs/report-intake/2026-07-03/Rust Desktop App Best Practices Guide.md
+    disposition: preserved-to-durable-memory
+    durable_memory: docs/report-intake/2026-07-03/tinyrustlm-desktop-p2p-intake-synthesis-2026-07-03.md
+    routing_summary: Routes agents to Rust desktop packaging, state, security, and test practices for a later companion.
+  - source_path: TinyRustLM.com/agent-file-handoff/Improvement/Rust Dual App Architecture Practices.md
+    docs_evidence_path: docs/report-intake/2026-07-03/Rust Dual App Architecture Practices.md
+    disposition: preserved-to-durable-memory
+    durable_memory: docs/report-intake/2026-07-03/tinyrustlm-desktop-p2p-intake-synthesis-2026-07-03.md
+    routing_summary: Routes agents to shared browser/desktop architecture with core verification isolated from presentation.
+  - source_path: TinyRustLM.com/agent-file-handoff/Improvement/Rust Enterprise Desktop Architecture.md
+    docs_evidence_path: docs/report-intake/2026-07-03/Rust Enterprise Desktop Architecture.md
+    disposition: preserved-to-durable-memory
+    durable_memory: docs/report-intake/2026-07-03/tinyrustlm-desktop-p2p-intake-synthesis-2026-07-03.md
+    routing_summary: Routes agents to enterprise desktop architecture, secure local storage, release signing, testing, and narrow IPC.
 report_intake_2026_07_02_tinyrustlm_minimodel_followup_docs:
   source_bucket: E:\Source\Rust\TinyRustLM.com\agent-file-handoff\Improvement\
   docs_evidence_path: docs/report-intake/2026-07-02-followup/

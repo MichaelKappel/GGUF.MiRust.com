@@ -1,5 +1,5 @@
-profile: runtime-mirust.file-handoff.v31
-updated_utc: 2026-07-03T05:55:00Z
+profile: runtime-mirust.file-handoff.v32
+updated_utc: 2026-07-03T12:30:00Z
 handoff_root: agent-file-handoff/
 active_buckets:
   content: agent-file-handoff/Content/
@@ -47,6 +47,7 @@ strategy_refresh_2026_06_28:
   huggingface_source_options_rule_2026_07_01: Hugging Face API option research routes through docs/report-intake/2026-07-01/Hugging Face API Endpoint Overview.md and wiki/runtime-mirust/research/huggingface-api-source-options-2026-07-01.md; use Hugging Face as user-triggered metadata/source discovery only, not project-server byte proxying or remote inference.
   tinyrustlm_minimodel_intake_rule_2026_07_02: TinyRustLM/MiniModel improvement research routes through docs/report-intake/2026-07-02/MANIFEST.md, docs/report-intake/2026-07-02/tinyrustlm-minimodel-intake-synthesis-2026-07-02.md, and the add-peer-source, peer-source-announcement, batch announcement snapshot, plus peer-source announcement overlay memory reports; treat Iroh/broad discovery as roadmap and current direct known-peer Rust handoffs as the implemented byte path.
   tinyrustlm_minimodel_followup_rule_2026_07_02: TinyRustLM/MiniModel follow-up research routes through docs/report-intake/2026-07-02-followup/MANIFEST.md, docs/report-intake/2026-07-02-followup/tinyrustlm-followup-intake-synthesis-2026-07-02.md, and wiki/runtime-mirust/reports/tinyrustlm-followup-intake-announcement-feed-memory-2026-07-02.md; use it before changing Hugging Face conversion UX, MiniModel announcement-feed publication, P2P discoverability, or beginner/pro disclosure.
+  tinyrustlm_desktop_p2p_companion_rule_2026_07_03: Desktop/P2P companion research routes through docs/report-intake/2026-07-03/MANIFEST.md, docs/report-intake/2026-07-03/tinyrustlm-desktop-p2p-intake-synthesis-2026-07-03.md, and wiki/runtime-mirust/reports/tinyrustlm-desktop-p2p-companion-intake-memory-2026-07-03.md; use it before designing an optional MiniModel Peer Companion, and keep TinyRustLM browser-first, Rust-verifier-owned, consent-gated, and free of project-hosted model bytes.
   voice_memory_rule: Public-copy voice routes through .uai/taboo.uai before model-breeding, mutualist, tiny-ecology, or UAIX strategy copy is published; use proof, craft, lineage, fit, local agency, routes, and implementation evidence.
 uaix_cleanup_correction_2026_06_30:
   source: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
@@ -57,22 +58,54 @@ uaix_cleanup_correction_2026_06_30:
   proof: Nine Improvement reports were copied byte-for-byte to docs/report-intake/2026-06-30/ with SHA256 verification, then removed from agent-file-handoff/Improvement/; current scan sees Content=0 and Improvement=0.
   next_agent_action: Treat non-placeholder files in Content/Improvement as pending intake; do not call handoff complete until each has disposition, proof-of-use, durable preservation when accepted, and source-site removal or a real keep-active blocker.
 current_scan:
-  scanned_utc: 2026-07-03T05:55:00Z
+  scanned_utc: 2026-07-03T12:30:00Z
   workspace_checked: E:\Source\Rust\SLMComposer.com
   content_bucket_non_placeholder_files: 0
   improvement_bucket_non_placeholder_files: 0
   misplaced_root_files: 0
-  status: processed_2026_07_02_tinyrustlm_minimodel_followup_batch
-  action: Three TinyRustLM/MiniModel follow-up Improvement reports from TinyRustLM.com were copied byte-exact to docs/report-intake/2026-07-02-followup/, synthesized, routed into durable memory/product guidance, used for MiniModel peer-source announcement feed publication work, and removed from active intake.
+  status: processed_2026_07_03_tinyrustlm_desktop_p2p_companion_batch
+  action: Six desktop/P2P companion reports from TinyRustLM.com were copied byte-exact to docs/report-intake/2026-07-03/, synthesized, routed into durable memory/product guidance, used to define a later optional user-run MiniModel Peer Companion boundary, and removed from active intake.
   keep_active_reason: none
-  durable_manifest: docs/report-intake/2026-07-02-followup/MANIFEST.md
-  durable_synthesis: docs/report-intake/2026-07-02-followup/tinyrustlm-followup-intake-synthesis-2026-07-02.md
-  durable_followup_memory: wiki/runtime-mirust/reports/tinyrustlm-followup-intake-announcement-feed-memory-2026-07-02.md
+  durable_manifest: docs/report-intake/2026-07-03/MANIFEST.md
+  durable_synthesis: docs/report-intake/2026-07-03/tinyrustlm-desktop-p2p-intake-synthesis-2026-07-03.md
+  durable_desktop_p2p_memory: wiki/runtime-mirust/reports/tinyrustlm-desktop-p2p-companion-intake-memory-2026-07-03.md
+  prior_durable_followup_memory: wiki/runtime-mirust/reports/tinyrustlm-followup-intake-announcement-feed-memory-2026-07-02.md
   durable_roadmap: wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md
   durable_add_peer_source_memory: wiki/runtime-mirust/reports/tinyrustlm-minimodel-add-peer-source-intake-memory-2026-07-02.md
   durable_peer_source_announcement_memory: wiki/runtime-mirust/reports/tinyrustlm-minimodel-peer-source-announcement-memory-2026-07-02.md
   durable_batch_announcement_snapshot_memory: wiki/runtime-mirust/reports/tinyrustlm-minimodel-batch-announcement-snapshot-memory-2026-07-02.md
   durable_peer_source_announcement_overlay_memory: wiki/runtime-mirust/reports/tinyrustlm-peer-source-announcement-overlay-memory-2026-07-02.md
+  processed_improvement_files_2026_07_03:
+    - path: TinyRustLM.com/agent-file-handoff/Improvement/Investigating Optional Rust P2P App.md
+      docs_copy: docs/report-intake/2026-07-03/Investigating Optional Rust P2P App.md
+      bytes: 53753
+      sha256: F64F641B138548942A9C93E5B0500475B682202D2E679DF2671556630FB7501A
+      route_hint: Optional Rust/Tauri-style desktop shell tradeoffs, TinyRustLM boundary review, and user-run P2P app framing.
+    - path: TinyRustLM.com/agent-file-handoff/Improvement/Investigating Optional Rust P2P Application.md
+      docs_copy: docs/report-intake/2026-07-03/Investigating Optional Rust P2P Application.md
+      bytes: 46571
+      sha256: 5CD4799580F25B222AB965E928C98D4B03B493BF153247D95B421E698D985F2A
+      route_hint: Optional peer companion architecture, UI shell choices, and preserving Rust verifier authority.
+    - path: TinyRustLM.com/agent-file-handoff/Improvement/P2P Web Desktop Architecture.md
+      docs_copy: docs/report-intake/2026-07-03/P2P Web Desktop Architecture.md
+      bytes: 48779
+      sha256: D2BBBB8E0D39A5951616AAEF3E58D427F2580F42F5FE7707A69420ADBE2133A6
+      route_hint: Web/desktop peer bridge patterns, local transfer consent, and keeping project servers out of model-byte paths.
+    - path: TinyRustLM.com/agent-file-handoff/Improvement/Rust Desktop App Best Practices Guide.md
+      docs_copy: docs/report-intake/2026-07-03/Rust Desktop App Best Practices Guide.md
+      bytes: 53040
+      sha256: B06A154E79445020A2A2B96EB025CD078FD765042A95A2601B802B06ED37FDFE
+      route_hint: Rust desktop packaging, state, security, and test practices for a later companion.
+    - path: TinyRustLM.com/agent-file-handoff/Improvement/Rust Dual App Architecture Practices.md
+      docs_copy: docs/report-intake/2026-07-03/Rust Dual App Architecture Practices.md
+      bytes: 52102
+      sha256: 1DBB608909833B2939F4F3E2EEBC281C5200D5A0FA66046AC1ECBE03915B1752
+      route_hint: Shared browser/desktop architecture with core verification isolated from presentation.
+    - path: TinyRustLM.com/agent-file-handoff/Improvement/Rust Enterprise Desktop Architecture.md
+      docs_copy: docs/report-intake/2026-07-03/Rust Enterprise Desktop Architecture.md
+      bytes: 58774
+      sha256: 9A91DC0C69934C654CF58E6FEACB5F80159EFC03100154F70658CB233F89F6DE
+      route_hint: Enterprise desktop architecture, secure local storage, release signing, testing, and narrow IPC.
   processed_improvement_files_2026_07_02_followup:
     - path: TinyRustLM.com/agent-file-handoff/Improvement/Hugging Face to TinyRustLM Workflow.md
       docs_copy: docs/report-intake/2026-07-02-followup/Hugging Face to TinyRustLM Workflow.md
