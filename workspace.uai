@@ -1,7 +1,7 @@
-profile: tinyrustlm.source-workspace.v163
+profile: tinyrustlm.source-workspace.v164
 project_name: TinyRustLM
 canonical_root: E:\Source\Rust\SLMComposer.com
-updated_utc: 2026-07-03T23:05:00Z
+updated_utc: 2026-07-04T01:35:00Z
 version_authority:
   current_version: 0.1.0
   next_version: 0.1.0
@@ -21,6 +21,7 @@ active_product:
   converted_once_publication_package: Hugging Face `Start Conversion` scripts now create a metadata publication package after local Rust conversion: with a consenting KnownPeerBaseUrl, the script writes a peer-source announcement, `peer-source-announcements.v0.json`, feed-bound `models.with-announcement-feed.v0.json`, and `converted-once-p2p-publish.README.txt`; catalog maintainers may publish those metadata files, but never `.slm` bytes or peer-piece directories.
   converted_once_command_smoke: `node tinyrustlm/tools/converted-once-p2p-smoke.js` proves deterministic Hugging Face-style local `.safetensors` fixture generation, Rust `convert-huggingface-request` `.slm` conversion/receipt, MiniModel `prepare-peer-share`, peer-source announcement/feed metadata, feed-bound catalog snapshot, and metadata-only no-server-byte assertions in one command-level workflow.
   browser_generated_conversion_kit_exec: `node tinyrustlm/tools/browser-smoke.js <app-url> <cdp-port> tinylm16q8 hf-conversion-kit-exec` proves the exact browser-generated `Start Conversion` downloads can be written to disk and executed with a local `tinylm16-bpe` safetensors fixture, producing a verified `.slm`, conversion receipt, MiniModel manifest, peer pieces, catalog snapshots, peer-source announcement feed, serve helper, and publish README.
+  huggingface_sharded_source_directory: Rust `convert-huggingface-request` accepts either one reviewed local `.safetensors` file or a reviewed directory of `.safetensors` shards. Browser Hugging Face metadata records `source_input_mode`, a full shard list, aggregate source byte warnings, and a generated conversion kit that resolves a file or shard directory without project-server model bytes.
   browser_generated_p2p_import_kit_exec: `node tinyrustlm/tools/browser-smoke.js <app-url> <cdp-port> tinylm16q8 hf-p2p-import-kit-exec` chains the exact browser conversion kit into the later-user P2P import kit: it serves generated feed-bound catalog/manifest/feed metadata over HTTP, serves generated peer pieces from a consenting local MiniModel peer, loads generated `models.v0.json` whose base entry has no baked-in peer source, verifies browser application of the checksum-bound peer-source feed, clicks `P2P Import`, runs the exact downloaded `.minimodel-peer-import.ps1` without a pre-copied manifest sidecar, verifies manifest metadata download, and verifies the assembled `.slm` plus import receipt match the converted artifact SHA-256.
   self_contained_peer_import_kit: Generated `.minimodel-peer-import.ps1` scripts embed the exact `minimodel.peer_import_request.v0` JSON and recreate the sidecar if it is missing before running Rust `minimodel import-peer-request`; the script may fetch small MiniModel manifest metadata but fetches model pieces only from the consenting peer URL.
   known_peer_conversion_kit: When P2P is enabled and the user sets the list-level `Known peer URL`, `Start Conversion` records that URL as `local_conversion.known_peer_base_url` and initializes `$KnownPeerBaseUrl` in the generated conversion script so peer-source announcement/feed metadata can be written without hand-editing.
@@ -72,6 +73,10 @@ browser_generated_p2p_import_kit_exec_2026_07_03:
   route: wiki/runtime-mirust/reports/tinyrustlm-browser-generated-p2p-import-kit-exec-memory-2026-07-03.md
   behavior: The `hf-p2p-import-kit-exec` browser smoke executes the first-user conversion kit, serves generated feed-bound catalog plus peer-source announcement feed plus manifest metadata over HTTP, serves generated peer pieces locally, verifies browser application of the checksum-bound feed, clicks later-user `P2P Import`, runs the exact downloaded import script without a pre-copied manifest sidecar, and verifies manifest download plus imported `.slm` receipt SHA-256.
   boundary: Later-user import downloads only small catalog/manifest metadata from the catalog endpoint and fetches model bytes only from consenting `http://127.0.0.1:8123/` peer pieces; project and Hugging Face hosts do not provide model bytes, and the 2026-07-03 intake keeps desktop companion work as a later optional wrapper around the same Rust verifier.
+huggingface_sharded_source_directory_2026_07_03:
+  route: wiki/runtime-mirust/reports/tinyrustlm-huggingface-sharded-source-directory-memory-2026-07-03.md
+  behavior: Browser Hugging Face source metadata and Rust conversion now support a reviewed single `.safetensors` file or reviewed shard directory; inspect/plan/preflight/receipt evidence records `source_file_count` plus per-tensor source paths.
+  boundary: Hugging Face search remains metadata-only, local scripts download directly from Hugging Face only after explicit opt-in, and project servers still never host, proxy, cache, run, or serve user model bytes.
 desktop_p2p_companion_2026_07_03:
   route: wiki/runtime-mirust/reports/tinyrustlm-desktop-p2p-companion-intake-memory-2026-07-03.md
   intake: docs/report-intake/2026-07-03/MANIFEST.md

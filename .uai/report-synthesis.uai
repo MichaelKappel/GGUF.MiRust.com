@@ -1,5 +1,5 @@
-profile: runtime-mirust.report-synthesis.v153
-updated_utc: 2026-07-04T01:15:00Z
+profile: runtime-mirust.report-synthesis.v154
+updated_utc: 2026-07-04T01:35:00Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/runtime-mirust/report-intake-2026-06-25/
@@ -50,6 +50,7 @@ source_authority:
     - wiki/runtime-mirust/reports/tinyrustlm-huggingface-local-download-opt-in-memory-2026-07-03.md
     - wiki/runtime-mirust/reports/tinyrustlm-huggingface-supported-source-gate-memory-2026-07-03.md
     - wiki/runtime-mirust/reports/tinyrustlm-huggingface-source-size-risk-memory-2026-07-03.md
+    - wiki/runtime-mirust/reports/tinyrustlm-huggingface-sharded-source-directory-memory-2026-07-03.md
     - wiki/runtime-mirust/reports/tinyrustlm-desktop-p2p-companion-intake-memory-2026-07-03.md
     - wiki/runtime-mirust/reports/tinylm16-bpe-safetensors-plan-memory-2026-06-30.md
     - wiki/runtime-mirust/reports/enterprise-rust-governance-memory-2026-06-25.md

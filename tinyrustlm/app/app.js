@@ -4051,16 +4051,37 @@
       : null;
   }
 
+  function hfSourceByteSummary(view) {
+    const files = view && Array.isArray(view.safetensorsFiles) ? view.safetensorsFiles : [];
+    if (!files.length) {
+      return { risk: "none", bytes: null, fileCount: 0 };
+    }
+    let total = 0;
+    for (const file of files) {
+      const bytes = Number(file.byte_count);
+      if (!Number.isFinite(bytes) || bytes <= 0) {
+        return { risk: "unknown", bytes: null, fileCount: files.length };
+      }
+      total += bytes;
+    }
+    return {
+      risk: total >= hfLargeSourceWarningBytes ? "large" : "normal",
+      bytes: total,
+      fileCount: files.length
+    };
+  }
+
   function hfSourceByteRisk(view) {
-    const source = hfPrimarySafetensorsFile(view);
-    if (!source) {
-      return "none";
+    return hfSourceByteSummary(view).risk;
+  }
+
+  function hfSourceByteSummaryText(view) {
+    const summary = hfSourceByteSummary(view);
+    if (!Number.isFinite(summary.bytes)) {
+      return summary.fileCount > 1 ? `${summary.fileCount} source files` : "source size unknown";
     }
-    const bytes = Number(source.byte_count);
-    if (!Number.isFinite(bytes) || bytes <= 0) {
-      return "unknown";
-    }
-    return bytes >= hfLargeSourceWarningBytes ? "large" : "normal";
+    const size = formatByteCount(summary.bytes);
+    return summary.fileCount > 1 ? `${size} across ${summary.fileCount} source files` : size;
   }
 
   function hfConversionActionLabel(view) {
@@ -4176,8 +4197,7 @@
       return "No converted peer or .safetensors source is listed yet. Review the model card; Rust conversion needs a reviewed .safetensors source before it can create .slm metadata for P2P reuse.";
     }
     if (hfSourceByteRisk(view) === "large") {
-      const source = hfPrimarySafetensorsFile(view);
-      const size = source && Number.isFinite(source.byte_count) ? formatByteCount(source.byte_count) : "large";
+      const size = hfSourceByteSummaryText(view);
       return `Large source listed (${size}). Prefer a MiniModel P2P import when available; local conversion should be an explicit reviewed choice because it may require a large Hugging Face download.`;
     }
     if (hfSourceByteRisk(view) === "unknown") {
@@ -4227,8 +4247,7 @@
   function appendHfSourceRiskNote(actions, view) {
     const risk = hfSourceByteRisk(view);
     if (risk === "large") {
-      const source = hfPrimarySafetensorsFile(view);
-      const size = source && Number.isFinite(source.byte_count) ? formatByteCount(source.byte_count) : "large";
+      const size = hfSourceByteSummaryText(view);
       actions.append(elementWithText(
         "span",
         "model-result-meta",
@@ -4341,6 +4360,11 @@
     const safetensorsFiles = hfSafetensorsSiblings(entry.result);
     const suggestedSourceFile = safetensorsFiles.length ? safetensorsFiles[0].file_name : null;
     const suggestedSource = safetensorsFiles.length ? safetensorsFiles[0] : null;
+    const sourceInputMode = safetensorsFiles.length > 1
+      ? "safetensors-shard-directory"
+      : suggestedSourceFile
+        ? "single-safetensors-file"
+        : "reviewed-local-safetensors";
     const defaultShape = "tinylm16-bpe";
     const defaultQuantization = "q8_0";
     const knownPeerBaseUrl = state.p2pEnabled !== false ? state.peerBaseUrl || "" : "";
@@ -4367,15 +4391,24 @@
       },
       local_conversion: {
         converter: "tinyrustlm-slm-pack",
-        required_local_input: suggestedSourceFile
-          ? `A reviewed local copy of ${suggestedSourceFile}, or an explicit local-script Hugging Face download with TINYRUSTLM_ALLOW_HF_DOWNLOAD=1.`
-          : "A user-selected .safetensors file already present on this machine.",
+        source_input_mode: sourceInputMode,
+        required_local_input: safetensorsFiles.length > 1
+          ? `A reviewed local source directory containing all ${safetensorsFiles.length} listed .safetensors shards, or an explicit local-script Hugging Face download with TINYRUSTLM_ALLOW_HF_DOWNLOAD=1.`
+          : suggestedSourceFile
+            ? `A reviewed local copy of ${suggestedSourceFile}, or an explicit local-script Hugging Face download with TINYRUSTLM_ALLOW_HF_DOWNLOAD=1.`
+            : "A user-selected .safetensors file or shard directory already present on this machine.",
         suggested_source_safetensors_file: suggestedSourceFile,
+        suggested_source_safetensors_files: safetensorsFiles.map((file) => ({
+          file_name: file.file_name,
+          download_url: file.download_url || null,
+          sha256: file.sha256 || null,
+          byte_count: Number.isFinite(file.byte_count) ? file.byte_count : null
+        })),
         suggested_source_safetensors_url: suggestedSource ? suggestedSource.download_url : null,
         suggested_source_safetensors_sha256: suggestedSource ? suggestedSource.sha256 : null,
         suggested_source_safetensors_byte_count: suggestedSource ? suggestedSource.byte_count : null,
         source_acquisition_rule: "Browser search is metadata-only. The generated local PowerShell kit uses an existing reviewed local file by default, or downloads directly from Hugging Face only when the user explicitly sets TINYRUSTLM_ALLOW_HF_DOWNLOAD=1.",
-        command_shape: `cargo run -p tinyrustlm-slm-pack -- convert-huggingface-request <request.json> <input.safetensors> <output-dir> ${defaultShape} ${defaultQuantization}`,
+        command_shape: `cargo run -p tinyrustlm-slm-pack -- convert-huggingface-request <request.json> <input.safetensors-or-directory> <output-dir> ${defaultShape} ${defaultQuantization}`,
         peer_share_shape: "cargo run -p minimodel -- prepare-peer-share <output.slm> <share-dir> <minimodel-model-id> [source-huggingface-model-id] [known-peer-base-url]",
         peer_source_shape: "cargo run -p minimodel -- add-peer-source <catalog-entry-json> <output-json> <known-peer-base-url>",
         peer_source_announcement_shape: "cargo run -p minimodel -- write-peer-source-announcement <catalog-entry-json> <announcement-json> <known-peer-base-url>",
@@ -4486,6 +4519,20 @@
     const suggestedSourceByteCount = Number.isFinite(request.local_conversion.suggested_source_safetensors_byte_count)
       ? String(request.local_conversion.suggested_source_safetensors_byte_count)
       : "";
+    const suggestedSourceEntries = safetensorsFiles.length
+      ? safetensorsFiles
+      : [{
+        file_name: suggestedSourceFile,
+        download_url: suggestedSourceUrl,
+        sha256: suggestedSourceSha256,
+        byte_count: Number.isFinite(Number(suggestedSourceByteCount)) ? Number(suggestedSourceByteCount) : null
+      }];
+    const suggestedSourceEntryLines = suggestedSourceEntries
+      .filter((file) => file && file.file_name)
+      .map((file) => {
+        const byteCount = Number.isFinite(file.byte_count) ? String(file.byte_count) : "";
+        return `  @{ Name = ${powerShellSingleQuote(file.file_name)}; Url = ${powerShellDoubleQuote(file.download_url || "")}; Sha256 = ${powerShellDoubleQuote(file.sha256 || "")}; ByteCount = ${powerShellDoubleQuote(byteCount)} }`;
+      });
     const sourceCandidateLines = safetensorsFiles.length
       ? safetensorsFiles.map((file) => {
         const size = Number.isFinite(file.byte_count) && file.byte_count > 0
@@ -4503,12 +4550,13 @@
       "# Hugging Face metadata source-file candidates:",
       ...sourceCandidateLines,
       "#",
-      "# By default this script uses a reviewed local source file and does not download model bytes.",
+      "# By default this script uses a reviewed local source input and does not download model bytes.",
       "# To let this script download the suggested source directly from Hugging Face to this machine,",
       "# set TINYRUSTLM_ALLOW_HF_DOWNLOAD=1 before running it. That download never uses TinyRustLM,",
       "# MiniModel, or project servers as a proxy/cache/host.",
       "# You can also put the reviewed source file beside this script, under ./source/,",
-      "# or set TINYRUSTLM_SOURCE_SAFETENSORS to its full local path.",
+      "# or put every listed shard under ./source/ when the metadata lists multiple .safetensors files,",
+      "# or set TINYRUSTLM_SOURCE_SAFETENSORS to its full local file or shard directory path.",
       "# If the Rust planner rejects the file, this model is not currently compatible",
       "# with the selected TinyRustLM source shape.",
       "# When that happens, read tinyrustlm-conversion.preflight in the output folder;",
@@ -4540,6 +4588,44 @@
       "    if ([string]::IsNullOrWhiteSpace($Candidate)) { continue }",
       "    if ($Candidate -like \"EDIT_ME*\") { continue }",
       "    if (Test-Path -LiteralPath $Candidate) {",
+      "      return (Resolve-Path -LiteralPath $Candidate).Path",
+      "    }",
+      "  }",
+      "  return \"\"",
+      "}",
+      "",
+      "function Test-DirectoryHasSuggestedSources {",
+      "  param(",
+      "    [string] $Directory,",
+      "    [object[]] $Sources",
+      "  )",
+      "  if ([string]::IsNullOrWhiteSpace($Directory) -or !(Test-Path -LiteralPath $Directory -PathType Container)) {",
+      "    return $false",
+      "  }",
+      "  $NamedSources = @($Sources | Where-Object { $_.Name -and $_.Name.Trim().Length -gt 0 })",
+      "  if ($NamedSources.Count -lt 1) {",
+      "    return @((Get-ChildItem -LiteralPath $Directory -File -Filter \"*.safetensors\" -ErrorAction SilentlyContinue)).Count -gt 0",
+      "  }",
+      "  foreach ($Source in $NamedSources) {",
+      "    if (!(Test-Path -LiteralPath (Join-Path $Directory $Source.Name) -PathType Leaf)) {",
+      "      return $false",
+      "    }",
+      "  }",
+      "  return $true",
+      "}",
+      "",
+      "function Resolve-SourceSafetensorsInput {",
+      "  param(",
+      "    [string[]] $Candidates,",
+      "    [object[]] $Sources",
+      "  )",
+      "  foreach ($Candidate in $Candidates) {",
+      "    if ([string]::IsNullOrWhiteSpace($Candidate)) { continue }",
+      "    if ($Candidate -like \"EDIT_ME*\") { continue }",
+      "    if (Test-Path -LiteralPath $Candidate -PathType Leaf) {",
+      "      return (Resolve-Path -LiteralPath $Candidate).Path",
+      "    }",
+      "    if (Test-DirectoryHasSuggestedSources $Candidate $Sources) {",
       "      return (Resolve-Path -LiteralPath $Candidate).Path",
       "    }",
       "  }",
@@ -4596,7 +4682,7 @@
       "# Optional overrides:",
       "#   $env:TINYRUSTLM_WORKSPACE = full path to SLMComposer.com / TinyRustLM Rust workspace",
       "#   $env:MINIMODEL_WORKSPACE = full path to MiniModel.org Rust workspace",
-      "#   $env:TINYRUSTLM_SOURCE_SAFETENSORS = full path to your reviewed local source file",
+      "#   $env:TINYRUSTLM_SOURCE_SAFETENSORS = full path to your reviewed local source file or shard directory",
       "#   $env:TINYRUSTLM_ALLOW_HF_DOWNLOAD = 1 to download the suggested source directly from Hugging Face",
       "$CandidateTinyRustLMWorkspaces = @(",
       "  $env:TINYRUSTLM_WORKSPACE,",
@@ -4617,30 +4703,40 @@
       `$SuggestedSourceSafetensorsUrl = ${powerShellDoubleQuote(suggestedSourceUrl)}`,
       `$SuggestedSourceSafetensorsSha256 = ${powerShellDoubleQuote(suggestedSourceSha256)}`,
       `$SuggestedSourceSafetensorsByteCount = ${powerShellDoubleQuote(suggestedSourceByteCount)}`,
+      "$SuggestedSourceSafetensorsFiles = @(",
+      ...(suggestedSourceEntryLines.length ? suggestedSourceEntryLines : []),
+      ")",
       `$ConversionRequest = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${stem}.minimodel-conversion-request.json`)}`,
       `$EmbeddedConversionRequestBase64 = ${powerShellSingleQuote(requestBase64)}`,
       `$EmbeddedServePeerPiecesScriptBase64 = ${powerShellSingleQuote(serveScriptBase64)}`,
       "$SourceSafetensorsCandidates = @(",
       "  $env:TINYRUSTLM_SOURCE_SAFETENSORS,",
       "  (Join-Path $PSScriptRoot $SuggestedSourceSafetensorsFileName),",
-      "  (Join-Path $PSScriptRoot (Join-Path \"source\" $SuggestedSourceSafetensorsFileName))",
+      "  (Join-Path $PSScriptRoot (Join-Path \"source\" $SuggestedSourceSafetensorsFileName)),",
+      "  (Join-Path $PSScriptRoot \"source\"),",
+      "  $PSScriptRoot",
       ")",
       "$TinyRustLMWorkspace = Resolve-ExistingPath $CandidateTinyRustLMWorkspaces \"TinyRustLM Rust workspace\" \"Set TINYRUSTLM_WORKSPACE or edit `$CandidateTinyRustLMWorkspaces.\"",
       "$MiniModelWorkspace = Resolve-ExistingPath $CandidateMiniModelWorkspaces \"MiniModel Rust workspace\" \"Set MINIMODEL_WORKSPACE or edit `$CandidateMiniModelWorkspaces.\"",
-      "$SourceSafetensors = Resolve-ExistingPathOrNull $SourceSafetensorsCandidates",
+      "$SourceSafetensors = Resolve-SourceSafetensorsInput $SourceSafetensorsCandidates $SuggestedSourceSafetensorsFiles",
       "if ([string]::IsNullOrWhiteSpace($SourceSafetensors)) {",
-      "  if ($env:TINYRUSTLM_ALLOW_HF_DOWNLOAD -eq \"1\" -and $SuggestedSourceSafetensorsUrl.Trim().Length -gt 0) {",
+      "  if ($env:TINYRUSTLM_ALLOW_HF_DOWNLOAD -eq \"1\" -and $SuggestedSourceSafetensorsFiles.Count -gt 0) {",
       "    $DownloadDir = Join-Path $PSScriptRoot \"source\"",
       "    New-Item -ItemType Directory -Force -Path $DownloadDir | Out-Null",
-      "    $DownloadTarget = Join-Path $DownloadDir $SuggestedSourceSafetensorsFileName",
-      "    Write-Host \"Downloading Hugging Face source directly to this machine:\" $SuggestedSourceSafetensorsUrl",
-      "    Invoke-WebRequest -UseBasicParsing -Uri $SuggestedSourceSafetensorsUrl -OutFile $DownloadTarget",
-      "    Assert-DownloadedSourceEvidence $DownloadTarget $SuggestedSourceSafetensorsSha256 $SuggestedSourceSafetensorsByteCount",
-      "    $SourceSafetensors = Resolve-ExistingPathOrNull @($DownloadTarget)",
+      "    foreach ($Source in $SuggestedSourceSafetensorsFiles) {",
+      "      if ([string]::IsNullOrWhiteSpace($Source.Name) -or [string]::IsNullOrWhiteSpace($Source.Url)) {",
+      "        throw \"Hugging Face metadata did not include a download URL for every listed .safetensors source.\"",
+      "      }",
+      "      $DownloadTarget = Join-Path $DownloadDir $Source.Name",
+      "      Write-Host \"Downloading Hugging Face source directly to this machine:\" $Source.Url",
+      "      Invoke-WebRequest -UseBasicParsing -Uri $Source.Url -OutFile $DownloadTarget",
+      "      Assert-DownloadedSourceEvidence $DownloadTarget $Source.Sha256 $Source.ByteCount",
+      "    }",
+      "    $SourceSafetensors = Resolve-SourceSafetensorsInput @($DownloadDir) $SuggestedSourceSafetensorsFiles",
       "  }",
       "}",
       "if ([string]::IsNullOrWhiteSpace($SourceSafetensors)) {",
-      "  throw \"Reviewed source .safetensors not found. Put the file beside this script, under ./source/, set TINYRUSTLM_SOURCE_SAFETENSORS, or set TINYRUSTLM_ALLOW_HF_DOWNLOAD=1 to download the suggested Hugging Face source directly to this machine.\"",
+      "  throw \"Reviewed source .safetensors input not found. Put the file beside this script, put every listed shard under ./source/, set TINYRUSTLM_SOURCE_SAFETENSORS to a file or shard directory, or set TINYRUSTLM_ALLOW_HF_DOWNLOAD=1 to download the suggested Hugging Face source directly to this machine.\"",
       "}",
       `$SourceShape = ${powerShellSingleQuote(sourceShape)}`,
       `$Quantization = ${powerShellSingleQuote(quantization)}`,
@@ -4678,7 +4774,7 @@
       "  if (Test-Path -LiteralPath $ConversionPreflight) {",
       "    Write-Host \"Rust conversion preflight report:\" $ConversionPreflight",
       "  }",
-      "  throw \"Rust conversion failed with exit code $ConversionExitCode. If the preflight report exists, it explains whether the local .safetensors file matched TinyRustLM's supported source shapes.\"",
+      "  throw \"Rust conversion failed with exit code $ConversionExitCode. If the preflight report exists, it explains whether the local .safetensors input matched TinyRustLM's supported source shapes.\"",
       "}",
       "$OutputSlm = Resolve-GeneratedFile $WorkDir \"*.slm\" \"Converted .slm\"",
       "Write-Host \"Conversion preflight:\" $ConversionPreflight",
@@ -4763,6 +4859,12 @@
     const requestName = `${stem}.minimodel-conversion-request.json`;
     const readmeName = `${stem}.tinyrustlm-conversion.README.txt`;
     const sourceFile = request.local_conversion.suggested_source_safetensors_file || "<reviewed-source>.safetensors";
+    const sourceFiles = Array.isArray(request.local_conversion.suggested_source_safetensors_files)
+      ? request.local_conversion.suggested_source_safetensors_files
+      : [];
+    const sourceInputText = sourceFiles.length > 1
+      ? `all ${sourceFiles.length} listed .safetensors files under ./source/`
+      : sourceFile;
     const suggestedSourceUrl = request.local_conversion.suggested_source_safetensors_url || "";
     const suggestedSourceSha256 = request.local_conversion.suggested_source_safetensors_sha256 || "";
     const suggestedSourceByteCount = Number.isFinite(request.local_conversion.suggested_source_safetensors_byte_count)
@@ -4782,18 +4884,19 @@
       "",
       "What to do:",
       `1. Review the model card and license for ${entry.modelId}.`,
-      `2. Either put ${sourceFile} beside the script, put it under ./source/, set TINYRUSTLM_SOURCE_SAFETENSORS, or opt into direct local Hugging Face download with: $env:TINYRUSTLM_ALLOW_HF_DOWNLOAD=\"1\"`,
+      `2. Either put ${sourceInputText}, set TINYRUSTLM_SOURCE_SAFETENSORS to a reviewed file or shard directory, or opt into direct local Hugging Face download with: $env:TINYRUSTLM_ALLOW_HF_DOWNLOAD=\"1\"`,
       `3. Run from PowerShell in this folder: powershell -ExecutionPolicy Bypass -File .\\${scriptName}`,
       "4. If conversion passes, import the verified .slm through TinyRustLM's local file picker.",
       "",
       "What the script does:",
       "- Recreates the conversion request if the JSON sidecar is missing.",
-      "- Uses a reviewed local source file by default, or downloads the suggested Hugging Face source directly to this machine only after TINYRUSTLM_ALLOW_HF_DOWNLOAD=1.",
+      "- Uses a reviewed local source file or shard directory by default, or downloads the suggested Hugging Face source directly to this machine only after TINYRUSTLM_ALLOW_HF_DOWNLOAD=1.",
+      sourceFiles.length > 1 ? `- Listed source files: ${sourceFiles.map((file) => file.file_name).join(", ")}` : `- Listed source file: ${sourceFile}`,
       suggestedSourceUrl ? `- Suggested direct Hugging Face source URL: ${suggestedSourceUrl}` : "- No direct Hugging Face source URL was available from metadata.",
       suggestedSourceSha256 ? `- Expected source SHA-256 from metadata: ${suggestedSourceSha256}` : "- Expected source SHA-256 from metadata: unavailable.",
       suggestedSourceByteCount ? `- Expected source byte count from metadata: ${suggestedSourceByteCount}` : "- Expected source byte count from metadata: unavailable.",
-      "- Runs tinyrustlm-slm-pack convert-huggingface-request locally against the reviewed source file.",
-      "- Writes tinyrustlm-conversion.preflight before extraction so incompatible source files have a durable Rust explanation.",
+      "- Runs tinyrustlm-slm-pack convert-huggingface-request locally against the reviewed source file or shard directory.",
+      "- Writes tinyrustlm-conversion.preflight before extraction so incompatible source inputs have a durable Rust explanation.",
       "- Runs MiniModel prepare-peer-share locally after Rust verifies the .slm.",
       "- Writes a metadata-only models.v0.json catalog snapshot.",
       knownPeerBaseUrl

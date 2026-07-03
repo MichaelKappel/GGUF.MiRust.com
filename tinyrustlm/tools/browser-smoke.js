@@ -1725,11 +1725,19 @@ function installHfSearchUiInterceptor(client) {
             siblings: [
               { rfilename: "config.json" },
               {
-                rfilename: "model.safetensors",
-                size: 10737418240,
+                rfilename: "model-00001-of-00002.safetensors",
+                size: 5368709120,
                 lfs: {
                   oid: "2222222222222222222222222222222222222222222222222222222222222222",
-                  size: 10737418240
+                  size: 5368709120
+                }
+              },
+              {
+                rfilename: "model-00002-of-00002.safetensors",
+                size: 5368709120,
+                lfs: {
+                  oid: "3333333333333333333333333333333333333333333333333333333333333333",
+                  size: 5368709120
                 }
               },
               { rfilename: "tokenizer.json" }
@@ -9181,7 +9189,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     if (!resultText.includes("No supported source listed") || !resultText.includes("no .safetensors source listed")) {
       failures.push(`unsupported Hugging Face result did not block fake conversion path: ${resultText}`);
     }
-    if (!resultText.includes("Large source; P2P preferred") || !resultText.includes("Large source warning: 10.0 GiB") || !resultText.includes("Prepare Conversion")) {
+    if (!resultText.includes("Large source; P2P preferred") || !resultText.includes("Large source warning: 10.0 GiB across 2 source files") || !resultText.includes("Prepare Conversion")) {
       failures.push(`large Hugging Face source did not steer users toward P2P/review before local conversion: ${resultText}`);
     }
     if (!String(result.p2pStatusAfterSearch || "").includes("P2P on") || result.p2pWarningVisibleAfterSearch) {
@@ -9364,6 +9372,12 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       if (conversionRequest.local_conversion && conversionRequest.local_conversion.suggested_source_safetensors_byte_count !== 2048) {
         failures.push(`conversion request did not carry the source byte count from metadata: ${JSON.stringify(conversionRequest.local_conversion)}`);
       }
+      if (conversionRequest.local_conversion && conversionRequest.local_conversion.source_input_mode !== "single-safetensors-file") {
+        failures.push(`conversion request did not identify the reviewed local source input mode: ${JSON.stringify(conversionRequest.local_conversion)}`);
+      }
+      if (!Array.isArray(conversionRequest.local_conversion && conversionRequest.local_conversion.suggested_source_safetensors_files) || conversionRequest.local_conversion.suggested_source_safetensors_files.length !== 1) {
+        failures.push(`conversion request did not carry the full safetensors file list: ${JSON.stringify(conversionRequest.local_conversion)}`);
+      }
       if (!String(conversionRequest.local_conversion && conversionRequest.local_conversion.source_acquisition_rule || "").includes("TINYRUSTLM_ALLOW_HF_DOWNLOAD=1")) {
         failures.push(`conversion request did not explain explicit local Hugging Face download opt-in: ${JSON.stringify(conversionRequest.local_conversion)}`);
       }
@@ -9375,6 +9389,9 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       }
       if (!String(conversionRequest.local_conversion.command_shape || "").includes("convert-huggingface-request")) {
         failures.push(`conversion request command shape did not use convert-huggingface-request: ${conversionRequest.local_conversion.command_shape}`);
+      }
+      if (!String(conversionRequest.local_conversion.command_shape || "").includes("input.safetensors-or-directory")) {
+        failures.push(`conversion request command shape did not allow a shard directory: ${conversionRequest.local_conversion.command_shape}`);
       }
       if (!String(conversionRequest.local_conversion.peer_source_shape || "").includes("add-peer-source")) {
         failures.push(`conversion request peer source shape did not use add-peer-source: ${conversionRequest.local_conversion.peer_source_shape}`);
@@ -9426,6 +9443,8 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "Suggested direct Hugging Face source URL: https://huggingface.co/example-org/tiny-source-model/resolve/main/model.safetensors",
       "Expected source SHA-256 from metadata: sha256:1111111111111111111111111111111111111111111111111111111111111111",
       "Expected source byte count from metadata: 2048",
+      "reviewed file or shard directory",
+      "Listed source file: model.safetensors",
       "Safe to publish",
       "Never upload to project servers",
       "TinyRustLM.com and MiniModel.org do not serve",
@@ -9467,6 +9486,8 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "[System.Convert]::FromBase64String",
       "Resolve-ExistingPath",
       "Resolve-ExistingPathOrNull",
+      "Resolve-SourceSafetensorsInput",
+      "Test-DirectoryHasSuggestedSources",
       "Resolve-GeneratedFile",
       "Resolve-GeneratedDirectory",
       "Assert-DownloadedSourceEvidence",
@@ -9477,13 +9498,16 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "$CandidateTinyRustLMWorkspaces",
       "$CandidateMiniModelWorkspaces",
       "$SourceSafetensorsCandidates",
+      "$SuggestedSourceSafetensorsFiles",
       "$SuggestedSourceSafetensorsUrl",
       "$SuggestedSourceSafetensorsSha256",
       "$SuggestedSourceSafetensorsByteCount",
-      "Invoke-WebRequest -UseBasicParsing -Uri $SuggestedSourceSafetensorsUrl",
+      "Invoke-WebRequest -UseBasicParsing -Uri $Source.Url",
       "Get-FileHash -Algorithm SHA256",
       "Downloading Hugging Face source directly to this machine:",
       "put the reviewed source file beside this script",
+      "put every listed shard under ./source/",
+      "file or shard directory",
       "TinyRustLM workspace:",
       "MiniModel workspace:",
       "Source safetensors:",

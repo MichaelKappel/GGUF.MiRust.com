@@ -28,6 +28,8 @@ const SLM_TENSOR_ENTRY_LEN: usize = 64;
 
 #[derive(Clone)]
 struct TensorInfo {
+    source_path: String,
+    source_header_bytes: u64,
     name: String,
     dtype: String,
     dtype_size: u64,
@@ -46,6 +48,7 @@ struct DtypeStats {
 
 struct SafetensorsInspection {
     source_path: String,
+    source_file_count: u64,
     file_bytes: u64,
     header_bytes: u64,
     data_bytes: u64,
@@ -57,9 +60,11 @@ struct SafetensorsInspection {
 
 struct SourceTensorPlan {
     name: String,
+    source_path: String,
     source_name: String,
     dtype: String,
     shape: Vec<u64>,
+    source_header_bytes: u64,
     start: u64,
     end: u64,
     raw_source_file: String,
@@ -225,7 +230,7 @@ struct JsonParser<'a> {
 
 /// Reads a local `.safetensors` file header, validates tensor ranges, and optionally writes a report.
 pub fn inspect_path(input: &Path, output_report: Option<&Path>) -> io::Result<()> {
-    let inspection = inspect_file(input)?;
+    let inspection = inspect_input(input)?;
     let report = render_report(&inspection);
     if let Some(output) = output_report {
         if let Some(parent) = output.parent() {
@@ -471,7 +476,7 @@ pub fn convert_huggingface_request_path(
         Ok(plan) => plan,
         Err(error) => {
             let failure_reason = error.to_string();
-            let inspection = match inspect_file(input) {
+            let inspection = match inspect_input(input) {
                 Ok(inspection) => {
                     fs::write(&inspect_report, render_report(&inspection))?;
                     Some(inspection)
@@ -748,6 +753,106 @@ fn default_converted_trained_eval_cases_path_for_safetensors() -> PathBuf {
 }
 
 /// Reads only the safetensors prefix and header before validating offsets against file length.
+fn inspect_input(input: &Path) -> io::Result<SafetensorsInspection> {
+    if input.is_dir() {
+        inspect_directory(input)
+    } else {
+        inspect_file(input)
+    }
+}
+
+/// Merges a local directory of Hugging Face `.safetensors` shards into one tensor directory.
+fn inspect_directory(input: &Path) -> io::Result<SafetensorsInspection> {
+    let mut shard_paths = Vec::new();
+    for entry in fs::read_dir(input)? {
+        let path = entry?.path();
+        if path
+            .extension()
+            .and_then(|value| value.to_str())
+            .is_some_and(|value| value.eq_ignore_ascii_case("safetensors"))
+        {
+            shard_paths.push(path);
+        }
+    }
+    shard_paths.sort();
+    if shard_paths.is_empty() {
+        return Err(invalid(
+            "safetensors shard directory did not contain any .safetensors files",
+        ));
+    }
+
+    let mut file_bytes = 0u64;
+    let mut header_bytes = 0u64;
+    let mut data_bytes = 0u64;
+    let mut header_checksum_preimage = String::new();
+    let mut tensors = Vec::new();
+    let mut dtype_stats = BTreeMap::new();
+    let mut seen = BTreeMap::new();
+
+    for shard_path in &shard_paths {
+        let inspection = inspect_file(shard_path)?;
+        file_bytes = file_bytes
+            .checked_add(inspection.file_bytes)
+            .ok_or_else(|| invalid("safetensors shard file byte count overflow"))?;
+        header_bytes = header_bytes
+            .checked_add(inspection.header_bytes)
+            .ok_or_else(|| invalid("safetensors shard header byte count overflow"))?;
+        data_bytes = data_bytes
+            .checked_add(inspection.data_bytes)
+            .ok_or_else(|| invalid("safetensors shard data byte count overflow"))?;
+        header_checksum_preimage.push_str(&inspection.source_path);
+        header_checksum_preimage.push('|');
+        header_checksum_preimage.push_str(&inspection.file_bytes.to_string());
+        header_checksum_preimage.push('|');
+        header_checksum_preimage.push_str(&hex64(inspection.header_checksum));
+        header_checksum_preimage.push('|');
+        header_checksum_preimage.push_str(&hex64(inspection.tensor_directory_checksum));
+        header_checksum_preimage.push('\n');
+
+        for (dtype, stats) in inspection.dtype_stats {
+            let entry = dtype_stats.entry(dtype).or_insert_with(DtypeStats::default);
+            entry.tensor_count = entry
+                .tensor_count
+                .checked_add(stats.tensor_count)
+                .ok_or_else(|| invalid("safetensors shard dtype tensor count overflow"))?;
+            entry.parameter_count = entry
+                .parameter_count
+                .checked_add(stats.parameter_count)
+                .ok_or_else(|| invalid("safetensors shard dtype parameter count overflow"))?;
+            entry.data_bytes = entry
+                .data_bytes
+                .checked_add(stats.data_bytes)
+                .ok_or_else(|| invalid("safetensors shard dtype byte count overflow"))?;
+        }
+
+        for tensor in inspection.tensors {
+            if seen
+                .insert(tensor.name.clone(), tensor.source_path.clone())
+                .is_some()
+            {
+                return Err(invalid(&format!(
+                    "safetensors shard directory found duplicate tensor {}",
+                    tensor.name
+                )));
+            }
+            tensors.push(tensor);
+        }
+    }
+
+    Ok(SafetensorsInspection {
+        source_path: input.display().to_string(),
+        source_file_count: shard_paths.len() as u64,
+        file_bytes,
+        header_bytes,
+        data_bytes,
+        header_checksum: local_checksum(header_checksum_preimage.as_bytes()),
+        tensor_directory_checksum: tensor_directory_checksum(&tensors),
+        tensors,
+        dtype_stats,
+    })
+}
+
+/// Reads only the safetensors prefix and header before validating offsets against file length.
 fn inspect_file(input: &Path) -> io::Result<SafetensorsInspection> {
     let file_bytes = fs::metadata(input)?.len();
     if file_bytes < 8 {
@@ -798,7 +903,12 @@ fn inspect_header(
         if name == "__metadata__" {
             continue;
         }
-        tensors.push(tensor_from_json(name, value)?);
+        tensors.push(tensor_from_json(
+            source_path,
+            header.len() as u64,
+            name,
+            value,
+        )?);
     }
     if tensors.is_empty() {
         return Err(invalid("safetensors header did not contain tensor entries"));
@@ -807,6 +917,7 @@ fn inspect_header(
     let dtype_stats = dtype_stats(&tensors)?;
     Ok(SafetensorsInspection {
         source_path: source_path.to_string(),
+        source_file_count: 1,
         file_bytes,
         header_bytes: header.len() as u64,
         data_bytes,
@@ -818,7 +929,12 @@ fn inspect_header(
 }
 
 /// Converts one top-level safetensors tensor object into a checked tensor summary.
-fn tensor_from_json(name: String, value: JsonValue) -> io::Result<TensorInfo> {
+fn tensor_from_json(
+    source_path: &str,
+    source_header_bytes: u64,
+    name: String,
+    value: JsonValue,
+) -> io::Result<TensorInfo> {
     let object = as_object(&value, "safetensors tensor entry")?;
     let dtype = require_string_field(object, "dtype")?.to_string();
     let dtype_size = dtype_byte_size(&dtype)?;
@@ -845,6 +961,8 @@ fn tensor_from_json(name: String, value: JsonValue) -> io::Result<TensorInfo> {
         )));
     }
     Ok(TensorInfo {
+        source_path: source_path.to_string(),
+        source_header_bytes,
         name,
         dtype,
         dtype_size,
@@ -913,6 +1031,11 @@ fn render_report(inspection: &SafetensorsInspection) -> String {
     push_line(&mut text, "source_path", &inspection.source_path);
     push_line(
         &mut text,
+        "source_file_count",
+        &inspection.source_file_count.to_string(),
+    );
+    push_line(
+        &mut text,
         "source_file_bytes",
         &inspection.file_bytes.to_string(),
     );
@@ -969,6 +1092,11 @@ fn render_report(inspection: &SafetensorsInspection) -> String {
     }
     for (index, tensor) in inspection.tensors.iter().enumerate() {
         let prefix = format!("tensor.{index}");
+        push_line(
+            &mut text,
+            &format!("{prefix}.source_path"),
+            &tensor.source_path,
+        );
         push_line(&mut text, &format!("{prefix}.name"), &tensor.name);
         push_line(&mut text, &format!("{prefix}.dtype"), &tensor.dtype);
         push_line(
@@ -1002,7 +1130,7 @@ fn render_report(inspection: &SafetensorsInspection) -> String {
 
 /// Builds an ordered extraction plan from safetensors metadata into raw f32 source files.
 fn build_source_plan(input: &Path, shape_name: &str) -> io::Result<SourcePlan> {
-    let inspection = inspect_file(input)?;
+    let inspection = inspect_input(input)?;
     let expectations = trained_source::source_tensor_expectations(shape_name)?;
     let mut by_name = BTreeMap::new();
     for tensor in &inspection.tensors {
@@ -1033,9 +1161,11 @@ fn build_source_plan(input: &Path, shape_name: &str) -> io::Result<SourcePlan> {
             .ok_or_else(|| invalid("safetensors source plan raw byte count overflow"))?;
         tensors.push(SourceTensorPlan {
             name: expectation.name,
+            source_path: tensor.source_path.clone(),
             source_name,
             dtype: tensor.dtype.clone(),
             shape: tensor.shape.clone(),
+            source_header_bytes: tensor.source_header_bytes,
             start: tensor.start,
             end: tensor.end,
             raw_source_file: expectation.relative_file,
@@ -1133,15 +1263,15 @@ fn llama_layer_alias_suffix(local_suffix: &str) -> Option<&'static str> {
 
 /// Reads planned safetensors data slices and converts each payload to raw f32 bytes.
 fn extract_source_payloads(
-    input: &Path,
+    _input: &Path,
     plan: &SourcePlan,
 ) -> io::Result<Vec<trained_source::SourceTensorPayload>> {
-    let data_start = 8u64
-        .checked_add(plan.inspection.header_bytes)
-        .ok_or_else(|| invalid("safetensors source extraction data offset overflow"))?;
-    let mut file = File::open(input)?;
     let mut payloads = Vec::with_capacity(plan.tensors.len());
     for tensor in &plan.tensors {
+        let data_start = 8u64
+            .checked_add(tensor.source_header_bytes)
+            .ok_or_else(|| invalid("safetensors source extraction data offset overflow"))?;
+        let mut file = File::open(&tensor.source_path)?;
         let file_offset = data_start
             .checked_add(tensor.start)
             .ok_or_else(|| invalid("safetensors tensor file offset overflow"))?;
@@ -1256,6 +1386,11 @@ fn render_source_plan(plan: &SourcePlan) -> String {
     push_line(&mut text, "source_layout", SAFETENSORS_LAYOUT);
     push_line(&mut text, "target_source_layout", RAW_SOURCE_LAYOUT);
     push_line(&mut text, "source_path", &plan.inspection.source_path);
+    push_line(
+        &mut text,
+        "source_file_count",
+        &plan.inspection.source_file_count.to_string(),
+    );
     push_line(&mut text, "target_model_shape", &plan.target_model_shape);
     push_line(
         &mut text,
@@ -1292,6 +1427,11 @@ fn render_source_plan(plan: &SourcePlan) -> String {
     for (index, tensor) in plan.tensors.iter().enumerate() {
         let prefix = format!("tensor.{index}");
         push_line(&mut text, &format!("{prefix}.name"), &tensor.name);
+        push_line(
+            &mut text,
+            &format!("{prefix}.source_path"),
+            &tensor.source_path,
+        );
         push_line(
             &mut text,
             &format!("{prefix}.safetensors_name"),
@@ -3042,6 +3182,8 @@ fn source_plan_mapping_checksum(tensors: &[SourceTensorPlan]) -> u64 {
     for tensor in tensors {
         text.push_str(&tensor.name);
         text.push('|');
+        text.push_str(&tensor.source_path);
+        text.push('|');
         text.push_str(&tensor.source_name);
         text.push('|');
         text.push_str(&tensor.dtype);
@@ -3791,6 +3933,11 @@ fn write_huggingface_conversion_receipt(
     );
     push_receipt_line(
         &mut text,
+        "source_file_count",
+        &plan.inspection.source_file_count.to_string(),
+    );
+    push_receipt_line(
+        &mut text,
         "source_file_bytes",
         &plan.inspection.file_bytes.to_string(),
     );
@@ -3985,6 +4132,11 @@ fn write_huggingface_conversion_preflight(
     if let Some(inspection) = inspection {
         push_receipt_line(
             &mut text,
+            "source_file_count",
+            &inspection.source_file_count.to_string(),
+        );
+        push_receipt_line(
+            &mut text,
             "source_file_bytes",
             &inspection.file_bytes.to_string(),
         );
@@ -4004,6 +4156,7 @@ fn write_huggingface_conversion_preflight(
             &hex64(inspection.tensor_directory_checksum),
         );
     } else {
+        push_receipt_line(&mut text, "source_file_count", "unavailable");
         push_receipt_line(&mut text, "source_file_bytes", "unavailable");
         push_receipt_line(&mut text, "safetensors_tensor_count", "unavailable");
     }
@@ -5971,6 +6124,71 @@ mod tests {
     }
 
     #[test]
+    fn converts_huggingface_request_from_sharded_safetensors_directory() {
+        let dir = unique_dir("source-convert-hf-request-shards");
+        fs::create_dir_all(&dir).unwrap();
+        let shard_dir = dir.join("source");
+        let request = dir.join("example-org__tiny-sharded.minimodel-conversion-request.json");
+        let output_dir = dir.join("request-output");
+        let shard_paths = write_template_source_extract_safetensors_shards_with_hf_aliases(
+            &shard_dir,
+            "tiny-fixture",
+        );
+        fs::write(
+            &request,
+            r#"{
+  "request_kind": "minimodel.huggingface_conversion_request.v0",
+  "source": {
+    "kind": "huggingface_model",
+    "model_id": "example-org/tiny-sharded"
+  },
+  "requested_artifact": {
+    "kind": "slm",
+    "default_source_shape": "tiny-fixture",
+    "default_quantization": "q8_0"
+  },
+  "local_conversion": {
+    "suggested_source_safetensors_file": "model-00001-of-00002.safetensors"
+  }
+}
+"#,
+        )
+        .unwrap();
+
+        convert_huggingface_request_path(&request, &shard_dir, &output_dir, None, None).unwrap();
+
+        let output_slm =
+            huggingface_conversion_output_slm_path(&output_dir, "example-org/tiny-sharded", "q8_0");
+        assert!(output_slm.exists());
+        trained_source::validate_source_path(&output_dir.join("source")).unwrap();
+        provenance::validate_manifest_path(&output_slm, &sidecar_manifest_path(&output_slm))
+            .unwrap();
+        let bytes = fs::read(&output_slm).unwrap();
+        let report =
+            slm_validate::validate_bytes(&bytes, &output_slm.display().to_string()).unwrap();
+        assert_eq!(report.quantization_label(), "q8_0");
+
+        let inspect = fs::read_to_string(output_dir.join("source.inspect")).unwrap();
+        assert!(inspect.contains("source_file_count=2"));
+        assert!(inspect.contains("tensor.0.source_path="));
+        let plan = fs::read_to_string(output_dir.join("source.plan")).unwrap();
+        assert!(plan.contains("source_file_count=2"));
+        assert!(plan.contains("tensor.0.source_path="));
+        assert!(plan.contains("model-00001-of-00002.safetensors"));
+        assert!(plan.contains("model-00002-of-00002.safetensors"));
+        let preflight =
+            fs::read_to_string(output_dir.join("tinyrustlm-conversion.preflight")).unwrap();
+        assert!(preflight.contains("source_file_count=2"));
+        assert!(preflight.contains("preflight_status=pass"));
+        let receipt = fs::read_to_string(output_dir.join("tinyrustlm-conversion.receipt")).unwrap();
+        assert!(receipt.contains("source_file_count=2"));
+        assert!(receipt.contains("source_model_id=example-org/tiny-sharded"));
+        for shard_path in shard_paths {
+            assert!(shard_path.exists());
+        }
+    }
+
+    #[test]
     fn writes_huggingface_preflight_when_source_shape_is_rejected() {
         let dir = unique_dir("source-convert-hf-request-preflight-fail");
         fs::create_dir_all(&dir).unwrap();
@@ -6721,6 +6939,54 @@ mod tests {
             &source_dir,
             hf_alias_for_test,
         );
+    }
+
+    // Builds two local Hugging Face-style safetensors shards from the deterministic source template.
+    fn write_template_source_extract_safetensors_shards_with_hf_aliases(
+        shard_dir: &Path,
+        shape_name: &str,
+    ) -> Vec<PathBuf> {
+        let source_dir = shard_dir.parent().unwrap().join("template-source");
+        trained_source::write_source_template_path(&source_dir, shape_name).unwrap();
+        fs::create_dir_all(shard_dir).unwrap();
+        let expectations = trained_source::source_tensor_expectations(shape_name).unwrap();
+        let mut shard_paths = Vec::new();
+        for shard_index in 0..2 {
+            let shard_path =
+                shard_dir.join(format!("model-{:05}-of-00002.safetensors", shard_index + 1));
+            let mut header = String::from("{");
+            let mut data = Vec::new();
+            let mut offset = 0u64;
+            let mut wrote = false;
+            for (index, expectation) in expectations.iter().enumerate() {
+                if index % 2 != shard_index {
+                    continue;
+                }
+                if wrote {
+                    header.push(',');
+                }
+                wrote = true;
+                let tensor_bytes = fs::read(source_dir.join(&expectation.relative_file)).unwrap();
+                assert_eq!(tensor_bytes.len() as u64, expectation.f32_bytes);
+                let source_name = hf_alias_for_test(&expectation.name);
+                push_safetensors_header_tensor(
+                    &mut header,
+                    &source_name,
+                    "F32",
+                    &expectation.dims,
+                    offset,
+                );
+                offset += tensor_bytes.len() as u64;
+                header.push_str(&format!(",{offset}]}}"));
+                data.extend_from_slice(&tensor_bytes);
+            }
+            assert!(wrote);
+            header.push('}');
+            assert_eq!(data.len(), offset as usize);
+            write_safetensors_file_with_data(&shard_path, &header, &data);
+            shard_paths.push(shard_path);
+        }
+        shard_paths
     }
 
     // Builds an F32 safetensors fixture by copying raw source-template tensor bytes.
