@@ -3672,6 +3672,75 @@ fn write_huggingface_conversion_receipt(
     push_receipt_line(&mut text, "output_manifest", &one_line_path(manifest_path));
     push_receipt_line(&mut text, "inspect_report", &one_line_path(inspect_report));
     push_receipt_line(&mut text, "plan_report", &one_line_path(plan_report));
+    let minimodel_share_output_dir = output_dir.join("minimodel-peer-share");
+    let minimodel_catalog_snapshot = minimodel_share_output_dir.join("models.v0.json");
+    let minimodel_announcement_feed =
+        minimodel_share_output_dir.join("peer-source-announcements.v0.json");
+    push_receipt_line(&mut text, "minimodel_model_id", &request.source_model_id);
+    push_receipt_line(
+        &mut text,
+        "minimodel_share_output_dir",
+        &one_line_path(&minimodel_share_output_dir),
+    );
+    push_receipt_line(
+        &mut text,
+        "minimodel_prepare_peer_share_command",
+        &format!(
+            "cargo run -p minimodel -- prepare-peer-share {} {} {} {}",
+            quote_receipt_arg(&one_line_path(output_slm)),
+            quote_receipt_arg(&one_line_path(&minimodel_share_output_dir)),
+            quote_receipt_arg(&request.source_model_id),
+            quote_receipt_arg(&request.source_model_id),
+        ),
+    );
+    push_receipt_line(
+        &mut text,
+        "minimodel_prepare_peer_share_with_peer_command",
+        &format!(
+            "cargo run -p minimodel -- prepare-peer-share {} {} {} {} <known-peer-base-url>",
+            quote_receipt_arg(&one_line_path(output_slm)),
+            quote_receipt_arg(&one_line_path(&minimodel_share_output_dir)),
+            quote_receipt_arg(&request.source_model_id),
+            quote_receipt_arg(&request.source_model_id),
+        ),
+    );
+    push_receipt_line(
+        &mut text,
+        "minimodel_catalog_entry_glob",
+        "*.catalog-entry.v0.json",
+    );
+    push_receipt_line(&mut text, "minimodel_peer_pieces_glob", "*.peer-pieces");
+    push_receipt_line(
+        &mut text,
+        "minimodel_write_catalog_snapshot_command",
+        &format!(
+            "cargo run -p minimodel -- write-catalog-snapshot {} <catalog-entry-json>",
+            quote_receipt_arg(&one_line_path(&minimodel_catalog_snapshot)),
+        ),
+    );
+    push_receipt_line(
+        &mut text,
+        "minimodel_write_peer_source_announcement_command",
+        "cargo run -p minimodel -- write-peer-source-announcement <catalog-entry-json> <peer-source-announcement-json> <known-peer-base-url>",
+    );
+    push_receipt_line(
+        &mut text,
+        "minimodel_write_peer_source_feed_command",
+        &format!(
+            "cargo run -p minimodel -- write-peer-source-announcement-feed {} <peer-source-announcement-json>...",
+            quote_receipt_arg(&one_line_path(&minimodel_announcement_feed)),
+        ),
+    );
+    push_receipt_line(
+        &mut text,
+        "minimodel_serve_peer_pieces_command",
+        "cargo run -p minimodel -- serve-peer-pieces <minimodel-manifest> <peer-pieces-dir> 127.0.0.1:8123",
+    );
+    push_receipt_line(
+        &mut text,
+        "converted_once_publication_rule",
+        "publish-catalog-json-and-peer-source-announcement-json-only",
+    );
     push_receipt_line(
         &mut text,
         "output_slm_byte_count",
@@ -3841,6 +3910,10 @@ fn one_line_path(path: &Path) -> String {
 
 fn one_line(value: &str) -> String {
     value.replace(['\r', '\n'], " ")
+}
+
+fn quote_receipt_arg(value: &str) -> String {
+    format!("\"{}\"", value.replace('"', "\\\""))
 }
 
 /// Formats a 64-bit local checksum as a report value.
@@ -5530,6 +5603,34 @@ mod tests {
         assert!(receipt.contains("project_server_proxies_huggingface_bytes=false"));
         assert!(receipt.contains("browser_import_rule=user-imports-local-slm"));
         assert!(receipt.contains("required_next_gate=minimodel-prepare-peer-share"));
+        assert!(receipt.contains("minimodel_model_id=example-org/tiny-source-model"));
+        assert!(receipt.contains("minimodel_share_output_dir="));
+        assert!(receipt.contains(
+            "minimodel_prepare_peer_share_command=cargo run -p minimodel -- prepare-peer-share"
+        ));
+        assert!(
+            receipt.contains("\"example-org/tiny-source-model\" \"example-org/tiny-source-model\"")
+        );
+        assert!(receipt.contains(
+            "minimodel_prepare_peer_share_with_peer_command=cargo run -p minimodel -- prepare-peer-share"
+        ));
+        assert!(receipt.contains("minimodel_catalog_entry_glob=*.catalog-entry.v0.json"));
+        assert!(receipt.contains("minimodel_peer_pieces_glob=*.peer-pieces"));
+        assert!(receipt.contains(
+            "minimodel_write_catalog_snapshot_command=cargo run -p minimodel -- write-catalog-snapshot"
+        ));
+        assert!(receipt.contains(
+            "minimodel_write_peer_source_announcement_command=cargo run -p minimodel -- write-peer-source-announcement <catalog-entry-json> <peer-source-announcement-json> <known-peer-base-url>"
+        ));
+        assert!(receipt.contains(
+            "minimodel_write_peer_source_feed_command=cargo run -p minimodel -- write-peer-source-announcement-feed"
+        ));
+        assert!(receipt.contains(
+            "minimodel_serve_peer_pieces_command=cargo run -p minimodel -- serve-peer-pieces <minimodel-manifest> <peer-pieces-dir> 127.0.0.1:8123"
+        ));
+        assert!(receipt.contains(
+            "converted_once_publication_rule=publish-catalog-json-and-peer-source-announcement-json-only"
+        ));
     }
 
     #[test]
