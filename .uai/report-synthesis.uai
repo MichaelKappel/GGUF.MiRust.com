@@ -1,5 +1,5 @@
-profile: runtime-mirust.report-synthesis.v150
-updated_utc: 2026-07-03T23:59:00Z
+profile: runtime-mirust.report-synthesis.v151
+updated_utc: 2026-07-04T00:20:00Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/runtime-mirust/report-intake-2026-06-25/
@@ -47,6 +47,7 @@ source_authority:
     - wiki/runtime-mirust/reports/tinyrustlm-followup-intake-announcement-feed-memory-2026-07-02.md
     - wiki/runtime-mirust/reports/tinyrustlm-local-share-kit-memory-2026-07-03.md
     - wiki/runtime-mirust/reports/tinyrustlm-huggingface-self-contained-conversion-script-memory-2026-07-03.md
+    - wiki/runtime-mirust/reports/tinyrustlm-huggingface-local-download-opt-in-memory-2026-07-03.md
     - wiki/runtime-mirust/reports/tinyrustlm-desktop-p2p-companion-intake-memory-2026-07-03.md
     - wiki/runtime-mirust/reports/tinylm16-bpe-safetensors-plan-memory-2026-06-30.md
     - wiki/runtime-mirust/reports/enterprise-rust-governance-memory-2026-06-25.md
@@ -323,6 +324,10 @@ tinyrustlm_huggingface_conversion_preflight_2026_07_03:
   route: wiki/runtime-mirust/reports/tinyrustlm-huggingface-conversion-preflight-memory-2026-07-03.md
   checksum_sha256: 59DA846DF5FE024C11E111D2D9AC9EE4926DF35291298ED1C5F37BFDF7CC8D3B
   synthesis: `convert-huggingface-request` now writes `tinyrustlm-conversion.preflight` before extraction, records source-shape support and checksum evidence on success, writes durable Rust planner failure evidence when a local `.safetensors` source does not match the selected TinyRustLM shape, and browser-generated conversion scripts/READMEs point users at that report.
+tinyrustlm_huggingface_local_download_opt_in_2026_07_03:
+  route: wiki/runtime-mirust/reports/tinyrustlm-huggingface-local-download-opt-in-memory-2026-07-03.md
+  checksum_sha256: 605261901E2BA23BD46DA052C9F68BCEBDDAF47E12D24B8ECDB72D4DA7370107
+  synthesis: Hugging Face search remains browser metadata-only, while `Start Conversion` carries source URL/hash/byte hints into the local kit; the generated script downloads directly from Hugging Face only after `TINYRUSTLM_ALLOW_HF_DOWNLOAD=1` and verifies evidence before Rust conversion.
 tinyrustlm_minimodel_peer_import_preflight_2026_07_03:
   route: wiki/runtime-mirust/reports/tinyrustlm-minimodel-peer-import-preflight-memory-2026-07-03.md
   checksum_sha256: 600B3AEF139BF7F891714D52A5377765EDFD9FD68D152A821DAED8D3A2200818
