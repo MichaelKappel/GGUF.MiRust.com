@@ -10,7 +10,7 @@ use crate::tensor_writer::{
 };
 use crate::tokenizer_writer::{BpeMergeSpec, BpeTokenSpec, ByteTokenizerSection, TokenizerSection};
 use crate::writer::align_to_64;
-use crate::{browser_bundle, provenance, selector, slm_validate, trained_source};
+use crate::{browser_bundle, provenance, slm_validate, trained_source};
 
 const SAFETENSORS_REPORT_VERSION: &str = "1";
 const SAFETENSORS_SOURCE_PLAN_VERSION: &str = "1";
@@ -313,6 +313,7 @@ pub fn review_candidate_path(
 }
 
 /// Extracts a checked `.safetensors` file into the raw f32 trained-source layout.
+#[cfg(test)]
 pub fn extract_source_path(input: &Path, shape_name: &str, output_dir: &Path) -> io::Result<()> {
     extract_source_path_with_review(input, shape_name, output_dir, None)
 }
@@ -505,7 +506,78 @@ pub fn convert_huggingface_request_path(
     Ok(())
 }
 
+/// Writes a deterministic safetensors fixture for command-level conversion smoke tests.
+pub fn write_safetensors_fixture_path(
+    output_path: &Path,
+    shape_name: &str,
+    name_mode: &str,
+) -> io::Result<()> {
+    let source_dir = output_path.with_extension("source-template");
+    trained_source::write_source_template_path(&source_dir, shape_name)?;
+    let expectations = trained_source::source_tensor_expectations(shape_name)?;
+    let mut header = String::from("{");
+    let mut data = Vec::new();
+    let mut offset = 0u64;
+
+    for (index, expectation) in expectations.iter().enumerate() {
+        if index > 0 {
+            header.push(',');
+        }
+        let tensor_bytes = fs::read(source_dir.join(&expectation.relative_file))?;
+        if tensor_bytes.len() as u64 != expectation.f32_bytes {
+            return Err(invalid(&format!(
+                "source template tensor {} byte count drifted",
+                expectation.name
+            )));
+        }
+        let source_name = match name_mode {
+            "local" => expectation.name.clone(),
+            "huggingface" | "huggingface-llama" => source_tensor_aliases(&expectation.name)
+                .last()
+                .cloned()
+                .unwrap_or_else(|| expectation.name.clone()),
+            _ => {
+                return Err(invalid(
+                    "safetensors fixture name mode must be local or huggingface",
+                ))
+            }
+        };
+        push_safetensors_json_string(&mut header, &source_name);
+        header.push_str(":{\"dtype\":\"F32\",\"shape\":[");
+        for (dim_index, dim) in expectation.dims.iter().enumerate() {
+            if dim_index > 0 {
+                header.push(',');
+            }
+            header.push_str(&dim.to_string());
+        }
+        header.push_str("],\"data_offsets\":[");
+        header.push_str(&offset.to_string());
+        offset = offset
+            .checked_add(tensor_bytes.len() as u64)
+            .ok_or_else(|| invalid("safetensors fixture data offset overflow"))?;
+        header.push(',');
+        header.push_str(&offset.to_string());
+        header.push_str("]}");
+        data.extend_from_slice(&tensor_bytes);
+    }
+
+    header.push('}');
+    let mut bytes = Vec::with_capacity(8 + header.len() + data.len());
+    bytes.extend_from_slice(&(header.len() as u64).to_le_bytes());
+    bytes.extend_from_slice(header.as_bytes());
+    bytes.extend_from_slice(&data);
+    if let Some(parent) = output_path.parent() {
+        if !parent.as_os_str().is_empty() {
+            fs::create_dir_all(parent)?;
+        }
+    }
+    fs::write(output_path, bytes)?;
+    inspect_path(output_path, None)?;
+    Ok(())
+}
+
 /// Writes a browser-loadable converted-trained bundle from a checked local `.safetensors` file.
+#[cfg(test)]
 pub fn browser_bundle_path(
     input: &Path,
     shape_name: &str,
@@ -524,6 +596,7 @@ pub fn browser_bundle_path(
 }
 
 /// Writes a browser bundle after evaluating the converted model with caller-selected cases.
+#[cfg(test)]
 pub fn browser_bundle_path_with_eval_cases(
     input: &Path,
     shape_name: &str,
@@ -2993,6 +3066,22 @@ fn dtype_byte_size(dtype: &str) -> io::Result<u64> {
     }
 }
 
+fn push_safetensors_json_string(output: &mut String, value: &str) {
+    output.push('"');
+    for ch in value.chars() {
+        match ch {
+            '"' => output.push_str("\\\""),
+            '\\' => output.push_str("\\\\"),
+            '\n' => output.push_str("\\n"),
+            '\r' => output.push_str("\\r"),
+            '\t' => output.push_str("\\t"),
+            ch if ch.is_control() => output.push_str(&format!("\\u{:04x}", ch as u32)),
+            ch => output.push(ch),
+        }
+    }
+    output.push('"');
+}
+
 /// Extracts an object field as a string value.
 fn require_string_field<'a>(object: &'a [(String, JsonValue)], key: &str) -> io::Result<&'a str> {
     match object_field(object, key)? {
@@ -3939,7 +4028,7 @@ fn invalid(message: &str) -> io::Error {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{provenance, slm_validate};
+    use crate::{provenance, selector, slm_validate};
     use std::io::Write;
     use std::time::{SystemTime, UNIX_EPOCH};
 

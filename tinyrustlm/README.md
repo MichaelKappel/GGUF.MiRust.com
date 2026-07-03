@@ -66,6 +66,7 @@ Implemented source slice:
 - Packer-side `extract-safetensors-source` command that copies F32 or decodes F16/BF16 safetensors payloads into the existing raw f32 trained-source directory with a reviewed `source.manifest` ready for `validate-source` and `convert-trained`; an optional candidate-review path binds extraction to the pre-extraction review evidence and carries checksum-matched compatible BPE tokenizer JSON into manifest BPE rows.
 - Packer-side `convert-safetensors-trained` command that maps local or Hugging Face Llama-style safetensors tensor names into a preserved raw f32 source directory, validates that source, and writes a converted-trained f32/q8_0/q4_0 `.slm` artifact with its provenance manifest; an optional candidate-review path enforces the reviewed quantization target before conversion.
 - Packer-side `convert-huggingface-request` command that consumes the browser-saved `minimodel.huggingface_conversion_request.v0` JSON plus a user-owned local `.safetensors` file, performs the inspect/plan/convert/validate/manifest-validation path, writes `tinyrustlm-conversion.receipt` with MiniModel `prepare-peer-share`, catalog snapshot, peer-source announcement/feed, and local `serve-peer-pieces` command hints, and leaves the output `.slm` ready for local browser import or metadata-only MiniModel sharing.
+- Packer-side `write-safetensors-fixture` command plus `tools/converted-once-p2p-smoke.js` command-level smoke that proves the converted-once path from Hugging Face-style safetensors fixture through Rust `.slm` conversion, MiniModel `prepare-peer-share`, peer-source announcement/feed metadata, feed-bound catalog snapshot, and metadata-only no-server-byte assertions.
 - MiniModel `prepare-peer-share` plus packer-side peer-offer support bind a Rust-validated `.slm` to SHA-256 artifact identity, fixed-size chunk SHA-256 rows, a chunk-list SHA-256, and a Merkle root. This is the durable "convert once, share later" proof package that MiniModel known-peer `serve-peer-pieces`, `fetch-peer-pieces`, and `assemble-peer-pieces` preserve and reverify before browser import.
 - The printed `tinyrustlm-slm-pack` usage text lists the review-bound safetensors tails for `review-safetensors-candidate`, `extract-safetensors-source`, `convert-safetensors-trained`, `convert-huggingface-request`, and `browser-safetensors-trained-bundle`, and a focused Rust test keeps those advertised forms aligned with the accepted CLI parser.
 - Tiny trained-source fixture under `tests/fixtures/trained-source-tiny/` and scoped eval cases under `tests/fixtures/assistant-quality-eval-cases.txt`.
@@ -106,6 +107,12 @@ Native tests:
 
 ```powershell
 cargo test --workspace
+```
+
+Converted-once P2P publication smoke:
+
+```powershell
+node .\tinyrustlm\tools\converted-once-p2p-smoke.js
 ```
 
 Strict Rust public API documentation checks:

@@ -1,6 +1,7 @@
-profile: runtime-mirust.short-term-memory.v203
-updated_utc: 2026-07-03T20:10:00Z
+profile: runtime-mirust.short-term-memory.v204
+updated_utc: 2026-07-03T20:40:00Z
 current_state:
+  - 2026-07-03 converted-once P2P command smoke added and routed through `wiki/runtime-mirust/reports/tinyrustlm-converted-once-p2p-smoke-memory-2026-07-03.md`: TinyRustLM now has `write-safetensors-fixture` for deterministic Hugging Face-style local safetensors fixtures, and `tinyrustlm/tools/converted-once-p2p-smoke.js` proves the local request -> Rust `.slm` conversion -> MiniModel peer-share -> peer-source announcement/feed -> feed-bound catalog snapshot path without project-hosted model bytes.
   - 2026-07-03 TinyRustLM live public smoke correction: `public-local-only` now maps `tinyrustlm.com` to loopback only for local `http://tinyrustlm.com:PORT/` simulations; live `https://tinyrustlm.com/` verification uses real DNS and passed with only root app/runtime requests, `wasmState=loaded`, `Runtime ready`, no `/models/`, no Hugging Face, and no MiniModel catalog request before user action.
   - 2026-07-01 project layout cleanup is complete: `E:\Source\Rust\SLMComposer.com` remains the active Rust/WASM app workspace, and Runtime.MiRust.com is the plain-PHP documentation site.
   - 2026-07-01 source-control cleanup is complete for the canonical source folders: MiniModel.org, MiRust.com, Runtime.MiRust.com, SLMComposer.com, and TinyRustLM.MiRust.com each have local git history; archive/package/staging material is outside the active source roots.
