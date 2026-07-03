@@ -82,7 +82,14 @@
   const localModelKey = "__local_slm_file";
   const localModelMaxBytes = 128 * 1024 * 1024;
   const publicLocalOnlyHosts = new Set(["tinyrustlm.com", "www.tinyrustlm.com"]);
-  const defaultCatalogUrl = "https" + "://MiniModel.org/catalog/models.v0.json";
+  const httpScheme = "http" + "://";
+  const httpsScheme = "https" + "://";
+  const peerExampleUrl = `${httpScheme}127.0.0.1:8123/`;
+  const docsTargets = {
+    runtime: `${httpsScheme}TinyRustLM.MiRust.com/`,
+    minimodel: `${httpsScheme}MiniModel.MiRust.com/`
+  };
+  const defaultCatalogUrl = `${httpsScheme}MiniModel.org/catalog/models.v0.json`;
   const svgNamespace = "http" + "://www.w3.org/2000/svg";
   const catalogTextByteBudget = 256 * 1024;
   const catalogMaxEntries = 64;
@@ -366,6 +373,7 @@
     simpleHfP2pToggle: document.getElementById("simpleHfP2pToggle"),
     simpleHfP2pStatus: document.getElementById("simpleHfP2pStatus"),
     simpleHfP2pWarning: document.getElementById("simpleHfP2pWarning"),
+    simpleHfFlowSummary: document.getElementById("simpleHfFlowSummary"),
     simplePeerBaseUrlInput: document.getElementById("simplePeerBaseUrlInput"),
     simpleSavePeerUrlButton: document.getElementById("simpleSavePeerUrlButton"),
     simplePeerUrlStatus: document.getElementById("simplePeerUrlStatus"),
@@ -1043,10 +1051,10 @@
     try {
       parsed = new URL(raw);
     } catch (_error) {
-      throw new Error("Enter a full consenting peer URL, for example http://127.0.0.1:8123/");
+      throw new Error(`Enter a full consenting peer URL, for example ${peerExampleUrl}`);
     }
     if (parsed.protocol !== "http:") {
-      throw new Error("Known-peer import uses direct http:// peer URLs only in this prototype.");
+      throw new Error("Known-peer import uses direct HTTP peer URLs only in this prototype.");
     }
     const host = parsed.hostname.toLowerCase();
     if (!host || blockedPeerHosts.has(host)) {
@@ -1546,6 +1554,19 @@
           setShareMetadataStatus(errorMessage(error), true);
         });
       });
+    }
+    document.querySelectorAll("[data-doc-target]").forEach((link) => {
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        const target = link.getAttribute("data-doc-target") || "";
+        const url = docsTargets[target];
+        if (url) {
+          window.open(url, "_blank", "noopener");
+        }
+      });
+    });
+    if (el.simplePeerBaseUrlInput) {
+      el.simplePeerBaseUrlInput.placeholder = peerExampleUrl;
     }
     if (el.simpleSavePeerUrlButton) {
       el.simpleSavePeerUrlButton.addEventListener("click", () => {
@@ -3465,7 +3486,7 @@
       `$ExpectedArtifactByteCount = ${Math.max(0, Math.trunc(expectedByteCount))}`,
       `$ModelId = ${powerShellSingleQuote(modelId)}`,
       `$SourceHuggingFaceModelId = ${powerShellSingleQuote(sourceHuggingFaceModelId)}`,
-      "$KnownPeerBaseUrl = \"\" # Optional, for example http://127.0.0.1:8123/",
+      `$KnownPeerBaseUrl = "" # Optional, for example ${peerExampleUrl}`,
       "$BindAddr = \"127.0.0.1:8123\"",
       `$WorkDir = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${scriptStem}-kit`)}`,
       "$ShareDir = Join-Path $WorkDir \"minimodel-peer-share\"",
@@ -3634,6 +3655,10 @@
     }
     if (el.simpleHfResults) {
       el.simpleHfResults.replaceChildren();
+    }
+    if (el.simpleHfFlowSummary) {
+      el.simpleHfFlowSummary.replaceChildren();
+      el.simpleHfFlowSummary.hidden = true;
     }
   }
 
@@ -4742,7 +4767,7 @@
       `$Quantization = ${powerShellSingleQuote(quantization)}`,
       `$ModelId = ${powerShellSingleQuote(entry.modelId)}`,
       `$MiniModelModelId = ${powerShellSingleQuote(minimodelModelId)}`,
-      `$KnownPeerBaseUrl = ${powerShellDoubleQuote(knownPeerBaseUrl)} # Optional, for example http://127.0.0.1:8123/`,
+      `$KnownPeerBaseUrl = ${powerShellDoubleQuote(knownPeerBaseUrl)} # Optional, for example ${peerExampleUrl}`,
       `$WorkDir = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${stem}-tinyrustlm-conversion`)}`,
       "$ConversionPreflight = Join-Path $WorkDir \"tinyrustlm-conversion.preflight\"",
       "$MiniModelShareDir = Join-Path $WorkDir \"minimodel-peer-share\"",
@@ -4834,8 +4859,8 @@
       "Write-Host \"Converted-once publication notes:\" $MiniModelPublishReadme",
       "if ($KnownPeerBaseUrl.Trim().Length -eq 0) {",
       "  Write-Host \"Later, when you have a consenting peer URL, publish P2P availability metadata with:\"",
-      "  Write-Host \"cargo run -p minimodel -- add-peer-source '$MiniModelCatalogEntry' '$MiniModelCatalogEntryWithPeer' http://127.0.0.1:8123/\"",
-      "  Write-Host \"cargo run -p minimodel -- write-peer-source-announcement '$MiniModelCatalogEntry' '$MiniModelPeerSourceAnnouncement' http://127.0.0.1:8123/\"",
+      `  Write-Host "cargo run -p minimodel -- add-peer-source '$MiniModelCatalogEntry' '$MiniModelCatalogEntryWithPeer' ${peerExampleUrl}"`,
+      `  Write-Host "cargo run -p minimodel -- write-peer-source-announcement '$MiniModelCatalogEntry' '$MiniModelPeerSourceAnnouncement' ${peerExampleUrl}"`,
       "  Write-Host \"cargo run -p minimodel -- write-peer-source-announcement-feed '$MiniModelPeerSourceAnnouncementFeed' '$MiniModelPeerSourceAnnouncement'\"",
       "  Write-Host \"cargo run -p minimodel -- write-catalog-snapshot-with-announcement-feed '$MiniModelCatalogSnapshotWithFeed' peer-source-announcements.v0.json '$MiniModelPeerSourceAnnouncementFeed' '$MiniModelCatalogEntry'\"",
       "  Write-Host \"Send the announcement JSON to a catalog maintainer, who can run:\"",
@@ -4966,7 +4991,7 @@
     return `${count} ${count === 1 ? singular : plural}`;
   }
 
-  function hfAvailabilitySummary(accepted) {
+  function hfAvailabilityCounts(accepted) {
     const summary = {
       p2pReady: 0,
       peerUrlNeeded: 0,
@@ -4997,6 +5022,11 @@
         summary.conversionNeeded += 1;
       }
     }
+    return summary;
+  }
+
+  function hfAvailabilitySummary(accepted) {
+    const summary = hfAvailabilityCounts(accepted);
     const parts = [pluralCount(accepted.length, "external record")];
     if (summary.p2pReady) {
       parts.push(pluralCount(summary.p2pReady, "P2P-ready match"));
@@ -5026,6 +5056,68 @@
       parts.push("P2P off");
     }
     return parts.join(" / ");
+  }
+
+  function appendFlowSummaryChip(parent, label, value, tone = "") {
+    const chip = document.createElement("span");
+    chip.className = `source-flow-chip${tone ? ` ${tone}` : ""}`;
+    chip.append(
+      elementWithText("strong", "", label),
+      elementWithText("small", "", value)
+    );
+    parent.append(chip);
+  }
+
+  function renderSimpleHfFlowSummary(accepted) {
+    if (!el.simpleHfFlowSummary) {
+      return;
+    }
+    el.simpleHfFlowSummary.replaceChildren();
+    if (!accepted.length) {
+      el.simpleHfFlowSummary.hidden = true;
+      return;
+    }
+    const counts = hfAvailabilityCounts(accepted);
+    const header = elementWithText("div", "source-flow-summary-header", "Model availability");
+    const chips = elementWithText("div", "source-flow-chip-row", "");
+    if (counts.p2pReady) {
+      appendFlowSummaryChip(chips, "P2P Import", pluralCount(counts.p2pReady, "ready match"), "ready");
+    }
+    if (counts.peerUrlNeeded) {
+      appendFlowSummaryChip(chips, "Set Peer URL", pluralCount(counts.peerUrlNeeded, "proof-ready match", "proof-ready matches"), "peer-needed");
+    }
+    if (counts.conversionNeeded) {
+      appendFlowSummaryChip(chips, "Start Conversion", pluralCount(counts.conversionNeeded, "source-backed model"), "convert");
+    }
+    if (counts.largeSourceReview || counts.unknownSourceReview) {
+      appendFlowSummaryChip(
+        chips,
+        "Review First",
+        pluralCount(counts.largeSourceReview + counts.unknownSourceReview, "source"),
+        "review"
+      );
+    }
+    if (counts.localSlmNeeded || counts.externalSlmListed) {
+      appendFlowSummaryChip(
+        chips,
+        "Local .slm",
+        pluralCount(counts.localSlmNeeded + counts.externalSlmListed, "metadata match", "metadata matches"),
+        "local"
+      );
+    }
+    if (counts.noSupportedSource) {
+      appendFlowSummaryChip(chips, "No Source", pluralCount(counts.noSupportedSource, "model"), "blocked");
+    }
+    if (state.p2pEnabled === false) {
+      appendFlowSummaryChip(chips, "P2P Off", "local conversion only", "blocked");
+    }
+    const note = elementWithText(
+      "p",
+      "source-flow-summary-note",
+      "Hugging Face rows are metadata. A model runs here only after Rust conversion creates a local .slm or P2P Import fetches and reverifies peer pieces."
+    );
+    el.simpleHfFlowSummary.append(header, chips, note);
+    el.simpleHfFlowSummary.hidden = false;
   }
 
   function refreshHfResultsForCatalogChange() {
@@ -5059,6 +5151,7 @@
     if (!el.simpleHfResults) {
       return;
     }
+    renderSimpleHfFlowSummary(accepted);
     el.simpleHfResults.replaceChildren();
     for (const entry of accepted) {
       const view = hfResultView(entry);

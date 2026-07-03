@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TinyRustLM</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="./app/app.css?v=20260703-emptyfeed">
+  <link rel="stylesheet" href="./app/app.css?v=20260703-availability">
 </head>
 <body>
   <svg class="icon-sprite" aria-hidden="true" focusable="false">
@@ -99,8 +99,8 @@
       </section>
 
       <div class="sidebar-utilities" aria-label="Documentation and tools">
-        <a class="icon-button" href="https://TinyRustLM.MiRust.com/" target="_blank" rel="noopener" aria-label="Runtime docs" data-tooltip="Runtime docs"><svg><use href="#icon-book"></use></svg></a>
-        <a class="icon-button" href="https://MiniModel.MiRust.com/" target="_blank" rel="noopener" aria-label="MiniModel docs" data-tooltip="MiniModel docs"><svg><use href="#icon-network"></use></svg></a>
+        <a class="icon-button" href="#" rel="noopener" aria-label="Runtime docs" data-tooltip="Runtime docs" data-doc-target="runtime"><svg><use href="#icon-book"></use></svg></a>
+        <a class="icon-button" href="#" rel="noopener" aria-label="MiniModel docs" data-tooltip="MiniModel docs" data-doc-target="minimodel"><svg><use href="#icon-network"></use></svg></a>
         <button class="icon-button" type="button" data-sidebar-action="advanced" aria-label="Advanced tools" data-tooltip="Advanced tools"><svg><use href="#icon-sliders"></use></svg></button>
       </div>
     </aside>
@@ -171,13 +171,14 @@
             <span id="simpleHfP2pStatus" class="flow-status">P2P on. Peer-ready matches can use P2P Import.</span>
           </div>
           <p id="simpleHfP2pWarning" class="inline-status source-warning" hidden>P2P is off. Local conversion can take a while; enable P2P above to use peer-ready imports when metadata supports them.</p>
+          <div id="simpleHfFlowSummary" class="source-flow-summary" aria-live="polite" hidden></div>
           <ol id="simpleHfResults" class="model-results"></ol>
         </div>
         <div id="simpleP2pSourcePanel" class="source-panel" data-source-panel="p2p" hidden>
           <p>Load MiniModel metadata or a local `models.v0.json` snapshot to find proof-ready peer imports, or save share metadata after you import a verified local `.slm`.</p>
           <label for="simplePeerBaseUrlInput">Known peer URL</label>
           <div class="search-row">
-            <input id="simplePeerBaseUrlInput" type="url" inputmode="url" placeholder="http://127.0.0.1:8123/">
+            <input id="simplePeerBaseUrlInput" type="url" inputmode="url" placeholder="127.0.0.1:8123/">
             <button id="simpleSavePeerUrlButton" type="button">Use Peer</button>
           </div>
           <p id="simplePeerUrlStatus" class="inline-status">Enter the consenting peer URL once; P2P imports will use it.</p>
@@ -532,6 +533,6 @@
       <span id="currentModelSummary" class="model-summary">No model loaded</span>
     </footer>
   </main>
-  <script src="./app/app.js?v=20260703-shardedp2p"></script>
+  <script src="./app/app.js?v=20260703-availability"></script>
 </body>
 </html>

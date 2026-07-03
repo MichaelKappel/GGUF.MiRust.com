@@ -2238,6 +2238,7 @@ async function runPageHfSearchUiSmoke(client) {
       const catalogStatusAfterSearch = byId("catalogStatus") ? byId("catalogStatus").textContent : "";
       const p2pStatusAfterSearch = byId("simpleHfP2pStatus") ? byId("simpleHfP2pStatus").textContent : "";
       const p2pWarningVisibleAfterSearch = visible(byId("simpleHfP2pWarning"));
+      const flowSummaryTextAfterSearch = byId("simpleHfFlowSummary") ? byId("simpleHfFlowSummary").textContent.replace(/\\s+/g, " ").trim() : "";
       const actionTextsAfterSearch = textList("#simpleHfResults button, #simpleHfResults a, #simpleHfResults .compatibility-pill, #simpleHfResults .model-result-meta");
       const primaryActionTextsAfterSearch = textList("#simpleHfResults .primary-result-action");
       const simpleSourceHintCountAfterSearch = Array.from(document.querySelectorAll("#simpleHfResults .model-result-meta"))
@@ -2297,6 +2298,7 @@ async function runPageHfSearchUiSmoke(client) {
       const p2pStatusAfterDisable = byId("simpleHfP2pStatus") ? byId("simpleHfP2pStatus").textContent : "";
       const p2pWarningVisibleAfterDisable = visible(byId("simpleHfP2pWarning"));
       const p2pWarningTextAfterDisable = byId("simpleHfP2pWarning") ? byId("simpleHfP2pWarning").textContent : "";
+      const flowSummaryTextAfterP2pDisable = byId("simpleHfFlowSummary") ? byId("simpleHfFlowSummary").textContent.replace(/\\s+/g, " ").trim() : "";
       const actionTextsAfterP2pDisable = textList("#simpleHfResults button, #simpleHfResults a, #simpleHfResults .compatibility-pill, #simpleHfResults .model-result-meta");
       const primaryActionTextsAfterP2pDisable = textList("#simpleHfResults .primary-result-action");
       const panel = byId("simpleDiscoveryPanel");
@@ -2319,6 +2321,7 @@ async function runPageHfSearchUiSmoke(client) {
         catalogStatusAfterSearch,
         p2pStatusAfterSearch,
         p2pWarningVisibleAfterSearch,
+        flowSummaryTextAfterSearch,
         peerUrlStatusBeforeImport,
         actionTextsAfterSearch,
         primaryActionTextsAfterSearch,
@@ -2336,6 +2339,7 @@ async function runPageHfSearchUiSmoke(client) {
         p2pStatusAfterDisable,
         p2pWarningVisibleAfterDisable,
         p2pWarningTextAfterDisable,
+        flowSummaryTextAfterP2pDisable,
         actionTextsAfterP2pDisable,
         primaryActionTextsAfterP2pDisable,
         panelOpen: visible(panel),
@@ -9195,6 +9199,15 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     if (!String(result.p2pStatusAfterSearch || "").includes("P2P on") || result.p2pWarningVisibleAfterSearch) {
       failures.push(`P2P was not enabled by default for Hugging Face results: ${JSON.stringify(result)}`);
     }
+    const flowSummaryAfterSearch = String(result.flowSummaryTextAfterSearch || "");
+    for (const summaryText of ["Model availability", "P2P Import", "Start Conversion", "Review First", "No Source"]) {
+      if (!flowSummaryAfterSearch.includes(summaryText)) {
+        failures.push(`Hugging Face flow summary missed ${summaryText}: ${flowSummaryAfterSearch}`);
+      }
+    }
+    if (!flowSummaryAfterSearch.includes("Hugging Face rows are metadata") || !flowSummaryAfterSearch.includes("Rust conversion creates a local .slm") || !flowSummaryAfterSearch.includes("P2P Import fetches and reverifies peer pieces")) {
+      failures.push(`Hugging Face flow summary did not state the real availability boundary: ${flowSummaryAfterSearch}`);
+    }
     if (!simpleActionTextAfterSearch.includes("P2P Import")) {
       failures.push(`peer-ready Hugging Face result did not offer P2P Import while P2P was on: ${simpleActionTextAfterSearch}`);
     }
@@ -9309,6 +9322,10 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     }
     if (!String(result.p2pWarningTextAfterDisable || "").includes("Local conversion can take a while")) {
       failures.push(`P2P disabled warning did not explain the conversion delay: ${result.p2pWarningTextAfterDisable}`);
+    }
+    const flowSummaryAfterDisable = String(result.flowSummaryTextAfterP2pDisable || "");
+    if (!flowSummaryAfterDisable.includes("P2P Off") || !flowSummaryAfterDisable.includes("local conversion only")) {
+      failures.push(`Hugging Face flow summary did not reflect disabled P2P: ${flowSummaryAfterDisable}`);
     }
     if (simpleActionTextAfterP2pDisable.includes("P2P Import")) {
       failures.push(`P2P Import remained visible after disabling P2P: ${simpleActionTextAfterP2pDisable}`);

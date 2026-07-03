@@ -875,6 +875,79 @@ svg {
   border-radius: 10px;
 }
 
+.source-flow-summary {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  background: rgba(4, 12, 23, .52);
+  border: 1px solid rgba(118, 151, 192, .18);
+  border-radius: 11px;
+}
+
+.source-flow-summary-header {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.source-flow-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.source-flow-chip {
+  display: grid;
+  gap: 2px;
+  min-width: 124px;
+  padding: 8px 9px;
+  background: rgba(12, 28, 47, .78);
+  border: 1px solid rgba(118, 151, 192, .16);
+  border-radius: 10px;
+}
+
+.source-flow-chip strong,
+.source-flow-chip small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-flow-chip strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.source-flow-chip small {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.source-flow-chip.ready {
+  border-color: rgba(62, 224, 131, .28);
+}
+
+.source-flow-chip.peer-needed,
+.source-flow-chip.convert {
+  border-color: rgba(96, 165, 250, .30);
+}
+
+.source-flow-chip.review {
+  border-color: rgba(251, 146, 60, .32);
+}
+
+.source-flow-chip.blocked {
+  border-color: rgba(248, 113, 113, .28);
+}
+
+.source-flow-summary-note {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 label {
   display: block;
   margin: 10px 0 6px;
