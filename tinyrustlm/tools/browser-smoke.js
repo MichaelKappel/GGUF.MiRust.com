@@ -9189,6 +9189,9 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       if (peerRequest.minimodel_metadata.peer_offer_sha256 !== "sha256:abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd") {
         failures.push(`P2P import request peer offer SHA-256 was ${peerRequest.minimodel_metadata.peer_offer_sha256}`);
       }
+      if (!Array.isArray(peerRequest.local_peer_piece_contract.rust_commands) || !peerRequest.local_peer_piece_contract.rust_commands.some((command) => command.includes("preflight-peer-import-request"))) {
+        failures.push(`P2P import request did not include preflight-peer-import-request command: ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
+      }
       if (!Array.isArray(peerRequest.local_peer_piece_contract.rust_commands) || !peerRequest.local_peer_piece_contract.rust_commands.some((command) => command.includes("import-peer-request"))) {
         failures.push(`P2P import request did not include import-peer-request command: ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
       }
@@ -9208,8 +9211,10 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     const peerScriptText = String(result.peerImportScriptText || "");
     for (const required of [
       "import-peer-request",
+      "preflight-peer-import-request",
       "serve-peer-pieces",
       "does not download model bytes from MiniModel.org",
+      "minimodel.peer_piece_set.v0 metadata for preflight",
       "metadata manifest",
       "Resolve-ExistingPath",
       "MINIMODEL_WORKSPACE",
@@ -9220,10 +9225,15 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "[System.Convert]::FromBase64String",
       "$ManifestUrl",
       "$ImportDir = Join-Path $PSScriptRoot",
+      "$PeerImportPreflight = Join-Path $PSScriptRoot",
+      "$PreflightExitCode",
+      "$ImportExitCode",
       "$ExpectedPeerBaseUrl",
       "MiniModel workspace:",
       "Peer import request:",
       "MiniModel manifest:",
+      "Peer import preflight:",
+      "Peer import preflight passed without fetching peer piece bytes:",
       "Verified output directory:",
       "http://127.0.0.1:8123/"
     ]) {
@@ -9941,10 +9951,14 @@ function assertHfP2pImportKitSmoke(result, conversionExecution) {
     const scriptText = String(result.peerImportScriptText || "");
     const manifestFileName = request ? expectedPeerImportManifestFileName(request) : path.basename(conversionExecution.manifestPath);
     for (const required of [
+      "preflight-peer-import-request",
       "import-peer-request",
       "does not download model bytes from MiniModel.org",
+      "minimodel.peer_piece_set.v0 metadata for preflight",
       "fetches peer pieces only from the consenting peer URL",
       "MiniModel manifest:",
+      "Peer import preflight:",
+      "Peer import preflight passed without fetching peer piece bytes:",
       "Verified output directory:",
       manifestFileName,
       "http://127.0.0.1:8123/"
@@ -9998,12 +10012,14 @@ function executeBrowserGeneratedP2pImportKit(conversionExecution, importResult, 
   });
 
   const importDir = path.join(outputRoot, `${stem}-peer-import`);
+  const preflightPath = path.join(outputRoot, `${stem}.peer-import.preflight`);
   const expectedArtifact = request.local_peer_piece_contract && request.local_peer_piece_contract.assembled_output_slm
     ? request.local_peer_piece_contract.assembled_output_slm
     : path.basename(conversionExecution.convertedSlmPath);
   const importedSlm = path.join(importDir, expectedArtifact);
   const receiptPath = findOneFile(importDir, (entry) => entry.endsWith(".minimodel-receipt"), "MiniModel import receipt");
   const fetchedPieceDir = findOneFile(importDir, (entry) => entry.endsWith("-peer-pieces"), "fetched peer pieces directory");
+  smokeAssert(fs.existsSync(preflightPath), `peer import preflight was missing: ${preflightPath}`);
   smokeAssert(fs.existsSync(importedSlm), `imported .slm was missing: ${importedSlm}`);
   smokeAssert(fs.existsSync(path.join(fetchedPieceDir, "minimodel.peer_piece_set.v0")), `fetched peer piece set was missing: ${fetchedPieceDir}`);
 
@@ -10015,6 +10031,14 @@ function executeBrowserGeneratedP2pImportKit(conversionExecution, importResult, 
   assertTextContains(receiptText, "slm.validation_status=passed", "P2P import receipt");
   assertTextContains(receiptText, `artifact.sha256=sha256:${originalSha256}`, "P2P import receipt");
   assertTextContains(receiptText, "import.next_gate=user-selected-tinyrustlm-local-file-open", "P2P import receipt");
+  const preflightText = readUtf8(preflightPath);
+  assertTextContains(preflightText, "preflight.kind=minimodel.peer_import_preflight", "P2P import preflight");
+  assertTextContains(preflightText, "piece_set.validation_status=passed", "P2P import preflight");
+  assertTextContains(preflightText, "peer_piece_set_metadata_fetched=true", "P2P import preflight");
+  assertTextContains(preflightText, "peer_piece_bytes_fetched=false", "P2P import preflight");
+  assertTextContains(preflightText, "artifact_bytes_fetched=false", "P2P import preflight");
+  assertTextContains(preflightText, "project_server_serves_model_bytes=false", "P2P import preflight");
+  assertTextContains(scriptOutput, "Peer import preflight passed without fetching peer piece bytes:", "P2P import script output");
   assertTextContains(scriptOutput, "Verified peer import output directory:", "P2P import script output");
   if (options.expectManifestDownload) {
     smokeAssert(request.minimodel_metadata && request.minimodel_metadata.manifest_url, "P2P import request did not include a manifest URL for metadata download");
@@ -10030,6 +10054,7 @@ function executeBrowserGeneratedP2pImportKit(conversionExecution, importResult, 
     manifestFileName,
     manifestSidecarCopied: options.copyManifestSidecar !== false,
     manifestDownloaded: Boolean(options.expectManifestDownload),
+    preflight: path.basename(preflightPath),
     importedSlm: path.basename(importedSlm),
     importedSha256: `sha256:${importedSha256}`,
     receipt: path.basename(receiptPath),
@@ -10168,7 +10193,7 @@ function assertHfLocalCatalogSmoke(result, networkRequests) {
       }
     }
     const peerScript = String(result.peerImportScriptText || "");
-    for (const required of ["import-peer-request", "serve-peer-pieces", "http://127.0.0.1:8123/", "does not download model bytes"]) {
+    for (const required of ["preflight-peer-import-request", "import-peer-request", "serve-peer-pieces", "http://127.0.0.1:8123/", "does not download model bytes", "minimodel.peer_piece_set.v0 metadata for preflight"]) {
       if (!peerScript.includes(required)) {
         failures.push(`local catalog peer import script missing ${required}: ${peerScript}`);
       }
