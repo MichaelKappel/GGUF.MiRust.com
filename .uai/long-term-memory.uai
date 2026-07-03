@@ -1,5 +1,5 @@
-﻿profile: runtime-mirust.long-term-memory-ledger.v207
-updated_utc: 2026-07-03T22:35:00Z
+﻿profile: runtime-mirust.long-term-memory-ledger.v208
+updated_utc: 2026-07-03T22:45:00Z
 storage_mode: hybrid
 ledger_rule:
   pointer_only_not_context_free: true
@@ -6228,6 +6228,23 @@ records:
     last_reviewed_utc: 2026-07-03T22:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; browser-generated conversion kit exec report body lives in the target file.
+  - stable_id: tinyrustlm_browser_generated_p2p_import_kit_exec_memory
+    memory_domain: runtime-mirust.report_memory.tinyrustlm_browser_generated_p2p_import_kit_exec
+    pointer_type: llmwiki_node
+    path: wiki/runtime-mirust/reports/tinyrustlm-browser-generated-p2p-import-kit-exec-memory-2026-07-03.md
+    target_location: https://aiwikis.org/runtime-mirust/reports/tinyrustlm-browser-generated-p2p-import-kit-exec-memory-2026-07-03/
+    label: Required For TinyRustLM Browser-Generated P2P Import Kit Exec Memory
+    summary: Routes agents to the converted-once later-user proof: browser conversion kit execution, generated catalog, local peer-piece serve, exact browser P2P import script execution, imported `.slm` receipt, manifest-route filename fix, and no-server-byte boundary.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local implementation report plus 2026-07-03 desktop/P2P intake synthesis
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing Hugging Face P2P import scripts, local catalog P2P availability, converted-once peer import flows, optional desktop companion boundaries, or no-server-byte assertions.
+    checksum_hash: sha256:58E7368709DDDC287EA7062362C63B9F0A956D1314ED43C3ED03E04423FCA72F
+    last_reviewed_utc: 2026-07-03T22:45:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; browser-generated P2P import kit execution body lives in the target file.
   - stable_id: tinyrustlm_public_live_smoke_memory
     memory_domain: runtime-mirust.report_memory.tinyrustlm_public_live_smoke
     pointer_type: llmwiki_node

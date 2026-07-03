@@ -3778,6 +3778,18 @@
     return conversionFileStem(modelId || "minimodel-peer-import");
   }
 
+  function routeFileName(route, fallback) {
+    const routeText = catalogText(route).split(/[?#]/, 1)[0].replace(/\\/g, "/");
+    const leaf = routeText.split("/").filter(Boolean).pop() || "";
+    return leaf ? safeLocalModelName(leaf) : fallback;
+  }
+
+  function peerImportManifestFileName(match) {
+    const fallback = `${peerImportFileStem(match && match.modelId)}.minimodel.manifest.v0`;
+    const fileName = routeFileName(match && match.manifestRoute, fallback);
+    return fileName.endsWith(".minimodel.manifest.v0") ? fileName : fallback;
+  }
+
   function peerImportRequest(match, peerBaseUrl = state.peerBaseUrl) {
     const manifestUrl = catalogRouteUrl(match, match.manifestRoute);
     const peerOfferUrl = catalogRouteUrl(match, match.peerOfferRoute);
@@ -3844,6 +3856,7 @@
 
   function peerImportScript(match, peerBaseUrl = state.peerBaseUrl) {
     const stem = peerImportFileStem(match.modelId);
+    const manifestFileName = peerImportManifestFileName(match);
     const request = peerImportRequest(match, peerBaseUrl);
     const requestJson = `${JSON.stringify(request, null, 2)}\n`;
     const requestBase64 = base64Utf8(requestJson);
@@ -3890,7 +3903,7 @@
       "$MiniModelWorkspace = Resolve-ExistingPath $CandidateMiniModelWorkspaces \"MiniModel Rust workspace\" \"Set MINIMODEL_WORKSPACE or edit `$CandidateMiniModelWorkspaces.\"",
       `$PeerImportRequest = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${stem}.minimodel-peer-import-request.json`)}`,
       `$EmbeddedPeerImportRequestBase64 = ${powerShellSingleQuote(requestBase64)}`,
-      `$Manifest = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${stem}.minimodel.manifest.v0`)}`,
+      `$Manifest = Join-Path $PSScriptRoot ${powerShellSingleQuote(manifestFileName)}`,
       `$ManifestUrl = ${powerShellDoubleQuote(manifestUrl)}`,
       `$ImportDir = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${stem}-peer-import`)}`,
       `$ExpectedPeerBaseUrl = ${powerShellDoubleQuote(peerUrl)}`,
