@@ -4011,7 +4011,7 @@
     downloadTextFile(`${stem}.minimodel-conversion-request.json`, `${JSON.stringify(request, null, 2)}\n`);
     downloadTextFile(`${stem}.tinyrustlm-convert.ps1`, hfConversionScript(entry, matches), "text/plain");
     downloadTextFile(`${stem}.tinyrustlm-conversion.README.txt`, hfConversionReadme(entry, matches), "text/plain");
-    setHfStatus("Rust conversion kit saved: use a reviewed local .safetensors or opt into direct Hugging Face download, then run it to create .slm plus MiniModel P2P metadata", false);
+    setHfStatus("Rust conversion kit saved: use a reviewed local .safetensors file or shard directory, or opt into direct Hugging Face download, then run it to create .slm plus MiniModel P2P metadata", false);
     holdModelPopoverOpen(2500);
   }
 
@@ -4203,7 +4203,7 @@
     if (hfSourceByteRisk(view) === "unknown") {
       return "Source size is unavailable from metadata. Review the model card before local conversion; P2P reuse is preferred when a verified peer entry appears.";
     }
-    return "No converted peer is listed yet. Start Conversion saves a Rust script that turns one reviewed local .safetensors into a verified .slm, prepares peer pieces, and writes metadata so future users can import by P2P.";
+    return "No converted peer is listed yet. Start Conversion saves a Rust script that turns a reviewed local .safetensors file or shard directory into a verified .slm, prepares peer pieces, and writes metadata so future users can import by P2P.";
   }
 
   function appendHfSlmFileNotes(actions, slmFiles, actionWord) {

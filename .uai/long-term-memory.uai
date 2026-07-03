@@ -1,5 +1,5 @@
-﻿profile: runtime-mirust.long-term-memory-ledger.v216
-updated_utc: 2026-07-04T01:35:00Z
+﻿profile: runtime-mirust.long-term-memory-ledger.v217
+updated_utc: 2026-07-04T02:35:00Z
 storage_mode: hybrid
 ledger_rule:
   pointer_only_not_context_free: true
@@ -19,8 +19,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before orienting project state, support boundaries, report routing, or public claim boundaries.
-    checksum_hash: sha256:FF609A97BEF3C2B398C3501AB83204F8367DE2574849CABFC87AE5105EC5D6DF
-    last_reviewed_utc: 2026-07-04T01:35:00Z
+    checksum_hash: sha256:86DF20D502BDCE3EE781123C16BA5A87C250383AF93CA15FA46A94151B8E009C
+    last_reviewed_utc: 2026-07-04T02:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; hot workspace state lives in the target file.
   - stable_id: runtime_mirust_workspace_guidance_uai
@@ -97,15 +97,15 @@ records:
     path: .uai/short-term-memory.uai
     target_location: .uai/short-term-memory.uai
     label: Required For Current State And Report Routes
-    summary: Routes agents to current state, Hugging Face sharded source conversion, source-size risk, conversion/import preflight evidence, self-contained scripts, P2P hints, serve helpers, desktop/P2P intake, feeds, and evidence.
+    summary: Routes agents to current state, TinyRustLM.com source mirror sync, Hugging Face sharded conversion, preflight evidence, self-contained scripts, P2P hints, desktop/P2P intake, feeds, and evidence.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before resuming current work, locating latest report memory, or choosing next verification.
-    checksum_hash: sha256:551BA3D74F0D1AFBDB73637BCA50595CCBDCCA985A1C6CC000750791B244BA07
-    last_reviewed_utc: 2026-07-04T01:35:00Z
+    checksum_hash: sha256:3CB3BBAC9A3B911524D6A504DA8E4BC94ECBE5392DD33D836032868193EB82A8
+    last_reviewed_utc: 2026-07-04T02:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; current state and routes live in the target file.
   - stable_id: runtime_mirust_startup_packet_uai
@@ -182,15 +182,15 @@ records:
     path: .uai/test-plan.uai
     target_location: .uai/test-plan.uai
     label: Required For Test Plan And Evidence
-    summary: Routes agents to tools, verification commands, Hugging Face sharded source conversion, source-size risk, conversion preflight, peer-import preflight, browser checks, safetensors CLI tails, coverage conventions, and tests.
+    summary: Routes agents to tools, verification commands, TinyRustLM.com mirror checks, Hugging Face sharded conversion, conversion preflight, peer-import preflight, browser checks, safetensors tails, and tests.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before planning or auditing verification for source changes.
-    checksum_hash: sha256:F4BEF1805118CC9364E49E113A5029996E725B2408E3A98C417D6A69ECB54AB2
-    last_reviewed_utc: 2026-07-04T01:35:00Z
+    checksum_hash: sha256:EEC1F68D024A6F47CD438A5BAC505CF960B7627CE61EED17DA767DF54E674E36
+    last_reviewed_utc: 2026-07-04T02:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; test plan lives in the target file.
   - stable_id: runtime_mirust_uai_index
@@ -216,15 +216,15 @@ records:
     path: .uai/next-recursive-prompt.uai
     target_location: .uai/next-recursive-prompt.uai
     label: Required For Reopen Goal Prompt
-    summary: Routes agents to TinyRustLM root, sharded Hugging Face conversion, follow-up intake, self-locating kits, MiniModel feeds, P2P handoff, and no-byte rules.
+    summary: Routes agents to TinyRustLM root, mirror refresh/deploy gate, sharded Hugging Face conversion, follow-up intake, self-locating kits, MiniModel feeds, P2P handoff, and no-byte rules.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: human requested local hot memory
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before resuming after the IDE is reopened or before processing queued MiniModel intake.
-    checksum_hash: sha256:D08DD4D24A16DDD23AA26AE48D285184E3C35478A0E6EE212ADFB3FFE2BE1F9A
-    last_reviewed_utc: 2026-07-04T01:35:00Z
+    checksum_hash: sha256:1D035C54521667082C64E5CB64E5DE77780F8447F1E0A0993918736345F0480D
+    last_reviewed_utc: 2026-07-04T02:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; next prompt lives in the target file.
   - stable_id: runtime_mirust_receiver_brief_uai
@@ -257,8 +257,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before building, testing, serving, or claiming TinyRustLM runtime support.
-    checksum_hash: sha256:C6BC4860EA59DB46E18BAE3644B0C90ED0E05DD0F34A38B9E66843E3D4478556
-    last_reviewed_utc: 2026-07-04T01:35:00Z
+    checksum_hash: sha256:8CD74084BEF409DAB01627697720D37713C5CAAD39A679488BB539DFE5813465
+    last_reviewed_utc: 2026-07-04T02:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; durable build detail lives in the target file.
   - stable_id: runtime_mirust_root_readme
@@ -427,8 +427,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing visible browser panels, product shell, or static app layout.
-    checksum_hash: sha256:E4133BF98FECD42951A862341AD087B00A51DDB77CCC128EB0FCF46E47F8EF3C
-    last_reviewed_utc: 2026-07-03T16:25:00Z
+    checksum_hash: sha256:B88C2D6D9C341851C1D8E7758495CB7F47DDC65CECB5157C500474E30D7773A9
+    last_reviewed_utc: 2026-07-04T02:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; implementation lives in the target file.
   - stable_id: tinyrustlm_browser_root_handoff_html
@@ -444,8 +444,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing public root routing, deployment layout, static host entrypoints, or SLMComposer.com launch behavior.
-    checksum_hash: sha256:837E034353F33C7B7CFFF999BA642B9C7C1193E698E1F5486FC29ABD79205290
-    last_reviewed_utc: 2026-07-03T16:25:00Z
+    checksum_hash: sha256:EC456AA9D1B4DC8B1E650BEE4870CC730CC543A93DD10765D25764F795B21FE4
+    last_reviewed_utc: 2026-07-04T02:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; root app markup lives in the target file.
   - stable_id: tinyrustlm_browser_root_htaccess
@@ -478,8 +478,8 @@ records:
     review_status: reviewed_current
     quarantine_status: reviewed_current
     contextual_trigger: Read before changing browser host behavior, local fetches, model selection, provenance rendering, or WASM calls.
-    checksum_hash: sha256:2BA0732E162C11B6EC2330FCFFC03FFDF1FC1FD618EC9D8B2137B9E05704FF54
-    last_reviewed_utc: 2026-07-04T01:35:00Z
+    checksum_hash: sha256:280E3F6D035913AFC7D39F3EA7AE9CC6A21DBA4786D177C6DE0436BFC3080E97
+    last_reviewed_utc: 2026-07-04T02:35:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; implementation lives in the target file.
   - stable_id: tinyrustlm_browser_app_css
