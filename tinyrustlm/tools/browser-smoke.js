@@ -2332,10 +2332,12 @@ async function runPageHfSearchUiSmoke(client) {
 }
 
 async function runPageHfLocalCatalogSmoke(client, options = {}) {
-  const fixture = options.fixture || (options.peerAnnouncementOverlay
-    ? writeHfPeerAnnouncementFixture()
-    : writeHfLocalCatalogSnapshotFixture());
-  const shouldCleanupFixture = !options.fixture;
+  const fixture = options.catalogUrl
+    ? null
+    : options.fixture || (options.peerAnnouncementOverlay
+      ? writeHfPeerAnnouncementFixture()
+      : writeHfLocalCatalogSnapshotFixture());
+  const shouldCleanupFixture = Boolean(fixture) && !options.fixture;
   try {
     await client.send("Emulation.setDeviceMetricsOverride", {
       width: 1280,
@@ -2370,8 +2372,10 @@ async function runPageHfLocalCatalogSmoke(client, options = {}) {
       returnByValue: true,
       timeout: 90000
     }));
-    await setFileInputFiles(client, "#localCatalogFile", [fixture.catalogPath]);
-    if (fixture.announcementPath) {
+    if (fixture) {
+      await setFileInputFiles(client, "#localCatalogFile", [fixture.catalogPath]);
+    }
+    if (fixture && fixture.announcementPath) {
       await setFileInputFiles(client, "#peerAnnouncementFile", [fixture.announcementPath]);
     }
     const expression = `
@@ -2379,7 +2383,8 @@ async function runPageHfLocalCatalogSmoke(client, options = {}) {
         const byId = (id) => document.getElementById(id);
         const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         const textList = (selector) => Array.from(document.querySelectorAll(selector)).map((node) => node.textContent.replace(/\\s+/g, " ").trim());
-        const shouldApplyAnnouncement = ${fixture.announcementPath ? "true" : "false"};
+        const remoteCatalogUrl = ${JSON.stringify(options.catalogUrl || "")};
+        const shouldApplyAnnouncement = ${fixture && fixture.announcementPath ? "true" : "false"};
         const visible = (node) => {
           if (!node || node.closest("[hidden]")) {
             return false;
@@ -2412,10 +2417,16 @@ async function runPageHfLocalCatalogSmoke(client, options = {}) {
           }
           return originalAnchorClick.call(this);
         };
-        byId("localCatalogFile").dispatchEvent(new Event("change", { bubbles: true }));
-        byId("importLocalCatalogButton").click();
+        if (remoteCatalogUrl) {
+          byId("catalogUrlInput").value = remoteCatalogUrl;
+          byId("catalogLoadButton").click();
+        } else {
+          byId("localCatalogFile").dispatchEvent(new Event("change", { bubbles: true }));
+          byId("importLocalCatalogButton").click();
+        }
         for (let index = 0; index < 120; index += 1) {
-          if ((byId("catalogStatus").textContent || "").includes("local MiniModel metadata entries from models.v0.json")) {
+          const status = byId("catalogStatus").textContent || "";
+          if (status.includes("metadata entries") || status.includes("local MiniModel metadata entries from models.v0.json")) {
             break;
           }
           await sleep(50);
@@ -9762,12 +9773,107 @@ function stopPeerPieceServer(serverInfo) {
   serverInfo.process.kill();
 }
 
+async function waitForMetadataCatalogServer(catalogUrl, processHandle, outputBuffer) {
+  let lastError = "";
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    if (processHandle.exitCode !== null) {
+      throw new Error(`metadata catalog server exited with ${processHandle.exitCode}: ${outputBuffer.join("")}`);
+    }
+    try {
+      const text = await get(catalogUrl);
+      smokeAssert(text.includes('"catalog_kind"'), `metadata catalog response was unexpected: ${text.slice(0, 200)}`);
+      return;
+    } catch (error) {
+      lastError = error.message || String(error);
+      await sleep(250);
+    }
+  }
+  throw new Error(`metadata catalog server did not answer ${catalogUrl}: ${lastError}\n${outputBuffer.join("")}`);
+}
+
+async function startMetadataCatalogServer(conversionExecution, bindAddr = "127.0.0.1", portNumber = 8124) {
+  const manifestName = path.basename(conversionExecution.manifestPath);
+  const outputBuffer = [];
+  const serverScript = `
+    const fs = require("fs");
+    const http = require("http");
+    const path = require("path");
+    const catalogPath = process.argv[1];
+    const manifestPath = process.argv[2];
+    const port = Number(process.argv[3]);
+    const host = process.argv[4];
+    const manifestName = path.basename(manifestPath);
+    const routes = new Map([
+      ["/catalog/models.v0.json", catalogPath],
+      ["/catalog/" + manifestName, manifestPath]
+    ]);
+    const server = http.createServer((request, response) => {
+      const requestPath = decodeURIComponent(new URL(request.url || "/", "http://" + host + ":" + port).pathname);
+      console.log((request.method || "GET") + " " + requestPath);
+      response.setHeader("Access-Control-Allow-Origin", "*");
+      response.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+      response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+      response.setHeader("Cache-Control", "no-store");
+      if (request.method === "OPTIONS") {
+        response.writeHead(204);
+        response.end();
+        return;
+      }
+      if (request.method !== "GET" || !routes.has(requestPath)) {
+        response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+        response.end("metadata route not found");
+        return;
+      }
+      response.writeHead(200, {
+        "Content-Type": requestPath.endsWith(".json") ? "application/json; charset=utf-8" : "text/plain; charset=utf-8"
+      });
+      response.end(fs.readFileSync(routes.get(requestPath)));
+    });
+    server.listen(port, host, () => console.log("metadata catalog server " + host + ":" + port));
+  `;
+  const server = childProcess.spawn(process.execPath, [
+    "-e",
+    serverScript,
+    conversionExecution.catalogSnapshotPath,
+    conversionExecution.manifestPath,
+    String(portNumber),
+    bindAddr
+  ], {
+    cwd: path.resolve(__dirname, "..", ".."),
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true
+  });
+  server.stdout.on("data", (chunk) => outputBuffer.push(chunk.toString()));
+  server.stderr.on("data", (chunk) => outputBuffer.push(chunk.toString()));
+  const catalogUrl = `http://${bindAddr}:${portNumber}/catalog/models.v0.json`;
+  try {
+    await waitForMetadataCatalogServer(catalogUrl, server, outputBuffer);
+  } catch (error) {
+    stopMetadataCatalogServer({ process: server });
+    throw error;
+  }
+  return {
+    process: server,
+    outputBuffer,
+    catalogUrl,
+    manifestUrl: `http://${bindAddr}:${portNumber}/catalog/${manifestName}`
+  };
+}
+
+function stopMetadataCatalogServer(serverInfo) {
+  if (!serverInfo || !serverInfo.process || serverInfo.process.exitCode !== null) {
+    return;
+  }
+  serverInfo.process.kill();
+}
+
 function assertHfP2pImportKitSmoke(result, conversionExecution) {
   const failures = [];
   if (!result || typeof result !== "object") {
     failures.push("P2P import kit result was missing");
   } else {
-    if (!String(result.localCatalogStatus || "").includes("local MiniModel metadata entries from models.v0.json")) {
+    const catalogStatus = String(result.localCatalogStatus || "");
+    if (!catalogStatus.includes("metadata entries")) {
       failures.push(`converted-once local catalog did not load: ${result.localCatalogStatus}`);
     }
     if (!Array.isArray(result.primaryActionTexts) || !result.primaryActionTexts.includes("P2P Import")) {
@@ -9802,6 +9908,9 @@ function assertHfP2pImportKitSmoke(result, conversionExecution) {
       if (!request.minimodel_metadata || routeLeaf(request.minimodel_metadata.manifest_route) !== path.basename(conversionExecution.manifestPath)) {
         failures.push(`P2P import request manifest route did not match generated manifest: ${JSON.stringify(request.minimodel_metadata)} / ${conversionExecution.manifestPath}`);
       }
+      if (!request.minimodel_metadata || !String(request.minimodel_metadata.manifest_url || "").includes(path.basename(conversionExecution.manifestPath))) {
+        failures.push(`P2P import request manifest URL did not point to generated manifest: ${JSON.stringify(request.minimodel_metadata)}`);
+      }
       if (!request.boundary || request.boundary.project_server_serves_model_bytes !== false || request.boundary.project_server_runs_model_bytes !== false) {
         failures.push(`P2P import request boundary allowed project server bytes/execution: ${JSON.stringify(request.boundary)}`);
       }
@@ -9830,7 +9939,7 @@ function assertHfP2pImportKitSmoke(result, conversionExecution) {
   }
 }
 
-function executeBrowserGeneratedP2pImportKit(conversionExecution, importResult) {
+function executeBrowserGeneratedP2pImportKit(conversionExecution, importResult, options = {}) {
   const slmWorkspace = path.resolve(__dirname, "..", "..");
   const minimodelWorkspace = path.resolve(process.env.MINIMODEL_WORKSPACE || path.join(slmWorkspace, "..", "MiniModel.org"));
   const request = JSON.parse(importResult.peerImportRequestText || "{}");
@@ -9847,7 +9956,9 @@ function executeBrowserGeneratedP2pImportKit(conversionExecution, importResult) 
   const scriptName = `${stem}.minimodel-peer-import.ps1`;
   fs.writeFileSync(path.join(outputRoot, requestName), importResult.peerImportRequestText, "utf8");
   fs.writeFileSync(path.join(outputRoot, scriptName), importResult.peerImportScriptText, "utf8");
-  fs.copyFileSync(conversionExecution.manifestPath, path.join(outputRoot, manifestFileName));
+  if (options.copyManifestSidecar !== false) {
+    fs.copyFileSync(conversionExecution.manifestPath, path.join(outputRoot, manifestFileName));
+  }
 
   const scriptOutput = runSmokeCommand(outputRoot, "powershell", [
     "-NoProfile",
@@ -9882,6 +9993,11 @@ function executeBrowserGeneratedP2pImportKit(conversionExecution, importResult) 
   assertTextContains(receiptText, `artifact.sha256=sha256:${originalSha256}`, "P2P import receipt");
   assertTextContains(receiptText, "import.next_gate=user-selected-tinyrustlm-local-file-open", "P2P import receipt");
   assertTextContains(scriptOutput, "Verified peer import output directory:", "P2P import script output");
+  if (options.expectManifestDownload) {
+    smokeAssert(request.minimodel_metadata && request.minimodel_metadata.manifest_url, "P2P import request did not include a manifest URL for metadata download");
+    assertTextContains(scriptOutput, "Downloading MiniModel metadata manifest:", "P2P import script output");
+    assertTextContains(scriptOutput, request.minimodel_metadata && request.minimodel_metadata.manifest_url, "P2P import script output");
+  }
 
   return {
     outputRoot,
@@ -9889,6 +10005,8 @@ function executeBrowserGeneratedP2pImportKit(conversionExecution, importResult) 
     requestName,
     scriptName,
     manifestFileName,
+    manifestSidecarCopied: options.copyManifestSidecar !== false,
+    manifestDownloaded: Boolean(options.expectManifestDownload),
     importedSlm: path.basename(importedSlm),
     importedSha256: `sha256:${importedSha256}`,
     receipt: path.basename(receiptPath),
@@ -13364,18 +13482,17 @@ async function main() {
       assertHfSearchUiSmoke(result, networkRequests);
       const conversionKitExecution = executeBrowserGeneratedConversionKit(result);
       let peerServer = null;
+      let metadataServer = null;
       try {
         peerServer = await startPeerPieceServer(conversionKitExecution);
+        metadataServer = await startMetadataCatalogServer(conversionKitExecution);
         await client.send("Page.reload", { ignoreCache: true });
         let p2pImportKit = null;
         for (let attempt = 0; attempt < 3; attempt += 1) {
           try {
             await sleep(500);
             p2pImportKit = await runPageHfLocalCatalogSmoke(client, {
-              fixture: {
-                catalogDir: conversionKitExecution.conversionDir,
-                catalogPath: conversionKitExecution.catalogSnapshotPath
-              }
+              catalogUrl: metadataServer.catalogUrl
             });
             break;
           } catch (error) {
@@ -13388,11 +13505,16 @@ async function main() {
         result = {
           conversionKitExecution,
           p2pImportKit,
-          p2pImportKitExecution: executeBrowserGeneratedP2pImportKit(conversionKitExecution, p2pImportKit),
+          p2pImportKitExecution: executeBrowserGeneratedP2pImportKit(conversionKitExecution, p2pImportKit, {
+            copyManifestSidecar: false,
+            expectManifestDownload: true
+          }),
           peerServerOutput: peerServer.outputBuffer.join("").slice(0, 4000),
+          metadataServerOutput: metadataServer.outputBuffer.join("").slice(0, 4000),
           networkRequests
         };
       } finally {
+        stopMetadataCatalogServer(metadataServer);
         stopPeerPieceServer(peerServer);
       }
     } else if (hfCatalogAnnouncementRouteSmokeMode) {
