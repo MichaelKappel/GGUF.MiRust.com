@@ -9352,6 +9352,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "Source model: example-org/tiny-source-model",
       "model.safetensors",
       "TINYRUSTLM_SOURCE_SAFETENSORS",
+      "tinyrustlm-conversion.preflight",
       "tinyrustlm-slm-pack convert-huggingface-request",
       "MiniModel prepare-peer-share",
       "models.v0.json",
@@ -9410,10 +9411,14 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "MiniModel workspace:",
       "Source safetensors:",
       "$OutputSlm = Resolve-GeneratedFile",
+      "$ConversionPreflight",
+      "$ConversionExitCode",
       "$MiniModelCatalogEntry = Resolve-GeneratedFile",
       "$MiniModelManifest = Resolve-GeneratedFile",
       "$MiniModelPieceDir = Resolve-GeneratedDirectory",
       "tinyrustlm-conversion.receipt",
+      "Rust conversion preflight report:",
+      "Conversion preflight:",
       "KnownPeerBaseUrl",
       "$KnownPeerBaseUrl = \"http://127.0.0.1:8123/\"",
       "MiniModelCatalogEntryWithPeer",
@@ -9606,6 +9611,7 @@ function executeBrowserGeneratedConversionKit(result) {
   smokeAssert(fs.existsSync(shareDir), `MiniModel share directory was missing: ${shareDir}`);
 
   const convertedSlm = findOneFile(conversionDir, (entry) => entry.endsWith(".slm"), "converted .slm");
+  const conversionPreflight = path.join(conversionDir, "tinyrustlm-conversion.preflight");
   const conversionReceipt = path.join(conversionDir, "tinyrustlm-conversion.receipt");
   const catalogSnapshot = path.join(conversionDir, "models.v0.json");
   const feedBoundSnapshot = path.join(conversionDir, "models.with-announcement-feed.v0.json");
@@ -9621,6 +9627,7 @@ function executeBrowserGeneratedConversionKit(result) {
 
   for (const requiredFile of [
     convertedSlm,
+    conversionPreflight,
     conversionReceipt,
     catalogSnapshot,
     feedBoundSnapshot,
@@ -9639,10 +9646,17 @@ function executeBrowserGeneratedConversionKit(result) {
 
   const receiptText = readUtf8(conversionReceipt);
   assertTextContains(receiptText, "request_kind=minimodel.huggingface_conversion_request.v0", "conversion receipt");
+  assertTextContains(receiptText, "preflight_report=", "conversion receipt");
   assertTextContains(receiptText, "project_server_serves_model_bytes=false", "conversion receipt");
   assertTextContains(receiptText, "project_server_runs_model_bytes=false", "conversion receipt");
   assertTextContains(receiptText, "project_server_proxies_huggingface_bytes=false", "conversion receipt");
   assertTextContains(receiptText, "converted_once_publication_rule=publish-catalog-json-and-peer-source-announcement-json-only", "conversion receipt");
+
+  const preflightText = readUtf8(conversionPreflight);
+  assertTextContains(preflightText, "tinyrustlm_huggingface_conversion_preflight_version=1", "conversion preflight");
+  assertTextContains(preflightText, "preflight_status=pass", "conversion preflight");
+  assertTextContains(preflightText, "conversion_decision=ready-for-local-conversion", "conversion preflight");
+  assertTextContains(preflightText, "project_server_serves_model_bytes=false", "conversion preflight");
 
   const manifestText = readUtf8(manifestPath);
   assertTextContains(manifestText, "artifact.acquisition=user-external-download", "MiniModel manifest");
