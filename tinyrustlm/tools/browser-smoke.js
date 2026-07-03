@@ -14,6 +14,7 @@ const port = Number(process.argv[3] || 9223);
 const smokeMode = process.argv[5] || "single";
 const publicLocalOnlySmokeMode = smokeMode === "public-local-only";
 const hfSearchUiSmokeMode = smokeMode === "hf-search-ui";
+const hfConversionKitExecSmokeMode = smokeMode === "hf-conversion-kit-exec";
 const hfLocalCatalogSmokeMode = smokeMode === "hf-local-catalog-ui";
 const hfPeerAnnouncementSmokeMode = smokeMode === "hf-peer-announcement-ui";
 const hfCatalogAnnouncementRouteSmokeMode = smokeMode === "hf-catalog-announcement-route-ui";
@@ -9456,6 +9457,203 @@ function assertHfSearchUiSmoke(result, networkRequests) {
   }
 }
 
+function smokeAssert(condition, message) {
+  if (!condition) {
+    throw new Error(message);
+  }
+}
+
+function runSmokeCommand(cwd, command, args, options = {}) {
+  const label = `${command} ${args.join(" ")}`;
+  const result = childProcess.spawnSync(command, args, {
+    cwd,
+    env: options.env || process.env,
+    encoding: "utf8",
+    timeout: options.timeout || 300000,
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+  const stdout = result.stdout || "";
+  const stderr = result.stderr || "";
+  if (stdout) {
+    process.stdout.write(stdout);
+  }
+  if (stderr) {
+    process.stderr.write(stderr);
+  }
+  if (result.error) {
+    throw new Error(`${label} failed: ${result.error.message}`);
+  }
+  if (result.status !== 0) {
+    throw new Error(`${label} exited with ${result.status}\n${stdout}\n${stderr}`);
+  }
+  return `${stdout}${stderr}`;
+}
+
+function findOneFile(directory, predicate, label) {
+  const matches = fs.readdirSync(directory)
+    .filter(predicate)
+    .map((entry) => path.join(directory, entry));
+  smokeAssert(matches.length === 1, `expected one ${label} in ${directory}, found ${matches.length}: ${matches.join(", ")}`);
+  return matches[0];
+}
+
+function readUtf8(filePath) {
+  return fs.readFileSync(filePath, "utf8");
+}
+
+function assertTextContains(text, needle, label) {
+  smokeAssert(text.includes(needle), `${label} did not contain ${needle}`);
+}
+
+function assertTextNotContains(text, needle, label) {
+  smokeAssert(!text.includes(needle), `${label} unexpectedly contained ${needle}`);
+}
+
+function assertMetadataOnlyText(text, label) {
+  assertTextContains(text, '"project_server_serves_model_bytes": false', label);
+  assertTextContains(text, '"project_server_runs_model_bytes": false', label);
+  assertTextNotContains(text, '"artifact_url"', label);
+  assertTextNotContains(text, '"model_url"', label);
+  assertTextNotContains(text, "/resolve/", label);
+  assertTextNotContains(text, "tinyrustlm.com/models", label);
+  assertTextNotContains(text, "minimodel.org/models", label);
+}
+
+function executeBrowserGeneratedConversionKit(result) {
+  const slmWorkspace = path.resolve(__dirname, "..", "..");
+  const minimodelWorkspace = path.resolve(process.env.MINIMODEL_WORKSPACE || path.join(slmWorkspace, "..", "MiniModel.org"));
+  smokeAssert(fs.existsSync(path.join(slmWorkspace, "Cargo.toml")), `missing TinyRustLM workspace: ${slmWorkspace}`);
+  smokeAssert(fs.existsSync(path.join(minimodelWorkspace, "Cargo.toml")), `missing MiniModel workspace: ${minimodelWorkspace}`);
+
+  const outputRoot = path.resolve(
+    process.env.TINYRUSTLM_BROWSER_CONVERSION_KIT_SMOKE_DIR ||
+      path.join(slmWorkspace, "target", "browser-generated-conversion-kit-smoke")
+  );
+  fs.rmSync(outputRoot, { recursive: true, force: true });
+  fs.mkdirSync(outputRoot, { recursive: true });
+
+  const downloads = [
+    [result.conversionRequestName, result.conversionRequestText],
+    [result.conversionScriptName, result.conversionScriptText],
+    [result.conversionReadmeName, result.conversionReadmeText]
+  ];
+  for (const [name, text] of downloads) {
+    smokeAssert(name && text, `missing captured conversion download ${name}`);
+    fs.writeFileSync(path.join(outputRoot, name), text, "utf8");
+  }
+
+  const sourceSafetensors = path.join(outputRoot, "model.safetensors");
+  runSmokeCommand(slmWorkspace, "cargo", [
+    "run",
+    "--quiet",
+    "-p",
+    "tinyrustlm-slm-pack",
+    "--",
+    "write-safetensors-fixture",
+    sourceSafetensors,
+    "tinylm16-bpe",
+    "huggingface"
+  ]);
+
+  const scriptPath = path.join(outputRoot, result.conversionScriptName);
+  const executionEnv = {
+    ...process.env,
+    TINYRUSTLM_WORKSPACE: slmWorkspace,
+    MINIMODEL_WORKSPACE: minimodelWorkspace,
+    TINYRUSTLM_SOURCE_SAFETENSORS: sourceSafetensors
+  };
+  const scriptOutput = runSmokeCommand(outputRoot, "powershell", [
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    scriptPath
+  ], { env: executionEnv, timeout: 600000 });
+
+  const conversionDir = path.join(outputRoot, "example-org__tiny-source-model-tinyrustlm-conversion");
+  const shareDir = path.join(conversionDir, "minimodel-peer-share");
+  smokeAssert(fs.existsSync(conversionDir), `conversion directory was missing: ${conversionDir}`);
+  smokeAssert(fs.existsSync(shareDir), `MiniModel share directory was missing: ${shareDir}`);
+
+  const convertedSlm = findOneFile(conversionDir, (entry) => entry.endsWith(".slm"), "converted .slm");
+  const conversionReceipt = path.join(conversionDir, "tinyrustlm-conversion.receipt");
+  const catalogSnapshot = path.join(conversionDir, "models.v0.json");
+  const feedBoundSnapshot = path.join(conversionDir, "models.with-announcement-feed.v0.json");
+  const serveScript = path.join(conversionDir, "example-org__tiny-source-model.minimodel-serve-peer-pieces.ps1");
+  const manifestPath = findOneFile(shareDir, (entry) => entry.endsWith(".minimodel.manifest.v0"), "MiniModel manifest");
+  const peerOfferPath = findOneFile(shareDir, (entry) => entry.endsWith(".minimodel-peer-offer"), "MiniModel peer offer");
+  const catalogEntry = findOneFile(shareDir, (entry) => entry.endsWith(".catalog-entry.v0.json"), "catalog entry");
+  const withPeerEntry = findOneFile(shareDir, (entry) => entry.endsWith(".catalog-entry.with-peer.v0.json"), "with-peer catalog entry");
+  const announcement = findOneFile(shareDir, (entry) => entry.endsWith(".peer-source-announcement.v0.json"), "peer-source announcement");
+  const peerPieceDir = findOneFile(shareDir, (entry) => entry.endsWith(".peer-pieces"), "peer pieces directory");
+  const announcementFeed = path.join(shareDir, "peer-source-announcements.v0.json");
+  const publishReadme = path.join(shareDir, "converted-once-p2p-publish.README.txt");
+
+  for (const requiredFile of [
+    convertedSlm,
+    conversionReceipt,
+    catalogSnapshot,
+    feedBoundSnapshot,
+    serveScript,
+    manifestPath,
+    peerOfferPath,
+    catalogEntry,
+    withPeerEntry,
+    announcement,
+    announcementFeed,
+    publishReadme,
+    path.join(peerPieceDir, "minimodel.peer_piece_set.v0")
+  ]) {
+    smokeAssert(fs.existsSync(requiredFile), `expected generated file was missing: ${requiredFile}`);
+  }
+
+  const receiptText = readUtf8(conversionReceipt);
+  assertTextContains(receiptText, "request_kind=minimodel.huggingface_conversion_request.v0", "conversion receipt");
+  assertTextContains(receiptText, "project_server_serves_model_bytes=false", "conversion receipt");
+  assertTextContains(receiptText, "project_server_runs_model_bytes=false", "conversion receipt");
+  assertTextContains(receiptText, "project_server_proxies_huggingface_bytes=false", "conversion receipt");
+  assertTextContains(receiptText, "converted_once_publication_rule=publish-catalog-json-and-peer-source-announcement-json-only", "conversion receipt");
+
+  const manifestText = readUtf8(manifestPath);
+  assertTextContains(manifestText, "artifact.acquisition=user-external-download", "MiniModel manifest");
+  assertTextContains(manifestText, "source.huggingface_model_id=example-org/tiny-source-model", "MiniModel manifest");
+  assertTextContains(manifestText, "chunks.mode=fixed-size-merkle-v0", "MiniModel manifest");
+
+  const catalogText = readUtf8(catalogSnapshot);
+  const withPeerText = readUtf8(withPeerEntry);
+  const feedSnapshotText = readUtf8(feedBoundSnapshot);
+  const announcementText = readUtf8(announcement);
+  const feedText = readUtf8(announcementFeed);
+  for (const [text, label] of [
+    [catalogText, "catalog snapshot"],
+    [withPeerText, "with-peer catalog entry"],
+    [feedSnapshotText, "feed-bound catalog snapshot"],
+    [announcementText, "peer-source announcement"],
+    [feedText, "peer-source announcement feed"]
+  ]) {
+    assertMetadataOnlyText(text, label);
+  }
+  assertTextContains(catalogText, '"peer_source_count": 1', "catalog snapshot");
+  assertTextContains(withPeerText, '"peer_base_url": "http://127.0.0.1:8123/"', "with-peer catalog entry");
+  assertTextContains(feedSnapshotText, '"route": "peer-source-announcements.v0.json"', "feed-bound catalog snapshot");
+  assertTextContains(feedText, '"announcement_catalog_kind": "minimodel.peer_source_announcement_catalog"', "peer-source announcement feed");
+
+  const publishReadmeText = readUtf8(publishReadme);
+  assertTextContains(publishReadmeText, "Safe metadata files for catalog maintainers:", "publish README");
+  assertTextContains(publishReadmeText, "Do not send .slm files or *.peer-pieces directories to project servers.", "publish README");
+
+  return {
+    outputRoot,
+    conversionDir,
+    shareDir,
+    convertedSlm: path.basename(convertedSlm),
+    manifest: path.basename(manifestPath),
+    catalogSnapshot: path.basename(catalogSnapshot),
+    announcementFeed: path.basename(announcementFeed),
+    scriptOutputBytes: Buffer.byteLength(scriptOutput, "utf8")
+  };
+}
+
 function assertHfCatalogAnnouncementRouteSmoke(result, networkRequests) {
   const failures = [];
   try {
@@ -12682,7 +12880,7 @@ async function main() {
         ]
       });
     }
-    if (hfSearchUiSmokeMode || hfLocalCatalogSmokeMode || hfPeerAnnouncementSmokeMode || hfCatalogAnnouncementRouteSmokeMode || hfEmptyCatalogAnnouncementRouteSmokeMode) {
+    if (hfSearchUiSmokeMode || hfConversionKitExecSmokeMode || hfLocalCatalogSmokeMode || hfPeerAnnouncementSmokeMode || hfCatalogAnnouncementRouteSmokeMode || hfEmptyCatalogAnnouncementRouteSmokeMode) {
       installHfSearchUiInterceptor(client);
       await client.send("Fetch.enable", {
         patterns: [
@@ -12890,6 +13088,22 @@ async function main() {
         }
       }
       assertHfSearchUiSmoke(result, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (hfConversionKitExecSmokeMode) {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageHfSearchUiSmoke(client);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertHfSearchUiSmoke(result, networkRequests);
+      result.conversionKitExecution = executeBrowserGeneratedConversionKit(result);
       result.networkRequests = networkRequests;
     } else if (hfCatalogAnnouncementRouteSmokeMode) {
       await client.send("Page.reload", { ignoreCache: true });

@@ -1,5 +1,5 @@
-﻿profile: runtime-mirust.long-term-memory-ledger.v206
-updated_utc: 2026-07-03T22:10:00Z
+﻿profile: runtime-mirust.long-term-memory-ledger.v207
+updated_utc: 2026-07-03T22:35:00Z
 storage_mode: hybrid
 ledger_rule:
   pointer_only_not_context_free: true
@@ -6211,6 +6211,23 @@ records:
     last_reviewed_utc: 2026-07-03T22:10:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; conversion README kit report body lives in the target file.
+  - stable_id: tinyrustlm_browser_generated_conversion_kit_exec_memory
+    memory_domain: runtime-mirust.report_memory.tinyrustlm_browser_generated_conversion_kit_exec
+    pointer_type: llmwiki_node
+    path: wiki/runtime-mirust/reports/tinyrustlm-browser-generated-conversion-kit-exec-memory-2026-07-03.md
+    target_location: https://aiwikis.org/runtime-mirust/reports/tinyrustlm-browser-generated-conversion-kit-exec-memory-2026-07-03/
+    label: Required For TinyRustLM Browser-Generated Conversion Kit Exec Memory
+    summary: Routes agents to the smoke that executes exact browser-generated conversion downloads and validates resulting `.slm`, MiniModel metadata, peer pieces, feed, and no-byte boundaries.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local implementation report
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing browser `Start Conversion` downloads, generated PowerShell conversion scripts, `hf-conversion-kit-exec`, or converted-once P2P publication outputs.
+    checksum_hash: sha256:509589D928FE1CE272C59F40E036EC80EBADBD5D500A082DF0EA1142BADD4E13
+    last_reviewed_utc: 2026-07-03T22:35:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; browser-generated conversion kit exec report body lives in the target file.
   - stable_id: tinyrustlm_public_live_smoke_memory
     memory_domain: runtime-mirust.report_memory.tinyrustlm_public_live_smoke
     pointer_type: llmwiki_node
