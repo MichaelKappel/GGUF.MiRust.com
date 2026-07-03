@@ -3845,6 +3845,8 @@
   function peerImportScript(match, peerBaseUrl = state.peerBaseUrl) {
     const stem = peerImportFileStem(match.modelId);
     const request = peerImportRequest(match, peerBaseUrl);
+    const requestJson = `${JSON.stringify(request, null, 2)}\n`;
+    const requestBase64 = base64Utf8(requestJson);
     const peerUrl = request.local_peer_piece_contract.expected_peer_base_url;
     const manifestUrl = request.minimodel_metadata.manifest_url || "";
     const lines = [
@@ -3887,13 +3889,16 @@
       ")",
       "$MiniModelWorkspace = Resolve-ExistingPath $CandidateMiniModelWorkspaces \"MiniModel Rust workspace\" \"Set MINIMODEL_WORKSPACE or edit `$CandidateMiniModelWorkspaces.\"",
       `$PeerImportRequest = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${stem}.minimodel-peer-import-request.json`)}`,
+      `$EmbeddedPeerImportRequestBase64 = ${powerShellSingleQuote(requestBase64)}`,
       `$Manifest = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${stem}.minimodel.manifest.v0`)}`,
       `$ManifestUrl = ${powerShellDoubleQuote(manifestUrl)}`,
       `$ImportDir = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${stem}-peer-import`)}`,
       `$ExpectedPeerBaseUrl = ${powerShellDoubleQuote(peerUrl)}`,
       "",
       "if (!(Test-Path -LiteralPath $PeerImportRequest)) {",
-      "  throw \"Peer import request JSON not found beside this script: $PeerImportRequest\"",
+      "  $EmbeddedPeerImportRequestJson = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($EmbeddedPeerImportRequestBase64))",
+      "  [System.IO.File]::WriteAllText($PeerImportRequest, $EmbeddedPeerImportRequestJson, [System.Text.Encoding]::UTF8)",
+      "  Write-Host \"Wrote embedded peer import request:\" $PeerImportRequest",
       "}",
       "if ($ManifestUrl.Trim().Length -gt 0 -and !(Test-Path -LiteralPath $Manifest)) {",
       "  Write-Host \"Downloading MiniModel metadata manifest:\" $ManifestUrl",

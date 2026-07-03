@@ -9170,6 +9170,9 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "MINIMODEL_WORKSPACE",
       "$CandidateMiniModelWorkspaces",
       "$PeerImportRequest = Join-Path $PSScriptRoot",
+      "$EmbeddedPeerImportRequestBase64",
+      "Wrote embedded peer import request:",
+      "[System.Convert]::FromBase64String",
       "$ManifestUrl",
       "$ImportDir = Join-Path $PSScriptRoot",
       "$ExpectedPeerBaseUrl",
@@ -9185,6 +9188,9 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     }
     if (peerScriptText.includes("EDIT_ME\\\\MiniModel.org")) {
       failures.push(`P2P import script still required placeholder MiniModel workspace edit: ${peerScriptText}`);
+    }
+    if (peerScriptText.includes("Peer import request JSON not found beside this script")) {
+      failures.push(`P2P import script still fails when the sidecar request JSON is missing: ${peerScriptText}`);
     }
     if (!String(result.statusAfterP2pImport || "").includes("P2P import request saved") || !String(result.hfStatusAfterP2pImport || "").includes("P2P import request saved")) {
       failures.push(`P2P Import status was ${result.statusAfterP2pImport}/${result.hfStatusAfterP2pImport}`);
