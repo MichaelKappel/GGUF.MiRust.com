@@ -4034,6 +4034,10 @@
     };
   }
 
+  function hfCanStartConversion(view) {
+    return Boolean(view && view.safetensorsFiles && view.safetensorsFiles.length);
+  }
+
   function hfCompatibilityClass(view) {
     return view.matches.length || view.slmFiles.length
       ? "compatibility-pill candidate"
@@ -4051,6 +4055,9 @@
     if (view.slmFiles.length) {
       return "External .slm listed, verify locally";
     }
+    if (!hfCanStartConversion(view)) {
+      return "No supported source listed";
+    }
     return "Rust conversion required";
   }
 
@@ -4061,7 +4068,9 @@
         : view.hasPeerOffer
           ? "MiniModel metadata has a peer-offer proof; enter a consenting peer URL before Rust fetches, assembles, and reverifies"
         : "MiniModel metadata only; choose the matching local .slm before running"
-      : "model card only; not runnable here until Rust conversion and local .slm verification";
+      : hfCanStartConversion(view)
+        ? "model card only; not runnable here until Rust conversion and local .slm verification"
+        : "model card only; no .safetensors source listed for the Rust converter";
     return `${view.downloads} / ${view.likes} / ${sourceState}`;
   }
 
@@ -4075,7 +4084,9 @@
       }
       return `Hugging Face model card / ${view.downloads} / ${view.hasPeerOffer ? "P2P proof ready; consenting peer URL required" : "MiniModel metadata found; local .slm needed"}`;
     }
-    return `Hugging Face model card / ${view.downloads} / not compatible yet; Rust conversion required`;
+    return hfCanStartConversion(view)
+      ? `Hugging Face model card / ${view.downloads} / not runnable yet; Rust preflight and conversion required`
+      : `Hugging Face model card / ${view.downloads} / no supported .safetensors source listed`;
   }
 
   function hfSimpleCompatibilityText(view) {
@@ -4093,6 +4104,9 @@
     if (view.slmFiles.length) {
       return "External .slm listed, verify locally";
     }
+    if (!hfCanStartConversion(view)) {
+      return "No supported source listed";
+    }
     return "Rust conversion required";
   }
 
@@ -4105,6 +4119,9 @@
     }
     if (view.hasPeerOffer) {
       return "MiniModel has a peer-offer proof. Enter one consenting peer URL in P2P Exchange to import without repeating source conversion.";
+    }
+    if (!hfCanStartConversion(view)) {
+      return "No converted peer or .safetensors source is listed yet. Review the model card; Rust conversion needs a reviewed .safetensors source before it can create .slm metadata for P2P reuse.";
     }
     return "No converted peer is listed yet. Start Conversion saves a Rust script that turns one reviewed local .safetensors into a verified .slm, prepares peer pieces, and writes metadata so future users can import by P2P.";
   }
@@ -4178,9 +4195,13 @@
       return;
     }
     actions.append(
-      actionButton("Save Conversion Request", () => saveHfConversionRequest(entry, view.matches)),
-      actionButton("Save Rust Conversion Script", () => saveHfConversionScript(entry, view.matches))
+      actionButton("Save Conversion Request", () => saveHfConversionRequest(entry, view.matches))
     );
+    if (hfCanStartConversion(view)) {
+      actions.append(actionButton("Save Rust Conversion Script", () => saveHfConversionScript(entry, view.matches)));
+    } else {
+      actions.append(elementWithText("span", "model-result-meta", "Rust script unavailable until metadata lists a .safetensors source."));
+    }
   }
 
   function appendHfSimpleActions(actions, entry, view) {
@@ -4189,6 +4210,9 @@
     const p2pActionMatch = hfEnabledP2pActionMatch(view);
     if (p2pActionMatch) {
       appendActionIfPresent(actions, p2pCatalogActionButton(p2pActionMatch));
+      return;
+    }
+    if (!hfCanStartConversion(view)) {
       return;
     }
     actions.append(actionButton("Start Conversion", () => startHfConversion(entry, view.matches), "primary-result-action"));
@@ -4765,7 +4789,8 @@
       peerUrlNeeded: 0,
       localSlmNeeded: 0,
       externalSlmListed: 0,
-      conversionNeeded: 0
+      conversionNeeded: 0,
+      noSupportedSource: 0
     };
     for (const entry of accepted) {
       const view = hfResultView(entry);
@@ -4777,6 +4802,8 @@
         summary.localSlmNeeded += 1;
       } else if (view.slmFiles.length) {
         summary.externalSlmListed += 1;
+      } else if (!hfCanStartConversion(view)) {
+        summary.noSupportedSource += 1;
       } else {
         summary.conversionNeeded += 1;
       }
@@ -4796,6 +4823,9 @@
     }
     if (summary.conversionNeeded) {
       parts.push(`${pluralCount(summary.conversionNeeded, "model")} ${summary.conversionNeeded === 1 ? "needs" : "need"} Rust conversion`);
+    }
+    if (summary.noSupportedSource) {
+      parts.push(`${pluralCount(summary.noSupportedSource, "model")} ${summary.noSupportedSource === 1 ? "has" : "have"} no supported source listed`);
     }
     if (state.p2pEnabled === false) {
       parts.push("P2P off");

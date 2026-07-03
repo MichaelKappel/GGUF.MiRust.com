@@ -1717,6 +1717,16 @@ function installHfSearchUiInterceptor(client) {
               { rfilename: "tiny-ready.slm" },
               { rfilename: "README.md" }
             ]
+          },
+          {
+            modelId: "example-org/no-supported-source",
+            downloads: 11,
+            likes: 1,
+            siblings: [
+              { rfilename: "config.json" },
+              { rfilename: "pytorch_model.bin", size: 4096 },
+              { rfilename: "README.md" }
+            ]
           }
         ]);
         return;
@@ -9131,7 +9141,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     if (!result.hfVisible || result.localVisible || result.p2pVisible) {
       failures.push(`Hugging Face source panel state after handoff was ${JSON.stringify(result)}`);
     }
-    if (result.resultCount !== 2 || result.advancedResultCount !== 2) {
+    if (result.resultCount !== 3 || result.advancedResultCount !== 3) {
       failures.push(`Hugging Face result counts were ${result.resultCount}/${result.advancedResultCount}`);
     }
     const resultText = [
@@ -9148,8 +9158,11 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     if (!resultText.includes("Rust conversion required")) {
       failures.push(`unmatched Hugging Face result did not show Rust conversion required: ${resultText}`);
     }
-    if (!resultText.includes("not compatible yet")) {
-      failures.push(`unmatched Hugging Face result did not make compatibility state plain: ${resultText}`);
+    if (!resultText.includes("not runnable yet; Rust preflight and conversion required")) {
+      failures.push(`unmatched Hugging Face result did not make conversion state plain: ${resultText}`);
+    }
+    if (!resultText.includes("No supported source listed") || !resultText.includes("no .safetensors source listed")) {
+      failures.push(`unsupported Hugging Face result did not block fake conversion path: ${resultText}`);
     }
     if (!String(result.p2pStatusAfterSearch || "").includes("P2P on") || result.p2pWarningVisibleAfterSearch) {
       failures.push(`P2P was not enabled by default for Hugging Face results: ${JSON.stringify(result)}`);
@@ -9275,7 +9288,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     if (!simpleActionTextAfterP2pDisable.includes("Start Conversion")) {
       failures.push(`Start Conversion was not available after disabling P2P: ${simpleActionTextAfterP2pDisable}`);
     }
-    if (primaryActionsAfterP2pDisable.length !== 2 || primaryActionsAfterP2pDisable.some((label) => label !== "Start Conversion")) {
+    if (primaryActionsAfterP2pDisable.length !== 1 || primaryActionsAfterP2pDisable.some((label) => label !== "Start Conversion")) {
       failures.push(`simple Hugging Face primary actions with P2P off were ${JSON.stringify(primaryActionsAfterP2pDisable)}`);
     }
     for (const removedSimpleAction of ["Choose converted .slm", "Save Conversion Request", "Save Rust Conversion Script"]) {
@@ -9289,10 +9302,10 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     if (resultText.includes("Download tiny-ready.slm") || resultText.includes("/resolve/")) {
       failures.push(`Hugging Face result exposed a direct model-byte download affordance: ${resultText}`);
     }
-    if (!String(result.statusAfterSearch || "").includes("2 external records") || !String(result.hfStatusAfterSearch || "").includes("2 external records")) {
+    if (!String(result.statusAfterSearch || "").includes("3 external records") || !String(result.hfStatusAfterSearch || "").includes("3 external records")) {
       failures.push(`Hugging Face status after search was ${result.statusAfterSearch}/${result.hfStatusAfterSearch}`);
     }
-    for (const summaryText of ["1 P2P-ready match", "1 model needs Rust conversion"]) {
+    for (const summaryText of ["1 P2P-ready match", "1 model needs Rust conversion", "1 model has no supported source listed"]) {
       if (!String(result.statusAfterSearch || "").includes(summaryText) || !String(result.hfStatusAfterSearch || "").includes(summaryText)) {
         failures.push(`Hugging Face availability summary missed ${summaryText}: ${result.statusAfterSearch}/${result.hfStatusAfterSearch}`);
       }
