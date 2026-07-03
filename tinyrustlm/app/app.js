@@ -3953,7 +3953,8 @@
     const stem = conversionFileStem(entry.modelId);
     downloadTextFile(`${stem}.minimodel-conversion-request.json`, `${JSON.stringify(request, null, 2)}\n`);
     downloadTextFile(`${stem}.tinyrustlm-convert.ps1`, hfConversionScript(entry, matches), "text/plain");
-    setHfStatus("Rust conversion script saved: add the reviewed local .safetensors and run it to create .slm plus MiniModel P2P metadata", false);
+    downloadTextFile(`${stem}.tinyrustlm-conversion.README.txt`, hfConversionReadme(entry, matches), "text/plain");
+    setHfStatus("Rust conversion script saved with README: add the reviewed local .safetensors and run it to create .slm plus MiniModel P2P metadata", false);
     holdModelPopoverOpen(2500);
   }
 
@@ -4524,6 +4525,59 @@
     return lines.join("\n");
   }
 
+  function hfConversionReadme(entry, matches) {
+    const request = hfConversionRequest(entry, matches);
+    const stem = conversionFileStem(entry.modelId);
+    const scriptName = `${stem}.tinyrustlm-convert.ps1`;
+    const requestName = `${stem}.minimodel-conversion-request.json`;
+    const readmeName = `${stem}.tinyrustlm-conversion.README.txt`;
+    const sourceFile = request.local_conversion.suggested_source_safetensors_file || "<reviewed-source>.safetensors";
+    const knownPeerBaseUrl = request.local_conversion.known_peer_base_url || "";
+    const lines = [
+      "TinyRustLM Hugging Face conversion kit",
+      "",
+      `Source model: ${entry.modelId}`,
+      `Model card: ${hfModelUrl(entry.modelId)}`,
+      "",
+      "Files saved by TinyRustLM:",
+      `- ${requestName}`,
+      `- ${scriptName}`,
+      `- ${readmeName}`,
+      "",
+      "What to do:",
+      `1. Review the model card and license, then obtain ${sourceFile} yourself.`,
+      "2. Put the reviewed .safetensors file beside the script, under ./source/, or set TINYRUSTLM_SOURCE_SAFETENSORS.",
+      `3. Run from PowerShell in this folder: powershell -ExecutionPolicy Bypass -File .\\${scriptName}`,
+      "4. Import the verified .slm through TinyRustLM's local file picker.",
+      "",
+      "What the script does:",
+      "- Recreates the conversion request if the JSON sidecar is missing.",
+      "- Runs tinyrustlm-slm-pack convert-huggingface-request locally against your reviewed source file.",
+      "- Runs MiniModel prepare-peer-share locally after Rust verifies the .slm.",
+      "- Writes a metadata-only models.v0.json catalog snapshot.",
+      knownPeerBaseUrl
+        ? `- Known peer URL: ${knownPeerBaseUrl}. The script writes peer-source announcement/feed metadata for this consenting peer.`
+        : "- Known peer URL: not set. Peer-source announcement/feed metadata can be added later after a consenting peer URL is known.",
+      "",
+      "Safe to publish:",
+      "- models.v0.json",
+      "- catalog-entry JSON",
+      "- peer-source announcement/feed JSON when present",
+      "- docs, schemas, public keys, contact routes, and takedown routes",
+      "",
+      "Never upload to project servers:",
+      "- .slm files",
+      "- *.peer-pieces directories",
+      "- source .safetensors files",
+      "",
+      "Boundary:",
+      "- TinyRustLM.com and MiniModel.org do not serve, proxy, cache, run, or fetch user model bytes.",
+      "- Model bytes stay local or move only from a consenting peer through Rust verification.",
+      "- Hugging Face search results are metadata only until a local Rust conversion or verified P2P import succeeds."
+    ];
+    return `${lines.join("\n")}\n`;
+  }
+
   function saveHfConversionRequest(entry, matches) {
     const request = hfConversionRequest(entry, matches);
     state.pendingConversionRequest = normalizeConversionRequest(request);
@@ -4541,7 +4595,8 @@
     const stem = conversionFileStem(entry.modelId);
     downloadTextFile(`${stem}.minimodel-conversion-request.json`, `${JSON.stringify(request, null, 2)}\n`);
     downloadTextFile(`${stem}.tinyrustlm-convert.ps1`, hfConversionScript(entry, matches), "text/plain");
-    setHfStatus("conversion request and script saved locally", false);
+    downloadTextFile(`${stem}.tinyrustlm-conversion.README.txt`, hfConversionReadme(entry, matches), "text/plain");
+    setHfStatus("conversion request, script, and README saved locally", false);
     holdModelPopoverOpen(2500);
   }
 

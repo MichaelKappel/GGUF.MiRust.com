@@ -1,5 +1,5 @@
-﻿profile: runtime-mirust.long-term-memory-ledger.v205
-updated_utc: 2026-07-03T20:10:00Z
+﻿profile: runtime-mirust.long-term-memory-ledger.v206
+updated_utc: 2026-07-03T22:10:00Z
 storage_mode: hybrid
 ledger_rule:
   pointer_only_not_context_free: true
@@ -6194,6 +6194,23 @@ records:
     last_reviewed_utc: 2026-07-03T21:57:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; known-peer conversion kit report body lives in the target file.
+  - stable_id: tinyrustlm_conversion_readme_kit_memory
+    memory_domain: runtime-mirust.report_memory.tinyrustlm_conversion_readme_kit
+    pointer_type: llmwiki_node
+    path: wiki/runtime-mirust/reports/tinyrustlm-conversion-readme-kit-memory-2026-07-03.md
+    target_location: https://aiwikis.org/runtime-mirust/reports/tinyrustlm-conversion-readme-kit-memory-2026-07-03/
+    label: Required For TinyRustLM Conversion README Kit Memory
+    summary: Routes agents to three-file Hugging Face conversion kits with beginner README instructions, safe metadata publication, and no-server-model-byte warnings.
+    pointer_status: current
+    authority: durable-memory-pointer
+    source_authority: local implementation report
+    review_status: reviewed_current
+    quarantine_status: reviewed_current
+    contextual_trigger: Read before changing Hugging Face `Start Conversion`, generated conversion downloads, beginner conversion wording, or no-server-byte user handoff instructions.
+    checksum_hash: sha256:A53E34EFE7DA39AF8DEB0345860232E556D8955FD5E0D662EBDF05958FE0B54D
+    last_reviewed_utc: 2026-07-03T22:10:00Z
+    owner_or_reviewer: project memory steward
+    current_truth_boundary: Summary routes only; conversion README kit report body lives in the target file.
   - stable_id: tinyrustlm_public_live_smoke_memory
     memory_domain: runtime-mirust.report_memory.tinyrustlm_public_live_smoke
     pointer_type: llmwiki_node

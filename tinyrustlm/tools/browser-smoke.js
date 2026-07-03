@@ -2230,7 +2230,7 @@ async function runPageHfSearchUiSmoke(client) {
       if (startConversionWithPeerButton) {
         startConversionWithPeerButton.click();
         for (let index = 0; index < 120; index += 1) {
-          if (window.__tinyrustlmDownloads.length >= 2) {
+          if (window.__tinyrustlmDownloads.length >= 3) {
             break;
           }
           await sleep(50);
@@ -2240,8 +2240,10 @@ async function runPageHfSearchUiSmoke(client) {
       const conversionDownloads = window.__tinyrustlmDownloads.slice();
       const conversionRequestIndex = conversionDownloadNames.findIndex((name) => name.endsWith(".minimodel-conversion-request.json"));
       const conversionScriptIndex = conversionDownloadNames.findIndex((name) => name.endsWith(".tinyrustlm-convert.ps1"));
+      const conversionReadmeIndex = conversionDownloadNames.findIndex((name) => name.endsWith(".tinyrustlm-conversion.README.txt"));
       const requestDownload = conversionRequestIndex >= 0 ? conversionDownloads[conversionRequestIndex] : { text: "", type: "" };
       const scriptDownload = conversionScriptIndex >= 0 ? conversionDownloads[conversionScriptIndex] : { text: "", type: "" };
+      const readmeDownload = conversionReadmeIndex >= 0 ? conversionDownloads[conversionReadmeIndex] : { text: "", type: "" };
       window.__tinyrustlmDownloads = [];
       window.__tinyrustlmDownloadNames = [];
       if (byId("simpleHfP2pToggle")) {
@@ -2311,6 +2313,9 @@ async function runPageHfSearchUiSmoke(client) {
         conversionScriptName: conversionScriptIndex >= 0 ? conversionDownloadNames[conversionScriptIndex] : "",
         conversionScriptText: scriptDownload.text || "",
         conversionScriptType: scriptDownload.type || "",
+        conversionReadmeName: conversionReadmeIndex >= 0 ? conversionDownloadNames[conversionReadmeIndex] : "",
+        conversionReadmeText: readmeDownload.text || "",
+        conversionReadmeType: readmeDownload.type || "",
         bodyText: document.body ? document.body.textContent.replace(/\\s+/g, " ").trim() : ""
       });
     })()
@@ -9247,8 +9252,8 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     if (!String(result.status || "").includes("Rust conversion script saved") || !String(result.hfStatus || "").includes("Rust conversion script saved")) {
       failures.push(`Hugging Face status after Start Conversion was ${result.status}/${result.hfStatus}`);
     }
-    if (!Array.isArray(result.conversionDownloadNames) || result.conversionDownloadNames.length < 2) {
-      failures.push(`Start Conversion did not save both request and script: ${JSON.stringify(result.conversionDownloadNames)}`);
+    if (!Array.isArray(result.conversionDownloadNames) || result.conversionDownloadNames.length < 3) {
+      failures.push(`Start Conversion did not save request, script, and README: ${JSON.stringify(result.conversionDownloadNames)}`);
     }
     if (!String(result.conversionRequestName || "").endsWith(".minimodel-conversion-request.json")) {
       failures.push(`conversion request download name was ${result.conversionRequestName}`);
@@ -9303,6 +9308,41 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     const scriptText = String(result.conversionScriptText || "");
     if (!String(result.conversionScriptName || "").endsWith(".tinyrustlm-convert.ps1")) {
       failures.push(`conversion script download name was ${result.conversionScriptName}`);
+    }
+    const readmeText = String(result.conversionReadmeText || "");
+    if (!String(result.conversionReadmeName || "").endsWith(".tinyrustlm-conversion.README.txt")) {
+      failures.push(`conversion README download name was ${result.conversionReadmeName}`);
+    }
+    if (!String(result.conversionReadmeType || "").startsWith("text/plain")) {
+      failures.push(`conversion README MIME type was ${result.conversionReadmeType}`);
+    }
+    for (const required of [
+      "TinyRustLM Hugging Face conversion kit",
+      "Source model: example-org/tiny-source-model",
+      "model.safetensors",
+      "TINYRUSTLM_SOURCE_SAFETENSORS",
+      "tinyrustlm-slm-pack convert-huggingface-request",
+      "MiniModel prepare-peer-share",
+      "models.v0.json",
+      "Known peer URL: http://127.0.0.1:8123/",
+      "Safe to publish",
+      "Never upload to project servers",
+      "TinyRustLM.com and MiniModel.org do not serve",
+      "Hugging Face search results are metadata only"
+    ]) {
+      if (!readmeText.includes(required)) {
+        failures.push(`conversion README missing ${required}: ${readmeText}`);
+      }
+    }
+    for (const unsafe of [
+      "/resolve/",
+      "download the model bytes for you",
+      "project servers serve model bytes",
+      "server-hosted .slm"
+    ]) {
+      if (readmeText.includes(unsafe)) {
+        failures.push(`conversion README included unsafe wording ${unsafe}: ${readmeText}`);
+      }
     }
     for (const required of [
       "convert-huggingface-request",
