@@ -2219,6 +2219,31 @@ async function runPageHfSearchUiSmoke(client) {
       const hfStatusAfterP2pImport = byId("hfStatus") ? byId("hfStatus").textContent : "";
       window.__tinyrustlmDownloads = [];
       window.__tinyrustlmDownloadNames = [];
+      if (byId("simplePeerBaseUrlInput") && byId("simpleSavePeerUrlButton")) {
+        byId("simplePeerBaseUrlInput").value = "http://127.0.0.1:8123/";
+        byId("simpleSavePeerUrlButton").click();
+        await sleep(100);
+      }
+      const peerUrlStatusBeforeConversion = byId("simplePeerUrlStatus") ? byId("simplePeerUrlStatus").textContent : "";
+      const startConversionWithPeerButton = Array.from(document.querySelectorAll("#simpleHfResults button"))
+        .find((button) => button.textContent.includes("Start Conversion"));
+      if (startConversionWithPeerButton) {
+        startConversionWithPeerButton.click();
+        for (let index = 0; index < 120; index += 1) {
+          if (window.__tinyrustlmDownloads.length >= 2) {
+            break;
+          }
+          await sleep(50);
+        }
+      }
+      const conversionDownloadNames = window.__tinyrustlmDownloadNames.slice();
+      const conversionDownloads = window.__tinyrustlmDownloads.slice();
+      const conversionRequestIndex = conversionDownloadNames.findIndex((name) => name.endsWith(".minimodel-conversion-request.json"));
+      const conversionScriptIndex = conversionDownloadNames.findIndex((name) => name.endsWith(".tinyrustlm-convert.ps1"));
+      const requestDownload = conversionRequestIndex >= 0 ? conversionDownloads[conversionRequestIndex] : { text: "", type: "" };
+      const scriptDownload = conversionScriptIndex >= 0 ? conversionDownloads[conversionScriptIndex] : { text: "", type: "" };
+      window.__tinyrustlmDownloads = [];
+      window.__tinyrustlmDownloadNames = [];
       if (byId("simpleHfP2pToggle")) {
         byId("simpleHfP2pToggle").click();
         await sleep(100);
@@ -2228,27 +2253,10 @@ async function runPageHfSearchUiSmoke(client) {
       const p2pWarningTextAfterDisable = byId("simpleHfP2pWarning") ? byId("simpleHfP2pWarning").textContent : "";
       const actionTextsAfterP2pDisable = textList("#simpleHfResults button, #simpleHfResults a, #simpleHfResults .compatibility-pill, #simpleHfResults .model-result-meta");
       const primaryActionTextsAfterP2pDisable = textList("#simpleHfResults .primary-result-action");
-      const startConversionButton = Array.from(document.querySelectorAll("#simpleHfResults button"))
-        .find((button) => button.textContent.includes("Start Conversion"));
-      if (startConversionButton) {
-        startConversionButton.click();
-        for (let index = 0; index < 120; index += 1) {
-          if (window.__tinyrustlmDownloads.length >= 2) {
-            break;
-          }
-          await sleep(50);
-        }
-      }
       const panel = byId("simpleDiscoveryPanel");
       const simpleTexts = textList("#simpleHfResults li");
       const advancedTexts = textList("#hfResults li");
       const actionTexts = textList("#simpleHfResults button, #simpleHfResults a, #simpleHfResults .compatibility-pill, #simpleHfResults .model-result-meta");
-      const conversionDownloadNames = window.__tinyrustlmDownloadNames.slice();
-      const conversionDownloads = window.__tinyrustlmDownloads.slice();
-      const conversionRequestIndex = conversionDownloadNames.findIndex((name) => name.endsWith(".minimodel-conversion-request.json"));
-      const conversionScriptIndex = conversionDownloadNames.findIndex((name) => name.endsWith(".tinyrustlm-convert.ps1"));
-      const requestDownload = conversionRequestIndex >= 0 ? conversionDownloads[conversionRequestIndex] : { text: "", type: "" };
-      const scriptDownload = conversionScriptIndex >= 0 ? conversionDownloads[conversionScriptIndex] : { text: "", type: "" };
       return JSON.stringify({
         initiallyOpen,
         panelOpenImmediatelyAfterSearchClick,
@@ -2278,6 +2286,7 @@ async function runPageHfSearchUiSmoke(client) {
         peerImportScriptType: peerImportDownloads[1] ? peerImportDownloads[1].type : "",
         statusAfterP2pImport,
         hfStatusAfterP2pImport,
+        peerUrlStatusBeforeConversion,
         p2pStatusAfterDisable,
         p2pWarningVisibleAfterDisable,
         p2pWarningTextAfterDisable,
@@ -9195,6 +9204,9 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     if (!String(result.statusAfterP2pImport || "").includes("P2P import request saved") || !String(result.hfStatusAfterP2pImport || "").includes("P2P import request saved")) {
       failures.push(`P2P Import status was ${result.statusAfterP2pImport}/${result.hfStatusAfterP2pImport}`);
     }
+    if (!String(result.peerUrlStatusBeforeConversion || "").includes("Known peer set: http://127.0.0.1:8123/")) {
+      failures.push(`Known peer URL was not set before Start Conversion: ${result.peerUrlStatusBeforeConversion}`);
+    }
     if (!String(result.p2pStatusAfterDisable || "").includes("P2P off") || !result.p2pWarningVisibleAfterDisable) {
       failures.push(`P2P disabled state did not show the list-level warning: ${JSON.stringify(result)}`);
     }
@@ -9281,6 +9293,12 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       if (!String(conversionRequest.local_conversion.peer_source_feed_snapshot_shape || "").includes("write-catalog-snapshot-with-announcement-feed")) {
         failures.push(`conversion request feed snapshot shape did not use write-catalog-snapshot-with-announcement-feed: ${conversionRequest.local_conversion.peer_source_feed_snapshot_shape}`);
       }
+      if (conversionRequest.local_conversion.known_peer_base_url !== "http://127.0.0.1:8123/") {
+        failures.push(`conversion request did not carry the list-level known peer URL: ${conversionRequest.local_conversion.known_peer_base_url}`);
+      }
+      if (!String(conversionRequest.local_conversion.known_peer_rule || "").includes("generated conversion script uses it")) {
+        failures.push(`conversion request did not explain known peer propagation: ${conversionRequest.local_conversion.known_peer_rule}`);
+      }
     }
     const scriptText = String(result.conversionScriptText || "");
     if (!String(result.conversionScriptName || "").endsWith(".tinyrustlm-convert.ps1")) {
@@ -9326,6 +9344,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "$MiniModelPieceDir = Resolve-GeneratedDirectory",
       "tinyrustlm-conversion.receipt",
       "KnownPeerBaseUrl",
+      "$KnownPeerBaseUrl = \"http://127.0.0.1:8123/\"",
       "MiniModelCatalogEntryWithPeer",
       "MiniModelCatalogEntryForSnapshot",
       "MiniModelPeerSourceAnnouncement",

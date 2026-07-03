@@ -4187,6 +4187,7 @@
     const suggestedSourceFile = safetensorsFiles.length ? safetensorsFiles[0].file_name : null;
     const defaultShape = "tinylm16-bpe";
     const defaultQuantization = "q8_0";
+    const knownPeerBaseUrl = state.p2pEnabled !== false ? state.peerBaseUrl || "" : "";
     return {
       request_kind: "minimodel.huggingface_conversion_request.v0",
       generated_at: new Date().toISOString(),
@@ -4223,6 +4224,8 @@
         peer_source_batch_snapshot_shape: "cargo run -p minimodel -- write-catalog-snapshot-with-announcements <models.v0.json> <catalog-entry-json>... --announcements <announcement-json>...",
         peer_source_feed_snapshot_shape: "cargo run -p minimodel -- write-catalog-snapshot-with-announcement-feed <models.v0.json> <feed-route> <feed-json> <catalog-entry-json>...",
         catalog_snapshot_shape: "cargo run -p minimodel -- write-catalog-snapshot <models.v0.json> <catalog-entry-json>...",
+        known_peer_base_url: knownPeerBaseUrl || null,
+        known_peer_rule: "When P2P is enabled and a consenting Known peer URL is set in TinyRustLM, the generated conversion script uses it to write peer-source announcement/feed metadata after local Rust conversion.",
         compatibility_rule: "The Rust planner/converter must accept the safetensors tensor names and exact TinyRustLM shape before a .slm is usable. MiniModel prepare-peer-share then writes the manifest, peer-offer proof, local peer pieces, and catalog entry from the verified .slm."
       },
       conversion_gates: [
@@ -4304,6 +4307,7 @@
     const stem = conversionFileStem(entry.modelId);
     const sourceShape = request.requested_artifact.default_source_shape;
     const quantization = request.requested_artifact.default_quantization;
+    const knownPeerBaseUrl = request.local_conversion.known_peer_base_url || "";
     const modelUrl = hfModelUrl(entry.modelId);
     const minimodelModelId = minimodelModelIdForHf(entry.modelId);
     const serveScriptBase64 = base64Utf8(miniModelServePeerPiecesScript({
@@ -4419,7 +4423,7 @@
       `$Quantization = ${powerShellSingleQuote(quantization)}`,
       `$ModelId = ${powerShellSingleQuote(entry.modelId)}`,
       `$MiniModelModelId = ${powerShellSingleQuote(minimodelModelId)}`,
-      "$KnownPeerBaseUrl = \"\" # Optional, for example http://127.0.0.1:8123/",
+      `$KnownPeerBaseUrl = ${powerShellDoubleQuote(knownPeerBaseUrl)} # Optional, for example http://127.0.0.1:8123/`,
       `$WorkDir = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${stem}-tinyrustlm-conversion`)}`,
       "$MiniModelShareDir = Join-Path $WorkDir \"minimodel-peer-share\"",
       "$MiniModelCatalogSnapshot = Join-Path $WorkDir \"models.v0.json\"",
