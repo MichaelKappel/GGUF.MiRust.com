@@ -1,5 +1,5 @@
-profile: runtime-mirust.file-handoff.v30
-updated_utc: 2026-07-03T03:45:00Z
+profile: runtime-mirust.file-handoff.v31
+updated_utc: 2026-07-03T05:55:00Z
 handoff_root: agent-file-handoff/
 active_buckets:
   content: agent-file-handoff/Content/
@@ -28,6 +28,7 @@ durable_preservation:
   docs_target_2026_06_30: docs/report-intake/2026-06-30/
   docs_target_2026_07_01: docs/report-intake/2026-07-01/
   docs_target_2026_07_02: docs/report-intake/2026-07-02/
+  docs_target_2026_07_02_followup: docs/report-intake/2026-07-02-followup/
   public_target: https://aiwikis.org/runtime-mirust/files/
   manifest: raw/runtime-mirust/MANIFEST.md
   checksum_required: true
@@ -45,6 +46,7 @@ strategy_refresh_2026_06_28:
   minimodel_p2p_docs_rule_2026_07_01: MiniModel.org P2P exchange research routes through docs/report-intake/2026-07-01/MANIFEST.md, docs/report-intake/2026-07-01/minimodel-p2p-report-synthesis-2026-07-01.md, and wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md; project servers never run or serve user model bytes, and SLMComposer remains browser-local.
   huggingface_source_options_rule_2026_07_01: Hugging Face API option research routes through docs/report-intake/2026-07-01/Hugging Face API Endpoint Overview.md and wiki/runtime-mirust/research/huggingface-api-source-options-2026-07-01.md; use Hugging Face as user-triggered metadata/source discovery only, not project-server byte proxying or remote inference.
   tinyrustlm_minimodel_intake_rule_2026_07_02: TinyRustLM/MiniModel improvement research routes through docs/report-intake/2026-07-02/MANIFEST.md, docs/report-intake/2026-07-02/tinyrustlm-minimodel-intake-synthesis-2026-07-02.md, and the add-peer-source, peer-source-announcement, batch announcement snapshot, plus peer-source announcement overlay memory reports; treat Iroh/broad discovery as roadmap and current direct known-peer Rust handoffs as the implemented byte path.
+  tinyrustlm_minimodel_followup_rule_2026_07_02: TinyRustLM/MiniModel follow-up research routes through docs/report-intake/2026-07-02-followup/MANIFEST.md, docs/report-intake/2026-07-02-followup/tinyrustlm-followup-intake-synthesis-2026-07-02.md, and wiki/runtime-mirust/reports/tinyrustlm-followup-intake-announcement-feed-memory-2026-07-02.md; use it before changing Hugging Face conversion UX, MiniModel announcement-feed publication, P2P discoverability, or beginner/pro disclosure.
   voice_memory_rule: Public-copy voice routes through .uai/taboo.uai before model-breeding, mutualist, tiny-ecology, or UAIX strategy copy is published; use proof, craft, lineage, fit, local agency, routes, and implementation evidence.
 uaix_cleanup_correction_2026_06_30:
   source: https://uaix.org/en-us/tools/ai-memory-package-wizard/#setup-file-handoff
@@ -55,21 +57,38 @@ uaix_cleanup_correction_2026_06_30:
   proof: Nine Improvement reports were copied byte-for-byte to docs/report-intake/2026-06-30/ with SHA256 verification, then removed from agent-file-handoff/Improvement/; current scan sees Content=0 and Improvement=0.
   next_agent_action: Treat non-placeholder files in Content/Improvement as pending intake; do not call handoff complete until each has disposition, proof-of-use, durable preservation when accepted, and source-site removal or a real keep-active blocker.
 current_scan:
-  scanned_utc: 2026-07-02T23:59:00Z
+  scanned_utc: 2026-07-03T05:55:00Z
   workspace_checked: E:\Source\Rust\SLMComposer.com
   content_bucket_non_placeholder_files: 0
   improvement_bucket_non_placeholder_files: 0
   misplaced_root_files: 0
-  status: processed_2026_07_02_tinyrustlm_minimodel_batch
-  action: Six TinyRustLM/MiniModel Improvement reports from TinyRustLM.com were copied byte-exact to docs/report-intake/2026-07-02/, synthesized, routed into durable memory/product guidance, used for MiniModel peer-source publication work and TinyRustLM local peer-source announcement overlay work, and removed from active intake.
+  status: processed_2026_07_02_tinyrustlm_minimodel_followup_batch
+  action: Three TinyRustLM/MiniModel follow-up Improvement reports from TinyRustLM.com were copied byte-exact to docs/report-intake/2026-07-02-followup/, synthesized, routed into durable memory/product guidance, used for MiniModel peer-source announcement feed publication work, and removed from active intake.
   keep_active_reason: none
-  durable_manifest: docs/report-intake/2026-07-02/MANIFEST.md
-  durable_synthesis: docs/report-intake/2026-07-02/tinyrustlm-minimodel-intake-synthesis-2026-07-02.md
+  durable_manifest: docs/report-intake/2026-07-02-followup/MANIFEST.md
+  durable_synthesis: docs/report-intake/2026-07-02-followup/tinyrustlm-followup-intake-synthesis-2026-07-02.md
+  durable_followup_memory: wiki/runtime-mirust/reports/tinyrustlm-followup-intake-announcement-feed-memory-2026-07-02.md
   durable_roadmap: wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md
   durable_add_peer_source_memory: wiki/runtime-mirust/reports/tinyrustlm-minimodel-add-peer-source-intake-memory-2026-07-02.md
   durable_peer_source_announcement_memory: wiki/runtime-mirust/reports/tinyrustlm-minimodel-peer-source-announcement-memory-2026-07-02.md
   durable_batch_announcement_snapshot_memory: wiki/runtime-mirust/reports/tinyrustlm-minimodel-batch-announcement-snapshot-memory-2026-07-02.md
   durable_peer_source_announcement_overlay_memory: wiki/runtime-mirust/reports/tinyrustlm-peer-source-announcement-overlay-memory-2026-07-02.md
+  processed_improvement_files_2026_07_02_followup:
+    - path: TinyRustLM.com/agent-file-handoff/Improvement/Hugging Face to TinyRustLM Workflow.md
+      docs_copy: docs/report-intake/2026-07-02-followup/Hugging Face to TinyRustLM Workflow.md
+      bytes: 45255
+      sha256: 97A489AD02BD76ED96EB8954784BB00EF52E7667B82EA700E0129D7E029EB5C2
+      route_hint: Hugging Face metadata, local Rust conversion, conversion receipts, and honest `Start Conversion` states.
+    - path: TinyRustLM.com/agent-file-handoff/Improvement/MiniModel P2P Exchange Architecture.md
+      docs_copy: docs/report-intake/2026-07-02-followup/MiniModel P2P Exchange Architecture.md
+      bytes: 30131
+      sha256: 4749B9465F7209A6E64C473E44D190BC8E3CD9287CC4B95478AB070AE48D04E6
+      route_hint: MiniModel metadata-only P2P architecture, consenting peer availability, verifier authority, and no-server-byte enforcement.
+    - path: TinyRustLM.com/agent-file-handoff/Improvement/Usability and Progressive Disclosure in Browser-Native Language Model Interfaces.md
+      docs_copy: docs/report-intake/2026-07-02-followup/Usability and Progressive Disclosure in Browser-Native Language Model Interfaces.md
+      bytes: 39743
+      sha256: DC2DEFED3740D1AF04DE5B459EBC8B057631895E7769CD55673666D137F673CC
+      route_hint: Beginner/pro source UX, progressive disclosure, plain recovery states, and advanced verifier evidence containment.
   processed_improvement_files_2026_07_02:
     - path: TinyRustLM.com/agent-file-handoff/Improvement/Hugging Face to SLM Conversion Workflow.md
       docs_copy: docs/report-intake/2026-07-02/Hugging Face to SLM Conversion Workflow.md

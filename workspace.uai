@@ -1,7 +1,7 @@
-profile: tinyrustlm.source-workspace.v145
+profile: tinyrustlm.source-workspace.v146
 project_name: TinyRustLM
 canonical_root: E:\Source\Rust\SLMComposer.com
-updated_utc: 2026-07-02T22:30:00Z
+updated_utc: 2026-07-03T05:55:00Z
 version_authority:
   current_version: 0.1.0
   next_version: 0.1.0
@@ -32,11 +32,11 @@ deploy_gate:
     - Run relevant pointer audits and git diff --check before packaging or deployment.
     - If deployment access is missing or live docs cannot be updated, record the blocker and do not claim the site is deployed.
 active_intake_state:
-  scanned_utc: 2026-07-02T23:59:00Z
-  status: processed_2026_07_02_tinyrustlm_minimodel_batch
+  scanned_utc: 2026-07-03T05:55:00Z
+  status: processed_2026_07_02_tinyrustlm_minimodel_followup_batch
   content_bucket_non_placeholder_files: 0
   improvement_bucket_non_placeholder_files: 0
-  instruction: The July 1 MiniModel/Hugging Face/UI batch and the July 2 six-report TinyRustLM/MiniModel batch were preserved under docs/report-intake/, synthesized into durable memory, routed into product guidance and implementation, and removed from active intake.
+  instruction: The July 1 MiniModel/Hugging Face/UI batch, the July 2 six-report TinyRustLM/MiniModel batch, and the July 2 follow-up three-report batch were preserved under docs/report-intake/, synthesized into durable memory, routed into product guidance and implementation, and removed from active intake.
 memory_authority:
   hot_memory_root: .uai/
   llm_wiki_namespace: wiki/runtime-mirust/
@@ -66,7 +66,8 @@ memory_authority:
   tinyrustlm_source_flow_quality_2026_07_02: wiki/runtime-mirust/reports/tinyrustlm-source-flow-quality-memory-2026-07-02.md routes shared Hugging Face simple/advanced row action helpers, source-file note consolidation, cache-bust, docs alignment, and source-flow smoke parity proof; SHA256 35333E51E9D7201B4C4430C9E8F3A5E8B711A5611F38A9B79061106709621C8C.
   tinyrustlm_huggingface_conversion_request_2026_07_02: wiki/runtime-mirust/reports/tinyrustlm-huggingface-conversion-request-memory-2026-07-02.md routes `convert-huggingface-request`, paired conversion request/script downloads, receipt-bound local `.safetensors` conversion, docs alignment, and hf-search-ui proof; SHA256 C0D3DB97731C8ACA53A538C728233D4E34786837AA65A49E1E01F7C1158A5FD9.
   tinyrustlm_self_locating_peer_import_kit_2026_07_02: wiki/runtime-mirust/reports/tinyrustlm-self-locating-peer-import-kit-memory-2026-07-02.md routes generated `.minimodel-peer-import.ps1` MiniModel workspace discovery, request/manifest/output paths beside the script, resolved verifier output, and placeholder-path regression tests.
-  minimodel_local_verifier_implementation_2026_07_02: E:\Source\Rust\MiniModel.org\docs\verifier-mvp.md routes implemented `minimodel-core`/`minimodel` verifier, one-command `prepare-peer-share`, `add-peer-source`, real q8 fixture manifest, local artifact SHA256/byte checks, TinyRustLM `.slm` structural validation, chunk/Merkle verification, local peer-piece export/direct HTTP serve/fetch/reassembly, catalog-entry writing, catalog peer-source validation, and basename-only receipts; verifier doc SHA256 66D2F811041903D92F750D15883F5CB267BD52E05BDF2C42EE2F95E3ABAE441D.
+  tinyrustlm_followup_intake_announcement_feed_2026_07_02: wiki/runtime-mirust/reports/tinyrustlm-followup-intake-announcement-feed-memory-2026-07-02.md routes the preserved July 2 follow-up reports, MiniModel `write-peer-source-announcement-feed`, `write-catalog-snapshot-with-announcement-feed`, MiniModel.org/MiniModel.MiRust.com docs alignment, and no-project-server-model-byte boundary.
+  minimodel_local_verifier_implementation_2026_07_02: E:\Source\Rust\MiniModel.org\docs\verifier-mvp.md routes implemented `minimodel-core`/`minimodel` verifier, one-command `prepare-peer-share`, `add-peer-source`, announcement-feed publication, real q8 fixture manifest, local artifact SHA256/byte checks, TinyRustLM `.slm` structural validation, chunk/Merkle verification, local peer-piece export/direct HTTP serve/fetch/reassembly, catalog-entry writing, catalog peer-source validation, and basename-only receipts; verifier doc SHA256 2259713025F6C7DCA876CB1918FBA0BC39C2D69BE2825F9000C6E04F69724A00.
   huggingface_api_source_options_2026_07_01: wiki/runtime-mirust/research/huggingface-api-source-options-2026-07-01.md routes Hugging Face as a user-triggered external metadata/source option beside user-local files and future P2P, without project-server byte proxying or remote inference; TinyRustLM now treats those rows as non-runnable source metadata unless MiniModel metadata identifies an admitted `.slm`, and can save a local `minimodel.huggingface_conversion_request.v0` handoff.
   tinylm16_bpe_safetensors_plan_2026_06_30: wiki/runtime-mirust/reports/tinylm16-bpe-safetensors-plan-memory-2026-06-30.md routes `tinylm16-bpe` source shape, 39 untied TinyLM-16M tensors, manifest-native BPE1 metadata, sparse safetensors planner proof, and docs/CLI shape lists.
   two_parent_operator_browser_provenance_2026_06_29: wiki/runtime-mirust/reports/two-parent-operator-browser-provenance-memory-2026-06-29.md routes compact browser Model Provenance Operator rendering and receipt byte-echo fallback for blend, task-delta, and sparse task-delta selector fixtures.
@@ -96,6 +97,7 @@ memory_authority:
   safetensors_tokenizer_budget_reference_2026_06_29: wiki/runtime-mirust/research/safetensors-tokenizer-budget-reference-ideas-2026-06-29.md routes follow-up safetensors tensor-name alias mapping, tokenizer conversion, browser byte budgets, WASM hot loops, model-breeding schedule metadata, and reference-output fixtures.
   docs_report_intake_2026_06_30: docs/report-intake/2026-06-30/MANIFEST.md routes nine preserved Improvement reports through docs/report-intake/2026-06-30/runtime-mirust-report-synthesis-2026-06-30.md for zero-dependency Rust, TinyLM creation, safetensors browser runtime, tokenizer implementation, browser fit, CLI/runtime patterns, NuGet packaging, and typed orchestration reference; active source-site copies were removed after byte-exact docs preservation and active intake is now empty or placeholder-only.
   docs_report_intake_2026_07_01: docs/report-intake/2026-07-01/MANIFEST.md routes seven preserved MiniModel Improvement reports, one Hugging Face API option report, the SLM Composer UI plan, and the dashboard redesign batch through the MiniModel synthesis, dashboard synthesis, roadmap/research routes, and SLMComposer dashboard memory under no-server-model-bytes rules.
+  docs_report_intake_2026_07_02_followup: docs/report-intake/2026-07-02-followup/MANIFEST.md routes three preserved follow-up reports through `tinyrustlm-followup-intake-synthesis-2026-07-02.md`, reinforcing local-first Hugging Face conversion, P2P discoverability, beginner/pro progressive disclosure, and metadata-only announcement-feed publication.
   minimodel_p2p_roadmap_2026_07_01: wiki/runtime-mirust/research/minimodel-p2p-tiny-model-exchange-roadmap-2026-07-01.md routes MiniModel.org Rust-first P2P architecture, metadata-only catalog, local verification, peer transfer, legal/liability boundaries, secure manifests, and SLMComposer browser-local handoff.
   minimodel_manifest_verifier_mvp_2026_07_01: wiki/runtime-mirust/research/minimodel-manifest-verifier-mvp-2026-07-01.md routes MiniModel.org manifest v0, local Rust verifier, metadata-only catalog boundary, non-byte-serving examples, and import receipt next gates.
   safetensors_inspection_2026_06_29: wiki/runtime-mirust/reports/safetensors-inspection-memory-2026-06-29.md routes no-crate safetensors header inspection, dtype/shape/offset validation, report writing, focused tests, CLI smoke, and first real tiny-model source intake.

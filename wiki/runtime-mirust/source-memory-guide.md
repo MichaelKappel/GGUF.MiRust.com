@@ -70,6 +70,8 @@ For MiniModel peer-source announcement publication, load `reports/tinyrustlm-min
 
 For MiniModel batch announcement snapshot publication, load `reports/tinyrustlm-minimodel-batch-announcement-snapshot-memory-2026-07-02.md` when `write-catalog-snapshot-with-announcements`, many peer-source announcement files, maintainer batch catalog publication, or direct `models.v0.json` P2P-ready metadata generation is in scope.
 
+For MiniModel follow-up intake and announcement-feed publication, load `reports/tinyrustlm-followup-intake-announcement-feed-memory-2026-07-02.md` when `docs/report-intake/2026-07-02-followup/`, `write-peer-source-announcement-feed`, `write-catalog-snapshot-with-announcement-feed`, same-origin SHA-256-bound availability feeds, Hugging Face-to-TinyRustLM workflow guidance, P2P exchange architecture, or beginner/pro progressive disclosure are in scope.
+
 For SLMComposer progressive UI/source-option work, load `wiki/runtime-mirust/reports/slmcomposer-progressive-source-ui-memory-2026-07-01.md` when Chat/Advanced Tools mode behavior, Local/Hugging Face/P2P source choices, diagnostics rail grouping, run history, source-options browser smoke, local `.slm` import status copy, or stale-live deploy status is in scope.
 
 For first real tiny-model conversion planning, load `research/tiny-model-candidate-matrix-2026-06-29.md` when choosing Xenova 15M, Aurelius, StorySupra, Pythia, or a q4-only pressure route, or when adding converter fields for architecture, tokenizer, license route, byte budget, or first fixture proof.
