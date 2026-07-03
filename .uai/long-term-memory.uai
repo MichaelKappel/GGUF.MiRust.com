@@ -1,5 +1,5 @@
-﻿profile: runtime-mirust.long-term-memory-ledger.v209
-updated_utc: 2026-07-03T22:55:00Z
+﻿profile: runtime-mirust.long-term-memory-ledger.v210
+updated_utc: 2026-07-03T23:05:00Z
 storage_mode: hybrid
 ledger_rule:
   pointer_only_not_context_free: true
@@ -6234,15 +6234,15 @@ records:
     path: wiki/runtime-mirust/reports/tinyrustlm-browser-generated-p2p-import-kit-exec-memory-2026-07-03.md
     target_location: https://aiwikis.org/runtime-mirust/reports/tinyrustlm-browser-generated-p2p-import-kit-exec-memory-2026-07-03/
     label: Required For TinyRustLM Browser-Generated P2P Import Kit Exec Memory
-    summary: Routes agents to the converted-once later-user proof: generated metadata catalog, manifest download without sidecar, local peer-piece serve, exact browser P2P import script, imported `.slm` receipt, and no-server-byte boundary.
+    summary: Routes agents to the converted-once later-user proof: feed-bound metadata catalog, peer-source feed application, manifest download without sidecar, local peer-piece serve, exact browser P2P import script, imported `.slm` receipt, and no-server-byte boundary.
     pointer_status: current
     authority: durable-memory-pointer
     source_authority: local implementation report plus 2026-07-03 desktop/P2P intake synthesis
     review_status: reviewed_current
     quarantine_status: reviewed_current
-    contextual_trigger: Read before changing Hugging Face P2P import scripts, HTTP catalog metadata loading, manifest sidecar/download behavior, converted-once peer import flows, optional desktop companion boundaries, or no-server-byte assertions.
-    checksum_hash: sha256:E77E0E534ED0F2DBF7A2079DD001A0E478A4ABDFCDAA2237172A0C8787CAA251
-    last_reviewed_utc: 2026-07-03T22:55:00Z
+    contextual_trigger: Read before changing Hugging Face P2P import scripts, HTTP catalog metadata loading, peer-source announcement feed behavior, manifest sidecar/download behavior, converted-once peer import flows, optional desktop companion boundaries, or no-server-byte assertions.
+    checksum_hash: sha256:4DFE3C4F920B6F55955E5A98BA7887C851F6359A555B73B09AA0B4F3D61F6604
+    last_reviewed_utc: 2026-07-03T23:05:00Z
     owner_or_reviewer: project memory steward
     current_truth_boundary: Summary routes only; browser-generated P2P import kit execution body lives in the target file.
   - stable_id: tinyrustlm_public_live_smoke_memory

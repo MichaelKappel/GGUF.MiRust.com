@@ -9793,6 +9793,8 @@ async function waitForMetadataCatalogServer(catalogUrl, processHandle, outputBuf
 
 async function startMetadataCatalogServer(conversionExecution, bindAddr = "127.0.0.1", portNumber = 8124) {
   const manifestName = path.basename(conversionExecution.manifestPath);
+  const catalogPath = conversionExecution.feedBoundSnapshotPath || conversionExecution.catalogSnapshotPath;
+  const announcementFeedName = "peer-source-announcements.v0.json";
   const outputBuffer = [];
   const serverScript = `
     const fs = require("fs");
@@ -9800,12 +9802,14 @@ async function startMetadataCatalogServer(conversionExecution, bindAddr = "127.0
     const path = require("path");
     const catalogPath = process.argv[1];
     const manifestPath = process.argv[2];
-    const port = Number(process.argv[3]);
-    const host = process.argv[4];
+    const announcementFeedPath = process.argv[3];
+    const port = Number(process.argv[4]);
+    const host = process.argv[5];
     const manifestName = path.basename(manifestPath);
     const routes = new Map([
       ["/catalog/models.v0.json", catalogPath],
-      ["/catalog/" + manifestName, manifestPath]
+      ["/catalog/" + manifestName, manifestPath],
+      ["/catalog/peer-source-announcements.v0.json", announcementFeedPath]
     ]);
     const server = http.createServer((request, response) => {
       const requestPath = decodeURIComponent(new URL(request.url || "/", "http://" + host + ":" + port).pathname);
@@ -9834,8 +9838,9 @@ async function startMetadataCatalogServer(conversionExecution, bindAddr = "127.0
   const server = childProcess.spawn(process.execPath, [
     "-e",
     serverScript,
-    conversionExecution.catalogSnapshotPath,
+    catalogPath,
     conversionExecution.manifestPath,
+    conversionExecution.announcementFeedPath,
     String(portNumber),
     bindAddr
   ], {
@@ -9856,7 +9861,8 @@ async function startMetadataCatalogServer(conversionExecution, bindAddr = "127.0
     process: server,
     outputBuffer,
     catalogUrl,
-    manifestUrl: `http://${bindAddr}:${portNumber}/catalog/${manifestName}`
+    manifestUrl: `http://${bindAddr}:${portNumber}/catalog/${manifestName}`,
+    announcementFeedUrl: `http://${bindAddr}:${portNumber}/catalog/${announcementFeedName}`
   };
 }
 
@@ -9875,6 +9881,9 @@ function assertHfP2pImportKitSmoke(result, conversionExecution) {
     const catalogStatus = String(result.localCatalogStatus || "");
     if (!catalogStatus.includes("metadata entries")) {
       failures.push(`converted-once local catalog did not load: ${result.localCatalogStatus}`);
+    }
+    if (!catalogStatus.includes("peer-source announcement") || !catalogStatus.includes("applied")) {
+      failures.push(`converted-once catalog did not apply the generated peer-source feed: ${result.localCatalogStatus}`);
     }
     if (!Array.isArray(result.primaryActionTexts) || !result.primaryActionTexts.includes("P2P Import")) {
       failures.push(`converted-once Hugging Face row did not offer P2P Import: ${JSON.stringify(result.primaryActionTexts)}`);
@@ -13502,6 +13511,10 @@ async function main() {
           }
         }
         assertHfP2pImportKitSmoke(p2pImportKit, conversionKitExecution);
+        smokeAssert(
+          networkRequests.some((requestUrl) => requestUrl.includes("127.0.0.1:8124/catalog/peer-source-announcements.v0.json")),
+          `generated peer-source announcement feed was not fetched by the browser: ${JSON.stringify(networkRequests)}`
+        );
         result = {
           conversionKitExecution,
           p2pImportKit,
