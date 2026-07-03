@@ -90,6 +90,7 @@
   const hfDiscoveryScheme = "https";
   const hfDiscoveryHost = "huggingface.co";
   const hfSearchLimit = 8;
+  const hfLargeSourceWarningBytes = 2 * 1024 * 1024 * 1024;
   const blockedPeerHosts = new Set([
     "minimodel.org",
     "www.minimodel.org",
@@ -2147,6 +2148,12 @@
     if (!Number.isFinite(bytes)) {
       return "unknown bytes";
     }
+    if (bytes >= 1024 * 1024 * 1024 * 1024) {
+      return `${(bytes / (1024 * 1024 * 1024 * 1024)).toFixed(2)} TiB`;
+    }
+    if (bytes >= 1024 * 1024 * 1024) {
+      return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GiB`;
+    }
     if (bytes >= 1024 * 1024) {
       return `${(bytes / (1024 * 1024)).toFixed(2)} MiB`;
     }
@@ -4038,6 +4045,28 @@
     return Boolean(view && view.safetensorsFiles && view.safetensorsFiles.length);
   }
 
+  function hfPrimarySafetensorsFile(view) {
+    return view && Array.isArray(view.safetensorsFiles) && view.safetensorsFiles.length
+      ? view.safetensorsFiles[0]
+      : null;
+  }
+
+  function hfSourceByteRisk(view) {
+    const source = hfPrimarySafetensorsFile(view);
+    if (!source) {
+      return "none";
+    }
+    const bytes = Number(source.byte_count);
+    if (!Number.isFinite(bytes) || bytes <= 0) {
+      return "unknown";
+    }
+    return bytes >= hfLargeSourceWarningBytes ? "large" : "normal";
+  }
+
+  function hfConversionActionLabel(view) {
+    return hfSourceByteRisk(view) === "normal" ? "Start Conversion" : "Prepare Conversion";
+  }
+
   function hfCompatibilityClass(view) {
     return view.matches.length || view.slmFiles.length
       ? "compatibility-pill candidate"
@@ -4058,6 +4087,12 @@
     if (!hfCanStartConversion(view)) {
       return "No supported source listed";
     }
+    if (hfSourceByteRisk(view) === "large") {
+      return "Large source; P2P preferred";
+    }
+    if (hfSourceByteRisk(view) === "unknown") {
+      return "Source size unknown";
+    }
     return "Rust conversion required";
   }
 
@@ -4069,7 +4104,11 @@
           ? "MiniModel metadata has a peer-offer proof; enter a consenting peer URL before Rust fetches, assembles, and reverifies"
         : "MiniModel metadata only; choose the matching local .slm before running"
       : hfCanStartConversion(view)
-        ? "model card only; not runnable here until Rust conversion and local .slm verification"
+        ? hfSourceByteRisk(view) === "large"
+          ? "model card only; large source listed, so P2P reuse is preferred before local conversion"
+          : hfSourceByteRisk(view) === "unknown"
+            ? "model card only; source size unknown, so review before local conversion"
+            : "model card only; not runnable here until Rust conversion and local .slm verification"
         : "model card only; no .safetensors source listed for the Rust converter";
     return `${view.downloads} / ${view.likes} / ${sourceState}`;
   }
@@ -4084,9 +4123,16 @@
       }
       return `Hugging Face model card / ${view.downloads} / ${view.hasPeerOffer ? "P2P proof ready; consenting peer URL required" : "MiniModel metadata found; local .slm needed"}`;
     }
-    return hfCanStartConversion(view)
-      ? `Hugging Face model card / ${view.downloads} / not runnable yet; Rust preflight and conversion required`
-      : `Hugging Face model card / ${view.downloads} / no supported .safetensors source listed`;
+    if (!hfCanStartConversion(view)) {
+      return `Hugging Face model card / ${view.downloads} / no supported .safetensors source listed`;
+    }
+    if (hfSourceByteRisk(view) === "large") {
+      return `Hugging Face model card / ${view.downloads} / large source listed; P2P preferred before local conversion`;
+    }
+    if (hfSourceByteRisk(view) === "unknown") {
+      return `Hugging Face model card / ${view.downloads} / source size unknown; review before local conversion`;
+    }
+    return `Hugging Face model card / ${view.downloads} / not runnable yet; Rust preflight and conversion required`;
   }
 
   function hfSimpleCompatibilityText(view) {
@@ -4107,6 +4153,12 @@
     if (!hfCanStartConversion(view)) {
       return "No supported source listed";
     }
+    if (hfSourceByteRisk(view) === "large") {
+      return "Large source; P2P preferred";
+    }
+    if (hfSourceByteRisk(view) === "unknown") {
+      return "Source size unknown";
+    }
     return "Rust conversion required";
   }
 
@@ -4122,6 +4174,14 @@
     }
     if (!hfCanStartConversion(view)) {
       return "No converted peer or .safetensors source is listed yet. Review the model card; Rust conversion needs a reviewed .safetensors source before it can create .slm metadata for P2P reuse.";
+    }
+    if (hfSourceByteRisk(view) === "large") {
+      const source = hfPrimarySafetensorsFile(view);
+      const size = source && Number.isFinite(source.byte_count) ? formatByteCount(source.byte_count) : "large";
+      return `Large source listed (${size}). Prefer a MiniModel P2P import when available; local conversion should be an explicit reviewed choice because it may require a large Hugging Face download.`;
+    }
+    if (hfSourceByteRisk(view) === "unknown") {
+      return "Source size is unavailable from metadata. Review the model card before local conversion; P2P reuse is preferred when a verified peer entry appears.";
     }
     return "No converted peer is listed yet. Start Conversion saves a Rust script that turns one reviewed local .safetensors into a verified .slm, prepares peer pieces, and writes metadata so future users can import by P2P.";
   }
@@ -4164,6 +4224,25 @@
     }
   }
 
+  function appendHfSourceRiskNote(actions, view) {
+    const risk = hfSourceByteRisk(view);
+    if (risk === "large") {
+      const source = hfPrimarySafetensorsFile(view);
+      const size = source && Number.isFinite(source.byte_count) ? formatByteCount(source.byte_count) : "large";
+      actions.append(elementWithText(
+        "span",
+        "model-result-meta",
+        `Large source warning: ${size}. Prefer P2P reuse if a verified peer becomes available; local conversion is explicit and may take a while.`
+      ));
+    } else if (risk === "unknown") {
+      actions.append(elementWithText(
+        "span",
+        "model-result-meta",
+        "Source size unavailable in metadata. Review before local conversion; prefer P2P reuse when available."
+      ));
+    }
+  }
+
   function appendHfSourceFileNotes(actions, view, options = {}) {
     if (view.slmFiles.length) {
       appendHfSlmFileNotes(actions, view.slmFiles, options.slmActionWord || "import");
@@ -4174,6 +4253,7 @@
       actions.append(elementWithText("span", "model-result-meta", noSlmText));
     }
     appendHfSafetensorsFileNotes(actions, view.safetensorsFiles);
+    appendHfSourceRiskNote(actions, view);
   }
 
   function hfEnabledP2pActionMatch(view) {
@@ -4215,7 +4295,7 @@
     if (!hfCanStartConversion(view)) {
       return;
     }
-    actions.append(actionButton("Start Conversion", () => startHfConversion(entry, view.matches), "primary-result-action"));
+    actions.append(actionButton(hfConversionActionLabel(view), () => startHfConversion(entry, view.matches), "primary-result-action"));
   }
 
   async function ensureDefaultCatalogForHfAvailability() {
@@ -4790,6 +4870,8 @@
       localSlmNeeded: 0,
       externalSlmListed: 0,
       conversionNeeded: 0,
+      largeSourceReview: 0,
+      unknownSourceReview: 0,
       noSupportedSource: 0
     };
     for (const entry of accepted) {
@@ -4804,6 +4886,10 @@
         summary.externalSlmListed += 1;
       } else if (!hfCanStartConversion(view)) {
         summary.noSupportedSource += 1;
+      } else if (hfSourceByteRisk(view) === "large") {
+        summary.largeSourceReview += 1;
+      } else if (hfSourceByteRisk(view) === "unknown") {
+        summary.unknownSourceReview += 1;
       } else {
         summary.conversionNeeded += 1;
       }
@@ -4823,6 +4909,12 @@
     }
     if (summary.conversionNeeded) {
       parts.push(`${pluralCount(summary.conversionNeeded, "model")} ${summary.conversionNeeded === 1 ? "needs" : "need"} Rust conversion`);
+    }
+    if (summary.largeSourceReview) {
+      parts.push(`${pluralCount(summary.largeSourceReview, "model")} ${summary.largeSourceReview === 1 ? "needs" : "need"} explicit large-source conversion review`);
+    }
+    if (summary.unknownSourceReview) {
+      parts.push(`${pluralCount(summary.unknownSourceReview, "model")} ${summary.unknownSourceReview === 1 ? "needs" : "need"} source-size review`);
     }
     if (summary.noSupportedSource) {
       parts.push(`${pluralCount(summary.noSupportedSource, "model")} ${summary.noSupportedSource === 1 ? "has" : "have"} no supported source listed`);

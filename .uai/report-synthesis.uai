@@ -1,5 +1,5 @@
-profile: runtime-mirust.report-synthesis.v152
-updated_utc: 2026-07-04T00:45:00Z
+profile: runtime-mirust.report-synthesis.v153
+updated_utc: 2026-07-04T01:15:00Z
 purpose: Hot .uai synthesis of processed Improvement reports, distributed for agent startup without requiring immediate bulk loading of wiki Markdown.
 source_authority:
   raw_evidence: raw/runtime-mirust/report-intake-2026-06-25/
@@ -49,6 +49,7 @@ source_authority:
     - wiki/runtime-mirust/reports/tinyrustlm-huggingface-self-contained-conversion-script-memory-2026-07-03.md
     - wiki/runtime-mirust/reports/tinyrustlm-huggingface-local-download-opt-in-memory-2026-07-03.md
     - wiki/runtime-mirust/reports/tinyrustlm-huggingface-supported-source-gate-memory-2026-07-03.md
+    - wiki/runtime-mirust/reports/tinyrustlm-huggingface-source-size-risk-memory-2026-07-03.md
     - wiki/runtime-mirust/reports/tinyrustlm-desktop-p2p-companion-intake-memory-2026-07-03.md
     - wiki/runtime-mirust/reports/tinylm16-bpe-safetensors-plan-memory-2026-06-30.md
     - wiki/runtime-mirust/reports/enterprise-rust-governance-memory-2026-06-25.md
@@ -332,6 +333,9 @@ tinyrustlm_huggingface_local_download_opt_in_2026_07_03:
 tinyrustlm_huggingface_supported_source_gate_2026_07_03:
   route: wiki/runtime-mirust/reports/tinyrustlm-huggingface-supported-source-gate-memory-2026-07-03.md
   synthesis: Hugging Face rows without `.safetensors` metadata no longer get simple `Start Conversion`; the UI now reports no-supported-source separately while preserving source-backed conversion and P2P-ready import actions.
+tinyrustlm_huggingface_source_size_risk_2026_07_03:
+  route: wiki/runtime-mirust/reports/tinyrustlm-huggingface-source-size-risk-memory-2026-07-03.md
+  synthesis: Hugging Face rows with large or unknown-size `.safetensors` sources now use `Prepare Conversion` plus review/P2P-preferred guidance, while normal source rows keep `Start Conversion` and P2P-ready rows keep `P2P Import`.
 tinyrustlm_minimodel_peer_import_preflight_2026_07_03:
   route: wiki/runtime-mirust/reports/tinyrustlm-minimodel-peer-import-preflight-memory-2026-07-03.md
   checksum_sha256: 600B3AEF139BF7F891714D52A5377765EDFD9FD68D152A821DAED8D3A2200818
