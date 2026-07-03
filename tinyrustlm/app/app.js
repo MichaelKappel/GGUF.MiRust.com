@@ -3277,6 +3277,92 @@
     setShareMetadataStatus(`${bundle.peer_offer.chunks.chunk_count} chunks / share metadata saved locally`, false);
   }
 
+  function miniModelServePeerPiecesScript({ scriptTitle, modelId, shareDirRelativePath }) {
+    const relativeShareDir = String(shareDirRelativePath || "minimodel-peer-share")
+      .split(/[\\/]+/)
+      .filter(Boolean)
+      .map((segment) => safeLocalModelName(segment))
+      .join("\\") || "minimodel-peer-share";
+    const lines = [
+      `# ${scriptTitle || "MiniModel local peer piece server"}`,
+      `# Model: ${modelId || "local/slm"}`,
+      "#",
+      "# This serves local peer pieces only from this machine after you choose to run it.",
+      "# It does not upload model bytes to TinyRustLM.com, MiniModel.org, or any project server.",
+      "# Stop the PowerShell window to stop serving.",
+      "",
+      "$ErrorActionPreference = \"Stop\"",
+      "",
+      "function Resolve-ExistingPath {",
+      "  param(",
+      "    [string[]] $Candidates,",
+      "    [string] $Label,",
+      "    [string] $Help",
+      "  )",
+      "  foreach ($Candidate in $Candidates) {",
+      "    if ([string]::IsNullOrWhiteSpace($Candidate)) { continue }",
+      "    if ($Candidate -like \"EDIT_ME*\") { continue }",
+      "    if (Test-Path -LiteralPath $Candidate) {",
+      "      return (Resolve-Path -LiteralPath $Candidate).Path",
+      "    }",
+      "  }",
+      "  throw \"$Label not found. $Help\"",
+      "}",
+      "",
+      "function Resolve-GeneratedFile {",
+      "  param(",
+      "    [string] $Directory,",
+      "    [string] $Filter,",
+      "    [string] $Label",
+      "  )",
+      "  $Matches = @(Get-ChildItem -LiteralPath $Directory -File -Filter $Filter | Sort-Object LastWriteTimeUtc -Descending)",
+      "  if ($Matches.Count -lt 1) {",
+      "    throw \"$Label was not produced in $Directory. Run the conversion/share kit first.\"",
+      "  }",
+      "  return $Matches[0].FullName",
+      "}",
+      "",
+      "function Resolve-GeneratedDirectory {",
+      "  param(",
+      "    [string] $Directory,",
+      "    [string] $Filter,",
+      "    [string] $Label",
+      "  )",
+      "  $Matches = @(Get-ChildItem -LiteralPath $Directory -Directory -Filter $Filter | Sort-Object LastWriteTimeUtc -Descending)",
+      "  if ($Matches.Count -lt 1) {",
+      "    throw \"$Label was not produced in $Directory. Run the conversion/share kit first.\"",
+      "  }",
+      "  return $Matches[0].FullName",
+      "}",
+      "",
+      "# Optional overrides:",
+      "#   $env:MINIMODEL_WORKSPACE = full path to the MiniModel.org Rust workspace",
+      "#   $env:MINIMODEL_PEER_BIND_ADDR = bind address, default 127.0.0.1:8123",
+      "$CandidateMiniModelWorkspaces = @(",
+      "  $env:MINIMODEL_WORKSPACE,",
+      "  \"E:/Source/Rust/MiniModel.org\",",
+      "  (Join-Path $PSScriptRoot \"MiniModel.org\"),",
+      "  (Join-Path $PSScriptRoot \"..\\MiniModel.org\"),",
+      "  (Join-Path $PSScriptRoot \"..\\..\\MiniModel.org\")",
+      ")",
+      "$MiniModelWorkspace = Resolve-ExistingPath $CandidateMiniModelWorkspaces \"MiniModel Rust workspace\" \"Set MINIMODEL_WORKSPACE or edit `$CandidateMiniModelWorkspaces.\"",
+      `$ShareDir = Join-Path $PSScriptRoot ${powerShellSingleQuote(relativeShareDir)}`,
+      "$Manifest = Resolve-GeneratedFile $ShareDir \"*.minimodel.manifest.v0\" \"MiniModel manifest\"",
+      "$PeerPiecesDir = Resolve-GeneratedDirectory $ShareDir \"*.peer-pieces\" \"MiniModel peer pieces\"",
+      "$BindAddr = if ($env:MINIMODEL_PEER_BIND_ADDR) { $env:MINIMODEL_PEER_BIND_ADDR } else { \"127.0.0.1:8123\" }",
+      "",
+      "Write-Host \"MiniModel workspace:\" $MiniModelWorkspace",
+      "Write-Host \"MiniModel manifest:\" $Manifest",
+      "Write-Host \"Peer pieces directory:\" $PeerPiecesDir",
+      "Write-Host \"Serving from this machine only:\" $BindAddr",
+      "Write-Host \"Project servers are not serving, proxying, caching, or running these model bytes.\"",
+      "Set-Location $MiniModelWorkspace",
+      "cargo run -p minimodel -- serve-peer-pieces $Manifest $PeerPiecesDir $BindAddr",
+      ""
+    ];
+    return lines.join("\n");
+  }
+
   function localShareKitScript(bundle) {
     const entry = bundle.catalog_entry || {};
     const offer = bundle.peer_offer || {};
@@ -3293,6 +3379,7 @@
         ? offer.artifact_byte_count
         : 0;
     const scriptStem = safeLocalModelName(`${slugForShareMetadata(modelId)}.minimodel-share`);
+    const serveScriptFileName = safeLocalModelName(`${slugForShareMetadata(modelId)}.minimodel-serve-peer-pieces.ps1`);
     const lines = [
       "# TinyRustLM local .slm to MiniModel P2P share kit",
       `# Model: ${displayName} (${modelId})`,
@@ -3354,6 +3441,7 @@
       "$PeerSourceAnnouncementFeed = Join-Path $WorkDir \"peer-source-announcements.v0.json\"",
       "$CatalogSnapshot = Join-Path $WorkDir \"models.v0.json\"",
       "$CatalogSnapshotWithFeed = Join-Path $WorkDir \"models.with-announcement-feed.v0.json\"",
+      `$ServeScript = Join-Path $PSScriptRoot ${powerShellSingleQuote(serveScriptFileName)}`,
       "",
       "$ActualArtifactByteCount = (Get-Item -LiteralPath $LocalSlm).Length",
       "if ($ExpectedArtifactByteCount -gt 0 -and $ActualArtifactByteCount -ne $ExpectedArtifactByteCount) {",
@@ -3401,6 +3489,8 @@
       "}",
       "Write-Host \"To serve from this machine, run:\"",
       "Write-Host \"cargo run -p minimodel -- serve-peer-pieces '$Manifest' '$PeerPiecesDir' $BindAddr\"",
+      "Write-Host \"or run the downloaded helper script:\"",
+      "Write-Host \"powershell -ExecutionPolicy Bypass -File '$ServeScript'\"",
       "Write-Host \"Future users import by selecting the P2P-ready row, saving its import kit, and running MiniModel import-peer-request.\"",
       "",
       "# Share metadata summary:",
@@ -3418,7 +3508,16 @@
     const stem = safeLocalModelName(slugForShareMetadata(bundle.catalog_entry.model_id));
     downloadTextFile(`${stem}.minimodel-share-metadata.json`, `${JSON.stringify(bundle, null, 2)}\n`);
     downloadTextFile(`${stem}.minimodel-share-kit.ps1`, localShareKitScript(bundle), "text/plain");
-    setShareMetadataStatus(`${bundle.peer_offer.chunks.chunk_count} chunks / P2P share kit saved locally`, false);
+    downloadTextFile(
+      `${stem}.minimodel-serve-peer-pieces.ps1`,
+      miniModelServePeerPiecesScript({
+        scriptTitle: "TinyRustLM local .slm MiniModel peer serving helper",
+        modelId: catalogText(bundle.catalog_entry && bundle.catalog_entry.model_id) || "local/slm",
+        shareDirRelativePath: `${safeLocalModelName(`${slugForShareMetadata(bundle.catalog_entry.model_id)}.minimodel-share`)}-kit\\minimodel-peer-share`
+      }),
+      "text/plain"
+    );
+    setShareMetadataStatus(`${bundle.peer_offer.chunks.chunk_count} chunks / P2P share kit saved locally / serve script saved locally`, false);
   }
 
   async function importLocalModelFile() {
@@ -4166,6 +4265,11 @@
     const quantization = request.requested_artifact.default_quantization;
     const modelUrl = hfModelUrl(entry.modelId);
     const minimodelModelId = minimodelModelIdForHf(entry.modelId);
+    const serveScriptBase64 = base64Utf8(miniModelServePeerPiecesScript({
+      scriptTitle: "TinyRustLM converted Hugging Face MiniModel peer serving helper",
+      modelId: minimodelModelId,
+      shareDirRelativePath: "minimodel-peer-share"
+    }));
     const safetensorsFiles = Array.isArray(request.source.discovered_safetensors_files)
       ? request.source.discovered_safetensors_files
       : [];
@@ -4192,6 +4296,8 @@
       "# or set TINYRUSTLM_SOURCE_SAFETENSORS to its full local path.",
       "# If the Rust planner rejects the file, this model is not currently compatible",
       "# with the selected TinyRustLM source shape.",
+      "# The embedded serve helper runs MiniModel serve-peer-pieces from your machine only.",
+      "# Project servers are not serving, proxying, caching, or running these model bytes.",
       "",
       "$ErrorActionPreference = \"Stop\"",
       "",
@@ -4259,6 +4365,7 @@
       `$SuggestedSourceSafetensorsFileName = ${powerShellSingleQuote(suggestedSourceFile)}`,
       `$ConversionRequest = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${stem}.minimodel-conversion-request.json`)}`,
       `$EmbeddedConversionRequestBase64 = ${powerShellSingleQuote(requestBase64)}`,
+      `$EmbeddedServePeerPiecesScriptBase64 = ${powerShellSingleQuote(serveScriptBase64)}`,
       "$SourceSafetensorsCandidates = @(",
       "  $env:TINYRUSTLM_SOURCE_SAFETENSORS,",
       "  (Join-Path $PSScriptRoot $SuggestedSourceSafetensorsFileName),",
@@ -4275,6 +4382,7 @@
       `$WorkDir = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${stem}-tinyrustlm-conversion`)}`,
       "$MiniModelShareDir = Join-Path $WorkDir \"minimodel-peer-share\"",
       "$MiniModelCatalogSnapshot = Join-Path $WorkDir \"models.v0.json\"",
+      `$MiniModelServeScript = Join-Path $WorkDir ${powerShellSingleQuote(`${stem}.minimodel-serve-peer-pieces.ps1`)}`,
       "",
       "if (!(Test-Path -LiteralPath $ConversionRequest)) {",
       "  $EmbeddedConversionRequestJson = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($EmbeddedConversionRequestBase64))",
@@ -4288,6 +4396,9 @@
       "Write-Host \"Output directory:\" $WorkDir",
       "",
       "New-Item -ItemType Directory -Force -Path $WorkDir | Out-Null",
+      "$EmbeddedServeScriptText = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($EmbeddedServePeerPiecesScriptBase64))",
+      "[System.IO.File]::WriteAllText($MiniModelServeScript, $EmbeddedServeScriptText, [System.Text.Encoding]::UTF8)",
+      "Write-Host \"Wrote peer serving script:\" $MiniModelServeScript",
       "Set-Location $TinyRustLMWorkspace",
       "",
       "# The script writes the embedded request JSON beside itself when it is missing.",
@@ -4324,6 +4435,7 @@
       "Write-Host \"MiniModel peer pieces:\" $MiniModelPieceDir",
       "Write-Host \"MiniModel share directory:\" $MiniModelShareDir",
       "Write-Host \"MiniModel catalog snapshot:\" $MiniModelCatalogSnapshot",
+      "Write-Host \"MiniModel serve script:\" $MiniModelServeScript",
       "if ($KnownPeerBaseUrl.Trim().Length -eq 0) {",
       "  Write-Host \"Later, when you have a consenting peer URL, publish P2P availability metadata with:\"",
       "  Write-Host \"cargo run -p minimodel -- add-peer-source '$MiniModelCatalogEntry' '$MiniModelCatalogEntryWithPeer' http://127.0.0.1:8123/\"",
@@ -4334,7 +4446,8 @@
       "  Write-Host \"cargo run -p minimodel -- write-catalog-snapshot-with-announcements '$MiniModelCatalogSnapshot' '$MiniModelCatalogEntry' --announcements '$MiniModelPeerSourceAnnouncement'\"",
       "  Write-Host \"The batch command writes models.v0.json directly; if using apply-peer-source-announcements, rerun write-catalog-snapshot with the with-peer entry.\"",
       "}",
-      "Write-Host \"If you consent to serve pieces, run the serve-peer-pieces command printed by MiniModel from your own machine.\"",
+      "Write-Host \"If you consent to serve pieces from this machine, run:\"",
+      "Write-Host \"powershell -ExecutionPolicy Bypass -File '$MiniModelServeScript'\"",
       "Write-Host \"Next: open TinyRustLM.com, choose Your Local Files, and import the converted .slm.\"",
       ""
     ];

@@ -314,11 +314,11 @@ tinyrustlm_local_share_kit_2026_07_03:
   synthesis: After verified local `.slm` import, TinyRustLM can save checksum-bound share metadata plus a local P2P share kit script that verifies the artifact, prepares MiniModel peer pieces and catalog metadata, optionally writes peer-source announcement/feed files, and preserves no-project-server model-byte boundaries.
 tinyrustlm_huggingface_real_conversion_script_2026_07_03:
   route: wiki/runtime-mirust/reports/tinyrustlm-huggingface-real-conversion-script-memory-2026-07-03.md
-  synthesis: Hugging Face `Start Conversion` now saves a script that follows Rust-produced conversion and MiniModel output paths instead of guessed filenames, while `hf-search-ui` still proves no fake transcript text or model-byte fetches.
+  synthesis: Hugging Face `Start Conversion` now saves a script that follows Rust-produced conversion and MiniModel output paths instead of guessed filenames, writes a local `.minimodel-serve-peer-pieces.ps1` helper, while `hf-search-ui` still proves no fake transcript text or model-byte fetches.
 tinyrustlm_huggingface_self_contained_conversion_script_2026_07_03:
   route: wiki/runtime-mirust/reports/tinyrustlm-huggingface-self-contained-conversion-script-memory-2026-07-03.md
   checksum_sha256: F6E2CF435FCF06BAB00302AB09913ABEF99F0BB97AD2DFB080F9A9E2B4C579C3
-  synthesis: Hugging Face `Start Conversion` scripts now embed the conversion request JSON and recreate the sidecar if missing, while keeping Rust-owned local conversion and no model-byte fetch boundaries.
+  synthesis: Hugging Face `Start Conversion` scripts now embed the conversion request JSON, recreate the sidecar if missing, and embed/write the local peer-serving helper while keeping Rust-owned local conversion and no model-byte fetch boundaries.
 tinyrustlm_desktop_p2p_companion_2026_07_03:
   route: wiki/runtime-mirust/reports/tinyrustlm-desktop-p2p-companion-intake-memory-2026-07-03.md
   synthesis: Six desktop/P2P reports support a later optional user-run companion for advanced peer duties; the current source remains a browser-local TinyRustLM app plus Rust-owned MiniModel verifier and local share/import scripts.

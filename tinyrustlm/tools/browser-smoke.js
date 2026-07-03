@@ -2739,9 +2739,18 @@ async function runPageShareMetadataSmoke(client) {
           }
           await sleep(100);
         }
+        for (let index = 0; index < 600; index += 1) {
+          const serveIndex = window.__tinyrustlmDownloadNames.findIndex((name) => name.endsWith(".minimodel-serve-peer-pieces.ps1"));
+          if (serveIndex >= 0 && window.__tinyrustlmDownloads[serveIndex] && window.__tinyrustlmDownloads[serveIndex].text) {
+            break;
+          }
+          await sleep(100);
+        }
         const downloaded = window.__tinyrustlmDownloads[0] || { text: "" };
         const kitIndex = window.__tinyrustlmDownloadNames.findIndex((name) => name.endsWith(".minimodel-share-kit.ps1"));
         const kitDownload = kitIndex >= 0 ? window.__tinyrustlmDownloads[kitIndex] || { text: "", type: "" } : { text: "", type: "" };
+        const serveIndex = window.__tinyrustlmDownloadNames.findIndex((name) => name.endsWith(".minimodel-serve-peer-pieces.ps1"));
+        const serveDownload = serveIndex >= 0 ? window.__tinyrustlmDownloads[serveIndex] || { text: "", type: "" } : { text: "", type: "" };
         const parsed = downloaded.text ? JSON.parse(downloaded.text) : {};
         return JSON.stringify({
           runtimeStatus: byId("runtimeStatus").textContent,
@@ -2751,6 +2760,8 @@ async function runPageShareMetadataSmoke(client) {
           downloadNames: window.__tinyrustlmDownloadNames,
           shareKitScriptText: kitDownload.text || "",
           shareKitScriptType: kitDownload.type || "",
+          serveScriptText: serveDownload.text || "",
+          serveScriptType: serveDownload.type || "",
           bundle: parsed,
           fixtureSha256: ${JSON.stringify(fixture.sha256)},
           fixtureBytes: ${JSON.stringify(fixture.modelBytes)}
@@ -9265,7 +9276,10 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "SuggestedSourceSafetensorsFileName",
       "$ConversionRequest",
       "$EmbeddedConversionRequestBase64",
+      "$EmbeddedServePeerPiecesScriptBase64",
+      "$MiniModelServeScript",
       "Wrote embedded conversion request:",
+      "Wrote peer serving script:",
       "[System.Convert]::FromBase64String",
       "Resolve-ExistingPath",
       "Resolve-GeneratedFile",
@@ -9293,6 +9307,9 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "models.v0.json",
       "MiniModel manifest:",
       "MiniModel peer pieces:",
+      "MiniModel serve script:",
+      "powershell -ExecutionPolicy Bypass -File",
+      "Project servers are not serving, proxying, caching, or running these model bytes",
       "TinyRustLM.com"
     ]) {
       if (!scriptText.includes(required)) {
@@ -9483,6 +9500,9 @@ function assertShareMetadataSmoke(result, networkRequests) {
   if (!result.downloadNames || !result.downloadNames.some((name) => String(name).endsWith(".minimodel-share-kit.ps1"))) {
     failures.push(`share kit download name was ${JSON.stringify(result.downloadNames)}`);
   }
+  if (!result.downloadNames || !result.downloadNames.some((name) => String(name).endsWith(".minimodel-serve-peer-pieces.ps1"))) {
+    failures.push(`serve-peer-pieces helper download name was ${JSON.stringify(result.downloadNames)}`);
+  }
   if (entry.artifact_sha256 !== result.fixtureSha256 || offer.artifact_sha256 !== result.fixtureSha256) {
     failures.push(`artifact SHA-256 mismatch in share metadata: ${entry.artifact_sha256}/${offer.artifact_sha256}/${result.fixtureSha256}`);
   }
@@ -9536,6 +9556,24 @@ function assertShareMetadataSmoke(result, networkRequests) {
   }
   if (!String(result.shareKitScriptType || "").startsWith("text/plain")) {
     failures.push(`share kit script type was ${result.shareKitScriptType}`);
+  }
+  const serveScriptText = String(result.serveScriptText || "");
+  for (const required of [
+    "serve-peer-pieces",
+    "MINIMODEL_WORKSPACE",
+    "MINIMODEL_PEER_BIND_ADDR",
+    "127.0.0.1:8123",
+    "Resolve-GeneratedFile",
+    "Resolve-GeneratedDirectory",
+    "Project servers are not serving, proxying, caching, or running these model bytes",
+    "Run the conversion/share kit first"
+  ]) {
+    if (!serveScriptText.includes(required)) {
+      failures.push(`serve-peer-pieces helper missing ${required}: ${serveScriptText}`);
+    }
+  }
+  if (!String(result.serveScriptType || "").startsWith("text/plain")) {
+    failures.push(`serve-peer-pieces helper type was ${result.serveScriptType}`);
   }
   for (const requestUrl of networkRequests) {
     if (requestUrl.includes("huggingface.co") || requestUrl.includes("MiniModel.org") || requestUrl.includes("minimodel.org")) {

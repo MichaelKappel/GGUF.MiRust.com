@@ -13,6 +13,7 @@ This report records the hardening pass after user review of the fake first-run c
 - The conversion script runs `cargo run -p tinyrustlm-slm-pack -- convert-huggingface-request <request-json> <input.safetensors> <output-dir> <source-shape> <quantization>`.
 - After conversion, the script discovers the `.slm` and `tinyrustlm-conversion.receipt` produced by Rust instead of guessing output filenames.
 - After `minimodel prepare-peer-share`, the script discovers the generated MiniModel manifest, catalog entry, and peer-piece directory instead of guessing output filenames.
+- The conversion script writes a local `.minimodel-serve-peer-pieces.ps1` helper into the conversion output directory so the sender can later run `minimodel serve-peer-pieces` from their own machine after explicit consent.
 - The script still writes metadata-only `models.v0.json` and optional peer-source announcement metadata; it does not upload, proxy, run, or serve model bytes from project servers.
 - P2P import remains the preferred converted-once reuse lane when MiniModel metadata has peer-offer proof and a consenting peer source. Otherwise the user starts local conversion once, then publishes metadata so later users can see `P2P Import`.
 
@@ -23,7 +24,7 @@ This report records the hardening pass after user review of the fake first-run c
 - `tinyrustlm/index.html`
 - `tinyrustlm/tools/browser-smoke.js`
 - `tinyrustlm/docs/browser-runtime.md`
-- `E:\Source\Rust\TinyRustLM.MiRust.com\docs\runtime-portal\runtime-docs\implementation\slmcomposer-source-options-ui-v1.0.7.md`
+- `E:\Source\Rust\TinyRustLM.MiRust.com\docs\runtime-portal\runtime-docs\implementation\browser-runtime.md`
 - `E:\Source\Rust\TinyRustLM.MiRust.com\data\pages.php`
 - `E:\Source\Rust\TinyRustLM.MiRust.com\llms-full.txt`
 

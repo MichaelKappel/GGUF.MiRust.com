@@ -15,7 +15,7 @@ TinyRustLM now exposes a post-import P2P share kit for verified local `.slm` fil
 
 ## Behavior
 
-After Rust/WASM verifies and loads a user-selected local `.slm`, both the simple P2P panel and the advanced discovery panel enable `Save P2P Share Kit`. The existing `Save Share Metadata` path still writes `minimodel.local_slm_share_metadata.v0`; the new kit writes that metadata plus a local `.minimodel-share-kit.ps1` script.
+After Rust/WASM verifies and loads a user-selected local `.slm`, both the simple P2P panel and the advanced discovery panel enable `Save P2P Share Kit`. The existing `Save Share Metadata` path still writes `minimodel.local_slm_share_metadata.v0`; the kit writes that metadata plus local `.minimodel-share-kit.ps1` and `.minimodel-serve-peer-pieces.ps1` scripts.
 
 The generated script:
 
@@ -25,7 +25,8 @@ The generated script:
 - runs `minimodel prepare-peer-share`;
 - optionally runs `add-peer-source`, `write-peer-source-announcement`, `write-peer-source-announcement-feed`, and `write-catalog-snapshot-with-announcement-feed` when the user sets a consenting `KnownPeerBaseUrl`;
 - always writes a metadata-only `models.v0.json` catalog snapshot through `write-catalog-snapshot`;
-- prints the matching `serve-peer-pieces` command for the user's own direct peer endpoint.
+- prints the matching `serve-peer-pieces` command for the user's own direct peer endpoint;
+- downloads a serve helper that resolves the generated manifest and peer-piece directory, defaults to `127.0.0.1:8123`, and runs `minimodel serve-peer-pieces` only from the user's machine after explicit consent.
 
 ## Boundaries
 
@@ -33,4 +34,4 @@ The script states that it never uploads model bytes to TinyRustLM.com, MiniModel
 
 ## Verification
 
-`share-metadata-ui` now asserts that the browser produces both a share metadata JSON download and a `.minimodel-share-kit.ps1` download, that the script contains the MiniModel share, announcement-feed, catalog, serve, and hash-verification commands, that the final UI state says `P2P share kit saved locally`, and that the export path makes no Hugging Face or MiniModel remote requests.
+`share-metadata-ui` now asserts that the browser produces share metadata JSON, `.minimodel-share-kit.ps1`, and `.minimodel-serve-peer-pieces.ps1` downloads, that the scripts contain the MiniModel share, announcement-feed, catalog, serve, bind-address, and hash-verification commands, that the final UI state says `P2P share kit saved locally`, and that the export path makes no Hugging Face or MiniModel remote requests.
