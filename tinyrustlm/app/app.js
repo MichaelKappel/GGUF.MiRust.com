@@ -85,6 +85,9 @@
   const httpScheme = "http" + "://";
   const httpsScheme = "https" + "://";
   const peerExampleUrl = `${httpScheme}127.0.0.1:8123/`;
+  const peerPieceSetRoute = "minimodel.peer_piece_set.v0";
+  const peerCompanionStateRoute = "minimodel.peer_companion_state.v0.json";
+  const miniModelImportReceiptNextGate = "user-selected-tinyrustlm-local-file-open";
   const docsTargets = {
     runtime: `${httpsScheme}TinyRustLM.MiRust.com/`,
     minimodel: `${httpsScheme}MiniModel.MiRust.com/`
@@ -101,18 +104,20 @@
   const hfLargeSourceWarningBytes = 2 * 1024 * 1024 * 1024;
   const blockedPeerHosts = new Set([
     "minimodel.org",
-    "www.minimodel.org",
     "tinyrustlm.com",
-    "www.tinyrustlm.com",
     "slmcomposer.com",
-    "www.slmcomposer.com",
     "lmcomposer.com",
-    "www.lmcomposer.com",
-    "runtime.mirust.com",
-    "tinyrustlm.mirust.com",
-    "huggingface.co",
-    "www.huggingface.co"
+    "mirust.com",
+    "huggingface.co"
   ]);
+  const blockedPeerHostSuffixes = [
+    ".minimodel.org",
+    ".tinyrustlm.com",
+    ".slmcomposer.com",
+    ".lmcomposer.com",
+    ".mirust.com",
+    ".huggingface.co"
+  ];
 
   const registryAdapterApplyStatus = "runtime-f32-compatible-or-fuse-to-slm";
   const registryQuantizedAdapterApplyStatus = "runtime-q8-q4-compatible-or-fuse-to-slm";
@@ -378,11 +383,15 @@
     simplePeerBaseUrlInput: document.getElementById("simplePeerBaseUrlInput"),
     simpleSavePeerUrlButton: document.getElementById("simpleSavePeerUrlButton"),
     simplePeerUrlStatus: document.getElementById("simplePeerUrlStatus"),
+    simplePeerContactCardFile: document.getElementById("simplePeerContactCardFile"),
+    simpleApplyPeerContactCardButton: document.getElementById("simpleApplyPeerContactCardButton"),
     simpleCatalogResults: document.getElementById("simpleCatalogResults"),
     simpleHfResults: document.getElementById("simpleHfResults"),
     simpleLoadCatalogButton: document.getElementById("simpleLoadCatalogButton"),
     simpleLocalCatalogFile: document.getElementById("simpleLocalCatalogFile"),
     simpleImportLocalCatalogButton: document.getElementById("simpleImportLocalCatalogButton"),
+    simpleShareMetadataFile: document.getElementById("simpleShareMetadataFile"),
+    simpleImportShareMetadataButton: document.getElementById("simpleImportShareMetadataButton"),
     simplePeerAnnouncementFile: document.getElementById("simplePeerAnnouncementFile"),
     simpleApplyPeerAnnouncementButton: document.getElementById("simpleApplyPeerAnnouncementButton"),
     simpleSaveShareMetadataButton: document.getElementById("simpleSaveShareMetadataButton"),
@@ -432,6 +441,10 @@
     catalogLoadButton: document.getElementById("catalogLoadButton"),
     localCatalogFile: document.getElementById("localCatalogFile"),
     importLocalCatalogButton: document.getElementById("importLocalCatalogButton"),
+    shareMetadataFile: document.getElementById("shareMetadataFile"),
+    importShareMetadataButton: document.getElementById("importShareMetadataButton"),
+    peerContactCardFile: document.getElementById("peerContactCardFile"),
+    applyPeerContactCardButton: document.getElementById("applyPeerContactCardButton"),
     peerAnnouncementFile: document.getElementById("peerAnnouncementFile"),
     applyPeerAnnouncementButton: document.getElementById("applyPeerAnnouncementButton"),
     catalogStatus: document.getElementById("catalogStatus"),
@@ -1059,16 +1072,36 @@
     if (parsed.protocol !== "http:") {
       throw new Error("Known-peer import uses direct HTTP peer URLs only in this prototype.");
     }
+    if (/[?#]/.test(raw)) {
+      throw new Error("Known peer URL must be a plain HTTP path without query or fragment.");
+    }
     const host = parsed.hostname.toLowerCase();
-    if (!host || blockedPeerHosts.has(host)) {
+    const normalizedHost = host.replace(/\.+$/, "");
+    if (!normalizedHost || normalizedHost.startsWith(".") || normalizedHost.includes("..")) {
+      throw new Error("Known peer host must be plain DNS or IPv4 text.");
+    }
+    if (isBlockedPeerHost(normalizedHost)) {
       throw new Error("That host is not a peer. Project, docs, and Hugging Face hosts cannot serve model bytes.");
     }
-    parsed.hash = "";
-    parsed.search = "";
+    if (!/^[a-z0-9.-]+$/i.test(normalizedHost)) {
+      throw new Error("Known peer host must be plain DNS or IPv4 text.");
+    }
+    parsed.hostname = normalizedHost;
+    const rawPathMatch = raw.match(/^http:\/\/[^/]*(\/.*)?$/i);
+    const rawPath = rawPathMatch ? rawPathMatch[1] || "/" : parsed.pathname;
+    if (rawPath.includes("\\") || rawPath.includes("..") || /[\u0000-\u0020\u007f]/.test(rawPath)) {
+      throw new Error("Known peer URL path must be a plain safe path.");
+    }
     if (!parsed.pathname.endsWith("/")) {
       parsed.pathname = `${parsed.pathname}/`;
     }
     return parsed.href;
+  }
+
+  function isBlockedPeerHost(host) {
+    const plainHost = host.startsWith("www.") ? host.slice(4) : host;
+    return blockedPeerHosts.has(plainHost)
+      || blockedPeerHostSuffixes.some((suffix) => plainHost.endsWith(suffix));
   }
 
   function updatePeerUrlStatus(message, isError = false) {
@@ -1089,7 +1122,69 @@
     state.peerBaseUrl = normalized;
     storageSet(uiStorageKeys.peerBaseUrl, normalized);
     updatePeerUrlStatus(normalized ? `Known peer set: ${normalized}` : "", false);
+    refreshPeerAvailabilityViews();
     return normalized;
+  }
+
+  function refreshPeerAvailabilityViews() {
+    if (state.hfLastAccepted && state.hfLastAccepted.length) {
+      renderAcceptedHfResults(state.hfLastAccepted);
+    }
+    if (state.catalogEntries && state.catalogEntries.length) {
+      renderCatalogResults(state.catalogEntries);
+    }
+  }
+
+  function requireTrueMetadataFlag(raw, key, label) {
+    if (!raw || raw[key] !== true) {
+      throw new Error(`${label} must declare ${key}=true`);
+    }
+  }
+
+  function validatePeerContactLabel(value, label) {
+    const text = catalogText(value);
+    if (!text || text.length > 96 || /[\u0000-\u001f\u007f]/.test(text)) {
+      throw new Error(`${label} peer_label must be 1-96 printable characters`);
+    }
+    return text;
+  }
+
+  function peerContactCardFromRaw(raw, sourceLabel) {
+    const label = sourceLabel || "peer contact card";
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+      throw new Error(`${label} must be a JSON object`);
+    }
+    if (catalogText(raw.card_kind) !== "minimodel.peer_contact_card") {
+      throw new Error(`${label} card kind was unsupported`);
+    }
+    if (catalogInteger(raw.card_version) !== 0) {
+      throw new Error(`${label} card version was unsupported`);
+    }
+    if (catalogText(raw.transfer_protocol) !== "direct-http-piece-server-v0") {
+      throw new Error(`${label} transfer protocol was unsupported`);
+    }
+    if (catalogText(raw.contact_status) !== "operator-reviewed-consenting-peer") {
+      throw new Error(`${label} must name an operator-reviewed consenting peer`);
+    }
+    if (catalogText(raw.intended_use) !== "known-peer-url-for-minimodel-peer-piece-import") {
+      throw new Error(`${label} intended use was unsupported`);
+    }
+    const peerLabel = validatePeerContactLabel(raw.peer_label, label);
+    const peerBaseUrl = normalizedPeerBaseUrl(raw.peer_base_url);
+    requireFalseMetadataFlag(raw, "project_server_serves_model_bytes", label);
+    requireFalseMetadataFlag(raw, "project_server_runs_model_bytes", label);
+    requireFalseMetadataFlag(raw, "project_server_proxies_model_bytes", label);
+    const boundary = raw.boundary;
+    if (!boundary || typeof boundary !== "object" || Array.isArray(boundary)) {
+      throw new Error(`${label} must include a boundary object`);
+    }
+    requireTrueMetadataFlag(boundary, "metadata_only", `${label} boundary`);
+    requireFalseMetadataFlag(boundary, "peer_contact_card_embeds_model_bytes", `${label} boundary`);
+    requireFalseMetadataFlag(boundary, "project_server_serves_model_bytes", `${label} boundary`);
+    requireFalseMetadataFlag(boundary, "project_server_runs_model_bytes", `${label} boundary`);
+    requireFalseMetadataFlag(boundary, "project_server_proxies_model_bytes", `${label} boundary`);
+    requireTrueMetadataFlag(boundary, "requires_rust_reverify_before_browser_import", `${label} boundary`);
+    return { peerLabel, peerBaseUrl };
   }
 
   function setHfP2pEnabled(enabled) {
@@ -1535,10 +1630,31 @@
       el.simplePeerAnnouncementFile.addEventListener("change", () => {
         const file = el.simplePeerAnnouncementFile.files && el.simplePeerAnnouncementFile.files[0];
         if (!file) {
-          setCatalogStatus("choose a peer-source announcement after loading metadata", false);
+          setCatalogStatus("choose a peer-source announcement or feed after loading metadata", false);
           return;
         }
-        setCatalogStatus(`${safeLocalModelName(file.name)} / ${formatByteCount(file.size)} peer-source announcement selected`, false);
+        setCatalogStatus(`${safeLocalModelName(file.name)} / ${formatByteCount(file.size)} peer-source announcement/feed selected`, false);
+        holdModelPopoverOpen(2500);
+      });
+    }
+    if (el.simpleImportShareMetadataButton) {
+      el.simpleImportShareMetadataButton.addEventListener("click", () => {
+        setSimpleSourceOption("p2p", true);
+        importShareMetadataFile(el.simpleShareMetadataFile).catch((error) => {
+          setCatalogStatus(errorMessage(error), true);
+        }).finally(() => {
+          holdModelPopoverOpen(3000);
+        });
+      });
+    }
+    if (el.simpleShareMetadataFile) {
+      el.simpleShareMetadataFile.addEventListener("change", () => {
+        const file = el.simpleShareMetadataFile.files && el.simpleShareMetadataFile.files[0];
+        if (!file) {
+          setCatalogStatus("choose a share metadata JSON file", false);
+          return;
+        }
+        setCatalogStatus(`${safeLocalModelName(file.name)} / ${formatByteCount(file.size)} share metadata selected`, false);
         holdModelPopoverOpen(2500);
       });
     }
@@ -1598,6 +1714,27 @@
         } catch (error) {
           updatePeerUrlStatus(errorMessage(error), true);
         }
+      });
+    }
+    if (el.simpleApplyPeerContactCardButton) {
+      el.simpleApplyPeerContactCardButton.addEventListener("click", () => {
+        setSimpleSourceOption("p2p", true);
+        applyPeerContactCardFile(el.simplePeerContactCardFile).catch((error) => {
+          updatePeerUrlStatus(errorMessage(error), true);
+        }).finally(() => {
+          holdModelPopoverOpen(3000);
+        });
+      });
+    }
+    if (el.simplePeerContactCardFile) {
+      el.simplePeerContactCardFile.addEventListener("change", () => {
+        const file = el.simplePeerContactCardFile.files && el.simplePeerContactCardFile.files[0];
+        if (!file) {
+          updatePeerUrlStatus("choose a peer contact card or enter a URL", false);
+          return;
+        }
+        updatePeerUrlStatus(`${safeLocalModelName(file.name)} / ${formatByteCount(file.size)} peer contact card selected`, false);
+        holdModelPopoverOpen(2500);
       });
     }
     if (el.simpleHfSearchButton) {
@@ -2439,6 +2576,44 @@
       `${modelId.split("/").pop()}.slm`
     );
     const peerSources = catalogPeerSourcesFromRaw(raw, `Catalog entry ${modelId}`);
+    const peerHintStatus = catalogText(raw.peer_hint_status || raw.p2p_status || raw.transfer_status) || "disabled";
+    const peerImportStatus = catalogText(raw.peer_import_status || raw.peer_transfer_status || raw.import_status);
+    const peerOfferRoute = catalogText(raw.peer_offer_route || raw.peer_offer_path);
+    const peerOfferSha256 = normalizeCatalogSha256(raw.peer_offer_sha256 || raw.peer_offer_checksum);
+    const peerOfferChunkCount = catalogInteger(raw.peer_offer_chunk_count);
+    const peerOfferMerkleRootSha256 = normalizeCatalogSha256(raw.peer_offer_merkle_root_sha256 || raw.merkle_root_sha256);
+    const hasPeerOfferFields = Boolean(peerOfferRoute || peerOfferSha256 || peerOfferChunkCount || peerOfferMerkleRootSha256);
+    if (
+      peerImportStatus === "request-script-ready" ||
+      peerHintStatus === "peer-offer-ready-known-peer-needed" ||
+      peerSources.length ||
+      hasPeerOfferFields
+    ) {
+      const peerOfferKind = catalogText(raw.peer_offer_kind);
+      const peerOfferChunkAlgorithm = catalogText(raw.peer_offer_chunk_algorithm);
+      const peerOfferChunkSize = catalogInteger(raw.peer_offer_chunk_size);
+      if (peerOfferKind !== "minimodel.peer_offer.v0") {
+        throw new Error(`Catalog entry ${modelId} peer offer kind was invalid`);
+      }
+      if (peerOfferChunkAlgorithm !== "sha256-merkle-v0") {
+        throw new Error(`Catalog entry ${modelId} peer offer chunk algorithm was invalid`);
+      }
+      if (!peerOfferRoute || peerOfferRoute.includes("\n") || peerOfferRoute.includes("\r")) {
+        throw new Error(`Catalog entry ${modelId} peer offer route was invalid`);
+      }
+      if (!peerOfferSha256) {
+        throw new Error(`Catalog entry ${modelId} peer offer SHA-256 was invalid`);
+      }
+      if (!peerOfferChunkSize || peerOfferChunkSize < 1) {
+        throw new Error(`Catalog entry ${modelId} peer offer chunk size was invalid`);
+      }
+      if (!peerOfferChunkCount || peerOfferChunkCount < 1) {
+        throw new Error(`Catalog entry ${modelId} peer offer chunk count was invalid`);
+      }
+      if (!peerOfferMerkleRootSha256) {
+        throw new Error(`Catalog entry ${modelId} peer offer Merkle root was invalid`);
+      }
+    }
     return {
       raw,
       catalogBaseUrl,
@@ -2459,12 +2634,12 @@
       sourceModelId: catalogText(raw.source_model_id || raw.upstream_model_id || raw.upstream_source_id),
       sourceHuggingFaceModelId: catalogText(raw.source_huggingface_model_id || raw.huggingface_model_id || raw.hf_model_id),
       sourceUrl: catalogText(raw.source_url || raw.huggingface_url || raw.upstream_url),
-      peerHintStatus: catalogText(raw.peer_hint_status || raw.p2p_status || raw.transfer_status) || "disabled",
-      peerImportStatus: catalogText(raw.peer_import_status || raw.peer_transfer_status || raw.import_status),
-      peerOfferRoute: catalogText(raw.peer_offer_route || raw.peer_offer_path),
-      peerOfferSha256: normalizeCatalogSha256(raw.peer_offer_sha256 || raw.peer_offer_checksum),
-      peerOfferChunkCount: catalogInteger(raw.peer_offer_chunk_count),
-      peerOfferMerkleRootSha256: normalizeCatalogSha256(raw.peer_offer_merkle_root_sha256 || raw.merkle_root_sha256),
+      peerHintStatus,
+      peerImportStatus,
+      peerOfferRoute,
+      peerOfferSha256,
+      peerOfferChunkCount,
+      peerOfferMerkleRootSha256,
       peerSources,
       licenseRoute: catalogText(raw.license_route),
       modelCardRoute: catalogText(raw.model_card_route),
@@ -2493,6 +2668,11 @@
 
   function simpleCatalogPeerStateText(entry) {
     if (!entry.peerOfferRoute) {
+      if (entry.shareMetadataStatus) {
+        return entry.shareMetadataLocalShareKitAvailable
+          ? "Share metadata verified / run share kit then load generated catalog"
+          : "Share metadata verified / matching local .slm needed";
+      }
       return entry.sourceKind || "verified source pending";
     }
     return entry.peerSources.length
@@ -2736,6 +2916,303 @@
     setCatalogStatus(`${entries.length} local MiniModel metadata entries from ${fileName}`, false);
   }
 
+  function shareMetadataModeFromBundle(bundle, label) {
+    const boundary = bundle && bundle.boundary;
+    if (!boundary || typeof boundary !== "object" || Array.isArray(boundary)) {
+      throw new Error(`${label} boundary was invalid`);
+    }
+    requireFalseMetadataFlag(boundary, "project_server_serves_model_bytes", `${label} boundary`);
+    requireFalseMetadataFlag(boundary, "project_server_runs_model_bytes", `${label} boundary`);
+    if (boundary.project_server_proxies_model_bytes === true) {
+      throw new Error(`${label} boundary declares project-server model-byte proxying`);
+    }
+    if (boundary.user_consent_required_before_transfer !== true) {
+      throw new Error(`${label} boundary must require user consent before transfer`);
+    }
+    const status = catalogText(boundary.peer_transfer_status);
+    const implementation = catalogText(boundary.peer_transfer_implementation);
+    const implemented = boundary.peer_transfer_implemented === true;
+    if (
+      !implemented &&
+      status === "metadata-only" &&
+      implementation === "not-included-in-metadata-export"
+    ) {
+      return {
+        shareKitReady: false,
+        status,
+        implementation,
+        peerHintStatus: "share-metadata-verified-local-file-required",
+        requiredNextGate: "import-matching-local-slm-or-run-share-kit-before-p2p"
+      };
+    }
+    if (
+      implemented &&
+      status === "local-share-kit-script-ready-known-peer-needed" &&
+      implementation === "generated-local-minimodel-share-kit-v0"
+    ) {
+      return {
+        shareKitReady: true,
+        status,
+        implementation,
+        peerHintStatus: "share-kit-ready-run-local-script-known-peer-needed",
+        requiredNextGate: "run-local-share-kit-and-load-generated-models-v0-json-for-p2p"
+      };
+    }
+    throw new Error(`${label} peer transfer profile was unsupported`);
+  }
+
+  function requireShareMetadataObject(value, label) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error(`${label} must be a JSON object`);
+    }
+    return value;
+  }
+
+  function requireShareMetadataSha(value, label) {
+    const normalized = normalizeCatalogSha256(value);
+    if (!normalized) {
+      throw new Error(`${label} SHA-256 was invalid`);
+    }
+    return normalized;
+  }
+
+  function requireShareMetadataInteger(value, label) {
+    const parsed = catalogInteger(value);
+    if (!parsed || parsed < 1) {
+      throw new Error(`${label} was invalid`);
+    }
+    return parsed;
+  }
+
+  async function validateShareMetadataChunks(chunks, artifactByteCount, artifactSha256, label) {
+    requireShareMetadataObject(chunks, `${label} chunks`);
+    if (catalogText(chunks.algorithm) !== "sha256-merkle-v0") {
+      throw new Error(`${label} chunk algorithm was unsupported`);
+    }
+    const chunkSize = requireShareMetadataInteger(chunks.chunk_size, `${label} chunk size`);
+    if (chunkSize !== peerShareChunkBytes) {
+      throw new Error(`${label} chunk size must be ${peerShareChunkBytes}`);
+    }
+    const chunkCount = requireShareMetadataInteger(chunks.chunk_count, `${label} chunk count`);
+    const entries = Array.isArray(chunks.entries) ? chunks.entries : [];
+    if (entries.length !== chunkCount) {
+      throw new Error(`${label} chunk count did not match entries`);
+    }
+    const normalizedEntries = [];
+    let expectedOffset = 0;
+    for (let index = 0; index < entries.length; index += 1) {
+      const entry = requireShareMetadataObject(entries[index], `${label} chunk ${index + 1}`);
+      const chunkIndex = catalogInteger(entry.index);
+      const offset = catalogInteger(entry.offset);
+      const byteCount = requireShareMetadataInteger(entry.byte_count, `${label} chunk ${index + 1} byte count`);
+      const sha256 = requireShareMetadataSha(entry.sha256, `${label} chunk ${index + 1}`);
+      if (chunkIndex !== index) {
+        throw new Error(`${label} chunk ${index + 1} index was invalid`);
+      }
+      if (offset === null || offset !== expectedOffset) {
+        throw new Error(`${label} chunk ${index + 1} offset was invalid`);
+      }
+      expectedOffset += byteCount;
+      normalizedEntries.push({
+        index,
+        offset,
+        byte_count: byteCount,
+        sha256
+      });
+    }
+    if (expectedOffset !== artifactByteCount) {
+      throw new Error(`${label} chunk byte count did not match artifact byte count`);
+    }
+    if (normalizedEntries.length === 1 && normalizedEntries[0].sha256 !== artifactSha256) {
+      throw new Error(`${label} single chunk checksum did not match artifact SHA-256`);
+    }
+    const chunkListText = normalizedEntries.map((chunk) => [
+      chunk.index,
+      chunk.offset,
+      chunk.byte_count,
+      chunk.sha256
+    ].join("=")).join("\n");
+    const chunkListSha256 = await sha256Text(`${chunkListText}\n`);
+    const expectedChunkListSha256 = requireShareMetadataSha(chunks.chunk_list_sha256, `${label} chunk list`);
+    if (chunkListSha256 !== expectedChunkListSha256) {
+      throw new Error(`${label} chunk list checksum did not match entries`);
+    }
+    const merkleRoot = await merkleRootSha256(normalizedEntries);
+    const expectedMerkleRoot = requireShareMetadataSha(chunks.merkle_root_sha256, `${label} Merkle root`);
+    if (merkleRoot !== expectedMerkleRoot) {
+      throw new Error(`${label} Merkle root did not match entries`);
+    }
+    return {
+      chunkCount,
+      chunkSize,
+      chunkListSha256,
+      merkleRootSha256: merkleRoot
+    };
+  }
+
+  function validateShareMetadataTransfer(offer, mode, label) {
+    const transfer = requireShareMetadataObject(offer.transfer, `${label} transfer`);
+    requireFalseMetadataFlag(transfer, "project_server_serves_model_bytes", `${label} transfer`);
+    requireFalseMetadataFlag(transfer, "project_server_runs_model_bytes", `${label} transfer`);
+    if (transfer.network_transfer_available !== false) {
+      throw new Error(`${label} transfer must declare network_transfer_available=false`);
+    }
+    const protocols = Array.isArray(transfer.protocols) ? transfer.protocols.map(catalogText) : [];
+    if (!mode.shareKitReady) {
+      if (
+        catalogText(offer.offer_status) !== "metadata-ready-transfer-not-implemented" ||
+        transfer.local_share_kit_available !== false ||
+        transfer.serve_helper_available !== false ||
+        protocols.length
+      ) {
+        throw new Error(`${label} metadata-only transfer profile was invalid`);
+      }
+      return;
+    }
+    if (
+      catalogText(offer.offer_status) !== "local-share-kit-ready-known-peer-needed" ||
+      transfer.local_share_kit_available !== true ||
+      transfer.serve_helper_available !== true ||
+      !protocols.includes("minimodel-prepare-peer-share-v0") ||
+      !protocols.includes("known-direct-http-peer-v0") ||
+      !protocols.includes("minimodel-peer-companion-v0")
+    ) {
+      throw new Error(`${label} share-kit transfer profile was invalid`);
+    }
+  }
+
+  function validateShareKitDescriptor(bundle, mode, label) {
+    if (!mode.shareKitReady) {
+      if (Object.prototype.hasOwnProperty.call(bundle, "share_kit")) {
+        throw new Error(`${label} metadata-only bundle must not include share_kit`);
+      }
+      return;
+    }
+    const shareKit = requireShareMetadataObject(bundle.share_kit, `${label} share_kit`);
+    if (
+      catalogText(shareKit.kit_kind) !== "tinyrustlm.local_p2p_share_kit.v0" ||
+      catalogText(shareKit.kit_status) !== "script-ready-known-peer-needed" ||
+      shareKit.prepares_peer_pieces !== true ||
+      shareKit.writes_catalog_snapshot !== true ||
+      shareKit.writes_peer_companion_state_when_known_peer_set !== true ||
+      shareKit.writes_peer_contact_card_when_known_peer_set !== true ||
+      shareKit.serve_helper_available !== true
+    ) {
+      throw new Error(`${label} share_kit descriptor was invalid`);
+    }
+    requireFalseMetadataFlag(shareKit, "project_server_serves_model_bytes", `${label} share_kit`);
+    requireFalseMetadataFlag(shareKit, "project_server_runs_model_bytes", `${label} share_kit`);
+  }
+
+  async function catalogEntryFromShareMetadataBundle(bundle, sourceLabel) {
+    requireShareMetadataObject(bundle, sourceLabel);
+    if (catalogText(bundle.bundle_kind) !== "minimodel.local_slm_share_metadata.v0") {
+      throw new Error(`${sourceLabel} bundle kind was unsupported`);
+    }
+    assertMetadataOnlyCatalogBoundary(bundle, sourceLabel);
+    const mode = shareMetadataModeFromBundle(bundle, sourceLabel);
+    const rawEntry = {
+      ...requireShareMetadataObject(bundle.catalog_entry, `${sourceLabel} catalog_entry`)
+    };
+    const offer = requireShareMetadataObject(bundle.peer_offer, `${sourceLabel} peer_offer`);
+    assertMetadataOnlyCatalogBoundary(rawEntry, `${sourceLabel} catalog_entry`);
+    assertMetadataOnlyCatalogBoundary(offer, `${sourceLabel} peer_offer`);
+    if (catalogText(offer.offer_kind) !== "minimodel.peer_offer.v0") {
+      throw new Error(`${sourceLabel} peer offer kind was unsupported`);
+    }
+    if (catalogText(offer.artifact_kind).toLowerCase() !== "slm") {
+      throw new Error(`${sourceLabel} peer offer artifact kind was unsupported`);
+    }
+    const artifactByteCount = requireShareMetadataInteger(rawEntry.artifact_byte_count, `${sourceLabel} artifact byte count`);
+    const offerByteCount = requireShareMetadataInteger(offer.artifact_byte_count, `${sourceLabel} peer offer artifact byte count`);
+    if (artifactByteCount !== offerByteCount) {
+      throw new Error(`${sourceLabel} peer offer byte count did not match catalog entry`);
+    }
+    const artifactSha256 = requireShareMetadataSha(rawEntry.artifact_sha256, `${sourceLabel} artifact`);
+    const offerSha256 = requireShareMetadataSha(offer.artifact_sha256, `${sourceLabel} peer offer artifact`);
+    if (artifactSha256 !== offerSha256) {
+      throw new Error(`${sourceLabel} peer offer SHA-256 did not match catalog entry`);
+    }
+    const chunkSummary = await validateShareMetadataChunks(
+      offer.chunks,
+      artifactByteCount,
+      artifactSha256,
+      sourceLabel
+    );
+    validateShareMetadataTransfer(offer, mode, sourceLabel);
+    validateShareKitDescriptor(bundle, mode, sourceLabel);
+    const catalogRaw = {
+      ...rawEntry,
+      artifact_sha256: artifactSha256,
+      artifact_byte_count: artifactByteCount,
+      peer_hint_status: mode.peerHintStatus,
+      peer_import_status: "",
+      required_next_gate: mode.requiredNextGate,
+      share_metadata_status: mode.status,
+      share_metadata_peer_transfer_implementation: mode.implementation,
+      share_metadata_chunk_count: chunkSummary.chunkCount,
+      share_metadata_chunk_list_sha256: chunkSummary.chunkListSha256,
+      share_metadata_merkle_root_sha256: chunkSummary.merkleRootSha256,
+      share_metadata_local_share_kit_available: mode.shareKitReady,
+      project_server_serves_model_bytes: false,
+      project_server_runs_model_bytes: false,
+      artifact_project_server_url: null
+    };
+    delete catalogRaw.peer_offer_route;
+    delete catalogRaw.peer_offer_path;
+    delete catalogRaw.peer_offer_sha256;
+    delete catalogRaw.peer_offer_checksum;
+    delete catalogRaw.peer_offer_kind;
+    delete catalogRaw.peer_offer_chunk_algorithm;
+    delete catalogRaw.peer_offer_chunk_size;
+    delete catalogRaw.peer_offer_chunk_count;
+    delete catalogRaw.peer_offer_merkle_root_sha256;
+    return {
+      ...catalogEntryFromRaw(catalogRaw, 0, ""),
+      shareMetadataStatus: mode.status,
+      shareMetadataImplementation: mode.implementation,
+      shareMetadataChunkCount: chunkSummary.chunkCount,
+      shareMetadataMerkleRootSha256: chunkSummary.merkleRootSha256,
+      shareMetadataLocalShareKitAvailable: mode.shareKitReady
+    };
+  }
+
+  function selectedShareMetadataFile(preferredInput) {
+    if (preferredInput && preferredInput.files && preferredInput.files[0]) {
+      return preferredInput.files[0];
+    }
+    if (el.shareMetadataFile && el.shareMetadataFile.files && el.shareMetadataFile.files[0]) {
+      return el.shareMetadataFile.files[0];
+    }
+    if (el.simpleShareMetadataFile && el.simpleShareMetadataFile.files && el.simpleShareMetadataFile.files[0]) {
+      return el.simpleShareMetadataFile.files[0];
+    }
+    return null;
+  }
+
+  async function importShareMetadataFile(preferredInput) {
+    const file = selectedShareMetadataFile(preferredInput);
+    if (!file) {
+      throw new Error("Choose a MiniModel share metadata JSON file");
+    }
+    if (!Number.isFinite(file.size) || file.size <= 0) {
+      throw new Error("Share metadata file is empty");
+    }
+    if (file.size > catalogTextByteBudget) {
+      throw new Error("Share metadata exceeded browser metadata budget");
+    }
+    clearCatalogResults();
+    const fileName = safeLocalModelName(file.name);
+    setCatalogStatus(`reading share metadata ${fileName}`, false);
+    const body = JSON.parse(await file.text());
+    const entry = await catalogEntryFromShareMetadataBundle(body, fileName);
+    state.catalogEntries = [entry];
+    state.defaultCatalogCheckedForAvailability = false;
+    renderCatalogResults(state.catalogEntries);
+    selectCatalogEntry(entry);
+    setCatalogStatus(`1 share metadata entry from ${fileName}; ${entry.peerHintStatus}`, false);
+  }
+
   function catalogPeerSourceRaw(source) {
     return {
       source_kind: source.sourceKind || "known-direct-http-peer-v0",
@@ -2821,11 +3298,49 @@
     };
   }
 
+  function isPeerSourceAnnouncementFeedBody(body) {
+    return Boolean(
+      body &&
+      typeof body === "object" &&
+      !Array.isArray(body) &&
+      (
+        Array.isArray(body.announcements) ||
+        Object.prototype.hasOwnProperty.call(body, "announcement_catalog_kind") ||
+        Object.prototype.hasOwnProperty.call(body, "announcement_catalog_version")
+      )
+    );
+  }
+
+  function requireFalseMetadataFlag(raw, key, label) {
+    if (!raw || raw[key] !== false) {
+      throw new Error(`${label} must declare ${key}=false`);
+    }
+  }
+
+  function validatePeerSourceAnnouncementFeedEnvelope(body, sourceLabel) {
+    if (catalogInteger(body.announcement_catalog_version) !== 0) {
+      throw new Error(`${sourceLabel} announcement catalog version was unsupported`);
+    }
+    if (catalogText(body.announcement_catalog_kind) !== "minimodel.peer_source_announcement_catalog") {
+      throw new Error(`${sourceLabel} announcement catalog kind was unsupported`);
+    }
+    requireFalseMetadataFlag(body, "project_server_serves_model_bytes", sourceLabel);
+    requireFalseMetadataFlag(body, "project_server_runs_model_bytes", sourceLabel);
+    requireFalseMetadataFlag(body, "project_server_proxies_model_bytes", sourceLabel);
+    if (!Array.isArray(body.announcements)) {
+      throw new Error(`${sourceLabel} announcement catalog must include an announcements array`);
+    }
+    if (body.announcements.length > catalogMaxEntries) {
+      throw new Error(`${sourceLabel} listed too many peer-source announcements`);
+    }
+    return body.announcements;
+  }
+
   function peerSourceAnnouncementsFromBody(body, sourceLabel) {
     const rawAnnouncements = Array.isArray(body)
       ? body
-      : Array.isArray(body && body.announcements)
-        ? body.announcements
+      : isPeerSourceAnnouncementFeedBody(body)
+        ? validatePeerSourceAnnouncementFeedEnvelope(body, sourceLabel)
         : [body];
     if (rawAnnouncements.length > catalogMaxEntries) {
       throw new Error(`${sourceLabel} listed too many peer-source announcements`);
@@ -2833,6 +3348,14 @@
     const announcements = rawAnnouncements.map((announcement, index) => (
       peerSourceAnnouncementFromRaw(announcement, index)
     ));
+    const seen = new Set();
+    for (const announcement of announcements) {
+      const key = `${announcement.modelId}|${announcement.peerSource.peerBaseUrl}`;
+      if (seen.has(key)) {
+        throw new Error(`${sourceLabel} duplicated model id and peer URL in peer-source announcements`);
+      }
+      seen.add(key);
+    }
     return announcements;
   }
 
@@ -2945,19 +3468,52 @@
     return null;
   }
 
+  function selectedPeerContactCardFile(preferredInput) {
+    if (preferredInput && preferredInput.files && preferredInput.files[0]) {
+      return preferredInput.files[0];
+    }
+    if (el.peerContactCardFile && el.peerContactCardFile.files && el.peerContactCardFile.files[0]) {
+      return el.peerContactCardFile.files[0];
+    }
+    if (el.simplePeerContactCardFile && el.simplePeerContactCardFile.files && el.simplePeerContactCardFile.files[0]) {
+      return el.simplePeerContactCardFile.files[0];
+    }
+    return null;
+  }
+
+  async function applyPeerContactCardFile(preferredInput) {
+    const file = selectedPeerContactCardFile(preferredInput);
+    if (!file) {
+      throw new Error("Choose a peer contact card JSON file");
+    }
+    if (!Number.isFinite(file.size) || file.size <= 0) {
+      throw new Error("Peer contact card file is empty");
+    }
+    if (file.size > catalogTextByteBudget) {
+      throw new Error("Peer contact card exceeded browser metadata budget");
+    }
+    const fileName = safeLocalModelName(file.name);
+    updatePeerUrlStatus(`reading peer contact card ${fileName}`, false);
+    const body = JSON.parse(await file.text());
+    const card = peerContactCardFromRaw(body, fileName);
+    setPeerBaseUrl(card.peerBaseUrl);
+    updatePeerUrlStatus(`Known peer card loaded: ${card.peerLabel} (${card.peerBaseUrl})`, false);
+    setCatalogStatus(`Peer contact card loaded from ${fileName}; known peer is ${card.peerBaseUrl}`, false);
+  }
+
   async function applyPeerSourceAnnouncementFile(preferredInput) {
     const file = selectedPeerAnnouncementFile(preferredInput);
     if (!file) {
-      throw new Error("Choose a peer-source announcement JSON file");
+      throw new Error("Choose a peer-source announcement or feed JSON file");
     }
     if (!Number.isFinite(file.size) || file.size <= 0) {
-      throw new Error("Peer-source announcement file is empty");
+      throw new Error("Peer-source announcement/feed file is empty");
     }
     if (file.size > catalogTextByteBudget) {
-      throw new Error("Peer-source announcement exceeded browser metadata budget");
+      throw new Error("Peer-source announcement/feed exceeded browser metadata budget");
     }
     const fileName = safeLocalModelName(file.name);
-    setCatalogStatus(`reading peer-source announcement ${fileName}`, false);
+    setCatalogStatus(`reading peer-source announcement/feed ${fileName}`, false);
     const text = await file.text();
     const body = JSON.parse(text);
     const announcements = peerSourceAnnouncementsFromBody(body, fileName);
@@ -3090,6 +3646,341 @@
     if (!/\.slm$/i.test(name)) {
       throw new Error("Catalog artifact must be a local .slm file");
     }
+  }
+
+  function localModelSelectedFiles() {
+    const files = Array.from(el.localModelFile && el.localModelFile.files ? el.localModelFile.files : []);
+    const slms = files.filter((file) => /\.slm$/i.test(safeLocalModelName(file.name)));
+    const receipts = files.filter((file) => /\.minimodel-receipt$/i.test(safeLocalModelName(file.name)));
+    return {
+      files,
+      slms,
+      receipts,
+      slm: slms.length === 1 ? slms[0] : null,
+      receipt: receipts.length === 1 ? receipts[0] : null
+    };
+  }
+
+  function localModelSelectionError(selectedFiles) {
+    if (selectedFiles.slms.length > 1) {
+      return "Choose exactly one local .slm file";
+    }
+    if (selectedFiles.receipts.length > 1) {
+      return "Choose at most one MiniModel receipt sidecar";
+    }
+    if (selectedFiles.files.length > 0 && selectedFiles.slms.length === 0) {
+      return `${selectedFiles.files.length} file(s) selected / choose one .slm file`;
+    }
+    return "";
+  }
+
+  function requireMiniModelReceiptBool(fields, key, expected) {
+    const actual = requireManifestField(fields, key, "MiniModel import receipt");
+    if (actual !== "true" && actual !== "false") {
+      throw new Error(`MiniModel import receipt field ${key} was ${actual}`);
+    }
+    const parsed = actual === "true";
+    if (parsed !== expected) {
+      throw new Error(`MiniModel import receipt field ${key} was ${actual}`);
+    }
+    return parsed;
+  }
+
+  function requireMiniModelReceiptSha(fields, key) {
+    const value = normalizeCatalogSha256(requireManifestField(fields, key, "MiniModel import receipt"));
+    if (!value) {
+      throw new Error(`MiniModel import receipt field ${key} was invalid`);
+    }
+    return value;
+  }
+
+  function requireMiniModelReceiptOptionalBool(fields, key, expected) {
+    if (!Object.prototype.hasOwnProperty.call(fields, key)) {
+      return null;
+    }
+    return requireMiniModelReceiptBool(fields, key, expected);
+  }
+
+  function isMiniModelReceiptLeapYear(year) {
+    return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  }
+
+  function miniModelReceiptDaysInMonth(year, month) {
+    if ([1, 3, 5, 7, 8, 10, 12].includes(month)) {
+      return 31;
+    }
+    if ([4, 6, 9, 11].includes(month)) {
+      return 30;
+    }
+    if (month === 2) {
+      return isMiniModelReceiptLeapYear(year) ? 29 : 28;
+    }
+    return 0;
+  }
+
+  function isStrictMiniModelUtcTimestamp(value) {
+    const match = /^([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})Z$/.exec(String(value || ""));
+    if (!match) {
+      return false;
+    }
+    const year = Number.parseInt(match[1], 10);
+    const month = Number.parseInt(match[2], 10);
+    const day = Number.parseInt(match[3], 10);
+    const hour = Number.parseInt(match[4], 10);
+    const minute = Number.parseInt(match[5], 10);
+    const second = Number.parseInt(match[6], 10);
+    return (
+      month >= 1 &&
+      month <= 12 &&
+      day >= 1 &&
+      day <= miniModelReceiptDaysInMonth(year, month) &&
+      hour >= 0 &&
+      hour <= 23 &&
+      minute >= 0 &&
+      minute <= 59 &&
+      second >= 0 &&
+      second <= 59
+    );
+  }
+
+  function requireMiniModelReceiptTimestamp(fields, key) {
+    const value = requireManifestField(fields, key, "MiniModel import receipt");
+    if (!isStrictMiniModelUtcTimestamp(value)) {
+      throw new Error(`MiniModel import receipt field ${key} was invalid`);
+    }
+    return value;
+  }
+
+  function requireMiniModelReceiptModelId(fields, key) {
+    const value = requireManifestField(fields, key, "MiniModel import receipt");
+    if (!/^[a-z0-9][a-z0-9._/-]{0,179}$/.test(value)) {
+      throw new Error(`MiniModel import receipt field ${key} was invalid`);
+    }
+    return value;
+  }
+
+  function requireMiniModelReceiptPrintable(fields, key, maxLength) {
+    const value = requireManifestField(fields, key, "MiniModel import receipt");
+    if (value.length > maxLength || /[\u0000-\u001f\u007f]/.test(value)) {
+      throw new Error(`MiniModel import receipt field ${key} was invalid`);
+    }
+    return value;
+  }
+
+  function requireMiniModelReceiptToken(fields, key) {
+    const value = requireMiniModelReceiptPrintable(fields, key, 96);
+    if (!/^[A-Za-z0-9._-]+$/.test(value)) {
+      throw new Error(`MiniModel import receipt field ${key} was invalid`);
+    }
+    return value;
+  }
+
+  function requireMiniModelReceiptPathHint(fields, key) {
+    const value = requireMiniModelReceiptPrintable(fields, key, 128);
+    if (
+      value !== value.trim() ||
+      value !== safeLocalModelName(value) ||
+      value.startsWith(".") ||
+      value.includes("..") ||
+      /[\\/:*?"<>|\u0000-\u001f\u007f]/.test(value)
+    ) {
+      throw new Error(`MiniModel import receipt field ${key} was invalid`);
+    }
+    return value;
+  }
+
+  function requireMiniModelReceiptOneOf(fields, key, allowedValues) {
+    const value = requireManifestField(fields, key, "MiniModel import receipt");
+    if (!allowedValues.includes(value)) {
+      throw new Error(`MiniModel import receipt field ${key} was ${value}`);
+    }
+    return value;
+  }
+
+  function requireMiniModelReceiptPeerBaseUrl(fields, key) {
+    try {
+      return normalizedPeerBaseUrl(requireManifestField(fields, key, "MiniModel import receipt"));
+    } catch (error) {
+      throw new Error(`MiniModel import receipt field ${key} was invalid: ${error.message || error}`);
+    }
+  }
+
+  function miniModelPeerReceiptRouteUrl(peerBaseUrl, route) {
+    return new URL(route, peerBaseUrl).href;
+  }
+
+  async function inspectLocalMiniModelImportReceipt(receiptFile, artifactName, artifactBytes, artifactSha256) {
+    if (!receiptFile) {
+      return null;
+    }
+    const receiptName = safeLocalModelName(receiptFile.name);
+    if (!/\.minimodel-receipt$/i.test(receiptName)) {
+      throw new Error("MiniModel receipt sidecar must use the .minimodel-receipt extension");
+    }
+    if (!Number.isFinite(receiptFile.size) || receiptFile.size <= 0 || receiptFile.size > receiptTextByteBudget) {
+      throw new Error("MiniModel receipt sidecar size was invalid");
+    }
+    const text = await receiptFile.text();
+    if (state.encoder.encode(text).length > receiptTextByteBudget) {
+      throw new Error("MiniModel receipt sidecar exceeded the receipt byte budget");
+    }
+    const fields = parseManifest(text);
+    requireManifestEqual(fields, "receipt.version", "0", "MiniModel import receipt");
+    requireManifestEqual(fields, "receipt.kind", "minimodel.import_receipt", "MiniModel import receipt");
+    const receiptCreatedUtc = requireMiniModelReceiptTimestamp(fields, "receipt.created_utc");
+    const manifestSha256 = requireMiniModelReceiptSha(fields, "manifest.sha256");
+    const modelId = requireMiniModelReceiptModelId(fields, "manifest.model_id");
+    requireManifestEqual(fields, "artifact.local_path_hint", artifactName, "MiniModel import receipt");
+    const receiptByteCount = catalogInteger(requireManifestField(fields, "artifact.byte_count", "MiniModel import receipt"));
+    if (receiptByteCount !== artifactBytes.length) {
+      throw new Error("MiniModel import receipt artifact.byte_count mismatch");
+    }
+    const receiptArtifactSha256 = requireMiniModelReceiptSha(fields, "artifact.sha256");
+    if (receiptArtifactSha256 !== artifactSha256) {
+      throw new Error("MiniModel import receipt artifact.sha256 mismatch");
+    }
+    requireManifestEqual(fields, "slm.validation_status", "passed", "MiniModel import receipt");
+    const slmModelShape = requireMiniModelReceiptPrintable(fields, "slm.model_shape", 512);
+    const quantization = requireMiniModelReceiptToken(fields, "slm.quantization");
+    const evidenceStatus = requireMiniModelReceiptToken(fields, "evidence.status");
+    requireManifestEqual(fields, "import.next_gate", miniModelImportReceiptNextGate, "MiniModel import receipt");
+    for (const key of [
+      "project_server_serves_model_bytes",
+      "project_server_runs_model_bytes",
+      "project_server_proxies_huggingface_bytes"
+    ]) {
+      requireMiniModelReceiptOptionalBool(fields, key, false);
+    }
+    const peerImport = Boolean(
+      fields["peer_import.transport"] ||
+      fields["peer_import.verification_status"] ||
+      fields["peer.base_url"] ||
+      fields["peer_piece_bytes_fetched"] ||
+      fields["artifact.assembled_from_peer_pieces"]
+    );
+    let peerBaseUrl = "unavailable";
+    let companionStateStatus = "unavailable";
+    let pieceCount = null;
+    if (peerImport) {
+      requireManifestEqual(fields, "peer_import.transport", "known-direct-http-peer-v0", "MiniModel import receipt");
+      requireManifestEqual(fields, "peer_import.verification_status", "passed", "MiniModel import receipt");
+      requireMiniModelReceiptPathHint(fields, "peer_import.request_path_hint");
+      peerBaseUrl = requireMiniModelReceiptPeerBaseUrl(fields, "peer.base_url");
+      requireMiniModelReceiptPathHint(fields, "peer.piece_dir_path_hint");
+      requireManifestEqual(fields, "peer.piece_set_path_hint", peerPieceSetRoute, "MiniModel import receipt");
+      requireMiniModelReceiptSha(fields, "peer.piece_set_sha256");
+      const companionStateUrl = requireManifestField(fields, "peer.companion_state_url", "MiniModel import receipt");
+      const expectedCompanionStateUrl = miniModelPeerReceiptRouteUrl(peerBaseUrl, peerCompanionStateRoute);
+      if (companionStateUrl !== expectedCompanionStateUrl) {
+        throw new Error("MiniModel import receipt peer.companion_state_url mismatch");
+      }
+      companionStateStatus = requireMiniModelReceiptOneOf(fields, "peer.companion_state_status", ["validated", "not-advertised"]);
+      requireManifestEqual(fields, "chunks.mode", "fixed-size-merkle-v0", "MiniModel import receipt");
+      requireMiniModelReceiptSha(fields, "chunks.merkle_root_sha256");
+      pieceCount = catalogInteger(requireManifestField(fields, "chunks.count", "MiniModel import receipt"));
+      if (!pieceCount) {
+        throw new Error("MiniModel import receipt chunks.count was invalid");
+      }
+      requireMiniModelReceiptBool(fields, "peer_piece_set_metadata_fetched", true);
+      requireMiniModelReceiptBool(fields, "peer_companion_state_metadata_fetched", companionStateStatus === "validated");
+      requireMiniModelReceiptBool(fields, "peer_piece_bytes_fetched", true);
+      requireMiniModelReceiptBool(fields, "artifact.assembled_from_peer_pieces", true);
+      requireMiniModelReceiptBool(fields, "project_server_serves_model_bytes", false);
+      requireMiniModelReceiptBool(fields, "project_server_runs_model_bytes", false);
+      requireMiniModelReceiptBool(fields, "project_server_proxies_huggingface_bytes", false);
+    }
+    return {
+      fileName: receiptName,
+      receiptSha256: await sha256Text(text),
+      fields,
+      receiptCreatedUtc,
+      modelId,
+      manifestSha256,
+      artifactSha256: receiptArtifactSha256,
+      slmModelShape,
+      quantization,
+      evidenceStatus,
+      nextGate: miniModelImportReceiptNextGate,
+      peerImport,
+      peerBaseUrl,
+      companionStateStatus,
+      pieceCount
+    };
+  }
+
+  function localImportReceiptSummary(receipt) {
+    if (!receipt) {
+      return "";
+    }
+    if (receipt.peerImport) {
+      return `MiniModel P2P receipt / ${receipt.companionStateStatus} / ${receipt.pieceCount || "unknown"} chunks`;
+    }
+    return "MiniModel import receipt";
+  }
+
+  function localImportReceiptProvenanceSnapshot(receipt) {
+    if (!receipt) {
+      return "";
+    }
+    const parts = [
+      localImportReceiptSummary(receipt),
+      `receipt ${receipt.receiptSha256}`,
+      `created ${receipt.receiptCreatedUtc}`
+    ];
+    if (receipt.peerImport) {
+      parts.push(
+        `peer ${receipt.peerBaseUrl}`,
+        `companion ${receipt.companionStateStatus}`,
+        `${receipt.pieceCount || "unknown"} chunks`
+      );
+    } else {
+      parts.push(`manifest ${receipt.manifestSha256}`);
+    }
+    return parts.filter(Boolean).join(" / ");
+  }
+
+  function localImportReceiptReviewSummary(receipt) {
+    if (!receipt) {
+      return "";
+    }
+    return [
+      `receipt ${receipt.fileName}`,
+      `evidence ${receipt.evidenceStatus}`,
+      `manifest ${receipt.manifestSha256}`,
+      `quantization ${receipt.quantization}`
+    ].join(" / ");
+  }
+
+  function localImportReceiptRouteSummary(receipt) {
+    if (!receipt) {
+      return "";
+    }
+    return receipt.peerImport
+      ? `receipt=${receipt.fileName} / peer=${receipt.peerBaseUrl} / companion=minimodel.peer_companion_state.v0.json`
+      : `receipt=${receipt.fileName}`;
+  }
+
+  function localImportReceiptArtifactSummary(receipt, byteLength) {
+    if (!receipt) {
+      return "";
+    }
+    return `artifact=${receipt.artifactSha256} / bytes=${byteLength}`;
+  }
+
+  function localImportReceiptValidationSummary(receipt) {
+    if (!receipt) {
+      return "";
+    }
+    if (receipt.peerImport) {
+      return [
+        "receipt-chain-ready-for-browser-load",
+        `peer ${receipt.peerBaseUrl}`,
+        `companion ${receipt.companionStateStatus}`,
+        `chunks ${receipt.pieceCount || "unknown"}`,
+        `artifact ${receipt.artifactSha256}`
+      ].join(" / ");
+    }
+    return `receipt-ready-for-browser-load / artifact ${receipt.artifactSha256}`;
   }
 
   function hasVerifiedLocalModelFile() {
@@ -3225,10 +4116,40 @@
     };
   }
 
-  async function buildShareMetadataBundle() {
+  function shareTransferProfile(shareKitReady) {
+    return shareKitReady
+      ? {
+        peerTransferImplemented: true,
+        peerTransferStatus: "local-share-kit-script-ready-known-peer-needed",
+        peerTransferImplementation: "generated-local-minimodel-share-kit-v0",
+        offerStatus: "local-share-kit-ready-known-peer-needed",
+        protocols: [
+          "minimodel-prepare-peer-share-v0",
+          "known-direct-http-peer-v0",
+          "minimodel-peer-companion-v0"
+        ],
+        localShareKitAvailable: true,
+        serveHelperAvailable: true,
+        requiredNextGate: "run-generated-share-kit-set-known-peer-url-and-serve-from-user-machine"
+      }
+      : {
+        peerTransferImplemented: false,
+        peerTransferStatus: "metadata-only",
+        peerTransferImplementation: "not-included-in-metadata-export",
+        offerStatus: "metadata-ready-transfer-not-implemented",
+        protocols: [],
+        localShareKitAvailable: false,
+        serveHelperAvailable: false,
+        requiredNextGate: "implement-consent-based-peer-transfer-and-rust-reverify-before-import"
+      };
+  }
+
+  async function buildShareMetadataBundle(options = {}) {
     if (!hasVerifiedLocalModelFile()) {
       throw new Error("Import a verified local .slm before saving share metadata");
     }
+    const shareKitReady = Boolean(options.shareKitReady);
+    const transferProfile = shareTransferProfile(shareKitReady);
     const localFile = state.localModel.localFile;
     const chunks = await chunkSha256List(localFile.bytes, peerShareChunkBytes);
     const chunkListText = chunks.map((chunk) => [
@@ -3285,13 +4206,15 @@
         catalogEntry.slm_config_checksum = localFile.catalogEntry.configChecksum;
       }
     }
-    return {
+    const bundle = {
       bundle_kind: "minimodel.local_slm_share_metadata.v0",
       generated_at: new Date().toISOString(),
       boundary: {
         project_server_runs_model_bytes: false,
         project_server_serves_model_bytes: false,
-        peer_transfer_implemented: false,
+        peer_transfer_implemented: transferProfile.peerTransferImplemented,
+        peer_transfer_status: transferProfile.peerTransferStatus,
+        peer_transfer_implementation: transferProfile.peerTransferImplementation,
         user_consent_required_before_transfer: true,
         tiny_rust_lm_execution_rule: "User imports a verified local .slm through the browser file picker before execution."
       },
@@ -3299,7 +4222,7 @@
       peer_offer: {
         offer_kind: "minimodel.peer_offer.v0",
         offer_version: 0,
-        offer_status: "metadata-ready-transfer-not-implemented",
+        offer_status: transferProfile.offerStatus,
         artifact_kind: "slm",
         artifact_file_name: localFile.name,
         artifact_byte_count: localFile.byteLength,
@@ -3314,9 +4237,13 @@
           entries: chunks
         },
         transfer: {
-          protocols: [],
+          protocols: transferProfile.protocols,
           network_transfer_available: false,
-          required_next_gate: "implement-consent-based-peer-transfer-and-rust-reverify-before-import"
+          local_share_kit_available: transferProfile.localShareKitAvailable,
+          serve_helper_available: transferProfile.serveHelperAvailable,
+          project_server_serves_model_bytes: false,
+          project_server_runs_model_bytes: false,
+          required_next_gate: transferProfile.requiredNextGate
         }
       },
       conversion_request: state.pendingConversionRequest
@@ -3327,6 +4254,23 @@
         }
         : null
     };
+    if (shareKitReady) {
+      bundle.share_kit = {
+        kit_kind: "tinyrustlm.local_p2p_share_kit.v0",
+        kit_status: "script-ready-known-peer-needed",
+        prepares_peer_pieces: true,
+        writes_catalog_snapshot: true,
+        writes_peer_source_metadata_when_known_peer_set: true,
+        writes_peer_companion_state_when_known_peer_set: true,
+        writes_peer_contact_card_when_known_peer_set: true,
+        serve_helper_available: true,
+        user_consent_required_before_transfer: true,
+        project_server_serves_model_bytes: false,
+        project_server_runs_model_bytes: false,
+        execution_rule: "Run the generated PowerShell scripts locally after reviewing the verified .slm path and consenting peer URL."
+      };
+    }
+    return bundle;
   }
 
   async function saveShareMetadata() {
@@ -3382,6 +4326,22 @@
       "  return $Matches[0].FullName",
       "}",
       "",
+      "function Resolve-GeneratedFileOrNull {",
+      "  param(",
+      "    [string[]] $Directories,",
+      "    [string] $Filter",
+      "  )",
+      "  foreach ($Directory in $Directories) {",
+      "    if ([string]::IsNullOrWhiteSpace($Directory)) { continue }",
+      "    if (!(Test-Path -LiteralPath $Directory -PathType Container)) { continue }",
+      "    $Matches = @(Get-ChildItem -LiteralPath $Directory -File -Filter $Filter -ErrorAction SilentlyContinue | Sort-Object LastWriteTimeUtc -Descending)",
+      "    if ($Matches.Count -gt 0) {",
+      "      return $Matches[0].FullName",
+      "    }",
+      "  }",
+      "  return \"\"",
+      "}",
+      "",
       "function Resolve-GeneratedDirectory {",
       "  param(",
       "    [string] $Directory,",
@@ -3409,6 +4369,8 @@
       `$ShareDir = Join-Path $PSScriptRoot ${powerShellSingleQuote(relativeShareDir)}`,
       "$Manifest = Resolve-GeneratedFile $ShareDir \"*.minimodel.manifest.v0\" \"MiniModel manifest\"",
       "$PeerPiecesDir = Resolve-GeneratedDirectory $ShareDir \"*.peer-pieces\" \"MiniModel peer pieces\"",
+      "$ShareParentDir = Split-Path -Parent $ShareDir",
+      "$PeerCompanionState = Resolve-GeneratedFileOrNull @($ShareDir, $ShareParentDir, $PSScriptRoot) \"*.peer-companion-state.v0.json\"",
       "$BindAddr = if ($env:MINIMODEL_PEER_BIND_ADDR) { $env:MINIMODEL_PEER_BIND_ADDR } else { \"127.0.0.1:8123\" }",
       "",
       "Write-Host \"MiniModel workspace:\" $MiniModelWorkspace",
@@ -3417,7 +4379,16 @@
       "Write-Host \"Serving from this machine only:\" $BindAddr",
       "Write-Host \"Project servers are not serving, proxying, caching, or running these model bytes.\"",
       "Set-Location $MiniModelWorkspace",
-      "cargo run -p minimodel -- serve-peer-pieces $Manifest $PeerPiecesDir $BindAddr",
+      "if ($PeerCompanionState.Trim().Length -gt 0) {",
+      "  Write-Host \"Peer companion state:\" $PeerCompanionState",
+      "  Write-Host \"Inspecting peer companion state before serving.\"",
+      "  cargo run -p minimodel -- inspect-peer-companion-state $PeerCompanionState $Manifest $PeerPiecesDir",
+      "  Write-Host \"Serving companion state route: minimodel.peer_companion_state.v0.json\"",
+      "  cargo run -p minimodel -- serve-peer-companion $PeerCompanionState $Manifest $PeerPiecesDir $BindAddr",
+      "} else {",
+      "  Write-Host \"Peer companion state: not found; serving peer pieces only.\"",
+      "  cargo run -p minimodel -- serve-peer-pieces $Manifest $PeerPiecesDir $BindAddr",
+      "}",
       ""
     ];
     return lines.join("\n");
@@ -3470,6 +4441,7 @@
       "# Optional overrides:",
       "#   $env:MINIMODEL_WORKSPACE = full path to the MiniModel.org Rust workspace",
       "#   $env:TINYRUSTLM_LOCAL_SLM = full path to the verified local .slm file",
+      "#   $env:MINIMODEL_KNOWN_PEER_BASE_URL = consenting peer base URL, for example http://127.0.0.1:8123/peer-pieces/",
       "$CandidateMiniModelWorkspaces = @(",
       "  $env:MINIMODEL_WORKSPACE,",
       "  \"E:/Source/Rust/MiniModel.org\",",
@@ -3489,7 +4461,7 @@
       `$ExpectedArtifactByteCount = ${Math.max(0, Math.trunc(expectedByteCount))}`,
       `$ModelId = ${powerShellSingleQuote(modelId)}`,
       `$SourceHuggingFaceModelId = ${powerShellSingleQuote(sourceHuggingFaceModelId)}`,
-      `$KnownPeerBaseUrl = "" # Optional, for example ${peerExampleUrl}`,
+      `$KnownPeerBaseUrl = if ($env:MINIMODEL_KNOWN_PEER_BASE_URL) { $env:MINIMODEL_KNOWN_PEER_BASE_URL } else { "" } # Optional, for example ${peerExampleUrl}`,
       "$BindAddr = \"127.0.0.1:8123\"",
       `$WorkDir = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${scriptStem}-kit`)}`,
       "$ShareDir = Join-Path $WorkDir \"minimodel-peer-share\"",
@@ -3500,6 +4472,7 @@
       `$PeerSourceAnnouncement = Join-Path $WorkDir ${powerShellSingleQuote(`${artifactStem}.peer-source-announcement.v0.json`)}`,
       "$PeerSourceAnnouncementFeed = Join-Path $WorkDir \"peer-source-announcements.v0.json\"",
       `$PeerCompanionState = Join-Path $WorkDir ${powerShellSingleQuote(`${artifactStem}.peer-companion-state.v0.json`)}`,
+      `$PeerContactCard = Join-Path $WorkDir ${powerShellSingleQuote(`${artifactStem}.peer-contact-card.v0.json`)}`,
       "$CatalogSnapshot = Join-Path $WorkDir \"models.v0.json\"",
       "$CatalogSnapshotWithFeed = Join-Path $WorkDir \"models.with-announcement-feed.v0.json\"",
       `$ServeScript = Join-Path $PSScriptRoot ${powerShellSingleQuote(serveScriptFileName)}`,
@@ -3532,11 +4505,16 @@
       "  cargo run -p minimodel -- add-peer-source $CatalogEntry $CatalogEntryWithPeer $KnownPeerBaseUrl",
       "  cargo run -p minimodel -- write-peer-source-announcement $CatalogEntry $PeerSourceAnnouncement $KnownPeerBaseUrl",
       "  cargo run -p minimodel -- write-peer-source-announcement-feed $PeerSourceAnnouncementFeed $PeerSourceAnnouncement",
+      "  cargo run -p minimodel -- inspect-peer-source-announcement-feed $PeerSourceAnnouncementFeed",
       "  cargo run -p minimodel -- write-peer-companion-state $Manifest $PeerPiecesDir $PeerCompanionState $KnownPeerBaseUrl",
+      "  cargo run -p minimodel -- inspect-peer-companion-state $PeerCompanionState $Manifest $PeerPiecesDir",
+      "  cargo run -p minimodel -- write-peer-contact-card $PeerContactCard $KnownPeerBaseUrl",
       "  cargo run -p minimodel -- write-catalog-snapshot-with-announcement-feed $CatalogSnapshotWithFeed \"peer-source-announcements.v0.json\" $PeerSourceAnnouncementFeed $CatalogEntry",
+      "  cargo run -p minimodel -- inspect-catalog-snapshot $CatalogSnapshotWithFeed",
       "  $CatalogEntryForSnapshot = $CatalogEntryWithPeer",
       "}",
       "cargo run -p minimodel -- write-catalog-snapshot $CatalogSnapshot $CatalogEntryForSnapshot",
+      "cargo run -p minimodel -- inspect-catalog-snapshot $CatalogSnapshot",
       "",
       "Write-Host \"MiniModel manifest:\" $Manifest",
       "Write-Host \"Peer pieces directory:\" $PeerPiecesDir",
@@ -3545,13 +4523,19 @@
       "  Write-Host \"Peer-source announcement:\" $PeerSourceAnnouncement",
       "  Write-Host \"Peer-source announcement feed:\" $PeerSourceAnnouncementFeed",
       "  Write-Host \"Peer companion state:\" $PeerCompanionState",
+      "  Write-Host \"Peer contact card:\" $PeerContactCard",
       "  Write-Host \"Feed-bound catalog snapshot:\" $CatalogSnapshotWithFeed",
       "  Write-Host \"Send only metadata JSON to a catalog maintainer. Do not upload peer pieces or .slm bytes to project servers.\"",
       "} else {",
       "  Write-Host \"To publish P2P availability later, rerun with KnownPeerBaseUrl set to your consenting peer URL.\"",
       "}",
       "Write-Host \"To serve from this machine, run:\"",
-      "Write-Host \"cargo run -p minimodel -- serve-peer-pieces '$Manifest' '$PeerPiecesDir' $BindAddr\"",
+      "if ($KnownPeerBaseUrl.Trim().Length -gt 0) {",
+      "  Write-Host \"cargo run -p minimodel -- inspect-peer-companion-state '$PeerCompanionState' '$Manifest' '$PeerPiecesDir'\"",
+      "  Write-Host \"cargo run -p minimodel -- serve-peer-companion '$PeerCompanionState' '$Manifest' '$PeerPiecesDir' $BindAddr\"",
+      "} else {",
+      "  Write-Host \"cargo run -p minimodel -- serve-peer-pieces '$Manifest' '$PeerPiecesDir' $BindAddr\"",
+      "}",
       "Write-Host \"or run the downloaded helper script:\"",
       "Write-Host \"powershell -ExecutionPolicy Bypass -File '$ServeScript'\"",
       "Write-Host \"Future users import by selecting the P2P-ready row, saving its import kit, and running MiniModel import-peer-request.\"",
@@ -3567,7 +4551,7 @@
 
   async function saveShareKit() {
     setShareMetadataStatus("building P2P share kit", false);
-    const bundle = await buildShareMetadataBundle();
+    const bundle = await buildShareMetadataBundle({ shareKitReady: true });
     const stem = safeLocalModelName(slugForShareMetadata(bundle.catalog_entry.model_id));
     downloadTextFile(`${stem}.minimodel-share-metadata.json`, `${JSON.stringify(bundle, null, 2)}\n`);
     downloadTextFile(`${stem}.minimodel-share-kit.ps1`, localShareKitScript(bundle), "text/plain");
@@ -3584,7 +4568,12 @@
   }
 
   async function importLocalModelFile() {
-    const file = el.localModelFile && el.localModelFile.files ? el.localModelFile.files[0] : null;
+    const selectedFiles = localModelSelectedFiles();
+    const selectionError = localModelSelectionError(selectedFiles);
+    if (selectionError) {
+      throw new Error(selectionError);
+    }
+    const file = selectedFiles.slm;
     if (!file) {
       throw new Error("Choose a local .slm file");
     }
@@ -3602,10 +4591,12 @@
     const bytes = new Uint8Array(await file.arrayBuffer());
     const sha256 = await sha256Hex(bytes);
     validateCatalogArtifactMatch(state.selectedCatalogEntry, name, bytes, sha256);
+    const receiptArtifactName = String(file.name || name);
+    const importReceipt = await inspectLocalMiniModelImportReceipt(selectedFiles.receipt, receiptArtifactName, bytes, sha256);
     const checksum = bytesChecksumHex(bytes);
     const catalogEntry = state.selectedCatalogEntry;
     state.localModel = {
-      label: `${catalogEntry ? catalogEntry.displayName : name} (local file)`,
+      label: `${catalogEntry ? catalogEntry.displayName : name} (${importReceipt && importReceipt.peerImport ? "P2P receipt" : "local file"})`,
       path: `local-file:${name}`,
       maxTokens: catalogEntry ? catalogEntry.maxTokens : 64,
       localFile: {
@@ -3615,12 +4606,17 @@
         checksum,
         sha256,
         catalogEntry,
+        importReceipt,
         verified: false
       }
     };
     paths.models = modelsWithLocalModel(paths.models);
     renderModelOptions(paths.models, false, localModelKey);
-    setLocalModelStatus(`${name} / ${formatByteCount(bytes.length)} / ${sha256} / ${checksum}`, false);
+    const receiptSummary = localImportReceiptSummary(importReceipt);
+    setLocalModelStatus(
+      `${name} / ${formatByteCount(bytes.length)} / ${sha256} / ${checksum}${receiptSummary ? ` / ${receiptSummary}` : ""}`,
+      false
+    );
     setShareMetadataStatus("validating local .slm", false);
     setText(el.errorState, "none", false);
     if (state.exports) {
@@ -3897,13 +4893,32 @@
         expected_peer_base_url: normalizedPeerUrl,
         expected_piece_dir: `${peerImportFileStem(match.modelId)}-peer-pieces`,
         assembled_output_slm: match.fileNameHint,
+        metadata_routes: {
+          peer_status: "minimodel.peer_status.v0.json",
+          peer_piece_set: "minimodel.peer_piece_set.v0",
+          peer_companion_state: "minimodel.peer_companion_state.v0.json"
+        },
+        receiver_validation_contract: {
+          check_peer_status_before_piece_fetch: true,
+          preflight_fetches_piece_set_before_pieces: true,
+          validate_advertised_companion_state_before_piece_fetch: true,
+          import_receipt_required_before_browser_load: true
+        },
         peer_side_commands: [
           "minimodel prepare-peer-share <artifact.slm> <share-dir> <model-id> [source-huggingface-model-id] [known-peer-base-url]",
+          "minimodel write-peer-companion-state <manifest> <piece-dir> <state-json> <known-peer-base-url>",
+          "minimodel inspect-peer-companion-state <state-json> <manifest> <piece-dir>",
+          "minimodel serve-peer-companion <state-json> <manifest> <piece-dir> <bind-addr>",
           "minimodel serve-peer-pieces <manifest> <piece-dir> <bind-addr>"
         ],
         rust_commands: [
+          "minimodel inspect-peer-import-request <request-json> <manifest>",
+          "minimodel check-peer-status <manifest> <known-peer-base-url> <output-json>",
           "minimodel preflight-peer-import-request <request-json> <manifest> <output.preflight>",
-          "minimodel import-peer-request <request-json> <manifest> <output-dir>"
+          "minimodel inspect-peer-import-preflight <output.preflight> <request-json> <manifest>",
+          "minimodel import-peer-request <request-json> <manifest> <output-dir>",
+          "minimodel inspect-import-receipt <receipt.minimodel-receipt> <manifest> <artifact.slm>",
+          "minimodel inspect-peer-import-receipt <receipt.minimodel-receipt> <request-json> <output.preflight> <manifest> <artifact.slm>"
         ]
       },
       boundary: {
@@ -3924,17 +4939,26 @@
     const requestBase64 = base64Utf8(requestJson);
     const peerUrl = request.local_peer_piece_contract.expected_peer_base_url;
     const manifestUrl = request.minimodel_metadata.manifest_url || "";
+    const assembledOutputSlm = request.local_peer_piece_contract.assembled_output_slm;
+    const receiptFileName = assembledOutputSlm.toLowerCase().endsWith(".slm")
+      ? `${assembledOutputSlm.slice(0, -4)}.minimodel-receipt`
+      : `${stem}.minimodel-receipt`;
     const lines = [
       "# MiniModel peer import handoff",
       `# Model: ${match.displayName} (${match.modelId})`,
       "#",
       "# This script does not download model bytes from MiniModel.org, TinyRustLM.com, or Hugging Face.",
       "# It may download the MiniModel manifest metadata if the catalog supplied a manifest URL.",
-      "# Before importing, Rust fetches only minimodel.peer_piece_set.v0 metadata for preflight.",
+      "# Before contacting the peer, Rust inspects this request against the metadata manifest and confirms the no-project-server-byte boundary.",
+      "# Before importing, Rust checks minimodel.peer_status.v0.json metadata, then fetches minimodel.peer_piece_set.v0 metadata and advertised peer companion-state metadata for preflight.",
+      "# Rust re-inspects the saved preflight report so route/gate evidence and no-byte-transfer flags cannot drift before import.",
       "# It fetches peer pieces only from the consenting peer URL you enter below.",
       "# MiniModel rejects project-server peer hosts and verifies every piece before assembly.",
-      "# Rust then fetches pieces, assembles, verifies, and writes an import receipt.",
-      "# Peer serving counterpart: cargo run -p minimodel -- serve-peer-pieces <manifest> <piece-dir> 127.0.0.1:8123",
+      "# Rust then fetches pieces, assembles, verifies, and writes an import receipt with peer-transfer evidence.",
+      "# Rust inspects that receipt against the assembled .slm before TinyRustLM local-file import.",
+      "# Peer serving counterpart first validates companion state: cargo run -p minimodel -- inspect-peer-companion-state <state-json> <manifest> <piece-dir>",
+      "# Peer serving counterpart: cargo run -p minimodel -- serve-peer-companion <state-json> <manifest> <piece-dir> 127.0.0.1:8123",
+      "# Fallback without companion state: cargo run -p minimodel -- serve-peer-pieces <manifest> <piece-dir> 127.0.0.1:8123",
       "",
       "$ErrorActionPreference = \"Stop\"",
       "",
@@ -3969,6 +4993,9 @@
       `$Manifest = Join-Path $PSScriptRoot ${powerShellSingleQuote(manifestFileName)}`,
       `$ManifestUrl = ${powerShellDoubleQuote(manifestUrl)}`,
       `$ImportDir = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${stem}-peer-import`)}`,
+      `$ImportedSlm = Join-Path $ImportDir ${powerShellSingleQuote(assembledOutputSlm)}`,
+      `$PeerImportReceipt = Join-Path $ImportDir ${powerShellSingleQuote(receiptFileName)}`,
+      `$PeerStatusCheck = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${stem}.peer-status-check.v0.json`)}`,
       `$PeerImportPreflight = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${stem}.peer-import.preflight`)}`,
       `$ExpectedPeerBaseUrl = ${powerShellDoubleQuote(peerUrl)}`,
       "",
@@ -3988,21 +5015,54 @@
       "Write-Host \"MiniModel workspace:\" $MiniModelWorkspace",
       "Write-Host \"Peer import request:\" $PeerImportRequest",
       "Write-Host \"MiniModel manifest:\" $Manifest",
+      "Write-Host \"Peer status check:\" $PeerStatusCheck",
       "Write-Host \"Peer import preflight:\" $PeerImportPreflight",
       "Write-Host \"Verified output directory:\" $ImportDir",
+      "Write-Host \"Imported .slm:\" $ImportedSlm",
+      "Write-Host \"Peer import receipt:\" $PeerImportReceipt",
       "Set-Location $MiniModelWorkspace",
       "Write-Host \"Expected consenting peer:\" $ExpectedPeerBaseUrl",
+      "& cargo run -p minimodel -- inspect-peer-import-request $PeerImportRequest $Manifest",
+      "$InspectExitCode = $LASTEXITCODE",
+      "if ($InspectExitCode -ne 0) {",
+      "  throw \"MiniModel peer import request inspection failed with exit code $InspectExitCode. Check the request JSON and metadata manifest before contacting the peer.\"",
+      "}",
+      "Write-Host \"Peer import request inspection passed without network access:\" $PeerImportRequest",
+      "& cargo run -p minimodel -- check-peer-status $Manifest $ExpectedPeerBaseUrl $PeerStatusCheck",
+      "$PeerStatusExitCode = $LASTEXITCODE",
+      "if ($PeerStatusExitCode -ne 0) {",
+      "  throw \"MiniModel peer status check failed with exit code $PeerStatusExitCode. Check the peer URL, manifest, and $PeerStatusCheck if it exists.\"",
+      "}",
+      "Write-Host \"Peer status check passed without fetching peer piece bytes:\" $PeerStatusCheck",
       "& cargo run -p minimodel -- preflight-peer-import-request $PeerImportRequest $Manifest $PeerImportPreflight",
       "$PreflightExitCode = $LASTEXITCODE",
       "if ($PreflightExitCode -ne 0) {",
       "  throw \"MiniModel peer import preflight failed with exit code $PreflightExitCode. Check the peer URL, manifest, and $PeerImportPreflight if it exists.\"",
       "}",
       "Write-Host \"Peer import preflight passed without fetching peer piece bytes:\" $PeerImportPreflight",
+      "& cargo run -p minimodel -- inspect-peer-import-preflight $PeerImportPreflight $PeerImportRequest $Manifest",
+      "$PreflightInspectExitCode = $LASTEXITCODE",
+      "if ($PreflightInspectExitCode -ne 0) {",
+      "  throw \"MiniModel peer import preflight inspection failed with exit code $PreflightInspectExitCode. Check the saved preflight report before importing peer pieces.\"",
+      "}",
+      "Write-Host \"Peer import preflight inspection passed without fetching peer piece bytes:\" $PeerImportPreflight",
       "& cargo run -p minimodel -- import-peer-request $PeerImportRequest $Manifest $ImportDir",
       "$ImportExitCode = $LASTEXITCODE",
       "if ($ImportExitCode -ne 0) {",
       "  throw \"MiniModel peer import failed with exit code $ImportExitCode. The preflight report is $PeerImportPreflight.\"",
       "}",
+      "& cargo run -p minimodel -- inspect-import-receipt $PeerImportReceipt $Manifest $ImportedSlm",
+      "$ReceiptInspectExitCode = $LASTEXITCODE",
+      "if ($ReceiptInspectExitCode -ne 0) {",
+      "  throw \"MiniModel import receipt inspection failed with exit code $ReceiptInspectExitCode. The peer import output is $ImportDir.\"",
+      "}",
+      "Write-Host \"Peer import receipt inspection passed:\" $PeerImportReceipt",
+      "& cargo run -p minimodel -- inspect-peer-import-receipt $PeerImportReceipt $PeerImportRequest $PeerImportPreflight $Manifest $ImportedSlm",
+      "$PeerReceiptChainExitCode = $LASTEXITCODE",
+      "if ($PeerReceiptChainExitCode -ne 0) {",
+      "  throw \"MiniModel peer import receipt chain inspection failed with exit code $PeerReceiptChainExitCode. Check the request, preflight report, receipt, and assembled .slm before browser import.\"",
+      "}",
+      "Write-Host \"Peer import receipt chain inspection passed:\" $PeerImportReceipt",
       "",
       "Write-Host \"Verified peer import output directory:\" $ImportDir",
       "Write-Host \"Next: open TinyRustLM.com, choose Your Local Files, and import the verified .slm.\"",
@@ -4444,12 +5504,17 @@
         peer_source_shape: "cargo run -p minimodel -- add-peer-source <catalog-entry-json> <output-json> <known-peer-base-url>",
         peer_source_announcement_shape: "cargo run -p minimodel -- write-peer-source-announcement <catalog-entry-json> <announcement-json> <known-peer-base-url>",
         peer_source_announcement_feed_shape: "cargo run -p minimodel -- write-peer-source-announcement-feed <feed-json> <announcement-json>...",
+        peer_source_announcement_feed_inspect_shape: "cargo run -p minimodel -- inspect-peer-source-announcement-feed <feed-json>",
         peer_source_apply_shape: "cargo run -p minimodel -- apply-peer-source-announcements <catalog-entry-json> <output-json> <announcement-json>...",
-        peer_source_batch_snapshot_shape: "cargo run -p minimodel -- write-catalog-snapshot-with-announcements <models.v0.json> <catalog-entry-json>... --announcements <announcement-json>...",
-        peer_source_feed_snapshot_shape: "cargo run -p minimodel -- write-catalog-snapshot-with-announcement-feed <models.v0.json> <feed-route> <feed-json> <catalog-entry-json>...",
-        catalog_snapshot_shape: "cargo run -p minimodel -- write-catalog-snapshot <models.v0.json> <catalog-entry-json>...",
+      peer_source_batch_snapshot_shape: "cargo run -p minimodel -- write-catalog-snapshot-with-announcements <models.v0.json> <catalog-entry-json>... --announcements <announcement-json>...",
+      peer_source_feed_snapshot_shape: "cargo run -p minimodel -- write-catalog-snapshot-with-announcement-feed <models.v0.json> <feed-route> <feed-json> <catalog-entry-json>...",
+      peer_companion_state_shape: "cargo run -p minimodel -- write-peer-companion-state <manifest> <piece-dir> <state-json> <known-peer-base-url>",
+      peer_companion_state_inspect_shape: "cargo run -p minimodel -- inspect-peer-companion-state <state-json> <manifest> <piece-dir>",
+      peer_contact_card_shape: "cargo run -p minimodel -- write-peer-contact-card <peer-card-json> <known-peer-base-url> [peer-label]",
+      catalog_snapshot_shape: "cargo run -p minimodel -- write-catalog-snapshot <models.v0.json> <catalog-entry-json>...",
+      catalog_snapshot_inspect_shape: "cargo run -p minimodel -- inspect-catalog-snapshot <models.v0.json>",
         known_peer_base_url: knownPeerBaseUrl || null,
-        known_peer_rule: "When P2P is enabled and a consenting Known peer URL is set in TinyRustLM, the generated conversion script uses it to write peer-source announcement/feed metadata after local Rust conversion.",
+        known_peer_rule: "When P2P is enabled and a consenting Known peer URL is set in TinyRustLM, the generated conversion script uses it to write peer-source announcement/feed metadata and peer-companion-state handoff metadata after local Rust conversion.",
         compatibility_rule: "The Rust planner/converter must accept the safetensors tensor names and exact TinyRustLM shape before a .slm is usable. MiniModel prepare-peer-share then writes the manifest, peer-offer proof, local peer pieces, and catalog entry from the verified .slm."
       },
       conversion_gates: [
@@ -4462,10 +5527,14 @@
         "MiniModel add-peer-source when peer availability is known later",
         "MiniModel write-peer-source-announcement for catalog-maintainer P2P availability",
         "MiniModel write-peer-source-announcement-feed for browser-visible availability metadata",
+        "MiniModel inspect-peer-source-announcement-feed before feed-bound catalog publication",
+        "MiniModel write-peer-companion-state for local companion handoff metadata",
+        "MiniModel inspect-peer-companion-state before publishing or serving companion handoff metadata",
         "MiniModel apply-peer-source-announcements before shared metadata snapshots",
         "MiniModel write-catalog-snapshot-with-announcements for batch maintainer publication",
         "MiniModel write-catalog-snapshot-with-announcement-feed for checksum-bound feed publication",
         "MiniModel write-catalog-snapshot",
+        "MiniModel inspect-catalog-snapshot before publishing or loading metadata snapshots",
         "runtime smoke proof",
         "eval/admission evidence",
         "MiniModel manifest signature",
@@ -4592,7 +5661,7 @@
       "# with the selected TinyRustLM source shape.",
       "# When that happens, read tinyrustlm-conversion.preflight in the output folder;",
       "# it is the durable Rust report explaining why no .slm was produced.",
-      "# The embedded serve helper runs MiniModel serve-peer-pieces from your machine only.",
+      "# The embedded serve helper inspects peer-companion state before serve-peer-companion, otherwise it runs serve-peer-pieces.",
       "# Project servers are not serving, proxying, caching, or running these model bytes.",
       "",
       "$ErrorActionPreference = \"Stop\"",
@@ -4823,6 +5892,8 @@
       "$MiniModelCatalogEntryWithPeer = Join-Path $MiniModelShareDir \"$CatalogStem.catalog-entry.with-peer.v0.json\"",
       "$MiniModelPeerSourceAnnouncement = Join-Path $MiniModelShareDir \"$CatalogStem.peer-source-announcement.v0.json\"",
       "$MiniModelPeerSourceAnnouncementFeed = Join-Path $MiniModelShareDir \"peer-source-announcements.v0.json\"",
+      "$MiniModelPeerCompanionState = Join-Path $MiniModelShareDir \"$CatalogStem.peer-companion-state.v0.json\"",
+      "$MiniModelPeerContactCard = Join-Path $MiniModelShareDir \"$CatalogStem.peer-contact-card.v0.json\"",
       "$MiniModelCatalogSnapshotWithFeed = Join-Path $WorkDir \"models.with-announcement-feed.v0.json\"",
       "$MiniModelPublishReadme = Join-Path $MiniModelShareDir \"converted-once-p2p-publish.README.txt\"",
       "$MiniModelCatalogEntryForSnapshot = $MiniModelCatalogEntry",
@@ -4830,13 +5901,19 @@
       "  cargo run -p minimodel -- add-peer-source $MiniModelCatalogEntry $MiniModelCatalogEntryWithPeer $KnownPeerBaseUrl",
       "  cargo run -p minimodel -- write-peer-source-announcement $MiniModelCatalogEntry $MiniModelPeerSourceAnnouncement $KnownPeerBaseUrl",
       "  cargo run -p minimodel -- write-peer-source-announcement-feed $MiniModelPeerSourceAnnouncementFeed $MiniModelPeerSourceAnnouncement",
+      "  cargo run -p minimodel -- inspect-peer-source-announcement-feed $MiniModelPeerSourceAnnouncementFeed",
       "  cargo run -p minimodel -- write-catalog-snapshot-with-announcement-feed $MiniModelCatalogSnapshotWithFeed \"peer-source-announcements.v0.json\" $MiniModelPeerSourceAnnouncementFeed $MiniModelCatalogEntry",
+      "  cargo run -p minimodel -- inspect-catalog-snapshot $MiniModelCatalogSnapshotWithFeed",
+      "  cargo run -p minimodel -- write-peer-companion-state $MiniModelManifest $MiniModelPieceDir $MiniModelPeerCompanionState $KnownPeerBaseUrl",
+      "  cargo run -p minimodel -- inspect-peer-companion-state $MiniModelPeerCompanionState $MiniModelManifest $MiniModelPieceDir",
+      "  cargo run -p minimodel -- write-peer-contact-card $MiniModelPeerContactCard $KnownPeerBaseUrl",
       "  $MiniModelCatalogEntryForSnapshot = $MiniModelCatalogEntryWithPeer",
       "}",
       "",
       "# Build a metadata-only catalog snapshot from the generated entry.",
       "# This is safe to share as catalog metadata; it still does not include or host model bytes.",
       "cargo run -p minimodel -- write-catalog-snapshot $MiniModelCatalogSnapshot $MiniModelCatalogEntryForSnapshot",
+      "cargo run -p minimodel -- inspect-catalog-snapshot $MiniModelCatalogSnapshot",
       "$PublishReadmeLines = @(",
       "  \"Converted-once P2P publication package\"",
       "  \"\"",
@@ -4846,6 +5923,10 @@
       "  \"- Peer-source announcement: $MiniModelPeerSourceAnnouncement (created when KnownPeerBaseUrl is set)\"",
       "  \"- Peer-source announcement feed: $MiniModelPeerSourceAnnouncementFeed (created when KnownPeerBaseUrl is set)\"",
       "  \"- Feed-bound catalog snapshot: $MiniModelCatalogSnapshotWithFeed (created when KnownPeerBaseUrl is set)\"",
+      "  \"- Peer contact card: $MiniModelPeerContactCard (created when KnownPeerBaseUrl is set; metadata only, no model bytes)\"",
+      "  \"\"",
+      "  \"Local companion handoff files:\"",
+      "  \"- Peer companion state: $MiniModelPeerCompanionState (created when KnownPeerBaseUrl is set; metadata only, no model bytes)\"",
       "  \"\"",
       "  \"Do not send .slm files or *.peer-pieces directories to project servers.\"",
       "  \"Project servers may publish only metadata JSON, schemas, docs, public keys, and contact/takedown routes.\"",
@@ -4861,18 +5942,26 @@
       "Write-Host \"MiniModel catalog snapshot:\" $MiniModelCatalogSnapshot",
       "Write-Host \"MiniModel peer-source announcement feed:\" $MiniModelPeerSourceAnnouncementFeed",
       "Write-Host \"MiniModel feed-bound catalog snapshot:\" $MiniModelCatalogSnapshotWithFeed",
+      "Write-Host \"MiniModel peer companion state:\" $MiniModelPeerCompanionState",
+      "Write-Host \"MiniModel peer contact card:\" $MiniModelPeerContactCard",
       "Write-Host \"MiniModel serve script:\" $MiniModelServeScript",
       "Write-Host \"Converted-once publication notes:\" $MiniModelPublishReadme",
       "if ($KnownPeerBaseUrl.Trim().Length -eq 0) {",
       "  Write-Host \"Later, when you have a consenting peer URL, publish P2P availability metadata with:\"",
       `  Write-Host "cargo run -p minimodel -- add-peer-source '$MiniModelCatalogEntry' '$MiniModelCatalogEntryWithPeer' ${peerExampleUrl}"`,
       `  Write-Host "cargo run -p minimodel -- write-peer-source-announcement '$MiniModelCatalogEntry' '$MiniModelPeerSourceAnnouncement' ${peerExampleUrl}"`,
+      `  Write-Host "cargo run -p minimodel -- write-peer-companion-state '$MiniModelManifest' '$MiniModelPieceDir' '$MiniModelPeerCompanionState' ${peerExampleUrl}"`,
+      `  Write-Host "cargo run -p minimodel -- inspect-peer-companion-state '$MiniModelPeerCompanionState' '$MiniModelManifest' '$MiniModelPieceDir'"`,
+      `  Write-Host "cargo run -p minimodel -- write-peer-contact-card '$MiniModelPeerContactCard' ${peerExampleUrl}"`,
       "  Write-Host \"cargo run -p minimodel -- write-peer-source-announcement-feed '$MiniModelPeerSourceAnnouncementFeed' '$MiniModelPeerSourceAnnouncement'\"",
+      "  Write-Host \"cargo run -p minimodel -- inspect-peer-source-announcement-feed '$MiniModelPeerSourceAnnouncementFeed'\"",
       "  Write-Host \"cargo run -p minimodel -- write-catalog-snapshot-with-announcement-feed '$MiniModelCatalogSnapshotWithFeed' peer-source-announcements.v0.json '$MiniModelPeerSourceAnnouncementFeed' '$MiniModelCatalogEntry'\"",
+      "  Write-Host \"cargo run -p minimodel -- inspect-catalog-snapshot '$MiniModelCatalogSnapshotWithFeed'\"",
       "  Write-Host \"Send the announcement JSON to a catalog maintainer, who can run:\"",
       "  Write-Host \"cargo run -p minimodel -- apply-peer-source-announcements '$MiniModelCatalogEntry' '$MiniModelCatalogEntryWithPeer' '$MiniModelPeerSourceAnnouncement'\"",
       "  Write-Host \"or batch-publish many entries and announcements with:\"",
       "  Write-Host \"cargo run -p minimodel -- write-catalog-snapshot-with-announcements '$MiniModelCatalogSnapshot' '$MiniModelCatalogEntry' --announcements '$MiniModelPeerSourceAnnouncement'\"",
+      "  Write-Host \"cargo run -p minimodel -- inspect-catalog-snapshot '$MiniModelCatalogSnapshot'\"",
       "  Write-Host \"The batch command writes models.v0.json directly; if using apply-peer-source-announcements, rerun write-catalog-snapshot with the with-peer entry.\"",
       "}",
       "Write-Host \"If you consent to serve pieces from this machine, run:\"",
@@ -7199,11 +8288,17 @@
           sourceReview.sourceModelId,
           sourceReview.sourceModelSha
         ].filter(Boolean).join(" / ")
-      : "unavailable";
-    el.provenanceSourceReviewRoutes.textContent = sourceReviewRouteSummary(sourceReview);
-    el.provenanceSourceReviewArtifacts.textContent = sourceReviewArtifactSummary(sourceReview);
+      : manifestValue(fields, "source_review");
+    el.provenanceSourceReviewRoutes.textContent = sourceReview
+      ? sourceReviewRouteSummary(sourceReview)
+      : manifestValue(fields, "source_review_routes");
+    el.provenanceSourceReviewArtifacts.textContent = sourceReview
+      ? sourceReviewArtifactSummary(sourceReview)
+      : manifestValue(fields, "source_review_artifacts");
     el.provenanceSourceTokenizerImport.textContent = sourceReviewTokenizerImportSummary(sourceReview);
-    el.provenanceSourceValidation.textContent = sourceValidationSummary(sourceValidation);
+    el.provenanceSourceValidation.textContent = sourceValidation
+      ? sourceValidationSummary(sourceValidation)
+      : manifestValue(fields, "source_validation");
     el.provenanceAdmission.textContent = admissionEvidenceSummary(admissionEvidence, fields);
     el.provenanceQualityClaim.textContent = manifestValue(fields, "quality_claim");
     el.provenanceTrainedClaim.textContent = manifestValue(fields, "trained_quality_claim");
@@ -9062,18 +10157,33 @@
   async function loadModelManifest(model) {
     if (model.localFile) {
       const catalogEntry = model.localFile.catalogEntry || null;
+      const importReceipt = model.localFile.importReceipt || null;
       const fields = {
-        source_kind: catalogEntry ? catalogEntry.sourceKind : "user-local-file",
-        source_id: catalogEntry ? catalogEntry.modelId : model.localFile.name,
-        source_snapshot: catalogEntry ? "catalog-metadata-plus-browser-file-picker" : "browser-file-picker",
-        model_shape: catalogEntry ? catalogEntry.modelShape || "runtime-validated-by-wasm" : "runtime-validated-by-wasm",
+        source_kind: importReceipt
+          ? importReceipt.peerImport ? "minimodel-p2p-import-receipt" : "minimodel-import-receipt"
+          : catalogEntry ? catalogEntry.sourceKind : "user-local-file",
+        source_id: importReceipt ? importReceipt.modelId : catalogEntry ? catalogEntry.modelId : model.localFile.name,
+        source_snapshot: importReceipt
+          ? localImportReceiptProvenanceSnapshot(importReceipt)
+          : catalogEntry ? "catalog-metadata-plus-browser-file-picker" : "browser-file-picker",
+        source_review: importReceipt ? localImportReceiptReviewSummary(importReceipt) : "",
+        source_review_routes: importReceipt ? localImportReceiptRouteSummary(importReceipt) : "",
+        source_review_artifacts: importReceipt ? localImportReceiptArtifactSummary(importReceipt, model.localFile.byteLength) : "",
+        source_validation: importReceipt ? localImportReceiptValidationSummary(importReceipt) : "",
+        model_shape: importReceipt && importReceipt.slmModelShape !== "unavailable"
+          ? importReceipt.slmModelShape
+          : catalogEntry ? catalogEntry.modelShape || "runtime-validated-by-wasm" : "runtime-validated-by-wasm",
         quality_claim: catalogEntry ? catalogEntry.qualityClaim : "not-claimed",
         trained_quality_claim: catalogEntry ? catalogEntry.trainedQualityClaim : "not-claimed",
-        admission_status: catalogEntry ? catalogEntry.admissionStatus : "runtime-validated-local-file",
+        admission_status: importReceipt
+          ? importReceipt.peerImport ? "peer-import-receipt-validated" : "import-receipt-validated"
+          : catalogEntry ? catalogEntry.admissionStatus : "runtime-validated-local-file",
         slm_checksum: model.localFile.checksum,
         artifact_sha256: model.localFile.sha256,
         artifact_bytes: String(model.localFile.byteLength),
-        required_next_gate: catalogEntry ? catalogEntry.requiredNextGate : "user-owned-local-review"
+        required_next_gate: importReceipt && importReceipt.nextGate !== "unavailable"
+          ? importReceipt.nextGate
+          : catalogEntry ? catalogEntry.requiredNextGate : "user-owned-local-review"
       };
       state.modelManifest = fields;
       renderProvenance("local file", fields, false);
@@ -9886,8 +10996,9 @@
         recordModulePlanTrace("model accepted");
       }
       if (model.localFile) {
+        const receiptSummary = localImportReceiptSummary(model.localFile.importReceipt);
         setLocalModelStatus(
-          `${model.localFile.name} / ${formatByteCount(model.localFile.byteLength)} / ${model.localFile.sha256} / ${model.localFile.checksum} / loaded`,
+          `${model.localFile.name} / ${formatByteCount(model.localFile.byteLength)} / ${model.localFile.sha256} / ${model.localFile.checksum}${receiptSummary ? ` / ${receiptSummary}` : ""} / loaded`,
           false
         );
       }
@@ -10010,7 +11121,11 @@
     setLocalFileVerificationState(
       model,
       loadCode === 0,
-      loadCode === 0 ? "local .slm verified; share metadata ready" : "local .slm rejected",
+      loadCode === 0
+        ? model.localFile && model.localFile.importReceipt
+          ? "local .slm verified with MiniModel receipt; share metadata ready"
+          : "local .slm verified; share metadata ready"
+        : "local .slm rejected",
       loadCode !== 0
     );
     setControls(loadCode === 0, true);
@@ -10405,7 +11520,13 @@
   });
 
   el.localModelFile.addEventListener("change", function () {
-    const file = el.localModelFile.files && el.localModelFile.files[0];
+    const selectedFiles = localModelSelectedFiles();
+    const selectionError = localModelSelectionError(selectedFiles);
+    if (selectionError) {
+      setLocalModelStatus(selectionError, true);
+      return;
+    }
+    const file = selectedFiles.slm;
     if (!file) {
       setLocalModelStatus("waiting", false);
       return;
@@ -10414,7 +11535,8 @@
     const expected = state.selectedCatalogEntry
       ? ` / expecting ${state.selectedCatalogEntry.displayName}`
       : "";
-    setLocalModelStatus(`${name} / ${formatByteCount(file.size)} selected${expected}`, false);
+    const receipt = selectedFiles.receipt ? " / MiniModel receipt selected" : "";
+    setLocalModelStatus(`${name} / ${formatByteCount(file.size)} selected${receipt}${expected}`, false);
   });
 
   el.importConversionRequestButton.addEventListener("click", function () {
@@ -10479,6 +11601,36 @@
     setCatalogStatus(`${safeLocalModelName(file.name)} / ${formatByteCount(file.size)} local catalog selected`, false);
   });
 
+  el.importShareMetadataButton.addEventListener("click", function () {
+    importShareMetadataFile(el.shareMetadataFile).catch((error) => {
+      setCatalogStatus(errorMessage(error), true);
+    });
+  });
+
+  el.shareMetadataFile.addEventListener("change", function () {
+    const file = el.shareMetadataFile.files && el.shareMetadataFile.files[0];
+    if (!file) {
+      setCatalogStatus("choose a share metadata JSON file", false);
+      return;
+    }
+    setCatalogStatus(`${safeLocalModelName(file.name)} / ${formatByteCount(file.size)} share metadata selected`, false);
+  });
+
+  el.applyPeerContactCardButton.addEventListener("click", function () {
+    applyPeerContactCardFile(el.peerContactCardFile).catch((error) => {
+      updatePeerUrlStatus(errorMessage(error), true);
+    });
+  });
+
+  el.peerContactCardFile.addEventListener("change", function () {
+    const file = el.peerContactCardFile.files && el.peerContactCardFile.files[0];
+    if (!file) {
+      updatePeerUrlStatus("choose a peer contact card or enter a URL", false);
+      return;
+    }
+    updatePeerUrlStatus(`${safeLocalModelName(file.name)} / ${formatByteCount(file.size)} peer contact card selected`, false);
+  });
+
   el.applyPeerAnnouncementButton.addEventListener("click", function () {
     applyPeerSourceAnnouncementFile(el.peerAnnouncementFile).catch((error) => {
       setCatalogStatus(errorMessage(error), true);
@@ -10488,10 +11640,10 @@
   el.peerAnnouncementFile.addEventListener("change", function () {
     const file = el.peerAnnouncementFile.files && el.peerAnnouncementFile.files[0];
     if (!file) {
-      setCatalogStatus("choose a peer-source announcement after loading metadata", false);
+      setCatalogStatus("choose a peer-source announcement or feed after loading metadata", false);
       return;
     }
-    setCatalogStatus(`${safeLocalModelName(file.name)} / ${formatByteCount(file.size)} peer-source announcement selected`, false);
+    setCatalogStatus(`${safeLocalModelName(file.name)} / ${formatByteCount(file.size)} peer-source announcement/feed selected`, false);
   });
 
   el.hfSearchButton.addEventListener("click", function () {

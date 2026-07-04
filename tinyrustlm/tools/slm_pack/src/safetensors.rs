@@ -124,6 +124,7 @@ struct HuggingFaceConversionRequest {
     default_source_shape: String,
     default_quantization: String,
     suggested_source_file: Option<String>,
+    known_peer_base_url: Option<String>,
     expected_source_files: Vec<HuggingFaceExpectedSourceFile>,
 }
 
@@ -517,38 +518,38 @@ pub fn convert_huggingface_request_path(
             return Err(error);
         }
     };
-    let source_contract = match verify_huggingface_source_contract(&request, input, &plan.inspection)
-    {
-        Ok(contract) => contract,
-        Err(error) => {
-            let failure_reason = error.to_string();
-            fs::write(&inspect_report, render_report(&plan.inspection))?;
-            fs::write(&plan_report, render_source_plan(&plan))?;
-            write_huggingface_conversion_preflight(
-                &preflight_report,
-                &request,
-                request_json,
-                input,
-                output_dir,
-                &inspect_report,
-                &plan_report,
-                Some(&plan),
-                Some(&plan.inspection),
-                shape_name,
-                output_quantization,
-                Some(&failure_reason),
-                Some(&HuggingFaceSourceContract {
-                    status: "fail",
-                    expected_file_count: request.expected_source_files.len(),
-                    verified_file_count: 0,
-                    expected_total_bytes: expected_source_total_bytes(&request),
-                    actual_total_bytes: plan.inspection.file_bytes,
-                    verified_sha256_count: 0,
-                }),
-            )?;
-            return Err(error);
-        }
-    };
+    let source_contract =
+        match verify_huggingface_source_contract(&request, input, &plan.inspection) {
+            Ok(contract) => contract,
+            Err(error) => {
+                let failure_reason = error.to_string();
+                fs::write(&inspect_report, render_report(&plan.inspection))?;
+                fs::write(&plan_report, render_source_plan(&plan))?;
+                write_huggingface_conversion_preflight(
+                    &preflight_report,
+                    &request,
+                    request_json,
+                    input,
+                    output_dir,
+                    &inspect_report,
+                    &plan_report,
+                    Some(&plan),
+                    Some(&plan.inspection),
+                    shape_name,
+                    output_quantization,
+                    Some(&failure_reason),
+                    Some(&HuggingFaceSourceContract {
+                        status: "fail",
+                        expected_file_count: request.expected_source_files.len(),
+                        verified_file_count: 0,
+                        expected_total_bytes: expected_source_total_bytes(&request),
+                        actual_total_bytes: plan.inspection.file_bytes,
+                        verified_sha256_count: 0,
+                    }),
+                )?;
+                return Err(error);
+            }
+        };
     fs::write(&inspect_report, render_report(&plan.inspection))?;
     fs::write(&plan_report, render_source_plan(&plan))?;
     write_huggingface_conversion_preflight(
@@ -615,12 +616,67 @@ pub fn write_safetensors_fixture_path(
     let source_dir = output_path.with_extension("source-template");
     trained_source::write_source_template_path(&source_dir, shape_name)?;
     let expectations = trained_source::source_tensor_expectations(shape_name)?;
+    write_safetensors_fixture_file(
+        output_path,
+        &source_dir,
+        &expectations,
+        name_mode,
+        |_, _| true,
+    )?;
+    inspect_path(output_path, None)?;
+    Ok(())
+}
+
+/// Writes deterministic Hugging Face-style safetensors shards for CLI handoff tests.
+pub fn write_safetensors_fixture_shards_path(
+    output_dir: &Path,
+    shape_name: &str,
+    name_mode: &str,
+) -> io::Result<()> {
+    let source_dir = output_dir.join("_fixture-source-template");
+    trained_source::write_source_template_path(&source_dir, shape_name)?;
+    let expectations = trained_source::source_tensor_expectations(shape_name)?;
+    if expectations.len() < 2 {
+        return Err(invalid(
+            "safetensors shard fixture requires at least two source tensors",
+        ));
+    }
+    fs::create_dir_all(output_dir)?;
+    for shard_index in 0..2 {
+        let shard_path =
+            output_dir.join(format!("model-{:05}-of-00002.safetensors", shard_index + 1));
+        write_safetensors_fixture_file(
+            &shard_path,
+            &source_dir,
+            &expectations,
+            name_mode,
+            |index, _| index % 2 == shard_index,
+        )?;
+    }
+    inspect_path(output_dir, None)?;
+    Ok(())
+}
+
+fn write_safetensors_fixture_file<F>(
+    output_path: &Path,
+    source_dir: &Path,
+    expectations: &[trained_source::SourceTensorExpectation],
+    name_mode: &str,
+    mut include_tensor: F,
+) -> io::Result<()>
+where
+    F: FnMut(usize, &trained_source::SourceTensorExpectation) -> bool,
+{
     let mut header = String::from("{");
     let mut data = Vec::new();
     let mut offset = 0u64;
+    let mut written_tensor_count = 0usize;
 
     for (index, expectation) in expectations.iter().enumerate() {
-        if index > 0 {
+        if !include_tensor(index, expectation) {
+            continue;
+        }
+        if written_tensor_count > 0 {
             header.push(',');
         }
         let tensor_bytes = fs::read(source_dir.join(&expectation.relative_file))?;
@@ -659,6 +715,10 @@ pub fn write_safetensors_fixture_path(
         header.push_str(&offset.to_string());
         header.push_str("]}");
         data.extend_from_slice(&tensor_bytes);
+        written_tensor_count += 1;
+    }
+    if written_tensor_count == 0 {
+        return Err(invalid("safetensors fixture shard would be empty"));
     }
 
     header.push('}');
@@ -672,7 +732,6 @@ pub fn write_safetensors_fixture_path(
         }
     }
     fs::write(output_path, bytes)?;
-    inspect_path(output_path, None)?;
     Ok(())
 }
 
@@ -3916,6 +3975,11 @@ fn parse_huggingface_conversion_request(text: &str) -> io::Result<HuggingFaceCon
     if let Some(file_name) = suggested_source_file.as_deref() {
         validate_safe_safetensors_file_name(file_name)?;
     }
+    let known_peer_base_url = local_conversion
+        .and_then(|local_conversion| optional_string_field(local_conversion, "known_peer_base_url"))
+        .filter(|value| !value.trim().is_empty())
+        .map(validate_conversion_known_peer_base_url)
+        .transpose()?;
     let expected_source_files = match local_conversion {
         Some(local_conversion) => parse_huggingface_expected_source_files(
             local_conversion,
@@ -3930,6 +3994,7 @@ fn parse_huggingface_conversion_request(text: &str) -> io::Result<HuggingFaceCon
         default_source_shape,
         default_quantization,
         suggested_source_file,
+        known_peer_base_url,
         expected_source_files,
     })
 }
@@ -3976,6 +4041,14 @@ fn write_huggingface_conversion_receipt(
             .as_deref()
             .unwrap_or("unavailable"),
     );
+    push_receipt_line(
+        &mut text,
+        "known_peer_base_url",
+        request
+            .known_peer_base_url
+            .as_deref()
+            .unwrap_or("not-provided"),
+    );
     push_receipt_line(&mut text, "request_json", &one_line_path(request_json));
     push_receipt_line(
         &mut text,
@@ -3997,11 +4070,7 @@ fn write_huggingface_conversion_receipt(
         "source_file_count",
         &plan.inspection.source_file_count.to_string(),
     );
-    push_receipt_line(
-        &mut text,
-        "source_contract_status",
-        source_contract.status,
-    );
+    push_receipt_line(&mut text, "source_contract_status", source_contract.status);
     push_receipt_line(
         &mut text,
         "source_expected_file_count",
@@ -4203,6 +4272,14 @@ fn write_huggingface_conversion_preflight(
             .as_deref()
             .unwrap_or("unavailable"),
     );
+    push_receipt_line(
+        &mut text,
+        "known_peer_base_url",
+        request
+            .known_peer_base_url
+            .as_deref()
+            .unwrap_or("not-provided"),
+    );
     push_receipt_line(&mut text, "request_json", &one_line_path(request_json));
     push_receipt_line(&mut text, "input_safetensors", &one_line_path(input));
     push_receipt_line(&mut text, "output_dir", &one_line_path(output_dir));
@@ -4270,11 +4347,7 @@ fn write_huggingface_conversion_preflight(
         verified_sha256_count: 0,
     };
     let source_contract = source_contract.unwrap_or(&fallback_contract);
-    push_receipt_line(
-        &mut text,
-        "source_contract_status",
-        source_contract.status,
-    );
+    push_receipt_line(&mut text, "source_contract_status", source_contract.status);
     push_receipt_line(
         &mut text,
         "source_expected_file_count",
@@ -4440,10 +4513,11 @@ fn parse_huggingface_expected_source_files(
     }
     if files.is_empty() {
         if let Some(file_name) = suggested_source_file {
-            let sha256 = optional_string_field(local_conversion, "suggested_source_safetensors_sha256")
-                .filter(|value| !value.trim().is_empty())
-                .map(|value| normalize_conversion_sha256(value, "suggested source sha256"))
-                .transpose()?;
+            let sha256 =
+                optional_string_field(local_conversion, "suggested_source_safetensors_sha256")
+                    .filter(|value| !value.trim().is_empty())
+                    .map(|value| normalize_conversion_sha256(value, "suggested source sha256"))
+                    .transpose()?;
             let byte_count = conversion_optional_u64_field(
                 local_conversion,
                 "suggested_source_safetensors_byte_count",
@@ -4487,7 +4561,8 @@ fn verify_huggingface_source_contract(
     let mut actual_total_bytes = 0u64;
     let mut verified_sha256_count = 0usize;
     for expected in &request.expected_source_files {
-        let source_path = expected_source_path(input, expected, request.expected_source_files.len())?;
+        let source_path =
+            expected_source_path(input, expected, request.expected_source_files.len())?;
         let actual_bytes = fs::metadata(&source_path)?.len();
         actual_total_bytes = actual_total_bytes.saturating_add(actual_bytes);
         if let Some(expected_bytes) = expected.byte_count {
@@ -4639,9 +4714,10 @@ fn conversion_optional_u64_field(
     label: &str,
 ) -> io::Result<Option<u64>> {
     match find_object_field(object, key) {
-        Some(JsonValue::Number(value)) => value.parse::<u64>().map(Some).map_err(|_| {
-            invalid(&format!("{label} must be an unsigned integer"))
-        }),
+        Some(JsonValue::Number(value)) => value
+            .parse::<u64>()
+            .map(Some)
+            .map_err(|_| invalid(&format!("{label} must be an unsigned integer"))),
         Some(JsonValue::Null) => Ok(None),
         Some(_) => Err(invalid(&format!("{label} must be a number"))),
         None => Ok(None),
@@ -4649,14 +4725,21 @@ fn conversion_optional_u64_field(
 }
 
 fn validate_huggingface_model_id(model_id: &str) -> io::Result<()> {
-    let value = model_id.trim();
-    if value.is_empty()
-        || value.contains('\\')
-        || value.contains("://")
-        || value
-            .split('/')
-            .any(|part| part.is_empty() || part == "." || part == "..")
-        || value.chars().any(char::is_control)
+    if model_id.is_empty()
+        || model_id != model_id.trim()
+        || model_id.contains('\\')
+        || model_id.contains("://")
+        || model_id
+            .chars()
+            .any(|ch| ch.is_control() || ch.is_whitespace())
+        || model_id.split('/').any(|part| {
+            part.is_empty()
+                || part == "."
+                || part == ".."
+                || !part
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
+        })
     {
         return Err(invalid(
             "Hugging Face conversion request source.model_id must be a safe model id",
@@ -4666,18 +4749,133 @@ fn validate_huggingface_model_id(model_id: &str) -> io::Result<()> {
 }
 
 fn validate_safe_safetensors_file_name(file_name: &str) -> io::Result<()> {
-    let value = file_name.trim();
-    if value.is_empty()
-        || !value.ends_with(".safetensors")
-        || value.contains('/')
-        || value.contains('\\')
-        || value.contains("://")
-        || value == "."
-        || value == ".."
-        || value.chars().any(char::is_control)
+    if file_name.is_empty()
+        || file_name != file_name.trim()
+        || !file_name.ends_with(".safetensors")
+        || file_name.contains('/')
+        || file_name.contains('\\')
+        || file_name.contains("://")
+        || file_name == "."
+        || file_name == ".."
+        || file_name
+            .chars()
+            .any(|ch| ch.is_control() || ch.is_whitespace())
+        || !file_name
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
     {
         return Err(invalid(
             "Hugging Face conversion request suggested source file must be a safe .safetensors file name",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_conversion_known_peer_base_url(value: &str) -> io::Result<String> {
+    if value.is_empty()
+        || value != value.trim()
+        || value
+            .chars()
+            .any(|ch| ch.is_control() || ch.is_whitespace())
+    {
+        return Err(invalid(
+            "Hugging Face conversion request known_peer_base_url must be a plain safe direct http:// peer URL",
+        ));
+    }
+    let rest = value.strip_prefix("http://").ok_or_else(|| {
+        invalid("Hugging Face conversion request known_peer_base_url must use http://")
+    })?;
+    if rest.is_empty() || rest.contains('@') || rest.contains('?') || rest.contains('#') {
+        return Err(invalid(
+            "Hugging Face conversion request known_peer_base_url must be a plain http://host[:port]/path URL",
+        ));
+    }
+    let (authority, path) = match rest.split_once('/') {
+        Some((authority, path)) => (authority, format!("/{path}")),
+        None => (rest, "/".to_string()),
+    };
+    if authority.is_empty() {
+        return Err(invalid(
+            "Hugging Face conversion request known_peer_base_url host must not be empty",
+        ));
+    }
+    if authority.starts_with('[') || authority.matches(':').count() > 1 {
+        return Err(invalid(
+            "Hugging Face conversion request known_peer_base_url must use DNS or IPv4 host text",
+        ));
+    }
+    let host = match authority.rsplit_once(':') {
+        Some((host, port)) if !host.is_empty() => {
+            port.parse::<u16>().map_err(|_| {
+                invalid("Hugging Face conversion request known_peer_base_url port must be a decimal TCP port")
+            })?;
+            host
+        }
+        Some(_) => {
+            return Err(invalid(
+                "Hugging Face conversion request known_peer_base_url host must not be empty",
+            ))
+        }
+        None => authority,
+    };
+    if host.is_empty()
+        || host.contains('/')
+        || host.contains('\\')
+        || !host
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-'))
+    {
+        return Err(invalid(
+            "Hugging Face conversion request known_peer_base_url host must be plain DNS or IPv4 text",
+        ));
+    }
+    let policy_host = host.trim_end_matches('.');
+    if policy_host.is_empty() || policy_host.starts_with('.') || policy_host.contains("..") {
+        return Err(invalid(
+            "Hugging Face conversion request known_peer_base_url host must be plain DNS or IPv4 text",
+        ));
+    }
+    reject_project_or_huggingface_peer_host(policy_host)?;
+    validate_conversion_peer_path(&path)?;
+    let mut normalized = value.to_string();
+    if !normalized.ends_with('/') {
+        normalized.push('/');
+    }
+    Ok(normalized)
+}
+
+fn reject_project_or_huggingface_peer_host(host: &str) -> io::Result<()> {
+    let lower = host.to_ascii_lowercase();
+    if lower == "minimodel.org"
+        || lower.ends_with(".minimodel.org")
+        || lower == "tinyrustlm.com"
+        || lower.ends_with(".tinyrustlm.com")
+        || lower == "tinyrustlm.mirust.com"
+        || lower.ends_with(".tinyrustlm.mirust.com")
+        || lower == "slmcomposer.com"
+        || lower.ends_with(".slmcomposer.com")
+        || lower == "huggingface.co"
+        || lower.ends_with(".huggingface.co")
+    {
+        return Err(invalid(
+            "Hugging Face conversion request known_peer_base_url must not use a project or Hugging Face host",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_conversion_peer_path(path: &str) -> io::Result<()> {
+    if !path.starts_with('/') {
+        return Err(invalid(
+            "Hugging Face conversion request known_peer_base_url path must be absolute",
+        ));
+    }
+    if path.contains('\\')
+        || path.contains("..")
+        || path.bytes().any(|byte| byte <= 0x20 || byte == 0x7f)
+    {
+        return Err(invalid(
+            "Hugging Face conversion request known_peer_base_url path must be a plain safe path",
         ));
     }
     Ok(())
@@ -4799,6 +4997,109 @@ mod tests {
         ] {
             validate_source_model_sha_value("source_model_sha", value).unwrap();
         }
+    }
+
+    #[test]
+    fn rejects_huggingface_conversion_request_unsafe_identifiers() {
+        for (request, expected) in [
+            (
+                r#"{
+  "request_kind": "minimodel.huggingface_conversion_request.v0",
+  "source": {"kind": "huggingface_model", "model_id": "example-org/tiny-source-model\n"},
+  "requested_artifact": {"kind": "slm", "default_source_shape": "tiny-fixture", "default_quantization": "q8_0"}
+}"#,
+                "source.model_id must be a safe model id",
+            ),
+            (
+                r#"{
+  "request_kind": "minimodel.huggingface_conversion_request.v0",
+  "source": {"kind": "huggingface_model", "model_id": "example org/tiny-source-model"},
+  "requested_artifact": {"kind": "slm", "default_source_shape": "tiny-fixture", "default_quantization": "q8_0"}
+}"#,
+                "source.model_id must be a safe model id",
+            ),
+            (
+                r#"{
+  "request_kind": "minimodel.huggingface_conversion_request.v0",
+  "source": {"kind": "huggingface_model", "model_id": "example-org/tiny-source-model"},
+  "requested_artifact": {"kind": "slm", "default_source_shape": "tiny-fixture", "default_quantization": "q8_0"},
+  "local_conversion": {"suggested_source_safetensors_file": " model.safetensors"}
+}"#,
+                "suggested source file must be a safe .safetensors file name",
+            ),
+            (
+                r#"{
+  "request_kind": "minimodel.huggingface_conversion_request.v0",
+  "source": {"kind": "huggingface_model", "model_id": "example-org/tiny-source-model"},
+  "requested_artifact": {"kind": "slm", "default_source_shape": "tiny-fixture", "default_quantization": "q8_0"},
+  "local_conversion": {"suggested_source_safetensors_files": [{"file_name": "nested/model.safetensors"}]}
+}"#,
+                "suggested source file must be a safe .safetensors file name",
+            ),
+            (
+                r#"{
+  "request_kind": "minimodel.huggingface_conversion_request.v0",
+  "source": {"kind": "huggingface_model", "model_id": "example-org/tiny-source-model"},
+  "requested_artifact": {"kind": "slm", "default_source_shape": "tiny-fixture", "default_quantization": "q8_0"},
+  "local_conversion": {"known_peer_base_url": "http://MiniModel.org/peer-pieces/"}
+}"#,
+                "known_peer_base_url must not use a project or Hugging Face host",
+            ),
+            (
+                r#"{
+  "request_kind": "minimodel.huggingface_conversion_request.v0",
+  "source": {"kind": "huggingface_model", "model_id": "example-org/tiny-source-model"},
+  "requested_artifact": {"kind": "slm", "default_source_shape": "tiny-fixture", "default_quantization": "q8_0"},
+  "local_conversion": {"known_peer_base_url": "http://MiniModel.org./peer-pieces/"}
+}"#,
+                "known_peer_base_url must not use a project or Hugging Face host",
+            ),
+            (
+                r#"{
+  "request_kind": "minimodel.huggingface_conversion_request.v0",
+  "source": {"kind": "huggingface_model", "model_id": "example-org/tiny-source-model"},
+  "requested_artifact": {"kind": "slm", "default_source_shape": "tiny-fixture", "default_quantization": "q8_0"},
+  "local_conversion": {"known_peer_base_url": "http://127.0.0.1:8123/peer-pieces/../secret/"}
+}"#,
+                "known_peer_base_url path must be a plain safe path",
+            ),
+            (
+                r#"{
+  "request_kind": "minimodel.huggingface_conversion_request.v0",
+  "source": {"kind": "huggingface_model", "model_id": "example-org/tiny-source-model"},
+  "requested_artifact": {"kind": "slm", "default_source_shape": "tiny-fixture", "default_quantization": "q8_0"},
+  "local_conversion": {"known_peer_base_url": "http://peer_host.local:8123/peer-pieces/"}
+}"#,
+                "known_peer_base_url host must be plain DNS or IPv4 text",
+            ),
+        ] {
+            let error = match parse_huggingface_conversion_request(request) {
+                Ok(_) => panic!("unsafe conversion request should be rejected"),
+                Err(error) => error,
+            };
+            assert!(
+                error.to_string().contains(expected),
+                "expected {expected}, got {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn records_valid_huggingface_conversion_known_peer_url() {
+        let request = parse_huggingface_conversion_request(
+            r#"{
+  "request_kind": "minimodel.huggingface_conversion_request.v0",
+  "source": {"kind": "huggingface_model", "model_id": "example-org/tiny-source-model"},
+  "requested_artifact": {"kind": "slm", "default_source_shape": "tiny-fixture", "default_quantization": "q8_0"},
+  "local_conversion": {"known_peer_base_url": "http://127.0.0.1:8123/peer-pieces"}
+}"#,
+        )
+        .expect("valid conversion request with known peer URL");
+
+        assert_eq!(
+            request.known_peer_base_url.as_deref(),
+            Some("http://127.0.0.1:8123/peer-pieces/")
+        );
     }
 
     #[test]
@@ -6571,9 +6872,12 @@ mod tests {
         assert!(preflight.contains("preflight_status=fail"));
         assert!(preflight.contains("source_contract_status=fail"));
         assert!(preflight.contains("source_expected_file_count=1"));
-        assert!(preflight.contains("conversion_decision=source-contract-rejected-before-conversion"));
+        assert!(
+            preflight.contains("conversion_decision=source-contract-rejected-before-conversion")
+        );
         assert!(preflight.contains("failure_stage=huggingface-source-contract"));
-        assert!(preflight.contains("required_next_gate=choose-matching-reviewed-source-or-wait-for-p2p"));
+        assert!(preflight
+            .contains("required_next_gate=choose-matching-reviewed-source-or-wait-for-p2p"));
         assert!(preflight.contains("project_server_serves_model_bytes=false"));
         assert!(preflight.contains("project_server_runs_model_bytes=false"));
     }

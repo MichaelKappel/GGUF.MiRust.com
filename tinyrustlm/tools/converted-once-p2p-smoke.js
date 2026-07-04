@@ -210,6 +210,8 @@ function main() {
   const feedPath = path.join(metadataDir, 'peer-source-announcements.v0.json');
   const snapshotPath = path.join(metadataDir, 'models.v0.json');
   const feedSnapshotPath = path.join(metadataDir, 'models.with-announcement-feed.v0.json');
+  const peerCompanionStatePath = path.join(metadataDir, 'tiny-source-model.peer-companion-state.v0.json');
+  const peerContactCardPath = path.join(metadataDir, 'tiny-source-model.peer-contact-card.v0.json');
 
   run(minimodelWorkspace, 'cargo', [
     'run',
@@ -250,6 +252,28 @@ function main() {
     '-p',
     'minimodel',
     '--',
+    'write-peer-companion-state',
+    manifestPath,
+    peerPieceDir,
+    peerCompanionStatePath,
+    knownPeerBaseUrl,
+  ]);
+  run(minimodelWorkspace, 'cargo', [
+    'run',
+    '--quiet',
+    '-p',
+    'minimodel',
+    '--',
+    'write-peer-contact-card',
+    peerContactCardPath,
+    knownPeerBaseUrl,
+  ]);
+  run(minimodelWorkspace, 'cargo', [
+    'run',
+    '--quiet',
+    '-p',
+    'minimodel',
+    '--',
     'write-catalog-snapshot',
     snapshotPath,
     catalogEntryPath,
@@ -265,6 +289,19 @@ function main() {
   const feedSnapshotText = assertMetadataOnlyJson(feedSnapshotPath, 'feed-bound catalog snapshot');
   assertContains(feedSnapshotText, '"route": "peer-source-announcements.v0.json"', 'feed-bound catalog snapshot');
   assertContains(feedSnapshotText, '"sha256:', 'feed-bound catalog snapshot');
+  const peerCompanionStateText = assertMetadataOnlyJson(peerCompanionStatePath, 'peer companion state');
+  assertContains(peerCompanionStateText, '"state_kind": "minimodel.peer_companion_state"', 'peer companion state');
+  assertContains(peerCompanionStateText, '"peer_piece_bytes_in_state": false', 'peer companion state');
+  assertContains(peerCompanionStateText, '"project_server_proxies_model_bytes": false', 'peer companion state');
+  assertContains(peerCompanionStateText, '"peer_base_url": "http://127.0.0.1:8123/peer-pieces/"', 'peer companion state');
+  assertNotContains(peerCompanionStateText, outputSlm, 'peer companion state');
+  const peerContactCardText = assertMetadataOnlyJson(peerContactCardPath, 'peer contact card');
+  assertContains(peerContactCardText, '"card_kind": "minimodel.peer_contact_card"', 'peer contact card');
+  assertContains(peerContactCardText, '"peer_base_url": "http://127.0.0.1:8123/peer-pieces/"', 'peer contact card');
+  assertContains(peerContactCardText, '"metadata_only": true', 'peer contact card');
+  assertContains(peerContactCardText, '"peer_contact_card_embeds_model_bytes": false', 'peer contact card');
+  assertContains(peerContactCardText, '"requires_rust_reverify_before_browser_import": true', 'peer contact card');
+  assertNotContains(peerContactCardText, outputSlm, 'peer contact card');
 
   console.log('[converted-once-p2p-smoke] PASS');
   console.log(`[converted-once-p2p-smoke] output_root=${outputRoot}`);
