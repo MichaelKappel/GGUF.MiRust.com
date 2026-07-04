@@ -35,7 +35,7 @@ active_product:
   public_live_smoke_rule: `tinyrustlm/tools/browser-smoke.js` `public-local-only` maps TinyRustLM public hostnames to loopback only for local `http://tinyrustlm.com:PORT/` simulations; live `https://tinyrustlm.com/` checks must use real DNS and prove only app/runtime assets load before user action.
 local_share_kit_2026_07_03:
   route: wiki/runtime-mirust/reports/tinyrustlm-local-share-kit-memory-2026-07-03.md
-  behavior: After Rust/WASM verifies a local `.slm`, TinyRustLM can save a `minimodel.local_slm_share_metadata.v0` bundle plus `.minimodel-share-kit.ps1` and `.minimodel-serve-peer-pieces.ps1` scripts that verify artifact byte count/SHA-256, run MiniModel `prepare-peer-share`, support optional peer-source announcement/feed publication, write metadata-only catalog snapshots, and run the user's own consent-based `serve-peer-pieces` endpoint from their machine.
+  behavior: After Rust/WASM verifies a local `.slm`, TinyRustLM can save a `minimodel.local_slm_share_metadata.v0` bundle plus `.minimodel-share-kit.ps1` and `.minimodel-serve-peer-pieces.ps1` scripts that verify artifact byte count/SHA-256, run MiniModel `prepare-peer-share`, support optional peer-source announcement/feed publication, write optional `write-peer-companion-state` metadata for a consenting direct peer URL, write metadata-only catalog snapshots, and run the user's own consent-based `serve-peer-pieces` endpoint from their machine.
   boundary: The share kit never uploads `.slm` bytes or peer pieces to TinyRustLM.com, MiniModel.org, or any project server; catalog maintainers receive only metadata JSON.
 huggingface_real_conversion_script_2026_07_03:
   route: wiki/runtime-mirust/reports/tinyrustlm-huggingface-real-conversion-script-memory-2026-07-03.md
