@@ -503,6 +503,7 @@ pub fn convert_huggingface_request_path(
             write_huggingface_conversion_preflight(
                 &preflight_report,
                 &request,
+                request_text.as_bytes(),
                 request_json,
                 input,
                 output_dir,
@@ -528,6 +529,7 @@ pub fn convert_huggingface_request_path(
                 write_huggingface_conversion_preflight(
                     &preflight_report,
                     &request,
+                    request_text.as_bytes(),
                     request_json,
                     input,
                     output_dir,
@@ -555,6 +557,7 @@ pub fn convert_huggingface_request_path(
     write_huggingface_conversion_preflight(
         &preflight_report,
         &request,
+        request_text.as_bytes(),
         request_json,
         input,
         output_dir,
@@ -604,6 +607,217 @@ pub fn convert_huggingface_request_path(
     println!("output_quantization: {output_quantization}");
     println!("output_slm: {}", output_slm.display());
     println!("conversion_receipt: {}", receipt_path.display());
+    Ok(())
+}
+
+/// Revalidates a successful Hugging Face conversion receipt against local artifacts.
+pub fn inspect_huggingface_conversion_receipt_path(
+    receipt_path: &Path,
+    request_json: &Path,
+    preflight_path: &Path,
+    output_slm: &Path,
+    manifest_path: &Path,
+) -> io::Result<()> {
+    let receipt_text = fs::read_to_string(receipt_path)?;
+    let receipt = parse_huggingface_report(&receipt_text, "Hugging Face conversion receipt")?;
+    let preflight_text = fs::read_to_string(preflight_path)?;
+    let preflight = parse_huggingface_report(&preflight_text, "Hugging Face conversion preflight")?;
+    let request_bytes = fs::read(request_json)?;
+    let request_text = std::str::from_utf8(&request_bytes)
+        .map_err(|_| invalid("Hugging Face conversion request JSON must be UTF-8"))?;
+    let request = parse_huggingface_conversion_request(request_text)?;
+
+    require_report_equal(
+        &receipt,
+        "receipt",
+        "tinyrustlm_huggingface_conversion_receipt_version",
+        "1",
+    )?;
+    require_report_equal(
+        &preflight,
+        "preflight",
+        "tinyrustlm_huggingface_conversion_preflight_version",
+        "1",
+    )?;
+    for fields in [&receipt, &preflight] {
+        require_report_equal(
+            fields,
+            "conversion evidence",
+            "request_kind",
+            "minimodel.huggingface_conversion_request.v0",
+        )?;
+        require_report_equal(
+            fields,
+            "conversion evidence",
+            "source_kind",
+            "huggingface_model",
+        )?;
+        require_report_equal(
+            fields,
+            "conversion evidence",
+            "source_model_id",
+            &request.source_model_id,
+        )?;
+        require_report_equal(
+            fields,
+            "conversion evidence",
+            "suggested_source_safetensors_file",
+            request
+                .suggested_source_file
+                .as_deref()
+                .unwrap_or("unavailable"),
+        )?;
+        require_report_equal(
+            fields,
+            "conversion evidence",
+            "known_peer_base_url",
+            request
+                .known_peer_base_url
+                .as_deref()
+                .unwrap_or("not-provided"),
+        )?;
+        require_report_equal(
+            fields,
+            "conversion evidence",
+            "project_server_serves_model_bytes",
+            "false",
+        )?;
+        require_report_equal(
+            fields,
+            "conversion evidence",
+            "project_server_runs_model_bytes",
+            "false",
+        )?;
+        require_report_equal(
+            fields,
+            "conversion evidence",
+            "project_server_proxies_huggingface_bytes",
+            "false",
+        )?;
+        require_report_equal(
+            fields,
+            "conversion evidence",
+            "browser_import_rule",
+            "user-imports-local-slm",
+        )?;
+    }
+
+    let request_sha256 = peer_offer::sha256_prefixed(&request_bytes);
+    require_report_equal(
+        &receipt,
+        "receipt",
+        "request_text_checksum",
+        &hex64(provenance::text_checksum(&request_bytes)),
+    )?;
+    require_report_equal(&receipt, "receipt", "request_sha256", &request_sha256)?;
+    require_report_equal(&preflight, "preflight", "request_sha256", &request_sha256)?;
+    require_report_equal(&preflight, "preflight", "preflight_status", "pass")?;
+    require_report_equal(
+        &preflight,
+        "preflight",
+        "conversion_decision",
+        "ready-for-local-conversion",
+    )?;
+    require_report_equal(
+        &preflight,
+        "preflight",
+        "output_slm_produced",
+        "pending-conversion",
+    )?;
+    require_report_equal(
+        &preflight,
+        "preflight",
+        "required_next_gate",
+        "convert-source-and-validate-slm",
+    )?;
+    require_report_equal(
+        &receipt,
+        "receipt",
+        "required_next_gate",
+        "minimodel-prepare-peer-share",
+    )?;
+    require_report_equal(
+        &receipt,
+        "receipt",
+        "converted_once_publication_rule",
+        "publish-catalog-json-and-peer-source-announcement-json-only",
+    )?;
+
+    for key in [
+        "source_file_count",
+        "source_file_bytes",
+        "source_contract_status",
+        "source_expected_file_count",
+        "source_verified_file_count",
+        "source_verified_sha256_count",
+        "source_expected_total_bytes",
+        "source_actual_total_bytes",
+        "source_header_checksum",
+        "source_tensor_directory_checksum",
+        "source_plan_mapping_checksum",
+        "target_model_shape",
+        "output_quantization",
+    ] {
+        require_matching_report_field(&receipt, "receipt", &preflight, "preflight", key)?;
+    }
+
+    let target_model_shape = require_report_key(&receipt, "receipt", "target_model_shape")?;
+    if !selected_shape_supported(&request, target_model_shape) {
+        return Err(invalid(
+            "Hugging Face conversion receipt target_model_shape is not supported by the request",
+        ));
+    }
+    let output_quantization = require_report_key(&receipt, "receipt", "output_quantization")?;
+    trained_source::validate_output_quantization(output_quantization)?;
+
+    let output_slm_bytes = fs::read(output_slm)?;
+    let manifest_bytes = fs::read(manifest_path)?;
+    let report =
+        slm_validate::validate_bytes(&output_slm_bytes, &output_slm.display().to_string())?;
+    if report.quantization_label() != output_quantization {
+        return Err(invalid(
+            "Hugging Face conversion receipt output quantization drifted",
+        ));
+    }
+    provenance::validate_manifest_path(output_slm, manifest_path)?;
+    require_report_equal(
+        &receipt,
+        "receipt",
+        "output_slm_byte_count",
+        &output_slm_bytes.len().to_string(),
+    )?;
+    require_report_equal(
+        &receipt,
+        "receipt",
+        "output_slm_checksum",
+        &hex64(provenance::text_checksum(&output_slm_bytes)),
+    )?;
+    let output_slm_sha256 = peer_offer::sha256_prefixed(&output_slm_bytes);
+    require_report_equal(&receipt, "receipt", "output_slm_sha256", &output_slm_sha256)?;
+    require_report_equal(
+        &receipt,
+        "receipt",
+        "output_manifest_checksum",
+        &hex64(provenance::text_checksum(&manifest_bytes)),
+    )?;
+    let output_manifest_sha256 = peer_offer::sha256_prefixed(&manifest_bytes);
+    require_report_equal(
+        &receipt,
+        "receipt",
+        "output_manifest_sha256",
+        &output_manifest_sha256,
+    )?;
+
+    println!("Hugging Face conversion receipt inspection: PASS");
+    println!("receipt: {}", receipt_path.display());
+    println!("request_json: {}", request_json.display());
+    println!("preflight_report: {}", preflight_path.display());
+    println!("output_slm: {}", output_slm.display());
+    println!("output_manifest: {}", manifest_path.display());
+    println!("source_model_id: {}", request.source_model_id);
+    println!("request_sha256: {request_sha256}");
+    println!("output_slm_sha256: {output_slm_sha256}");
+    println!("output_manifest_sha256: {output_manifest_sha256}");
     Ok(())
 }
 
@@ -4055,6 +4269,11 @@ fn write_huggingface_conversion_receipt(
         "request_text_checksum",
         &hex64(provenance::text_checksum(request_bytes)),
     );
+    push_receipt_line(
+        &mut text,
+        "request_sha256",
+        &peer_offer::sha256_prefixed(request_bytes),
+    );
     push_receipt_line(&mut text, "input_safetensors", &one_line_path(input));
     push_receipt_line(
         &mut text,
@@ -4213,8 +4432,18 @@ fn write_huggingface_conversion_receipt(
     );
     push_receipt_line(
         &mut text,
+        "output_slm_sha256",
+        &peer_offer::sha256_prefixed(&output_slm_bytes),
+    );
+    push_receipt_line(
+        &mut text,
         "output_manifest_checksum",
         &hex64(provenance::text_checksum(&manifest_bytes)),
+    );
+    push_receipt_line(
+        &mut text,
+        "output_manifest_sha256",
+        &peer_offer::sha256_prefixed(&manifest_bytes),
     );
     push_receipt_line(&mut text, "project_server_serves_model_bytes", "false");
     push_receipt_line(&mut text, "project_server_runs_model_bytes", "false");
@@ -4239,6 +4468,7 @@ fn write_huggingface_conversion_receipt(
 fn write_huggingface_conversion_preflight(
     preflight_path: &Path,
     request: &HuggingFaceConversionRequest,
+    request_bytes: &[u8],
     request_json: &Path,
     input: &Path,
     output_dir: &Path,
@@ -4281,6 +4511,11 @@ fn write_huggingface_conversion_preflight(
             .unwrap_or("not-provided"),
     );
     push_receipt_line(&mut text, "request_json", &one_line_path(request_json));
+    push_receipt_line(
+        &mut text,
+        "request_sha256",
+        &peer_offer::sha256_prefixed(request_bytes),
+    );
     push_receipt_line(&mut text, "input_safetensors", &one_line_path(input));
     push_receipt_line(&mut text, "output_dir", &one_line_path(output_dir));
     push_receipt_line(&mut text, "target_model_shape", shape_name);
@@ -4936,6 +5171,47 @@ fn sidecar_manifest_path(output_slm: &Path) -> PathBuf {
     let mut manifest = output_slm.as_os_str().to_owned();
     manifest.push(".manifest");
     PathBuf::from(manifest)
+}
+
+fn parse_huggingface_report(text: &str, label: &str) -> io::Result<HashMap<String, String>> {
+    crate::blend::parse_manifest(text, label)
+}
+
+fn require_report_key<'a>(
+    fields: &'a HashMap<String, String>,
+    label: &str,
+    key: &str,
+) -> io::Result<&'a str> {
+    fields
+        .get(key)
+        .map(String::as_str)
+        .ok_or_else(|| invalid(&format!("{label} missing required key {key}")))
+}
+
+fn require_report_equal(
+    fields: &HashMap<String, String>,
+    label: &str,
+    key: &str,
+    expected: &str,
+) -> io::Result<()> {
+    let actual = require_report_key(fields, label, key)?;
+    if actual != expected {
+        return Err(invalid(&format!(
+            "{label} key {key} was {actual}, expected {expected}"
+        )));
+    }
+    Ok(())
+}
+
+fn require_matching_report_field(
+    left: &HashMap<String, String>,
+    left_label: &str,
+    right: &HashMap<String, String>,
+    right_label: &str,
+    key: &str,
+) -> io::Result<()> {
+    let expected = require_report_key(right, right_label, key)?;
+    require_report_equal(left, left_label, key, expected)
 }
 
 fn push_receipt_line(text: &mut String, key: &str, value: &str) {
@@ -6752,6 +7028,7 @@ mod tests {
             fs::read_to_string(output_dir.join("tinyrustlm-conversion.preflight")).unwrap();
         assert!(preflight.contains("tinyrustlm_huggingface_conversion_preflight_version=1"));
         assert!(preflight.contains("source_model_id=example-org/tiny-source-model"));
+        assert!(preflight.contains("request_sha256=sha256:"));
         assert!(preflight.contains("preflight_status=pass"));
         assert!(preflight.contains("source_contract_status=pass"));
         assert!(preflight.contains("source_expected_file_count=1"));
@@ -6771,6 +7048,7 @@ mod tests {
         assert!(receipt.contains("source_kind=huggingface_model"));
         assert!(receipt.contains("source_model_id=example-org/tiny-source-model"));
         assert!(receipt.contains("suggested_source_safetensors_file=tiny-hf-source.safetensors"));
+        assert!(receipt.contains("request_sha256=sha256:"));
         assert!(receipt.contains("source_contract_status=pass"));
         assert!(receipt.contains("source_expected_file_count=1"));
         assert!(receipt.contains("source_verified_file_count=1"));
@@ -6780,6 +7058,8 @@ mod tests {
         assert!(receipt.contains("target_model_shape=tiny-fixture"));
         assert!(receipt.contains("output_quantization=q8_0"));
         assert!(receipt.contains("preflight_report="));
+        assert!(receipt.contains("output_slm_sha256=sha256:"));
+        assert!(receipt.contains("output_manifest_sha256=sha256:"));
         assert!(receipt.contains("project_server_serves_model_bytes=false"));
         assert!(receipt.contains("project_server_runs_model_bytes=false"));
         assert!(receipt.contains("project_server_proxies_huggingface_bytes=false"));
@@ -6869,6 +7149,7 @@ mod tests {
         .exists());
         let preflight =
             fs::read_to_string(output_dir.join("tinyrustlm-conversion.preflight")).unwrap();
+        assert!(preflight.contains("request_sha256=sha256:"));
         assert!(preflight.contains("preflight_status=fail"));
         assert!(preflight.contains("source_contract_status=fail"));
         assert!(preflight.contains("source_expected_file_count=1"));
@@ -6937,11 +7218,15 @@ mod tests {
         assert!(plan.contains("model-00002-of-00002.safetensors"));
         let preflight =
             fs::read_to_string(output_dir.join("tinyrustlm-conversion.preflight")).unwrap();
+        assert!(preflight.contains("request_sha256=sha256:"));
         assert!(preflight.contains("source_file_count=2"));
         assert!(preflight.contains("preflight_status=pass"));
         let receipt = fs::read_to_string(output_dir.join("tinyrustlm-conversion.receipt")).unwrap();
         assert!(receipt.contains("source_file_count=2"));
         assert!(receipt.contains("source_model_id=example-org/tiny-sharded"));
+        assert!(receipt.contains("request_sha256=sha256:"));
+        assert!(receipt.contains("output_slm_sha256=sha256:"));
+        assert!(receipt.contains("output_manifest_sha256=sha256:"));
         for shard_path in shard_paths {
             assert!(shard_path.exists());
         }
@@ -6991,6 +7276,7 @@ mod tests {
             fs::read_to_string(output_dir.join("tinyrustlm-conversion.preflight")).unwrap();
         assert!(preflight.contains("tinyrustlm_huggingface_conversion_preflight_version=1"));
         assert!(preflight.contains("source_model_id=example-org/wrong-shape"));
+        assert!(preflight.contains("request_sha256=sha256:"));
         assert!(preflight.contains("supported_source_shapes=tiny-fixture,tinylm16-bpe"));
         assert!(preflight.contains("selected_source_shape_in_request_supported_set=true"));
         assert!(preflight.contains("preflight_status=fail"));

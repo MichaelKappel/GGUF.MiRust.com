@@ -37,6 +37,22 @@ const REQUIRED_IDS: &[&str] = &[
     "hfSearchButton",
     "hfStatus",
     "hfResults",
+    "simpleLocalConnectApprovalsButton",
+    "simpleLocalConnectStatus",
+    "localConnectApprovalMode",
+    "localConnectModeWarning",
+    "localConnectCategoryList",
+    "localConnectApprovedApps",
+    "saveLocalConnectPolicyButton",
+    "saveLocalConnectPolicyFileButton",
+    "resetLocalConnectPolicyButton",
+    "localConnectEndpointUrl",
+    "checkLocalConnectEndpointButton",
+    "dryRunLocalConnectDecisionButton",
+    "localConnectEndpointStatus",
+    "localConnectEndpointAppList",
+    "localConnectPolicyStatus",
+    "localConnectPolicyPreview",
     "adapterSelect",
     "applyAdapterButton",
     "adapterPanel",
@@ -147,6 +163,9 @@ const REQUIRED_HTML_TEXT: &[&str] = &[
     "Adapter Sidecar",
     "Chat with your local model",
     "Local .slm models only",
+    "Local Connect Approvals",
+    "Check Endpoint",
+    "Dry Run Browser Decision",
     PRIVACY_NOTICE,
 ];
 
@@ -225,6 +244,8 @@ const FORBIDDEN_REMOTE_MARKERS: &[&str] = &[
     "telemetry",
     "analytics",
 ];
+
+const ALLOWED_APP_JS_REMOTE_MARKERS: &[&str] = &["https://tinyrustlm.com/local-connect-dry-run"];
 
 fn main() -> ExitCode {
     match run() {
@@ -838,7 +859,12 @@ fn require_wasm_export(source: &str, name: &str) -> Result<(), HarnessError> {
 }
 
 fn require_no_remote_markers(label: &str, text: &str) -> Result<(), HarnessError> {
-    let lowered = text.to_ascii_lowercase();
+    let mut lowered = text.to_ascii_lowercase();
+    if label == "app.js" {
+        for marker in ALLOWED_APP_JS_REMOTE_MARKERS {
+            lowered = lowered.replace(marker, "");
+        }
+    }
     for marker in FORBIDDEN_REMOTE_MARKERS {
         if lowered.contains(marker) {
             return Err(HarnessError::Missing(format!(
@@ -933,6 +959,20 @@ mod tests {
     #[test]
     fn rejects_remote_markers() {
         assert!(require_no_remote_markers("x", "fetch('https://example.test')").is_err());
+    }
+
+    #[test]
+    fn allows_local_connect_dry_run_url_only_in_app_js() {
+        assert!(require_no_remote_markers(
+            "app.js",
+            r#"target: "https://tinyrustlm.com/local-connect-dry-run""#
+        )
+        .is_ok());
+        assert!(require_no_remote_markers(
+            "index.html",
+            r#"target: "https://tinyrustlm.com/local-connect-dry-run""#
+        )
+        .is_err());
     }
 
     #[test]

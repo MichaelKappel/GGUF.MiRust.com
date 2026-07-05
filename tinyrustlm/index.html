@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TinyRustLM</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="./app/app.css?v=20260703-source-contract">
+  <link rel="stylesheet" href="./app/app.css?v=20260705-peer-contact-book-ui">
 </head>
 <body>
   <svg class="icon-sprite" aria-hidden="true" focusable="false">
@@ -182,16 +182,35 @@
             <button id="simpleSavePeerUrlButton" type="button">Use Peer</button>
           </div>
           <p id="simplePeerUrlStatus" class="inline-status">Enter the consenting peer URL once; P2P imports will use it.</p>
+          <label for="simplePeerContactCardFile">Peer contact card JSON</label>
+          <input id="simplePeerContactCardFile" type="file" accept=".json,application/json">
+          <button id="simpleApplyPeerContactCardButton" class="secondary-action" type="button">Use Peer Card</button>
+          <label for="simplePeerContactBookFile">Peer contact book JSON</label>
+          <input id="simplePeerContactBookFile" type="file" accept=".json,application/json">
+          <button id="simpleApplyPeerContactBookButton" class="secondary-action" type="button">Use Peer Book</button>
           <button id="simpleLoadCatalogButton" class="secondary-action" type="button">Load MiniModel Metadata</button>
           <label for="simpleLocalCatalogFile">Local models.v0.json</label>
           <input id="simpleLocalCatalogFile" type="file" accept=".json,application/json">
           <button id="simpleImportLocalCatalogButton" class="secondary-action" type="button">Load Local Catalog</button>
-          <label for="simplePeerAnnouncementFile">Peer-source announcement JSON</label>
+          <label for="simpleShareMetadataFile">Share metadata JSON</label>
+          <input id="simpleShareMetadataFile" type="file" accept=".json,application/json">
+          <button id="simpleImportShareMetadataButton" class="secondary-action" type="button">Load Share Metadata</button>
+          <label for="simplePeerAnnouncementFile">Peer-source announcement/feed JSON</label>
           <input id="simplePeerAnnouncementFile" type="file" accept=".json,application/json">
-          <button id="simpleApplyPeerAnnouncementButton" class="secondary-action" type="button">Apply Peer Announcement</button>
+          <button id="simpleApplyPeerAnnouncementButton" class="secondary-action" type="button">Apply Peer Feed</button>
+          <label for="simpleImportReceiptLedgerFile">Import receipt ledger JSON</label>
+          <input id="simpleImportReceiptLedgerFile" type="file" accept=".json,application/json">
+          <button id="simpleImportReceiptLedgerButton" class="secondary-action" type="button">Load Receipt Ledger</button>
+          <label for="simplePeerCompanionInventoryFile">Peer companion inventory JSON</label>
+          <input id="simplePeerCompanionInventoryFile" type="file" accept=".json,application/json">
+          <button id="simplePeerCompanionInventoryButton" class="secondary-action" type="button">Load Companion Inventory</button>
           <button id="simpleSaveShareMetadataButton" class="secondary-action" type="button">Save Share Metadata</button>
           <button id="simpleSaveShareKitButton" class="secondary-action" type="button">Save P2P Share Kit</button>
+          <button id="simpleLocalConnectApprovalsButton" class="secondary-action" type="button">Local Connect Approvals</button>
+          <p id="simpleImportReceiptLedgerStatus" class="inline-status">receipt ledger optional</p>
+          <p id="simplePeerCompanionInventoryStatus" class="inline-status">companion inventory optional</p>
           <p id="simpleShareMetadataStatus" class="inline-status">import a local .slm first</p>
+          <p id="simpleLocalConnectStatus" class="inline-status">Local Connect asks before app control.</p>
           <ol id="simpleCatalogResults" class="model-results"></ol>
         </div>
         <button id="simpleOpenAdvancedDiscoveryButton" class="text-link-button" type="button">Open source details in Advanced Tools</button>
@@ -318,7 +337,7 @@
             <p id="modelHelperText" class="helper-text">Exact technical model names are shown here for local verification.</p>
 
             <label for="localModelFile">Local .slm</label>
-            <input id="localModelFile" type="file" accept=".slm,application/octet-stream">
+            <input id="localModelFile" type="file" accept=".slm,.minimodel-receipt,application/octet-stream,text/plain" multiple>
             <button id="importLocalModelButton" class="secondary-action" type="button">Import Local Model</button>
             <p id="localModelState" class="inline-status">waiting</p>
 
@@ -335,9 +354,26 @@
             <label for="localCatalogFile">Local models.v0.json</label>
             <input id="localCatalogFile" type="file" accept=".json,application/json">
             <button id="importLocalCatalogButton" class="secondary-action" type="button">Load Local Catalog</button>
-            <label for="peerAnnouncementFile">Peer-source announcement JSON</label>
+            <label for="shareMetadataFile">Share metadata JSON</label>
+            <input id="shareMetadataFile" type="file" accept=".json,application/json">
+            <button id="importShareMetadataButton" class="secondary-action" type="button">Load Share Metadata</button>
+            <label for="peerContactCardFile">Peer contact card JSON</label>
+            <input id="peerContactCardFile" type="file" accept=".json,application/json">
+            <button id="applyPeerContactCardButton" class="secondary-action" type="button">Use Peer Card</button>
+            <label for="peerContactBookFile">Peer contact book JSON</label>
+            <input id="peerContactBookFile" type="file" accept=".json,application/json">
+            <button id="applyPeerContactBookButton" class="secondary-action" type="button">Use Peer Book</button>
+            <label for="peerAnnouncementFile">Peer-source announcement/feed JSON</label>
             <input id="peerAnnouncementFile" type="file" accept=".json,application/json">
-            <button id="applyPeerAnnouncementButton" class="secondary-action" type="button">Apply Peer Announcement</button>
+            <button id="applyPeerAnnouncementButton" class="secondary-action" type="button">Apply Peer Feed</button>
+            <label for="importReceiptLedgerFile">Import receipt ledger JSON</label>
+            <input id="importReceiptLedgerFile" type="file" accept=".json,application/json">
+            <button id="importReceiptLedgerButton" class="secondary-action" type="button">Load Receipt Ledger</button>
+            <p id="receiptLedgerStatus" class="inline-status">receipt ledger optional</p>
+            <label for="peerCompanionInventoryFile">Peer companion inventory JSON</label>
+            <input id="peerCompanionInventoryFile" type="file" accept=".json,application/json">
+            <button id="peerCompanionInventoryButton" class="secondary-action" type="button">Load Companion Inventory</button>
+            <p id="peerCompanionInventoryStatus" class="inline-status">companion inventory optional</p>
             <p id="catalogStatus" class="inline-status">idle</p>
             <ol id="catalogResults" class="model-results"></ol>
 
@@ -352,6 +388,36 @@
             <button id="saveShareMetadataButton" class="secondary-action" type="button">Save MiniModel Share Metadata</button>
             <button id="saveShareKitButton" class="secondary-action" type="button">Save P2P Share Kit</button>
             <p id="shareMetadataState" class="inline-status">import a local .slm first</p>
+          </details>
+
+          <details class="drawer-section local-connect-drawer" data-panel-key="dashboard-local-connect-approvals">
+            <summary>Local Connect Approvals</summary>
+            <label for="localConnectApprovalMode">Approval mode</label>
+            <select id="localConnectApprovalMode">
+              <option value="ask">Ask every time</option>
+              <option value="selected">Always approve selected</option>
+              <option value="full">Full local-control lab mode</option>
+            </select>
+            <p id="localConnectModeWarning" class="inline-status">Local Connect asks before app control.</p>
+            <div id="localConnectCategoryList" class="local-connect-category-list" role="list" aria-label="App approval categories"></div>
+            <label for="localConnectApprovedApps">Always approved apps</label>
+            <textarea id="localConnectApprovedApps" rows="4" spellcheck="false" placeholder="chrome.exe&#10;outlook.exe"></textarea>
+            <div class="local-connect-actions">
+              <button id="saveLocalConnectPolicyButton" class="secondary-action" type="button">Save Approval Policy</button>
+              <button id="saveLocalConnectPolicyFileButton" class="secondary-action" type="button">Save Endpoint Policy JSON</button>
+              <button id="resetLocalConnectPolicyButton" class="secondary-action" type="button">Reset to Ask</button>
+            </div>
+            <label for="localConnectEndpointUrl">Local endpoint</label>
+            <div class="local-connect-endpoint-row">
+              <input id="localConnectEndpointUrl" type="url" inputmode="url" spellcheck="false" placeholder="127.0.0.1 loopback endpoint" />
+              <button id="checkLocalConnectEndpointButton" class="secondary-action" type="button">Check Endpoint</button>
+              <button id="dryRunLocalConnectDecisionButton" class="secondary-action" type="button">Dry Run Browser Decision</button>
+              <button id="dryRunLocalConnectActionButton" class="secondary-action" type="button">Dry Run Open URL</button>
+            </div>
+            <p id="localConnectEndpointStatus" class="inline-status">Endpoint checks use loopback only; action tests dry-run by default.</p>
+            <div id="localConnectEndpointAppList" class="local-connect-app-list" role="list" aria-label="Endpoint app approvals"></div>
+            <p id="localConnectPolicyStatus" class="inline-status">Ask every time for all app categories.</p>
+            <pre id="localConnectPolicyPreview" class="local-connect-policy-preview" aria-label="Local Connect approval policy"></pre>
           </details>
         </section>
 
@@ -536,6 +602,6 @@
       <span id="currentModelSummary" class="model-summary">No model loaded</span>
     </footer>
   </main>
-  <script src="./app/app.js?v=20260704-receiver-provenance"></script>
+  <script src="./app/app.js?v=20260705-peer-contact-book-ui"></script>
 </body>
 </html>

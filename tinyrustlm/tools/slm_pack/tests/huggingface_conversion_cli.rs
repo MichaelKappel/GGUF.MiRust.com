@@ -27,6 +27,25 @@ fn output_text(output: &std::process::Output) -> String {
     )
 }
 
+fn replace_manifest_line(text: &str, key: &str, value: &str) -> String {
+    let prefix = format!("{key}=");
+    let mut replaced = false;
+    let mut out = String::new();
+    for line in text.lines() {
+        if line.starts_with(&prefix) {
+            out.push_str(&prefix);
+            out.push_str(value);
+            out.push('\n');
+            replaced = true;
+        } else {
+            out.push_str(line);
+            out.push('\n');
+        }
+    }
+    assert!(replaced, "manifest key {key} should exist");
+    out
+}
+
 fn write_huggingface_fixture(path: &Path) {
     let path_text = path.to_string_lossy().to_string();
     let output = Command::new(pack_bin())
@@ -129,10 +148,11 @@ fn convert_huggingface_request_cli_writes_verified_slm_preflight_and_receipt() {
         output_text(&validate_output)
     );
 
-    let preflight = std::fs::read_to_string(output_dir.join("tinyrustlm-conversion.preflight"))
-        .expect("read conversion preflight");
+    let preflight_path = output_dir.join("tinyrustlm-conversion.preflight");
+    let preflight = std::fs::read_to_string(&preflight_path).expect("read conversion preflight");
     assert!(preflight.contains("tinyrustlm_huggingface_conversion_preflight_version=1"));
     assert!(preflight.contains("source_model_id=example-org/tiny-source-model"));
+    assert!(preflight.contains("request_sha256=sha256:"));
     assert!(preflight.contains("preflight_status=pass"));
     assert!(preflight.contains("source_contract_status=not-provided"));
     assert!(preflight.contains("known_peer_base_url=http://127.0.0.1:8123/peer-pieces/"));
@@ -142,17 +162,20 @@ fn convert_huggingface_request_cli_writes_verified_slm_preflight_and_receipt() {
     assert!(preflight.contains("project_server_runs_model_bytes=false"));
     assert!(preflight.contains("project_server_proxies_huggingface_bytes=false"));
 
-    let receipt = std::fs::read_to_string(output_dir.join("tinyrustlm-conversion.receipt"))
-        .expect("read conversion receipt");
+    let receipt_path = output_dir.join("tinyrustlm-conversion.receipt");
+    let receipt = std::fs::read_to_string(&receipt_path).expect("read conversion receipt");
     assert!(receipt.contains("tinyrustlm_huggingface_conversion_receipt_version=1"));
     assert!(receipt.contains("request_kind=minimodel.huggingface_conversion_request.v0"));
     assert!(receipt.contains("source_kind=huggingface_model"));
     assert!(receipt.contains("source_model_id=example-org/tiny-source-model"));
+    assert!(receipt.contains("request_sha256=sha256:"));
     assert!(receipt.contains("source_contract_status=not-provided"));
     assert!(receipt.contains("known_peer_base_url=http://127.0.0.1:8123/peer-pieces/"));
     assert!(receipt.contains("target_model_shape=tiny-fixture"));
     assert!(receipt.contains("output_quantization=q8_0"));
     assert!(receipt.contains("output_slm="));
+    assert!(receipt.contains("output_slm_sha256=sha256:"));
+    assert!(receipt.contains("output_manifest_sha256=sha256:"));
     assert!(receipt.contains("project_server_serves_model_bytes=false"));
     assert!(receipt.contains("project_server_runs_model_bytes=false"));
     assert!(receipt.contains("project_server_proxies_huggingface_bytes=false"));
@@ -161,6 +184,59 @@ fn convert_huggingface_request_cli_writes_verified_slm_preflight_and_receipt() {
     assert!(receipt.contains(
         "converted_once_publication_rule=publish-catalog-json-and-peer-source-announcement-json-only"
     ));
+
+    let receipt_path_text = receipt_path.to_string_lossy().to_string();
+    let preflight_path_text = preflight_path.to_string_lossy().to_string();
+    let manifest_text = manifest.to_string_lossy().to_string();
+    let inspect_receipt_output = Command::new(pack_bin())
+        .args([
+            "inspect-huggingface-conversion-receipt",
+            &receipt_path_text,
+            &request_path_text,
+            &preflight_path_text,
+            &output_slm_text,
+            &manifest_text,
+        ])
+        .output()
+        .expect("run inspect-huggingface-conversion-receipt");
+    assert!(
+        inspect_receipt_output.status.success(),
+        "{}",
+        output_text(&inspect_receipt_output)
+    );
+    let inspect_text = output_text(&inspect_receipt_output);
+    assert!(inspect_text.contains("Hugging Face conversion receipt inspection: PASS"));
+    assert!(inspect_text.contains("request_sha256: sha256:"));
+    assert!(inspect_text.contains("output_slm_sha256: sha256:"));
+
+    let drift_receipt = output_dir.join("tinyrustlm-conversion.drift.receipt");
+    std::fs::write(
+        &drift_receipt,
+        replace_manifest_line(
+            &receipt,
+            "output_slm_sha256",
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        ),
+    )
+    .expect("write drifted receipt");
+    let drift_receipt_text = drift_receipt.to_string_lossy().to_string();
+    let drift_output = Command::new(pack_bin())
+        .args([
+            "inspect-huggingface-conversion-receipt",
+            &drift_receipt_text,
+            &request_path_text,
+            &preflight_path_text,
+            &output_slm_text,
+            &manifest_text,
+        ])
+        .output()
+        .expect("run inspect-huggingface-conversion-receipt on drifted receipt");
+    assert!(
+        !drift_output.status.success(),
+        "{}",
+        output_text(&drift_output)
+    );
+    assert!(output_text(&drift_output).contains("output_slm_sha256"));
 
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -258,6 +334,7 @@ fn convert_huggingface_request_cli_accepts_verified_shard_directory() {
 
     let preflight = std::fs::read_to_string(output_dir.join("tinyrustlm-conversion.preflight"))
         .expect("read sharded conversion preflight");
+    assert!(preflight.contains("request_sha256=sha256:"));
     assert!(preflight.contains("preflight_status=pass"));
     assert!(preflight.contains("source_contract_status=pass"));
     assert!(preflight.contains("source_expected_file_count=2"));
@@ -275,6 +352,9 @@ fn convert_huggingface_request_cli_accepts_verified_shard_directory() {
     let receipt = std::fs::read_to_string(output_dir.join("tinyrustlm-conversion.receipt"))
         .expect("read sharded conversion receipt");
     assert!(receipt.contains("source_model_id=example-org/tiny-sharded"));
+    assert!(receipt.contains("request_sha256=sha256:"));
+    assert!(receipt.contains("output_slm_sha256=sha256:"));
+    assert!(receipt.contains("output_manifest_sha256=sha256:"));
     assert!(receipt.contains("source_file_count=2"));
     assert!(receipt.contains("source_contract_status=pass"));
     assert!(receipt.contains("source_expected_file_count=2"));
@@ -354,6 +434,7 @@ fn convert_huggingface_request_cli_rejects_source_sha256_drift_before_output_slm
     let preflight = std::fs::read_to_string(output_dir.join("tinyrustlm-conversion.preflight"))
         .expect("read failed conversion preflight");
     assert!(preflight.contains("tinyrustlm_huggingface_conversion_preflight_version=1"));
+    assert!(preflight.contains("request_sha256=sha256:"));
     assert!(preflight.contains("preflight_status=fail"));
     assert!(preflight.contains("source_contract_status=fail"));
     assert!(preflight.contains("source_expected_file_count=1"));

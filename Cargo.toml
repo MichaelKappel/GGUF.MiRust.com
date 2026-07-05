@@ -2,6 +2,7 @@
 members = [
     "tinyrustlm/runtime",
     "tinyrustlm/tools/browser_harness",
+    "tinyrustlm/tools/local_connect",
     "tinyrustlm/tools/local_server",
     "tinyrustlm/tools/slm_pack",
 ]
