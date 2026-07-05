@@ -85,6 +85,7 @@
   const httpScheme = "http" + "://";
   const httpsScheme = "https" + "://";
   const peerExampleUrl = `${httpScheme}127.0.0.1:8123/`;
+  const peerStatusRoute = "minimodel.peer_status.v0.json";
   const peerPieceSetRoute = "minimodel.peer_piece_set.v0";
   const peerCompanionStateRoute = "minimodel.peer_companion_state.v0.json";
   const miniModelImportReceiptNextGate = "user-selected-tinyrustlm-local-file-open";
@@ -345,6 +346,7 @@
     catalogEntries: [],
     selectedCatalogEntry: null,
     importReceiptLedger: null,
+    peerStatusCheck: null,
     peerCompanionInventory: null,
     pendingConversionRequest: null,
     catalogFetchAbort: null,
@@ -359,6 +361,8 @@
     modelPopoverHoldUntil: 0,
     p2pEnabled: true,
     peerBaseUrl: "",
+    peerContactBookPeers: [],
+    peerContactBookSourceName: "",
     localConnectApprovalMode: "ask",
     localConnectCategoryRules: null,
     localConnectApprovedApps: [],
@@ -394,6 +398,7 @@
     simpleApplyPeerContactCardButton: document.getElementById("simpleApplyPeerContactCardButton"),
     simplePeerContactBookFile: document.getElementById("simplePeerContactBookFile"),
     simpleApplyPeerContactBookButton: document.getElementById("simpleApplyPeerContactBookButton"),
+    simplePeerContactBookPeers: document.getElementById("simplePeerContactBookPeers"),
     simpleCatalogResults: document.getElementById("simpleCatalogResults"),
     simpleHfResults: document.getElementById("simpleHfResults"),
     simpleLoadCatalogButton: document.getElementById("simpleLoadCatalogButton"),
@@ -406,6 +411,10 @@
     simpleImportReceiptLedgerFile: document.getElementById("simpleImportReceiptLedgerFile"),
     simpleImportReceiptLedgerButton: document.getElementById("simpleImportReceiptLedgerButton"),
     simpleImportReceiptLedgerStatus: document.getElementById("simpleImportReceiptLedgerStatus"),
+    simpleImportReceiptLedgerEntries: document.getElementById("simpleImportReceiptLedgerEntries"),
+    simplePeerStatusCheckFile: document.getElementById("simplePeerStatusCheckFile"),
+    simplePeerStatusCheckButton: document.getElementById("simplePeerStatusCheckButton"),
+    simplePeerStatusCheckStatus: document.getElementById("simplePeerStatusCheckStatus"),
     simplePeerCompanionInventoryFile: document.getElementById("simplePeerCompanionInventoryFile"),
     simplePeerCompanionInventoryButton: document.getElementById("simplePeerCompanionInventoryButton"),
     simplePeerCompanionInventoryStatus: document.getElementById("simplePeerCompanionInventoryStatus"),
@@ -464,11 +473,16 @@
     applyPeerContactCardButton: document.getElementById("applyPeerContactCardButton"),
     peerContactBookFile: document.getElementById("peerContactBookFile"),
     applyPeerContactBookButton: document.getElementById("applyPeerContactBookButton"),
+    peerContactBookPeers: document.getElementById("peerContactBookPeers"),
     peerAnnouncementFile: document.getElementById("peerAnnouncementFile"),
     applyPeerAnnouncementButton: document.getElementById("applyPeerAnnouncementButton"),
     importReceiptLedgerFile: document.getElementById("importReceiptLedgerFile"),
     importReceiptLedgerButton: document.getElementById("importReceiptLedgerButton"),
     receiptLedgerStatus: document.getElementById("receiptLedgerStatus"),
+    importReceiptLedgerEntries: document.getElementById("importReceiptLedgerEntries"),
+    peerStatusCheckFile: document.getElementById("peerStatusCheckFile"),
+    peerStatusCheckButton: document.getElementById("peerStatusCheckButton"),
+    peerStatusCheckStatus: document.getElementById("peerStatusCheckStatus"),
     peerCompanionInventoryFile: document.getElementById("peerCompanionInventoryFile"),
     peerCompanionInventoryButton: document.getElementById("peerCompanionInventoryButton"),
     peerCompanionInventoryStatus: document.getElementById("peerCompanionInventoryStatus"),
@@ -485,6 +499,7 @@
     localConnectModeWarning: document.getElementById("localConnectModeWarning"),
     localConnectCategoryList: document.getElementById("localConnectCategoryList"),
     localConnectApprovedApps: document.getElementById("localConnectApprovedApps"),
+    trustBrowserEmailLocalConnectButton: document.getElementById("trustBrowserEmailLocalConnectButton"),
     saveLocalConnectPolicyButton: document.getElementById("saveLocalConnectPolicyButton"),
     saveLocalConnectPolicyFileButton: document.getElementById("saveLocalConnectPolicyFileButton"),
     resetLocalConnectPolicyButton: document.getElementById("resetLocalConnectPolicyButton"),
@@ -1757,6 +1772,20 @@
     persistLocalConnectPolicy("Reset to ask every time.");
   }
 
+  function trustBrowserEmailLocalConnectPolicy() {
+    if (!state.localConnectCategoryRules) {
+      state.localConnectCategoryRules = defaultLocalConnectCategoryRules();
+    }
+    state.localConnectApprovalMode = "selected";
+    state.localConnectCategoryRules.browser = "always";
+    state.localConnectCategoryRules.email = "always";
+    persistLocalConnectPolicy(
+      "Browsers and email apps always approved locally. Save the endpoint policy JSON and restart Local Connect before relying on it.",
+      { preserveEndpointApps: true }
+    );
+    setLocalConnectEndpointStatus("Browsers and email apps approved in the local preview. Save the endpoint policy JSON and restart Local Connect to enforce it.", false);
+  }
+
   function openLocalConnectApprovals() {
     setAppMode("advanced");
     setRailCollapsed(false);
@@ -1913,13 +1942,81 @@
     }
   }
 
-  function setPeerBaseUrl(value) {
+  function renderPeerContactBookPeerList(container) {
+    if (!container) {
+      return;
+    }
+    const peers = Array.isArray(state.peerContactBookPeers) ? state.peerContactBookPeers : [];
+    container.replaceChildren();
+    container.hidden = peers.length === 0;
+    if (!peers.length) {
+      return;
+    }
+    peers.forEach((peer, index) => {
+      const isSelected = peer.peerBaseUrl === state.peerBaseUrl;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "peer-contact-book-peer";
+      button.classList.toggle("selected", isSelected);
+      button.setAttribute("role", "listitem");
+      button.setAttribute("aria-pressed", String(isSelected));
+      button.dataset.peerIndex = String(index);
+
+      const label = document.createElement("strong");
+      label.textContent = peer.peerLabel || `Peer ${index + 1}`;
+      const url = document.createElement("span");
+      url.className = "peer-contact-book-url";
+      url.textContent = peer.peerBaseUrl;
+      const stateText = document.createElement("small");
+      stateText.textContent = isSelected ? "Selected peer" : "Use peer";
+
+      button.append(label, url, stateText);
+      button.addEventListener("click", () => selectPeerContactBookPeer(index));
+      container.append(button);
+    });
+  }
+
+  function renderPeerContactBookPeers() {
+    renderPeerContactBookPeerList(el.simplePeerContactBookPeers);
+    renderPeerContactBookPeerList(el.peerContactBookPeers);
+  }
+
+  function clearPeerContactBookPeers() {
+    state.peerContactBookPeers = [];
+    state.peerContactBookSourceName = "";
+    renderPeerContactBookPeers();
+  }
+
+  function setPeerBaseUrl(value, options = {}) {
     const normalized = normalizedPeerBaseUrl(value);
     state.peerBaseUrl = normalized;
     storageSet(uiStorageKeys.peerBaseUrl, normalized);
+    if (!options.keepPeerContactBook) {
+      clearPeerContactBookPeers();
+    }
     updatePeerUrlStatus(normalized ? `Known peer set: ${normalized}` : "", false);
+    renderPeerContactBookPeers();
     refreshPeerAvailabilityViews();
     return normalized;
+  }
+
+  function selectPeerContactBookPeer(index) {
+    const peers = Array.isArray(state.peerContactBookPeers) ? state.peerContactBookPeers : [];
+    const peer = peers[index];
+    if (!peer) {
+      return;
+    }
+    setPeerBaseUrl(peer.peerBaseUrl, { keepPeerContactBook: true });
+    const sourceText = state.peerContactBookSourceName ? ` from ${state.peerContactBookSourceName}` : "";
+    updatePeerUrlStatus(
+      `Peer contact book${sourceText}: using ${peer.peerLabel} (${peer.peerBaseUrl}); Rust reverify required`,
+      false
+    );
+    setCatalogStatus(
+      `Peer contact book peer selected: ${peer.peerLabel}; known peer is ${peer.peerBaseUrl}`,
+      false
+    );
+    holdModelPopoverOpen(2500);
   }
 
   function refreshPeerAvailabilityViews() {
@@ -2050,7 +2147,12 @@
       contactCount: cards.length,
       firstPeerLabel: cards[0].peerLabel,
       firstPeerBaseUrl: cards[0].peerBaseUrl,
-      peerLabels: cards.map((card) => card.peerLabel)
+      peerLabels: cards.map((card) => card.peerLabel),
+      peers: cards.map((card, index) => ({
+        index,
+        peerLabel: card.peerLabel,
+        peerBaseUrl: card.peerBaseUrl
+      }))
     };
   }
 
@@ -2526,6 +2628,27 @@
         holdModelPopoverOpen(2500);
       });
     }
+    if (el.simplePeerStatusCheckButton) {
+      el.simplePeerStatusCheckButton.addEventListener("click", () => {
+        setSimpleSourceOption("p2p", true);
+        importPeerStatusCheckFile(el.simplePeerStatusCheckFile).catch((error) => {
+          setPeerStatusCheckStatus(errorMessage(error), true);
+        }).finally(() => {
+          holdModelPopoverOpen(3000);
+        });
+      });
+    }
+    if (el.simplePeerStatusCheckFile) {
+      el.simplePeerStatusCheckFile.addEventListener("change", () => {
+        const file = el.simplePeerStatusCheckFile.files && el.simplePeerStatusCheckFile.files[0];
+        if (!file) {
+          setPeerStatusCheckStatus("choose a peer status check JSON file", false);
+          return;
+        }
+        setPeerStatusCheckStatus(`${safeLocalModelName(file.name)} / ${formatByteCount(file.size)} peer status check selected`, false);
+        holdModelPopoverOpen(2500);
+      });
+    }
     if (el.simplePeerCompanionInventoryButton) {
       el.simplePeerCompanionInventoryButton.addEventListener("click", () => {
         setSimpleSourceOption("p2p", true);
@@ -2592,7 +2715,7 @@
     if (el.localConnectApprovalMode) {
       el.localConnectApprovalMode.addEventListener("change", () => {
         state.localConnectApprovalMode = sanitizeLocalConnectApprovalMode(el.localConnectApprovalMode.value);
-        persistLocalConnectPolicy("Approval mode saved.");
+        persistLocalConnectPolicy("Approval mode saved.", { preserveEndpointApps: true });
       });
     }
     if (el.localConnectApprovedApps) {
@@ -2602,6 +2725,11 @@
       });
       el.localConnectApprovedApps.addEventListener("change", () => {
         persistLocalConnectPolicy("Approved app list saved.");
+      });
+    }
+    if (el.trustBrowserEmailLocalConnectButton) {
+      el.trustBrowserEmailLocalConnectButton.addEventListener("click", () => {
+        trustBrowserEmailLocalConnectPolicy();
       });
     }
     if (el.saveLocalConnectPolicyButton) {
@@ -3330,6 +3458,17 @@
       .replace(/\s+/g, " ")
       .trim();
     return (cleaned || "local-model.slm").slice(0, 96);
+  }
+
+  function safeLocalPathLeaf(pathHint, fallback = "local-file") {
+    const text = String(pathHint || "").replace(/\\/g, "/");
+    const leaf = text.split("/").filter(Boolean).pop() || fallback;
+    return safeLocalModelName(leaf);
+  }
+
+  function shortSha256(sha256) {
+    const text = normalizeCatalogSha256(sha256) || "";
+    return text ? `${text.slice(0, 19)}...${text.slice(-8)}` : "sha256 unavailable";
   }
 
   function elementWithText(tagName, className, text) {
@@ -4097,6 +4236,7 @@
       shareKit.writes_import_receipt_ledger !== true ||
       shareKit.writes_peer_companion_state_when_known_peer_set !== true ||
       shareKit.writes_peer_contact_card_when_known_peer_set !== true ||
+      shareKit.writes_peer_contact_book_when_known_peer_set !== true ||
       shareKit.writes_peer_companion_inventory_when_known_peer_set !== true ||
       shareKit.serve_helper_available !== true
     ) {
@@ -4531,7 +4671,9 @@
     updatePeerUrlStatus(`reading peer contact book ${fileName}`, false);
     const body = JSON.parse(await file.text());
     const book = await peerContactBookFromRaw(body, fileName);
-    setPeerBaseUrl(book.firstPeerBaseUrl);
+    state.peerContactBookPeers = book.peers;
+    state.peerContactBookSourceName = fileName;
+    setPeerBaseUrl(book.firstPeerBaseUrl, { keepPeerContactBook: true });
     const peerText = book.contactCount === 1 ? "1 peer" : `${book.contactCount} peers`;
     updatePeerUrlStatus(
       `Known peer book loaded: ${peerText}; using ${book.firstPeerLabel} (${book.firstPeerBaseUrl}); Rust reverify required`,
@@ -4724,8 +4866,8 @@
       throw new Error(`${label}.entry_kind was unsupported`);
     }
     const receiptPath = requireImportLedgerPathHint(object.receipt_path, `${label}.receipt_path`);
-    requireImportLedgerPathHint(object.manifest_path, `${label}.manifest_path`);
-    requireImportLedgerPathHint(object.artifact_path, `${label}.artifact_path`);
+    const manifestPath = requireImportLedgerPathHint(object.manifest_path, `${label}.manifest_path`);
+    const artifactPath = requireImportLedgerPathHint(object.artifact_path, `${label}.artifact_path`);
     const receiptSha256 = requireImportLedgerSha(object.receipt_sha256, `${label}.receipt_sha256`);
     const manifestSha256 = requireImportLedgerSha(object.manifest_sha256, `${label}.manifest_sha256`);
     const artifactSha256 = requireImportLedgerSha(object.artifact_sha256, `${label}.artifact_sha256`);
@@ -4751,32 +4893,58 @@
       requireImportLedgerBool(object.preflight_fetches_piece_set_before_pieces, `${label}.preflight_fetches_piece_set_before_pieces`, true);
       requireImportLedgerBool(object.validate_advertised_companion_state_before_piece_fetch, `${label}.validate_advertised_companion_state_before_piece_fetch`, true);
       requireImportLedgerBool(object.import_receipt_required_before_browser_load, `${label}.import_receipt_required_before_browser_load`, true);
-      normalizedPeerBaseUrl(requireImportLedgerString(object.peer_base_url, `${label}.peer_base_url`, 256));
-      if (!["validated", "not-advertised"].includes(object.companion_state_status)) {
-        throw new Error(`${label}.companion_state_status was ${object.companion_state_status}`);
+      const peerBaseUrl = normalizedPeerBaseUrl(requireImportLedgerString(object.peer_base_url, `${label}.peer_base_url`, 256));
+      const companionStateStatus = requireImportLedgerString(object.companion_state_status, `${label}.companion_state_status`, 96);
+      if (!["validated", "not-advertised"].includes(companionStateStatus)) {
+        throw new Error(`${label}.companion_state_status was ${companionStateStatus}`);
       }
-      requireImportLedgerInteger(object.piece_count, `${label}.piece_count`, { minimum: 1 });
-      requireImportLedgerSha(object.merkle_root_sha256, `${label}.merkle_root_sha256`);
+      const pieceCount = requireImportLedgerInteger(object.piece_count, `${label}.piece_count`, { minimum: 1 });
+      const merkleRootSha256 = requireImportLedgerSha(object.merkle_root_sha256, `${label}.merkle_root_sha256`);
       requireImportLedgerBool(object.peer_piece_bytes_fetched, `${label}.peer_piece_bytes_fetched`, true);
       requireImportLedgerBool(object.artifact_assembled_from_peer_pieces, `${label}.artifact_assembled_from_peer_pieces`, true);
+      return {
+        receiptPath,
+        manifestPath,
+        artifactPath,
+        receiptSha256,
+        manifestSha256,
+        artifactSha256,
+        artifactByteCount,
+        modelId,
+        quantization,
+        peerImport,
+        peerBaseUrl,
+        companionStateStatus,
+        pieceCount,
+        merkleRootSha256,
+        receiverValidationContractStatus: "validated"
+      };
     } else {
-      optionalImportLedgerString(object.receiver_validation_contract_status, `${label}.receiver_validation_contract_status`, 96);
-      optionalImportLedgerString(object.peer_base_url, `${label}.peer_base_url`, 256);
-      optionalImportLedgerString(object.companion_state_status, `${label}.companion_state_status`, 96);
-      optionalImportLedgerInteger(object.piece_count, `${label}.piece_count`, { minimum: 1 });
-      optionalImportLedgerSha(object.merkle_root_sha256, `${label}.merkle_root_sha256`);
+      const receiverValidationContractStatus = optionalImportLedgerString(object.receiver_validation_contract_status, `${label}.receiver_validation_contract_status`, 96);
+      const peerBaseUrl = optionalImportLedgerString(object.peer_base_url, `${label}.peer_base_url`, 256);
+      const companionStateStatus = optionalImportLedgerString(object.companion_state_status, `${label}.companion_state_status`, 96);
+      const pieceCount = optionalImportLedgerInteger(object.piece_count, `${label}.piece_count`, { minimum: 1 });
+      const merkleRootSha256 = optionalImportLedgerSha(object.merkle_root_sha256, `${label}.merkle_root_sha256`);
       requireImportLedgerBool(object.peer_piece_bytes_fetched, `${label}.peer_piece_bytes_fetched`, false);
       requireImportLedgerBool(object.artifact_assembled_from_peer_pieces, `${label}.artifact_assembled_from_peer_pieces`, false);
+      return {
+        receiptPath,
+        manifestPath,
+        artifactPath,
+        receiptSha256,
+        manifestSha256,
+        artifactSha256,
+        artifactByteCount,
+        modelId,
+        quantization,
+        peerImport,
+        peerBaseUrl,
+        companionStateStatus,
+        pieceCount,
+        merkleRootSha256,
+        receiverValidationContractStatus
+      };
     }
-    return {
-      receiptPath,
-      receiptSha256,
-      manifestSha256,
-      artifactSha256,
-      artifactByteCount,
-      modelId,
-      peerImport
-    };
   }
 
   function validateImportReceiptLedgerBody(body, ledgerSha256, sourceLabel) {
@@ -4845,6 +5013,65 @@
     return `Receipt ledger loaded: ${ledger.sourceLabel} / ${entryText} / ${peerText} / ${modelText} / ${ledger.ledgerSha256} / Rust reverify required`;
   }
 
+  function renderImportReceiptLedgerEntriesIn(container) {
+    if (!container) {
+      return;
+    }
+    const ledger = state.importReceiptLedger;
+    const entries = ledger && Array.isArray(ledger.entries) ? ledger.entries : [];
+    container.replaceChildren();
+    container.hidden = entries.length === 0;
+    if (!entries.length) {
+      return;
+    }
+    entries.forEach((entry, index) => {
+      const item = document.createElement("div");
+      item.className = "receipt-ledger-entry";
+      item.setAttribute("role", "listitem");
+
+      const header = document.createElement("div");
+      header.className = "receipt-ledger-entry-header";
+      const title = elementWithText("strong", "", entry.modelId);
+      const kind = elementWithText(
+        "span",
+        entry.peerImport ? "receipt-ledger-kind peer" : "receipt-ledger-kind local",
+        entry.peerImport ? "Peer import" : "Local import"
+      );
+      header.append(title, kind);
+
+      const facts = document.createElement("dl");
+      facts.className = "receipt-ledger-entry-facts";
+      const addFact = (term, value) => {
+        if (value === null || value === undefined || value === "") {
+          return;
+        }
+        facts.append(
+          elementWithText("dt", "", term),
+          elementWithText("dd", "", String(value))
+        );
+      };
+
+      addFact("Receipt", safeLocalPathLeaf(entry.receiptPath, `receipt-${index + 1}`));
+      addFact("Artifact", `${safeLocalPathLeaf(entry.artifactPath, "artifact.slm")} / ${formatByteCount(entry.artifactByteCount)} / ${entry.quantization}`);
+      addFact("Artifact SHA-256", shortSha256(entry.artifactSha256));
+      addFact("Receipt SHA-256", shortSha256(entry.receiptSha256));
+      if (entry.peerImport) {
+        addFact("Peer", entry.peerBaseUrl);
+        addFact("Receiver", entry.receiverValidationContractStatus || "validated");
+        addFact("Companion", entry.companionStateStatus);
+        addFact("Pieces", `${entry.pieceCount} / ${shortSha256(entry.merkleRootSha256)}`);
+      }
+
+      item.append(header, facts);
+      container.append(item);
+    });
+  }
+
+  function renderImportReceiptLedgerEntries() {
+    renderImportReceiptLedgerEntriesIn(el.simpleImportReceiptLedgerEntries);
+    renderImportReceiptLedgerEntriesIn(el.importReceiptLedgerEntries);
+  }
+
   async function importReceiptLedgerFile(preferredInput) {
     const file = selectedImportReceiptLedgerFile(preferredInput);
     if (!file) {
@@ -4857,6 +5084,8 @@
       throw new Error("Import receipt ledger exceeded browser metadata budget");
     }
     const fileName = safeLocalModelName(file.name);
+    state.importReceiptLedger = null;
+    renderImportReceiptLedgerEntries();
     setImportReceiptLedgerStatus(`reading import receipt ledger ${fileName}`, false);
     const text = await file.text();
     if (state.encoder.encode(text).length > catalogTextByteBudget) {
@@ -4865,8 +5094,146 @@
     const body = JSON.parse(text);
     const ledger = validateImportReceiptLedgerBody(body, await sha256Text(text), fileName);
     state.importReceiptLedger = ledger;
+    renderImportReceiptLedgerEntries();
     setImportReceiptLedgerStatus(importReceiptLedgerStatusText(ledger), false);
     return ledger;
+  }
+
+  function setPeerStatusCheckStatus(text, isError) {
+    const targetText = text || "peer status optional";
+    for (const node of [el.peerStatusCheckStatus, el.simplePeerStatusCheckStatus]) {
+      if (node) {
+        setText(node, targetText, isError);
+      }
+    }
+    if (el.simpleDiscoveryStatus && state.simpleSourceOption === "p2p") {
+      el.simpleDiscoveryStatus.textContent = targetText;
+      el.simpleDiscoveryStatus.classList.toggle("error", Boolean(isError));
+    }
+  }
+
+  function selectedPeerStatusCheckFile(preferredInput) {
+    if (preferredInput && preferredInput.files && preferredInput.files[0]) {
+      return preferredInput.files[0];
+    }
+    if (el.peerStatusCheckFile && el.peerStatusCheckFile.files && el.peerStatusCheckFile.files[0]) {
+      return el.peerStatusCheckFile.files[0];
+    }
+    if (el.simplePeerStatusCheckFile && el.simplePeerStatusCheckFile.files && el.simplePeerStatusCheckFile.files[0]) {
+      return el.simplePeerStatusCheckFile.files[0];
+    }
+    return null;
+  }
+
+  function validatePeerStatusCheckBoundary(boundary, label) {
+    const object = requireImportLedgerObject(boundary, label);
+    requireImportLedgerBool(object.metadata_only, `${label}.metadata_only`, true);
+    requireImportLedgerBool(object.peer_piece_bytes_fetched, `${label}.peer_piece_bytes_fetched`, false);
+    requireImportLedgerBool(object.artifact_bytes_fetched, `${label}.artifact_bytes_fetched`, false);
+    requireImportLedgerBool(object.project_server_serves_model_bytes, `${label}.project_server_serves_model_bytes`, false);
+    requireImportLedgerBool(object.project_server_runs_model_bytes, `${label}.project_server_runs_model_bytes`, false);
+    requireImportLedgerBool(object.project_server_proxies_model_bytes, `${label}.project_server_proxies_model_bytes`, false);
+    requireImportLedgerBool(object.requires_rust_reverify_before_browser_import, `${label}.requires_rust_reverify_before_browser_import`, true);
+  }
+
+  function validatePeerStatusCheckBody(body, reportSha256, sourceLabel) {
+    const label = sourceLabel || "Peer status check";
+    const object = requireImportLedgerObject(body, label);
+    if (catalogText(object.check_kind) !== "minimodel.peer_status_check") {
+      throw new Error(`${label}.check_kind was unsupported`);
+    }
+    if (catalogInteger(object.check_version) !== 0) {
+      throw new Error(`${label}.check_version was unsupported`);
+    }
+    const checkedAt = requireImportLedgerString(object.checked_utc, `${label}.checked_utc`, 32);
+    if (!isStrictMiniModelUtcTimestamp(checkedAt)) {
+      throw new Error(`${label}.checked_utc was invalid`);
+    }
+    const status = requireImportLedgerString(object.status, `${label}.status`, 64);
+    if (status !== "validated") {
+      throw new Error(`${label}.status was unsupported`);
+    }
+    const peerBaseUrl = normalizedPeerBaseUrl(requireImportLedgerString(object.peer_base_url, `${label}.peer_base_url`, 256));
+    const statusUrl = requireImportLedgerString(object.status_url, `${label}.status_url`, 512);
+    const expectedStatusUrl = new URL(peerStatusRoute, peerBaseUrl).href;
+    if (statusUrl !== expectedStatusUrl) {
+      throw new Error(`${label}.status_url did not match peer_base_url and ${peerStatusRoute}`);
+    }
+    const modelId = requireImportLedgerString(object.model_id, `${label}.model_id`, 180);
+    if (!isCatalogModelId(modelId)) {
+      throw new Error(`${label}.model_id was invalid`);
+    }
+    const routes = requireImportLedgerObject(object.routes, `${label}.routes`);
+    if (requireImportLedgerString(routes.peer_status, `${label}.routes.peer_status`, 128) !== peerStatusRoute) {
+      throw new Error(`${label}.routes.peer_status was unsupported`);
+    }
+    if (requireImportLedgerString(routes.peer_piece_set, `${label}.routes.peer_piece_set`, 128) !== peerPieceSetRoute) {
+      throw new Error(`${label}.routes.peer_piece_set was unsupported`);
+    }
+    const companionStateRoute = requireImportLedgerString(routes.peer_companion_state, `${label}.routes.peer_companion_state`, 128);
+    if (companionStateRoute !== peerCompanionStateRoute && companionStateRoute !== "not-advertised") {
+      throw new Error(`${label}.routes.peer_companion_state was unsupported`);
+    }
+    const manifest = requireImportLedgerObject(object.manifest, `${label}.manifest`);
+    const manifestSha256 = requireImportLedgerSha(manifest.sha256, `${label}.manifest.sha256`);
+    const artifact = requireImportLedgerObject(object.artifact, `${label}.artifact`);
+    if (requireImportLedgerString(artifact.kind, `${label}.artifact.kind`, 32) !== "slm") {
+      throw new Error(`${label}.artifact.kind was unsupported`);
+    }
+    const artifactByteCount = requireImportLedgerInteger(artifact.byte_count, `${label}.artifact.byte_count`, { minimum: 1 });
+    const artifactSha256 = requireImportLedgerSha(artifact.sha256, `${label}.artifact.sha256`);
+    const pieces = requireImportLedgerObject(object.pieces, `${label}.pieces`);
+    const pieceSetSha256 = requireImportLedgerSha(pieces.piece_set_sha256, `${label}.pieces.piece_set_sha256`);
+    const pieceCount = requireImportLedgerInteger(pieces.piece_count, `${label}.pieces.piece_count`, { minimum: 1 });
+    const merkleRootSha256 = requireImportLedgerSha(pieces.merkle_root_sha256, `${label}.pieces.merkle_root_sha256`);
+    validatePeerStatusCheckBoundary(object.boundary, `${label}.boundary`);
+    return {
+      sourceLabel: label,
+      reportSha256,
+      checkedAt,
+      modelId,
+      peerBaseUrl,
+      statusUrl,
+      companionStateRoute,
+      manifestSha256,
+      artifactByteCount,
+      artifactSha256,
+      pieceSetSha256,
+      pieceCount,
+      merkleRootSha256
+    };
+  }
+
+  function peerStatusCheckStatusText(check) {
+    if (!check) {
+      return "peer status optional";
+    }
+    const pieceText = `${check.pieceCount} piece${check.pieceCount === 1 ? "" : "s"}`;
+    return `Peer status check loaded: ${check.sourceLabel} / ${check.modelId} / ${pieceText} / ${formatByteCount(check.artifactByteCount)} artifact / ${check.peerBaseUrl} / companion ${check.companionStateRoute} / no peer bytes fetched / ${check.reportSha256} / Rust reverify required`;
+  }
+
+  async function importPeerStatusCheckFile(preferredInput) {
+    const file = selectedPeerStatusCheckFile(preferredInput);
+    if (!file) {
+      throw new Error("Choose a peer status check JSON file");
+    }
+    if (!Number.isFinite(file.size) || file.size <= 0) {
+      throw new Error("Peer status check file is empty");
+    }
+    if (file.size > catalogTextByteBudget) {
+      throw new Error("Peer status check exceeded browser metadata budget");
+    }
+    const fileName = safeLocalModelName(file.name);
+    setPeerStatusCheckStatus(`reading peer status check ${fileName}`, false);
+    const text = await file.text();
+    if (state.encoder.encode(text).length > catalogTextByteBudget) {
+      throw new Error("Peer status check exceeded browser metadata budget");
+    }
+    const body = JSON.parse(text);
+    const check = validatePeerStatusCheckBody(body, await sha256Text(text), fileName);
+    state.peerStatusCheck = check;
+    setPeerStatusCheckStatus(peerStatusCheckStatusText(check), false);
+    return check;
   }
 
   function setPeerCompanionInventoryStatus(text, isError) {
@@ -4914,9 +5281,10 @@
 
   function validatePeerCompanionInventoryShareState(shareState, label, expectedPeerBaseUrl) {
     const object = requireImportLedgerObject(shareState, label);
-    requireImportLedgerPathHint(object.path, `${label}.path`);
+    const statePath = requireImportLedgerPathHint(object.path, `${label}.path`);
     requireImportLedgerSha(object.sha256, `${label}.sha256`);
-    if (requireImportLedgerString(object.state_route, `${label}.state_route`, 128) !== "minimodel.peer_companion_state.v0.json") {
+    const stateRoute = requireImportLedgerString(object.state_route, `${label}.state_route`, 128);
+    if (stateRoute !== "minimodel.peer_companion_state.v0.json") {
       throw new Error(`${label}.state_route was unsupported`);
     }
     const manifestPath = requireImportLedgerPathHint(object.manifest_path, `${label}.manifest_path`);
@@ -4932,6 +5300,8 @@
     const merkleRootSha256 = requireImportLedgerSha(object.merkle_root_sha256, `${label}.merkle_root_sha256`);
     return {
       expectedPeerBaseUrl,
+      statePath,
+      stateRoute,
       manifestPath,
       manifestSha256,
       pieceDirPath,
@@ -5017,6 +5387,75 @@
     }
   }
 
+  function validatePeerCompanionInventoryServePlan(servePlan, label, peerBaseUrl, shareState) {
+    const object = requireImportLedgerObject(servePlan, label);
+    const status = requireImportLedgerString(object.status, `${label}.status`, 96);
+    if (status !== "ready-after-rust-reverify") {
+      throw new Error(`${label}.status was unsupported`);
+    }
+    if (requireImportLedgerString(object.transport, `${label}.transport`, 96) !== "direct-http-piece-server-v0") {
+      throw new Error(`${label}.transport was unsupported`);
+    }
+    const planPeerBaseUrl = normalizedPeerBaseUrl(requireImportLedgerString(object.peer_base_url, `${label}.peer_base_url`, 256));
+    if (planPeerBaseUrl !== peerBaseUrl) {
+      throw new Error(`${label}.peer_base_url did not match inventory peer_base_url`);
+    }
+    const peerStatusRoute = requireImportLedgerString(object.peer_status_route, `${label}.peer_status_route`, 128);
+    if (peerStatusRoute !== "minimodel.peer_status.v0.json") {
+      throw new Error(`${label}.peer_status_route was unsupported`);
+    }
+    const peerPieceSetRoute = requireImportLedgerString(object.peer_piece_set_route, `${label}.peer_piece_set_route`, 128);
+    if (peerPieceSetRoute !== "minimodel.peer_piece_set.v0") {
+      throw new Error(`${label}.peer_piece_set_route was unsupported`);
+    }
+    const peerCompanionStateRoute = requireImportLedgerString(object.peer_companion_state_route, `${label}.peer_companion_state_route`, 128);
+    if (peerCompanionStateRoute !== shareState.stateRoute) {
+      throw new Error(`${label}.peer_companion_state_route did not match share_state.state_route`);
+    }
+    const statePath = requireImportLedgerPathHint(object.state_path, `${label}.state_path`);
+    if (statePath.toLowerCase() !== shareState.statePath.toLowerCase()) {
+      throw new Error(`${label}.state_path did not match share_state.path`);
+    }
+    const manifestPath = requireImportLedgerPathHint(object.manifest_path, `${label}.manifest_path`);
+    if (manifestPath.toLowerCase() !== shareState.manifestPath.toLowerCase()) {
+      throw new Error(`${label}.manifest_path did not match share_state.manifest_path`);
+    }
+    const pieceDirPath = requireImportLedgerPathHint(object.piece_dir_path, `${label}.piece_dir_path`);
+    if (pieceDirPath.toLowerCase() !== shareState.pieceDirPath.toLowerCase()) {
+      throw new Error(`${label}.piece_dir_path did not match share_state.piece_dir_path`);
+    }
+    const serveCommand = requireImportLedgerString(object.serve_command, `${label}.serve_command`, 1024);
+    if (serveCommand !== "minimodel serve-peer-companion <state-json> <manifest> <piece-dir> <bind-addr>") {
+      throw new Error(`${label}.serve_command was unsupported`);
+    }
+    const expectedPreflightCommands = [
+      "minimodel inspect-peer-companion-inventory <inventory-json>",
+      "minimodel inspect-peer-companion-state <state-json> <manifest> <piece-dir>",
+      "minimodel inspect-import-receipt-ledger <ledger-json>"
+    ];
+    if (!Array.isArray(object.preflight_commands) || object.preflight_commands.length !== expectedPreflightCommands.length) {
+      throw new Error(`${label}.preflight_commands were invalid`);
+    }
+    expectedPreflightCommands.forEach((expectedCommand, index) => {
+      const command = requireImportLedgerString(object.preflight_commands[index], `${label}.preflight_commands.${index}`, 1024);
+      if (command !== expectedCommand) {
+        throw new Error(`${label}.preflight_commands.${index} was unsupported`);
+      }
+    });
+    requireImportLedgerBool(object.requires_operator_consent, `${label}.requires_operator_consent`, true);
+    requireImportLedgerBool(object.requires_loopback_or_direct_peer_url, `${label}.requires_loopback_or_direct_peer_url`, true);
+    requireImportLedgerBool(object.rust_reverify_required_before_serving, `${label}.rust_reverify_required_before_serving`, true);
+    requireImportLedgerBool(object.project_server_serves_model_bytes, `${label}.project_server_serves_model_bytes`, false);
+    requireImportLedgerBool(object.project_server_runs_model_bytes, `${label}.project_server_runs_model_bytes`, false);
+    requireImportLedgerBool(object.project_server_proxies_model_bytes, `${label}.project_server_proxies_model_bytes`, false);
+    return {
+      status,
+      peerStatusRoute,
+      peerPieceSetRoute,
+      peerCompanionStateRoute
+    };
+  }
+
   function validatePeerCompanionInventoryBody(body, inventorySha256, sourceLabel) {
     const label = sourceLabel || "Peer companion inventory";
     const object = requireImportLedgerObject(body, label);
@@ -5041,6 +5480,7 @@
     const contactCardCount = requireImportLedgerInteger(object.contact_card_count, `${label}.contact_card_count`);
     validatePeerCompanionInventoryContactCards(object.contact_cards, contactCardCount, peerBaseUrl, `${label}.contact_cards`);
     validatePeerCompanionInventoryCommands(object.commands, `${label}.commands`);
+    const servePlan = validatePeerCompanionInventoryServePlan(object.serve_plan, `${label}.serve_plan`, peerBaseUrl, shareState);
     validatePeerCompanionInventoryBoundary(object.boundary, `${label}.boundary`);
     return {
       sourceLabel: label,
@@ -5048,6 +5488,9 @@
       generatedAt,
       modelId,
       peerBaseUrl,
+      servePlanStatus: servePlan.status,
+      servePlanPeerStatusRoute: servePlan.peerStatusRoute,
+      servePlanPeerPieceSetRoute: servePlan.peerPieceSetRoute,
       pieceCount: shareState.pieceCount,
       pieceStoreByteCount: pieceStore.byteCount,
       pieceStoreQuotaBytes: pieceStore.quotaBytes,
@@ -5064,7 +5507,7 @@
     const pieceText = `${inventory.pieceCount} piece${inventory.pieceCount === 1 ? "" : "s"}`;
     const receiptText = `${inventory.receiptEntryCount} receipt${inventory.receiptEntryCount === 1 ? "" : "s"}`;
     const contactText = `${inventory.contactCardCount} contact card${inventory.contactCardCount === 1 ? "" : "s"}`;
-    return `Peer companion inventory loaded: ${inventory.sourceLabel} / ${inventory.modelId} / ${pieceText} / ${formatByteCount(inventory.pieceStoreByteCount)} store of ${formatByteCount(inventory.pieceStoreQuotaBytes)} quota / ${receiptText} / ${contactText} / ${inventory.inventorySha256} / Rust reverify required`;
+    return `Peer companion inventory loaded: ${inventory.sourceLabel} / ${inventory.modelId} / ${pieceText} / ${formatByteCount(inventory.pieceStoreByteCount)} store of ${formatByteCount(inventory.pieceStoreQuotaBytes)} quota / ${receiptText} / ${contactText} / serve plan ${inventory.servePlanStatus} / status route ${inventory.servePlanPeerStatusRoute} / ${inventory.inventorySha256} / Rust reverify required`;
   }
 
   async function importPeerCompanionInventoryFile(preferredInput) {
@@ -5802,6 +6245,7 @@
         writes_peer_source_metadata_when_known_peer_set: true,
         writes_peer_companion_state_when_known_peer_set: true,
         writes_peer_contact_card_when_known_peer_set: true,
+        writes_peer_contact_book_when_known_peer_set: true,
         writes_peer_companion_inventory_when_known_peer_set: true,
         serve_helper_available: true,
         user_consent_required_before_transfer: true,
@@ -6484,6 +6928,7 @@
         rust_commands: [
           "minimodel inspect-peer-import-request <request-json> <manifest>",
           "minimodel check-peer-status <manifest> <known-peer-base-url> <output-json>",
+          "minimodel inspect-peer-status-check <status-check-json> <manifest>",
           "minimodel preflight-peer-import-request <request-json> <manifest> <output.preflight>",
           "minimodel inspect-peer-import-preflight <output.preflight> <request-json> <manifest>",
           "minimodel import-peer-request <request-json> <manifest> <output-dir>",
@@ -6523,6 +6968,7 @@
       "# It may download the MiniModel manifest metadata if the catalog supplied a manifest URL.",
       "# Before contacting the peer, Rust inspects this request against the metadata manifest and confirms the no-project-server-byte boundary.",
       "# Before importing, Rust checks minimodel.peer_status.v0.json metadata, then fetches minimodel.peer_piece_set.v0 metadata and advertised peer companion-state metadata for preflight.",
+      "# Rust re-inspects the saved peer-status-check JSON against the manifest before any preflight or piece fetch.",
       "# Rust re-inspects the saved preflight report so route/gate evidence and no-byte-transfer flags cannot drift before import.",
       "# It fetches peer pieces only from the consenting peer URL you enter below.",
       "# MiniModel rejects project-server peer hosts and verifies every piece before assembly.",
@@ -6609,6 +7055,12 @@
       "  throw \"MiniModel peer status check failed with exit code $PeerStatusExitCode. Check the peer URL, manifest, and $PeerStatusCheck if it exists.\"",
       "}",
       "Write-Host \"Peer status check passed without fetching peer piece bytes:\" $PeerStatusCheck",
+      "& cargo run -p minimodel -- inspect-peer-status-check $PeerStatusCheck $Manifest",
+      "$PeerStatusInspectExitCode = $LASTEXITCODE",
+      "if ($PeerStatusInspectExitCode -ne 0) {",
+      "  throw \"MiniModel peer status check inspection failed with exit code $PeerStatusInspectExitCode. Check the saved status check report before preflight.\"",
+      "}",
+      "Write-Host \"Peer status check inspection passed without fetching peer piece bytes:\" $PeerStatusCheck",
       "& cargo run -p minimodel -- preflight-peer-import-request $PeerImportRequest $Manifest $PeerImportPreflight",
       "$PreflightExitCode = $LASTEXITCODE",
       "if ($PreflightExitCode -ne 0) {",
@@ -13277,6 +13729,21 @@
       return;
     }
     setImportReceiptLedgerStatus(`${safeLocalModelName(file.name)} / ${formatByteCount(file.size)} import receipt ledger selected`, false);
+  });
+
+  el.peerStatusCheckButton.addEventListener("click", function () {
+    importPeerStatusCheckFile(el.peerStatusCheckFile).catch((error) => {
+      setPeerStatusCheckStatus(errorMessage(error), true);
+    });
+  });
+
+  el.peerStatusCheckFile.addEventListener("change", function () {
+    const file = el.peerStatusCheckFile.files && el.peerStatusCheckFile.files[0];
+    if (!file) {
+      setPeerStatusCheckStatus("choose a peer status check JSON file", false);
+      return;
+    }
+    setPeerStatusCheckStatus(`${safeLocalModelName(file.name)} / ${formatByteCount(file.size)} peer status check selected`, false);
   });
 
   el.peerCompanionInventoryButton.addEventListener("click", function () {

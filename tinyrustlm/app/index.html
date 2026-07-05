@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TinyRustLM</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="./app.css?v=20260705-peer-contact-book-ui">
+  <link rel="stylesheet" href="./app.css?v=20260705-local-connect-full-mode-sync">
 </head>
 <body>
   <svg class="icon-sprite" aria-hidden="true" focusable="false">
@@ -188,6 +188,7 @@
           <label for="simplePeerContactBookFile">Peer contact book JSON</label>
           <input id="simplePeerContactBookFile" type="file" accept=".json,application/json">
           <button id="simpleApplyPeerContactBookButton" class="secondary-action" type="button">Use Peer Book</button>
+          <div id="simplePeerContactBookPeers" class="peer-contact-book-list" role="list" aria-label="Peer contact book peers" hidden></div>
           <button id="simpleLoadCatalogButton" class="secondary-action" type="button">Load MiniModel Metadata</button>
           <label for="simpleLocalCatalogFile">Local models.v0.json</label>
           <input id="simpleLocalCatalogFile" type="file" accept=".json,application/json">
@@ -201,6 +202,10 @@
           <label for="simpleImportReceiptLedgerFile">Import receipt ledger JSON</label>
           <input id="simpleImportReceiptLedgerFile" type="file" accept=".json,application/json">
           <button id="simpleImportReceiptLedgerButton" class="secondary-action" type="button">Load Receipt Ledger</button>
+          <div id="simpleImportReceiptLedgerEntries" class="receipt-ledger-entry-list" role="list" aria-label="Import receipt ledger entries" hidden></div>
+          <label for="simplePeerStatusCheckFile">Peer status check JSON</label>
+          <input id="simplePeerStatusCheckFile" type="file" accept=".json,application/json">
+          <button id="simplePeerStatusCheckButton" class="secondary-action" type="button">Load Peer Status</button>
           <label for="simplePeerCompanionInventoryFile">Peer companion inventory JSON</label>
           <input id="simplePeerCompanionInventoryFile" type="file" accept=".json,application/json">
           <button id="simplePeerCompanionInventoryButton" class="secondary-action" type="button">Load Companion Inventory</button>
@@ -208,6 +213,7 @@
           <button id="simpleSaveShareKitButton" class="secondary-action" type="button">Save P2P Share Kit</button>
           <button id="simpleLocalConnectApprovalsButton" class="secondary-action" type="button">Local Connect Approvals</button>
           <p id="simpleImportReceiptLedgerStatus" class="inline-status">receipt ledger optional</p>
+          <p id="simplePeerStatusCheckStatus" class="inline-status">peer status optional</p>
           <p id="simplePeerCompanionInventoryStatus" class="inline-status">companion inventory optional</p>
           <p id="simpleShareMetadataStatus" class="inline-status">import a local .slm first</p>
           <p id="simpleLocalConnectStatus" class="inline-status">Local Connect asks before app control.</p>
@@ -363,6 +369,7 @@
             <label for="peerContactBookFile">Peer contact book JSON</label>
             <input id="peerContactBookFile" type="file" accept=".json,application/json">
             <button id="applyPeerContactBookButton" class="secondary-action" type="button">Use Peer Book</button>
+            <div id="peerContactBookPeers" class="peer-contact-book-list" role="list" aria-label="Peer contact book peers" hidden></div>
             <label for="peerAnnouncementFile">Peer-source announcement/feed JSON</label>
             <input id="peerAnnouncementFile" type="file" accept=".json,application/json">
             <button id="applyPeerAnnouncementButton" class="secondary-action" type="button">Apply Peer Feed</button>
@@ -370,6 +377,11 @@
             <input id="importReceiptLedgerFile" type="file" accept=".json,application/json">
             <button id="importReceiptLedgerButton" class="secondary-action" type="button">Load Receipt Ledger</button>
             <p id="receiptLedgerStatus" class="inline-status">receipt ledger optional</p>
+            <div id="importReceiptLedgerEntries" class="receipt-ledger-entry-list" role="list" aria-label="Import receipt ledger entries" hidden></div>
+            <label for="peerStatusCheckFile">Peer status check JSON</label>
+            <input id="peerStatusCheckFile" type="file" accept=".json,application/json">
+            <button id="peerStatusCheckButton" class="secondary-action" type="button">Load Peer Status</button>
+            <p id="peerStatusCheckStatus" class="inline-status">peer status optional</p>
             <label for="peerCompanionInventoryFile">Peer companion inventory JSON</label>
             <input id="peerCompanionInventoryFile" type="file" accept=".json,application/json">
             <button id="peerCompanionInventoryButton" class="secondary-action" type="button">Load Companion Inventory</button>
@@ -403,6 +415,7 @@
             <label for="localConnectApprovedApps">Always approved apps</label>
             <textarea id="localConnectApprovedApps" rows="4" spellcheck="false" placeholder="chrome.exe&#10;outlook.exe"></textarea>
             <div class="local-connect-actions">
+              <button id="trustBrowserEmailLocalConnectButton" class="secondary-action" type="button">Trust Browsers + Email</button>
               <button id="saveLocalConnectPolicyButton" class="secondary-action" type="button">Save Approval Policy</button>
               <button id="saveLocalConnectPolicyFileButton" class="secondary-action" type="button">Save Endpoint Policy JSON</button>
               <button id="resetLocalConnectPolicyButton" class="secondary-action" type="button">Reset to Ask</button>
@@ -602,6 +615,6 @@
       <span id="currentModelSummary" class="model-summary">No model loaded</span>
     </footer>
   </main>
-  <script src="./app.js?v=20260705-peer-contact-book-ui"></script>
+  <script src="./app.js?v=20260705-local-connect-full-mode-sync"></script>
 </body>
 </html>

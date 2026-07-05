@@ -37,10 +37,12 @@ const hfHugeSourceShardTwoSha256 = "33333333333333333333333333333333333333333333
 const hfHugeSourceShardByteCount = 5368709120;
 const smokePeerBindAddr = "127.0.0.1:8123";
 const smokePeerBaseUrl = `http://${smokePeerBindAddr}/peer-pieces/`;
+const smokeBackupPeerBaseUrl = "http://127.0.0.1:8124/peer-pieces/";
 const shareMetadataSmokeMode = smokeMode === "share-metadata-ui";
 const shareMetadataKitExecSmokeMode = smokeMode === "share-metadata-kit-exec";
 const shareMetadataImportSmokeMode = smokeMode === "share-metadata-import-ui";
 const importReceiptLedgerSmokeMode = smokeMode === "import-receipt-ledger-ui";
+const peerStatusCheckSmokeMode = smokeMode === "peer-status-check-ui";
 const peerCompanionInventorySmokeMode = smokeMode === "peer-companion-inventory-ui";
 const catalogLocalImportSmokeMode = smokeMode === "catalog-local-import";
 const localImportAmbiguousSelectionSmokeMode = smokeMode === "local-import-ambiguous-selection";
@@ -2236,10 +2238,14 @@ async function runPageLocalConnectApprovalSmoke(client) {
       }));
       const browserSelect = document.querySelector('[data-local-connect-category="browser"]');
       const emailSelect = document.querySelector('[data-local-connect-category="email"]');
-      setSelect(browserSelect, "always");
-      await sleep(40);
-      setSelect(emailSelect, "always");
-      await sleep(40);
+      const trustBrowserEmailButtonVisible = visible(byId("trustBrowserEmailLocalConnectButton"));
+      byId("trustBrowserEmailLocalConnectButton").click();
+      await sleep(80);
+      const presetPolicy = parsePolicy();
+      const presetStatus = byId("localConnectPolicyStatus").textContent;
+      const presetEndpointStatus = byId("localConnectEndpointStatus").textContent;
+      const browserSelectValueAfterPreset = document.querySelector('[data-local-connect-category="browser"]') ? document.querySelector('[data-local-connect-category="browser"]').value : "";
+      const emailSelectValueAfterPreset = document.querySelector('[data-local-connect-category="email"]') ? document.querySelector('[data-local-connect-category="email"]').value : "";
       setTextArea(byId("localConnectApprovedApps"), "chrome.exe\\noutlook.exe\\nChrome.exe");
       await sleep(80);
       const selectedPolicy = parsePolicy();
@@ -2259,7 +2265,13 @@ async function runPageLocalConnectApprovalSmoke(client) {
         simple,
         drawerVisible,
         categoryRows,
+        trustBrowserEmailButtonVisible,
         initialPolicy,
+        presetPolicy,
+        presetStatus,
+        presetEndpointStatus,
+        browserSelectValueAfterPreset,
+        emailSelectValueAfterPreset,
         selectedPolicy,
         selectedStatus,
         selectedSimpleStatus,
@@ -2373,12 +2385,8 @@ async function runPageLocalConnectEndpointSmoke(client, endpointUrl) {
       await sleep(100);
       byId("simpleLocalConnectApprovalsButton").click();
       await sleep(100);
-      const browserSelect = document.querySelector('[data-local-connect-category="browser"]');
-      const emailSelect = document.querySelector('[data-local-connect-category="email"]');
-      setSelect(browserSelect, "always");
-      await sleep(40);
-      setSelect(emailSelect, "always");
-      await sleep(40);
+      byId("trustBrowserEmailLocalConnectButton").click();
+      await sleep(80);
       setTextArea(byId("localConnectApprovedApps"), "chrome.exe\\noutlook.exe");
       await sleep(80);
       byId("saveLocalConnectPolicyFileButton").click();
@@ -2430,6 +2438,19 @@ async function runPageLocalConnectEndpointSmoke(client, endpointUrl) {
       }
       const appButtonStatus = byId("localConnectEndpointStatus").textContent;
       const endpointAppRowsAfterAppButtons = Array.from(document.querySelectorAll(".local-connect-endpoint-app")).map((row) => row.textContent.replace(/\\s+/g, " ").trim());
+      setSelect(byId("localConnectApprovalMode"), "full");
+      await sleep(80);
+      let fullPolicyAfterEndpointRows = null;
+      try {
+        fullPolicyAfterEndpointRows = JSON.parse(byId("localConnectPolicyPreview").textContent || "null");
+      } catch (_error) {
+        fullPolicyAfterEndpointRows = null;
+      }
+      const fullStatusAfterEndpointRows = byId("localConnectPolicyStatus").textContent;
+      const fullWarningAfterEndpointRows = byId("localConnectModeWarning").textContent;
+      const endpointAppRowsFullMode = Array.from(document.querySelectorAll(".local-connect-endpoint-app")).map((row) => row.textContent.replace(/\\s+/g, " ").trim());
+      setSelect(byId("localConnectApprovalMode"), "selected");
+      await sleep(80);
       setTextArea(byId("localConnectApprovedApps"), "chrome.exe\\noutlook.exe\\nfirefox.exe");
       await sleep(80);
       byId("checkLocalConnectEndpointButton").click();
@@ -2451,8 +2472,12 @@ async function runPageLocalConnectEndpointSmoke(client, endpointUrl) {
         actionIsError,
         endpointAppRows,
         endpointAppRowsAfterAppButtons,
+        endpointAppRowsFullMode,
         appButtonStatus,
         policyAfterAppButtons,
+        fullPolicyAfterEndpointRows,
+        fullStatusAfterEndpointRows,
+        fullWarningAfterEndpointRows,
         mismatchStatus,
         mismatchIsError,
         policyDownloadNames,
@@ -3007,7 +3032,10 @@ async function runPageHfLocalCatalogSmoke(client, options = {}) {
           }
           peerCardStatus = byId("simplePeerUrlStatus") ? byId("simplePeerUrlStatus").textContent : "";
         }
+        let peerBookInitialStatus = "";
         let peerBookStatus = "";
+        let peerBookRows = [];
+        let peerBookRowsAfterSelection = [];
         if (shouldApplyPeerBook) {
           byId("modelEditButton").click();
           await sleep(50);
@@ -3023,7 +3051,25 @@ async function runPageHfLocalCatalogSmoke(client, options = {}) {
             }
             await sleep(50);
           }
-          peerBookStatus = byId("simplePeerUrlStatus") ? byId("simplePeerUrlStatus").textContent : "";
+          peerBookInitialStatus = byId("simplePeerUrlStatus") ? byId("simplePeerUrlStatus").textContent : "";
+          peerBookStatus = peerBookInitialStatus;
+          peerBookRows = textList("#simplePeerContactBookPeers .peer-contact-book-peer");
+          if (!shouldRejectPeerBook) {
+            const backupPeerButton = Array.from(document.querySelectorAll("#simplePeerContactBookPeers .peer-contact-book-peer"))
+              .find((button) => button.textContent.includes("Browser smoke backup peer"));
+            if (backupPeerButton) {
+              backupPeerButton.click();
+              for (let index = 0; index < 120; index += 1) {
+                const status = byId("simplePeerUrlStatus") ? byId("simplePeerUrlStatus").textContent : "";
+                if (status.includes("Browser smoke backup peer")) {
+                  break;
+                }
+                await sleep(50);
+              }
+              peerBookStatus = byId("simplePeerUrlStatus") ? byId("simplePeerUrlStatus").textContent : "";
+              peerBookRowsAfterSelection = textList("#simplePeerContactBookPeers .peer-contact-book-peer");
+            }
+          }
         }
         byId("modelEditButton").click();
         await sleep(50);
@@ -3063,7 +3109,10 @@ async function runPageHfLocalCatalogSmoke(client, options = {}) {
           localCatalogStatus,
           announcementStatus,
           peerCardStatus,
+          peerBookInitialStatus,
           peerBookStatus,
+          peerBookRows,
+          peerBookRowsAfterSelection,
           catalogResults,
           catalogResultsAfterAnnouncement,
           statusAfterSearch,
@@ -3307,7 +3356,7 @@ function writeHfPeerContactBookFixture() {
     hfPeerContactCardValue(),
     hfPeerContactCardValue({
       peerLabel: "Browser smoke backup peer",
-      peerBaseUrl: "http://127.0.0.1:8124/peer-pieces/"
+      peerBaseUrl: smokeBackupPeerBaseUrl
     })
   ];
   const contacts = cards.map((card) => ({
@@ -3483,6 +3532,7 @@ function shareMetadataImportBundleFixture() {
       writes_peer_source_metadata_when_known_peer_set: true,
       writes_peer_companion_state_when_known_peer_set: true,
       writes_peer_contact_card_when_known_peer_set: true,
+      writes_peer_contact_book_when_known_peer_set: true,
       writes_peer_companion_inventory_when_known_peer_set: true,
       serve_helper_available: true,
       user_consent_required_before_transfer: true,
@@ -3580,6 +3630,57 @@ function writeImportReceiptLedgerFixture() {
   return { ledgerDir, ledgerPath, driftPath };
 }
 
+function peerStatusCheckFixtureBody() {
+  return {
+    check_kind: "minimodel.peer_status_check",
+    check_version: 0,
+    checked_utc: "2026-07-05T00:00:00Z",
+    status: "validated",
+    peer_base_url: smokePeerBaseUrl,
+    status_url: `${smokePeerBaseUrl}minimodel.peer_status.v0.json`,
+    model_id: "tinyrustlm/tiny-test-model-q8",
+    routes: {
+      peer_status: "minimodel.peer_status.v0.json",
+      peer_piece_set: "minimodel.peer_piece_set.v0",
+      peer_companion_state: "minimodel.peer_companion_state.v0.json"
+    },
+    manifest: {
+      sha256: "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+    },
+    artifact: {
+      kind: "slm",
+      byte_count: 8832,
+      sha256: "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+    },
+    pieces: {
+      piece_set_sha256: "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      piece_count: 1,
+      merkle_root_sha256: "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+    },
+    boundary: {
+      metadata_only: true,
+      peer_piece_bytes_fetched: false,
+      artifact_bytes_fetched: false,
+      project_server_serves_model_bytes: false,
+      project_server_runs_model_bytes: false,
+      project_server_proxies_model_bytes: false,
+      requires_rust_reverify_before_browser_import: true
+    }
+  };
+}
+
+function writePeerStatusCheckFixture() {
+  const statusDir = fs.mkdtempSync(path.join(os.tmpdir(), "tinyrustlm-peer-status-check-"));
+  const statusPath = path.join(statusDir, "tiny-test-model-q8.peer-status-check.v0.json");
+  const driftPath = path.join(statusDir, "tiny-test-model-q8.peer-status-check-drift.v0.json");
+  const status = peerStatusCheckFixtureBody();
+  const drifted = JSON.parse(JSON.stringify(status));
+  drifted.boundary.peer_piece_bytes_fetched = true;
+  fs.writeFileSync(statusPath, `${JSON.stringify(status, null, 2)}\n`, "utf8");
+  fs.writeFileSync(driftPath, `${JSON.stringify(drifted, null, 2)}\n`, "utf8");
+  return { statusDir, statusPath, driftPath };
+}
+
 function peerCompanionInventoryFixtureBody() {
   return {
     inventory_kind: "minimodel.peer_companion_inventory.v0",
@@ -3630,6 +3731,29 @@ function peerCompanionInventoryFixtureBody() {
       inspect_state: "minimodel inspect-peer-companion-state <state-json> <manifest> <piece-dir>",
       inspect_receipt_ledger: "minimodel inspect-import-receipt-ledger <ledger-json>",
       serve_peer_companion: "minimodel serve-peer-companion <state-json> <manifest> <piece-dir> <bind-addr>"
+    },
+    serve_plan: {
+      status: "ready-after-rust-reverify",
+      transport: "direct-http-piece-server-v0",
+      peer_base_url: smokePeerBaseUrl,
+      peer_status_route: "minimodel.peer_status.v0.json",
+      peer_piece_set_route: "minimodel.peer_piece_set.v0",
+      peer_companion_state_route: "minimodel.peer_companion_state.v0.json",
+      state_path: "tiny-test-model-q8.peer-companion-state.v0.json",
+      manifest_path: "tiny-test-model-q8.minimodel.manifest.v0",
+      piece_dir_path: "tiny-test-model-q8.peer-pieces",
+      serve_command: "minimodel serve-peer-companion <state-json> <manifest> <piece-dir> <bind-addr>",
+      preflight_commands: [
+        "minimodel inspect-peer-companion-inventory <inventory-json>",
+        "minimodel inspect-peer-companion-state <state-json> <manifest> <piece-dir>",
+        "minimodel inspect-import-receipt-ledger <ledger-json>"
+      ],
+      requires_operator_consent: true,
+      requires_loopback_or_direct_peer_url: true,
+      rust_reverify_required_before_serving: true,
+      project_server_serves_model_bytes: false,
+      project_server_runs_model_bytes: false,
+      project_server_proxies_model_bytes: false
     },
     boundary: {
       metadata_only: true,
@@ -4146,6 +4270,9 @@ async function runPageImportReceiptLedgerSmoke(client) {
           }
           return node.getClientRects().length > 0;
         };
+        const textList = (selector) => Array.from(document.querySelectorAll(selector))
+          .map((node) => node.textContent.replace(/\\s+/g, " ").trim())
+          .filter(Boolean);
         byId("sidebarP2pSetupButton").click();
         byId("simpleImportReceiptLedgerFile").dispatchEvent(new Event("change", { bubbles: true }));
         byId("simpleImportReceiptLedgerButton").click();
@@ -4161,6 +4288,8 @@ async function runPageImportReceiptLedgerSmoke(client) {
           simpleLedgerStatus: byId("simpleImportReceiptLedgerStatus").textContent,
           advancedLedgerStatus: byId("receiptLedgerStatus").textContent,
           simpleDiscoveryStatus: byId("simpleDiscoveryStatus").textContent,
+          simpleLedgerRows: textList("#simpleImportReceiptLedgerEntries .receipt-ledger-entry"),
+          advancedLedgerRows: textList("#importReceiptLedgerEntries .receipt-ledger-entry"),
           catalogStatus: byId("catalogStatus").textContent,
           panelOpen: visible(byId("simpleDiscoveryPanel")),
           p2pPanelHidden: byId("simpleP2pSourcePanel").hidden,
@@ -4177,6 +4306,112 @@ async function runPageImportReceiptLedgerSmoke(client) {
     return parseEvaluateValue(result);
   } finally {
     fs.rmSync(fixture.ledgerDir, { recursive: true, force: true });
+  }
+}
+
+async function runPagePeerStatusCheckSmoke(client) {
+  const fixture = writePeerStatusCheckFixture();
+  try {
+    const waitExpression = `
+      (async () => {
+        const byId = (id) => document.getElementById(id);
+        const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        for (let index = 0; index < 600; index += 1) {
+          if (
+            byId("wasmState") &&
+            byId("wasmState").textContent === "loaded" &&
+            byId("sidebarP2pSetupButton") &&
+            byId("simplePeerStatusCheckFile") &&
+            byId("simplePeerStatusCheckButton") &&
+            byId("simplePeerStatusCheckStatus") &&
+            byId("peerStatusCheckFile") &&
+            byId("peerStatusCheckButton") &&
+            byId("peerStatusCheckStatus")
+          ) {
+            return true;
+          }
+          await sleep(100);
+        }
+        throw new Error("runtime did not boot for peer status check smoke");
+      })()
+    `;
+    parseEvaluateValue(await client.send("Runtime.evaluate", {
+      expression: waitExpression,
+      awaitPromise: true,
+      returnByValue: true,
+      timeout: 90000
+    }));
+    await setFileInputFiles(client, "#simplePeerStatusCheckFile", [fixture.driftPath]);
+    const rejectExpression = `
+      (async () => {
+        const byId = (id) => document.getElementById(id);
+        const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        byId("sidebarP2pSetupButton").click();
+        byId("simplePeerStatusCheckFile").dispatchEvent(new Event("change", { bubbles: true }));
+        byId("simplePeerStatusCheckButton").click();
+        for (let index = 0; index < 300; index += 1) {
+          const status = byId("simplePeerStatusCheckStatus").textContent || "";
+          if (status.includes("peer_piece_bytes_fetched") || status.includes("must be false")) {
+            return status;
+          }
+          await sleep(50);
+        }
+        return byId("simplePeerStatusCheckStatus").textContent || "";
+      })()
+    `;
+    const rejectionStatus = rawEvaluateValue(await client.send("Runtime.evaluate", {
+      expression: rejectExpression,
+      awaitPromise: true,
+      returnByValue: true,
+      timeout: 90000
+    }));
+    await setFileInputFiles(client, "#simplePeerStatusCheckFile", [fixture.statusPath]);
+    const importExpression = `
+      (async () => {
+        const byId = (id) => document.getElementById(id);
+        const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        const visible = (node) => {
+          if (!node || node.closest("[hidden]")) {
+            return false;
+          }
+          for (let current = node; current; current = current.parentElement) {
+            const style = window.getComputedStyle(current);
+            if (style.display === "none" || style.visibility === "hidden") {
+              return false;
+            }
+          }
+          return node.getClientRects().length > 0;
+        };
+        byId("sidebarP2pSetupButton").click();
+        byId("simplePeerStatusCheckFile").dispatchEvent(new Event("change", { bubbles: true }));
+        byId("simplePeerStatusCheckButton").click();
+        for (let index = 0; index < 300; index += 1) {
+          const status = byId("simplePeerStatusCheckStatus").textContent || "";
+          if (status.includes("Peer status check loaded") && status.includes("Rust reverify required")) {
+            break;
+          }
+          await sleep(50);
+        }
+        return JSON.stringify({
+          rejectionStatus: ${JSON.stringify(rejectionStatus)},
+          simpleStatus: byId("simplePeerStatusCheckStatus").textContent,
+          advancedStatus: byId("peerStatusCheckStatus").textContent,
+          simpleDiscoveryStatus: byId("simpleDiscoveryStatus").textContent,
+          panelOpen: visible(byId("simpleDiscoveryPanel")),
+          p2pPanelHidden: byId("simpleP2pSourcePanel").hidden,
+          bodyText: document.body.textContent.replace(/\\s+/g, " ").slice(0, 12000)
+        });
+      })()
+    `;
+    const result = await client.send("Runtime.evaluate", {
+      expression: importExpression,
+      awaitPromise: true,
+      returnByValue: true,
+      timeout: 90000
+    });
+    return parseEvaluateValue(result);
+  } finally {
+    fs.rmSync(fixture.statusDir, { recursive: true, force: true });
   }
 }
 
@@ -10979,6 +11214,9 @@ function assertLocalConnectApprovalSmoke(result, networkRequests) {
     if (!result.drawerVisible) {
       failures.push("local-connect approval drawer was not visible after opening it");
     }
+    if (!result.trustBrowserEmailButtonVisible) {
+      failures.push("browser/email trust preset button was not visible");
+    }
     const rows = Array.isArray(result.categoryRows) ? result.categoryRows : [];
     if (rows.length < 6) {
       failures.push(`expected at least 6 approval categories, found ${rows.length}`);
@@ -11004,12 +11242,22 @@ function assertLocalConnectApprovalSmoke(result, networkRequests) {
     if (Array.isArray(initial.approved_apps) && initial.approved_apps.length !== 0) {
       failures.push(`initial approved apps were not empty: ${JSON.stringify(initial.approved_apps)}`);
     }
+    const preset = result.presetPolicy || {};
+    if (preset.approval_mode !== "selected" || !preset.category_approval || preset.category_approval.browser !== "always" || preset.category_approval.email !== "always") {
+      failures.push(`browser/email trust preset did not set category approvals: ${JSON.stringify(preset)}`);
+    }
+    if (result.browserSelectValueAfterPreset !== "always" || result.emailSelectValueAfterPreset !== "always") {
+      failures.push(`browser/email dropdowns did not reflect preset: ${result.browserSelectValueAfterPreset} / ${result.emailSelectValueAfterPreset}`);
+    }
+    if (!String(result.presetStatus || "").includes("Browsers and email apps") || !String(result.presetEndpointStatus || "").includes("restart Local Connect")) {
+      failures.push(`browser/email trust preset status was ${result.presetStatus} / ${result.presetEndpointStatus}`);
+    }
     const selected = result.selectedPolicy || {};
     if (selected.approval_mode !== "selected") {
       failures.push(`selected approval mode was ${selected.approval_mode}`);
     }
     if (!selected.category_approval || selected.category_approval.browser !== "always" || selected.category_approval.email !== "always") {
-      failures.push(`browser/email always approvals were not saved: ${JSON.stringify(selected.category_approval)}`);
+      failures.push(`browser/email preset approvals were not saved: ${JSON.stringify(selected.category_approval)}`);
     }
     if (!Array.isArray(selected.approved_apps) || selected.approved_apps.length !== 2 || !selected.approved_apps.includes("chrome.exe") || !selected.approved_apps.includes("outlook.exe")) {
       failures.push(`approved apps were not normalized and deduped: ${JSON.stringify(selected.approved_apps)}`);
@@ -11115,6 +11363,20 @@ function assertLocalConnectEndpointSmoke(result, networkRequests, endpointServer
     }
     if (!String(result.appButtonStatus || "").includes("blocked locally")) {
       failures.push(`app-list button status was ${result.appButtonStatus}`);
+    }
+    const fullPolicyAfterEndpointRows = result.fullPolicyAfterEndpointRows || {};
+    if (fullPolicyAfterEndpointRows.approval_mode !== "full" || fullPolicyAfterEndpointRows.full_local_control !== true) {
+      failures.push(`endpoint-row full-control policy was ${JSON.stringify(fullPolicyAfterEndpointRows)}`);
+    }
+    if (!String(result.fullStatusAfterEndpointRows || "").includes("non-sensitive computer") || !String(result.fullWarningAfterEndpointRows || "").includes("High risk")) {
+      failures.push(`endpoint-row full-control warning/status was ${result.fullWarningAfterEndpointRows} / ${result.fullStatusAfterEndpointRows}`);
+    }
+    const fullRows = Array.isArray(result.endpointAppRowsFullMode) ? result.endpointAppRowsFullMode : [];
+    if (!fullRows.some((row) => row.includes("powershell.exe") && row.includes("Full mode active") && row.includes("allow"))) {
+      failures.push(`full-control rows did not show terminal app auto-allowed: ${JSON.stringify(fullRows)}`);
+    }
+    if (!fullRows.some((row) => row.includes("bitwarden.exe") && row.includes("Category blocked") && row.includes("deny"))) {
+      failures.push(`full-control rows did not preserve explicit secrets block: ${JSON.stringify(fullRows)}`);
     }
     if (!String(result.policyDownloadName || "").endsWith("tinyrustlm-local-connect-policy.v0.json")) {
       failures.push(`endpoint policy download name was ${result.policyDownloadName}; all names=${JSON.stringify(result.policyDownloadNames)}`);
@@ -11377,6 +11639,9 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       if (!Array.isArray(peerRequest.local_peer_piece_contract.rust_commands) || !peerRequest.local_peer_piece_contract.rust_commands.some((command) => command.includes("check-peer-status"))) {
         failures.push(`P2P import request did not include check-peer-status command: ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
       }
+      if (!Array.isArray(peerRequest.local_peer_piece_contract.rust_commands) || !peerRequest.local_peer_piece_contract.rust_commands.some((command) => command.includes("inspect-peer-status-check"))) {
+        failures.push(`P2P import request did not include inspect-peer-status-check command: ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
+      }
       if (!Array.isArray(peerRequest.local_peer_piece_contract.rust_commands) || !peerRequest.local_peer_piece_contract.rust_commands.some((command) => command.includes("import-peer-request"))) {
         failures.push(`P2P import request did not include import-peer-request command: ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
       }
@@ -11419,6 +11684,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     for (const required of [
       "inspect-peer-import-request",
       "check-peer-status",
+      "inspect-peer-status-check",
       "import-peer-request",
       "inspect-import-receipt",
       "inspect-peer-import-receipt",
@@ -11431,6 +11697,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "does not download model bytes from MiniModel.org",
       "minimodel.peer_status.v0.json metadata",
       "minimodel.peer_piece_set.v0 metadata and advertised peer companion-state metadata for preflight",
+      "saved peer-status-check JSON",
       "saved preflight report",
       "import receipt with peer-transfer evidence",
       "receipt against the assembled .slm",
@@ -11453,6 +11720,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "$PeerImportPreflight = Join-Path $PSScriptRoot",
       "$InspectExitCode",
       "$PeerStatusExitCode",
+      "$PeerStatusInspectExitCode",
       "$PreflightExitCode",
       "$PreflightInspectExitCode",
       "$ImportExitCode",
@@ -11467,6 +11735,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "Peer import request inspection passed without network access:",
       "Peer status check:",
       "Peer status check passed without fetching peer piece bytes:",
+      "Peer status check inspection passed without fetching peer piece bytes:",
       "Peer import preflight:",
       "Peer import preflight passed without fetching peer piece bytes:",
       "Peer import preflight inspection passed without fetching peer piece bytes:",
@@ -12782,6 +13051,9 @@ async function executeBrowserGeneratedShareKit(result) {
   smokeAssert(peerCompanionInventory.receipt_ledger && peerCompanionInventory.receipt_ledger.entry_count === 1, `share kit peer companion inventory receipt ledger was ${JSON.stringify(peerCompanionInventory.receipt_ledger)}`);
   smokeAssert(peerCompanionInventory.receipt_ledger && peerCompanionInventory.receipt_ledger.peer_import_count === 0, `share kit peer companion inventory peer import count was ${JSON.stringify(peerCompanionInventory.receipt_ledger)}`);
   smokeAssert(peerCompanionInventory.contact_card_count === 1, `share kit peer companion inventory contact card count was ${peerCompanionInventory.contact_card_count}`);
+  smokeAssert(peerCompanionInventory.serve_plan && peerCompanionInventory.serve_plan.status === "ready-after-rust-reverify", `share kit peer companion inventory serve plan was ${JSON.stringify(peerCompanionInventory.serve_plan)}`);
+  smokeAssert(peerCompanionInventory.serve_plan && peerCompanionInventory.serve_plan.peer_status_route === "minimodel.peer_status.v0.json", `share kit peer companion inventory serve status route was ${JSON.stringify(peerCompanionInventory.serve_plan)}`);
+  smokeAssert(peerCompanionInventory.serve_plan && peerCompanionInventory.serve_plan.rust_reverify_required_before_serving === true, `share kit peer companion inventory serve reverify was ${JSON.stringify(peerCompanionInventory.serve_plan)}`);
   smokeAssert(peerCompanionInventory.boundary && peerCompanionInventory.boundary.metadata_only === true, `share kit peer companion inventory boundary was ${JSON.stringify(peerCompanionInventory.boundary)}`);
   smokeAssert(peerCompanionInventory.boundary && peerCompanionInventory.boundary.inventory_contains_model_bytes === false, `share kit peer companion inventory embedded model bytes: ${JSON.stringify(peerCompanionInventory.boundary)}`);
   smokeAssert(peerCompanionInventory.boundary && peerCompanionInventory.boundary.inventory_contains_peer_piece_bytes === false, `share kit peer companion inventory embedded peer bytes: ${JSON.stringify(peerCompanionInventory.boundary)}`);
@@ -13114,12 +13386,16 @@ function assertHfP2pImportKitSmoke(result, conversionExecution) {
       if (!Array.isArray(request.local_peer_piece_contract.rust_commands) || !request.local_peer_piece_contract.rust_commands.some((command) => command.includes("inspect-peer-import-preflight"))) {
         failures.push(`P2P import request did not include inspect-peer-import-preflight command: ${JSON.stringify(request.local_peer_piece_contract)}`);
       }
+      if (!Array.isArray(request.local_peer_piece_contract.rust_commands) || !request.local_peer_piece_contract.rust_commands.some((command) => command.includes("inspect-peer-status-check"))) {
+        failures.push(`P2P import request did not include inspect-peer-status-check command: ${JSON.stringify(request.local_peer_piece_contract)}`);
+      }
     }
     const scriptText = String(result.peerImportScriptText || "");
     const manifestFileName = request ? expectedPeerImportManifestFileName(request) : path.basename(conversionExecution.manifestPath);
     for (const required of [
       "inspect-peer-import-request",
       "check-peer-status",
+      "inspect-peer-status-check",
       "preflight-peer-import-request",
       "inspect-peer-import-preflight",
       "import-peer-request",
@@ -13130,6 +13406,7 @@ function assertHfP2pImportKitSmoke(result, conversionExecution) {
       "does not download model bytes from MiniModel.org",
       "minimodel.peer_status.v0.json metadata",
       "minimodel.peer_piece_set.v0 metadata and advertised peer companion-state metadata for preflight",
+      "saved peer-status-check JSON",
       "saved preflight report",
       "fetches peer pieces only from the consenting peer URL",
       "import receipt with peer-transfer evidence",
@@ -13139,6 +13416,7 @@ function assertHfP2pImportKitSmoke(result, conversionExecution) {
       "Peer import request inspection passed without network access:",
       "Peer status check:",
       "Peer status check passed without fetching peer piece bytes:",
+      "Peer status check inspection passed without fetching peer piece bytes:",
       "Peer import preflight:",
       "Peer import preflight passed without fetching peer piece bytes:",
       "Peer import preflight inspection passed without fetching peer piece bytes:",
@@ -13297,6 +13575,8 @@ function executeBrowserGeneratedP2pImportKit(conversionExecution, importResult, 
   assertTextContains(scriptOutput, "receiver_validation.validate_advertised_companion_state_before_piece_fetch: true", "P2P import script output");
   assertTextContains(scriptOutput, "receiver_validation.import_receipt_required_before_browser_load: true", "P2P import script output");
   assertTextContains(scriptOutput, "Peer import request inspection passed without network access:", "P2P import script output");
+  assertTextContains(scriptOutput, "MiniModel peer status check validation: PASS", "P2P import script output");
+  assertTextContains(scriptOutput, "Peer status check inspection passed without fetching peer piece bytes:", "P2P import script output");
   assertTextContains(scriptOutput, "Peer import preflight passed without fetching peer piece bytes:", "P2P import script output");
   assertTextContains(scriptOutput, "MiniModel peer import preflight validation: PASS", "P2P import script output");
   assertTextContains(scriptOutput, "Peer import preflight inspection passed without fetching peer piece bytes:", "P2P import script output");
@@ -13751,7 +14031,7 @@ function assertHfEmptyCatalogAnnouncementRouteSmoke(result, networkRequests) {
   }
 }
 
-function assertHfLocalCatalogSmoke(result, networkRequests) {
+function assertHfLocalCatalogSmoke(result, networkRequests, expectedPeerBaseUrl = smokePeerBaseUrl) {
   const failures = [];
   if (!result || typeof result !== "object") {
     failures.push("local catalog Hugging Face result was missing");
@@ -13785,7 +14065,7 @@ function assertHfLocalCatalogSmoke(result, networkRequests) {
       if (peerRequest.source.huggingface_model_id !== "example-org/tiny-ready-slm") {
         failures.push(`local catalog request source id was ${peerRequest.source.huggingface_model_id}`);
       }
-      if (peerRequest.local_peer_piece_contract.expected_peer_base_url !== smokePeerBaseUrl) {
+      if (peerRequest.local_peer_piece_contract.expected_peer_base_url !== expectedPeerBaseUrl) {
         failures.push(`local catalog request peer URL was ${JSON.stringify(peerRequest.local_peer_piece_contract)}`);
       }
       if (peerRequest.boundary.project_server_serves_model_bytes !== false || peerRequest.boundary.project_server_runs_model_bytes !== false) {
@@ -13794,7 +14074,7 @@ function assertHfLocalCatalogSmoke(result, networkRequests) {
       assertPeerImportReceiverValidationContract(peerRequest, failures, "local catalog P2P import request");
     }
     const peerScript = String(result.peerImportScriptText || "");
-    for (const required of ["inspect-peer-import-request", "check-peer-status", "preflight-peer-import-request", "inspect-peer-import-preflight", "import-peer-request", "inspect-import-receipt", "inspect-peer-import-receipt", "write-import-receipt-ledger", "inspect-import-receipt-ledger", "serve-peer-pieces", "serve-peer-companion", "Peer serving counterpart first validates companion state", smokePeerBaseUrl, "does not download model bytes", "request against the metadata manifest", "minimodel.peer_status.v0.json metadata", "minimodel.peer_piece_set.v0 metadata and advertised peer companion-state metadata for preflight", "saved preflight report", "Peer import preflight inspection passed without fetching peer piece bytes:", "import receipt with peer-transfer evidence", "receipt against the assembled .slm", "metadata-only import receipt ledger", "Peer import receipt inspection passed:", "Peer import receipt chain inspection passed:", "Peer import receipt ledger inspection passed:"]) {
+    for (const required of ["inspect-peer-import-request", "check-peer-status", "inspect-peer-status-check", "preflight-peer-import-request", "inspect-peer-import-preflight", "import-peer-request", "inspect-import-receipt", "inspect-peer-import-receipt", "write-import-receipt-ledger", "inspect-import-receipt-ledger", "serve-peer-pieces", "serve-peer-companion", "Peer serving counterpart first validates companion state", expectedPeerBaseUrl, "does not download model bytes", "request against the metadata manifest", "minimodel.peer_status.v0.json metadata", "saved peer-status-check JSON", "minimodel.peer_piece_set.v0 metadata and advertised peer companion-state metadata for preflight", "saved preflight report", "Peer status check inspection passed without fetching peer piece bytes:", "Peer import preflight inspection passed without fetching peer piece bytes:", "import receipt with peer-transfer evidence", "receipt against the assembled .slm", "metadata-only import receipt ledger", "Peer import receipt inspection passed:", "Peer import receipt chain inspection passed:", "Peer import receipt ledger inspection passed:"]) {
       if (!peerScript.includes(required)) {
         failures.push(`local catalog peer import script missing ${required}: ${peerScript}`);
       }
@@ -13852,23 +14132,37 @@ function assertHfPeerContactCardSmoke(result, networkRequests) {
 function assertHfPeerContactBookSmoke(result, networkRequests) {
   const failures = [];
   try {
-    assertHfLocalCatalogSmoke(result, networkRequests);
+    assertHfLocalCatalogSmoke(result, networkRequests, smokeBackupPeerBaseUrl);
   } catch (error) {
     failures.push(error.message || String(error));
   }
-  if (!String(result && result.peerBookStatus || "").includes("Known peer book loaded: 2 peers")) {
-    failures.push(`peer contact book was not applied: ${result && result.peerBookStatus}`);
+  if (!String(result && result.peerBookInitialStatus || "").includes("Known peer book loaded: 2 peers")) {
+    failures.push(`peer contact book was not applied: ${result && result.peerBookInitialStatus}`);
   }
-  if (!String(result && result.peerBookStatus || "").includes("Browser smoke peer")
-      || !String(result && result.peerBookStatus || "").includes(smokePeerBaseUrl)
+  if (!String(result && result.peerBookInitialStatus || "").includes("Browser smoke peer")
+      || !String(result && result.peerBookInitialStatus || "").includes(smokePeerBaseUrl)
+      || !String(result && result.peerBookInitialStatus || "").includes("Rust reverify required")) {
+    failures.push(`peer contact book did not set the expected first peer: ${result && result.peerBookInitialStatus}`);
+  }
+  const peerBookRows = Array.isArray(result && result.peerBookRows) ? result.peerBookRows : [];
+  if (!peerBookRows.some((row) => row.includes("Browser smoke peer") && row.includes(smokePeerBaseUrl) && row.includes("Selected peer"))
+      || !peerBookRows.some((row) => row.includes("Browser smoke backup peer") && row.includes(smokeBackupPeerBaseUrl) && row.includes("Use peer"))) {
+    failures.push(`peer contact book chooser did not render both peers: ${JSON.stringify(peerBookRows)}`);
+  }
+  if (!String(result && result.peerBookStatus || "").includes("Browser smoke backup peer")
+      || !String(result && result.peerBookStatus || "").includes(smokeBackupPeerBaseUrl)
       || !String(result && result.peerBookStatus || "").includes("Rust reverify required")) {
-    failures.push(`peer contact book did not set the expected first peer: ${result && result.peerBookStatus}`);
+    failures.push(`peer contact book chooser did not select backup peer: ${result && result.peerBookStatus}`);
+  }
+  const peerBookRowsAfterSelection = Array.isArray(result && result.peerBookRowsAfterSelection) ? result.peerBookRowsAfterSelection : [];
+  if (!peerBookRowsAfterSelection.some((row) => row.includes("Browser smoke backup peer") && row.includes(smokeBackupPeerBaseUrl) && row.includes("Selected peer"))) {
+    failures.push(`peer contact book chooser did not mark backup peer selected: ${JSON.stringify(peerBookRowsAfterSelection)}`);
   }
   const peerRequest = result && result.peerImportRequestText
     ? JSON.parse(result.peerImportRequestText)
     : null;
-  if (!peerRequest || peerRequest.local_peer_piece_contract.expected_peer_base_url !== smokePeerBaseUrl) {
-    failures.push(`peer contact book request did not use the first book URL: ${result && result.peerImportRequestText}`);
+  if (!peerRequest || peerRequest.local_peer_piece_contract.expected_peer_base_url !== smokeBackupPeerBaseUrl) {
+    failures.push(`peer contact book request did not use the selected book URL: ${result && result.peerImportRequestText}`);
   }
   const bodyText = String(result && result.bodyText || "");
   if (!bodyText.includes("Peer contact book JSON") || !bodyText.includes("Use Peer Book")) {
@@ -14166,6 +14460,23 @@ function assertImportReceiptLedgerSmoke(result, networkRequests) {
     if (!result.panelOpen || result.p2pPanelHidden) {
       failures.push(`P2P source panel was not open: ${JSON.stringify({ panelOpen: result.panelOpen, p2pPanelHidden: result.p2pPanelHidden })}`);
     }
+    const simpleRows = Array.isArray(result.simpleLedgerRows) ? result.simpleLedgerRows : [];
+    const advancedRows = Array.isArray(result.advancedLedgerRows) ? result.advancedLedgerRows : [];
+    for (const [label, rows] of [
+      ["simple receipt ledger rows", simpleRows],
+      ["advanced receipt ledger rows", advancedRows]
+    ]) {
+      if (!rows.some((row) => row.includes("tinyrustlm/tiny-test-model-q8")
+          && row.includes("Peer import")
+          && row.includes("tiny-test-model-q8.minimodel-receipt")
+          && row.includes(smokePeerBaseUrl)
+          && row.includes("Receiver")
+          && row.includes("validated")
+          && row.includes("Pieces")
+          && row.includes("sha256:dddddddddd"))) {
+        failures.push(`${label} did not render peer import evidence: ${JSON.stringify(rows)}`);
+      }
+    }
     const bodyText = String(result.bodyText || "");
     if (!bodyText.includes("Import receipt ledger JSON") || !bodyText.includes("Load Receipt Ledger")) {
       failures.push("import receipt ledger controls were missing from rendered UI");
@@ -14174,6 +14485,54 @@ function assertImportReceiptLedgerSmoke(result, networkRequests) {
   for (const requestUrl of networkRequests) {
     if (requestUrl.includes("huggingface.co") || requestUrl.includes("MiniModel.org") || requestUrl.includes("minimodel.org")) {
       failures.push(`import receipt ledger smoke made remote request: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertPeerStatusCheckSmoke(result, networkRequests) {
+  const failures = [];
+  if (!result || typeof result !== "object") {
+    failures.push("peer status check result was missing");
+  } else {
+    const rejectionStatus = String(result.rejectionStatus || "");
+    const simpleStatus = String(result.simpleStatus || "");
+    const advancedStatus = String(result.advancedStatus || "");
+    const simpleDiscoveryStatus = String(result.simpleDiscoveryStatus || "");
+    if (!rejectionStatus.includes("peer_piece_bytes_fetched") || !rejectionStatus.includes("false")) {
+      failures.push(`drifted peer status check was not rejected: ${rejectionStatus}`);
+    }
+    for (const [label, status] of [
+      ["simple peer status", simpleStatus],
+      ["advanced peer status", advancedStatus],
+      ["simple discovery status", simpleDiscoveryStatus]
+    ]) {
+      if (!status.includes("Peer status check loaded")
+          || !status.includes("tiny-test-model-q8.peer-status-check.v0.json")
+          || !status.includes("tinyrustlm/tiny-test-model-q8")
+          || !status.includes("1 piece")
+          || !status.includes("8.6 KiB artifact")
+          || !status.includes(smokePeerBaseUrl)
+          || !status.includes("companion minimodel.peer_companion_state.v0.json")
+          || !status.includes("no peer bytes fetched")
+          || !status.includes("sha256:")
+          || !status.includes("Rust reverify required")) {
+        failures.push(`${label} was ${status}`);
+      }
+    }
+    if (!result.panelOpen || result.p2pPanelHidden) {
+      failures.push(`P2P source panel was not open: ${JSON.stringify({ panelOpen: result.panelOpen, p2pPanelHidden: result.p2pPanelHidden })}`);
+    }
+    const bodyText = String(result.bodyText || "");
+    if (!bodyText.includes("Peer status check JSON") || !bodyText.includes("Load Peer Status")) {
+      failures.push("peer status check controls were missing from rendered UI");
+    }
+  }
+  for (const requestUrl of networkRequests) {
+    if (requestUrl.includes("huggingface.co") || requestUrl.includes("MiniModel.org") || requestUrl.includes("minimodel.org")) {
+      failures.push(`peer status check smoke made remote request: ${requestUrl}`);
     }
   }
   if (failures.length > 0) {
@@ -14206,6 +14565,8 @@ function assertPeerCompanionInventorySmoke(result, networkRequests) {
           || !status.includes("16.0 KiB quota")
           || !status.includes("1 receipt")
           || !status.includes("1 contact card")
+          || !status.includes("serve plan ready-after-rust-reverify")
+          || !status.includes("status route minimodel.peer_status.v0.json")
           || !status.includes("sha256:")
           || !status.includes("Rust reverify required")) {
         failures.push(`${label} was ${status}`);
@@ -14337,6 +14698,7 @@ function assertShareMetadataSmoke(result, networkRequests) {
       || shareKitDescriptor.writes_import_receipt_ledger !== true
       || shareKitDescriptor.writes_peer_companion_state_when_known_peer_set !== true
       || shareKitDescriptor.writes_peer_contact_card_when_known_peer_set !== true
+      || shareKitDescriptor.writes_peer_contact_book_when_known_peer_set !== true
       || shareKitDescriptor.writes_peer_companion_inventory_when_known_peer_set !== true
       || shareKitDescriptor.serve_helper_available !== true
       || shareKitDescriptor.project_server_serves_model_bytes !== false) {
@@ -17931,6 +18293,21 @@ async function main() {
         }
       }
       assertImportReceiptLedgerSmoke(result, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (peerStatusCheckSmokeMode) {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPagePeerStatusCheckSmoke(client);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertPeerStatusCheckSmoke(result, networkRequests);
       result.networkRequests = networkRequests;
     } else if (peerCompanionInventorySmokeMode) {
       await client.send("Page.reload", { ignoreCache: true });
