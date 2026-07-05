@@ -11801,6 +11801,11 @@ function executeBrowserGeneratedP2pImportKit(conversionExecution, importResult, 
   assertTextContains(receiptText, `artifact.sha256=sha256:${originalSha256}`, "P2P import receipt");
   assertTextContains(receiptText, "peer_import.transport=known-direct-http-peer-v0", "P2P import receipt");
   assertTextContains(receiptText, "peer_import.verification_status=passed", "P2P import receipt");
+  assertTextContains(receiptText, "receiver_validation_contract.status=validated", "P2P import receipt");
+  assertTextContains(receiptText, "receiver_validation.check_peer_status_before_piece_fetch=true", "P2P import receipt");
+  assertTextContains(receiptText, "receiver_validation.preflight_fetches_piece_set_before_pieces=true", "P2P import receipt");
+  assertTextContains(receiptText, "receiver_validation.validate_advertised_companion_state_before_piece_fetch=true", "P2P import receipt");
+  assertTextContains(receiptText, "receiver_validation.import_receipt_required_before_browser_load=true", "P2P import receipt");
   assertTextContains(receiptText, `peer.base_url=${smokePeerBaseUrl}`, "P2P import receipt");
   assertTextContains(receiptText, "peer.piece_set_sha256=sha256:", "P2P import receipt");
   assertTextContains(receiptText, "peer.companion_state_status=validated", "P2P import receipt");
@@ -11903,6 +11908,18 @@ function writeTamperedPeerImportReceipt(p2pImportExecution, driftKind = "artifac
     driftedText = receiptText.replace(flagMatch[0], "peer_companion_state_metadata_fetched=false");
     fileStem = ".companion-state-metadata-drift";
     expectedReceiptError = "MiniModel import receipt field peer_companion_state_metadata_fetched was false";
+  } else if (driftKind === "receiver_validation.import_receipt_required_before_browser_load") {
+    const flagMatch = receiptText.match(/^receiver_validation\.import_receipt_required_before_browser_load=true$/m);
+    smokeAssert(flagMatch, `peer import receipt did not contain receiver_validation.import_receipt_required_before_browser_load=true: ${receiptPath}`);
+    driftedText = receiptText.replace(flagMatch[0], "receiver_validation.import_receipt_required_before_browser_load=false");
+    fileStem = ".receiver-validation-drift";
+    expectedReceiptError = "MiniModel import receipt field receiver_validation.import_receipt_required_before_browser_load was false";
+  } else if (driftKind === "receiver_validation_contract.status") {
+    const statusMatch = receiptText.match(/^receiver_validation_contract\.status=validated$/m);
+    smokeAssert(statusMatch, `peer import receipt did not contain receiver_validation_contract.status=validated: ${receiptPath}`);
+    driftedText = receiptText.replace(statusMatch[0], "receiver_validation_contract.status=not-declared");
+    fileStem = ".receiver-validation-status-drift";
+    expectedReceiptError = "MiniModel import receipt field receiver_validation_contract.status was not-declared";
   } else if (driftKind === "receipt.created_utc") {
     const createdMatch = receiptText.match(/^receipt\.created_utc=([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)$/m);
     smokeAssert(createdMatch, `peer import receipt did not contain receipt.created_utc: ${receiptPath}`);
@@ -12101,6 +12118,7 @@ function assertPeerAssembledRuntimeImportSmoke(result) {
       failures.push(`provenance source snapshot was ${result.provenanceSourceSnapshot}`);
     }
     if (!String(result.provenanceSourceSnapshot || "").includes("peer http://127.0.0.1:8123/peer-pieces/")
+        || !String(result.provenanceSourceSnapshot || "").includes("receiver validation validated")
         || !String(result.provenanceSourceSnapshot || "").includes("companion validated")
         || !String(result.provenanceSourceSnapshot || "").includes("17 chunks")) {
       failures.push(`provenance source snapshot did not include peer receipt details: ${result.provenanceSourceSnapshot}`);
@@ -12110,10 +12128,12 @@ function assertPeerAssembledRuntimeImportSmoke(result) {
     }
     if (!String(result.provenanceSourceReview || "").includes("evidence passed")
         || !String(result.provenanceSourceReview || "").includes("manifest sha256:")
+        || !String(result.provenanceSourceReview || "").includes("receiver validation validated")
         || !String(result.provenanceSourceReview || "").includes("quantization q8_0")) {
       failures.push(`provenance source review was ${result.provenanceSourceReview}`);
     }
     if (!String(result.provenanceSourceReviewRoutes || "").includes(".minimodel-receipt")
+        || !String(result.provenanceSourceReviewRoutes || "").includes("receiver-validation=validated")
         || !String(result.provenanceSourceReviewRoutes || "").includes("companion=minimodel.peer_companion_state.v0.json")) {
       failures.push(`provenance source review routes were ${result.provenanceSourceReviewRoutes}`);
     }
@@ -12122,6 +12142,7 @@ function assertPeerAssembledRuntimeImportSmoke(result) {
       failures.push(`provenance source review artifacts were ${result.provenanceSourceReviewArtifacts}`);
     }
     if (!String(result.provenanceSourceValidation || "").includes("receipt-chain-ready-for-browser-load")
+        || !String(result.provenanceSourceValidation || "").includes("receiver validation validated")
         || !String(result.provenanceSourceValidation || "").includes("companion validated")
         || !String(result.provenanceSourceValidation || "").includes("artifact sha256:")) {
       failures.push(`provenance source validation was ${result.provenanceSourceValidation}`);
@@ -16042,6 +16063,12 @@ async function main() {
           const createdUtcDriftedP2pImportKitExecution = writeTamperedPeerImportReceipt(p2pImportKitExecution, "receipt.created_utc");
           const peerCreatedUtcReceiptDriftReject = await rejectPeerAssembledSlmReceiptDriftInBrowserRuntime(client, createdUtcDriftedP2pImportKitExecution);
           assertPeerAssembledReceiptDriftRejectSmoke(peerCreatedUtcReceiptDriftReject);
+          const receiverValidationDriftedP2pImportKitExecution = writeTamperedPeerImportReceipt(p2pImportKitExecution, "receiver_validation.import_receipt_required_before_browser_load");
+          const peerReceiverValidationReceiptDriftReject = await rejectPeerAssembledSlmReceiptDriftInBrowserRuntime(client, receiverValidationDriftedP2pImportKitExecution);
+          assertPeerAssembledReceiptDriftRejectSmoke(peerReceiverValidationReceiptDriftReject);
+          const receiverValidationStatusDriftedP2pImportKitExecution = writeTamperedPeerImportReceipt(p2pImportKitExecution, "receiver_validation_contract.status");
+          const peerReceiverValidationStatusReceiptDriftReject = await rejectPeerAssembledSlmReceiptDriftInBrowserRuntime(client, receiverValidationStatusDriftedP2pImportKitExecution);
+          assertPeerAssembledReceiptDriftRejectSmoke(peerReceiverValidationStatusReceiptDriftReject);
           result = {
             conversionKitExecution,
             p2pImportKit,
@@ -16049,9 +16076,13 @@ async function main() {
             driftedP2pImportKitExecution,
             companionFlagDriftedP2pImportKitExecution,
             createdUtcDriftedP2pImportKitExecution,
+            receiverValidationDriftedP2pImportKitExecution,
+            receiverValidationStatusDriftedP2pImportKitExecution,
             peerReceiptDriftReject,
             peerCompanionReceiptDriftReject,
             peerCreatedUtcReceiptDriftReject,
+            peerReceiverValidationReceiptDriftReject,
+            peerReceiverValidationStatusReceiptDriftReject,
             peerServerOutput: peerServer.outputBuffer.join("").slice(0, 4000),
             metadataServerOutput: metadataServer.outputBuffer.join("").slice(0, 4000),
             networkRequests

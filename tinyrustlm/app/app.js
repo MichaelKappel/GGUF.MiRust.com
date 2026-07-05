@@ -3860,10 +3860,16 @@
     );
     let peerBaseUrl = "unavailable";
     let companionStateStatus = "unavailable";
+    let receiverValidationContractStatus = "unavailable";
     let pieceCount = null;
     if (peerImport) {
       requireManifestEqual(fields, "peer_import.transport", "known-direct-http-peer-v0", "MiniModel import receipt");
       requireManifestEqual(fields, "peer_import.verification_status", "passed", "MiniModel import receipt");
+      receiverValidationContractStatus = requireMiniModelReceiptOneOf(fields, "receiver_validation_contract.status", ["validated"]);
+      requireMiniModelReceiptBool(fields, "receiver_validation.check_peer_status_before_piece_fetch", true);
+      requireMiniModelReceiptBool(fields, "receiver_validation.preflight_fetches_piece_set_before_pieces", true);
+      requireMiniModelReceiptBool(fields, "receiver_validation.validate_advertised_companion_state_before_piece_fetch", true);
+      requireMiniModelReceiptBool(fields, "receiver_validation.import_receipt_required_before_browser_load", true);
       requireMiniModelReceiptPathHint(fields, "peer_import.request_path_hint");
       peerBaseUrl = requireMiniModelReceiptPeerBaseUrl(fields, "peer.base_url");
       requireMiniModelReceiptPathHint(fields, "peer.piece_dir_path_hint");
@@ -3903,6 +3909,7 @@
       nextGate: miniModelImportReceiptNextGate,
       peerImport,
       peerBaseUrl,
+      receiverValidationContractStatus,
       companionStateStatus,
       pieceCount
     };
@@ -3929,6 +3936,7 @@
     ];
     if (receipt.peerImport) {
       parts.push(
+        `receiver validation ${receipt.receiverValidationContractStatus}`,
         `peer ${receipt.peerBaseUrl}`,
         `companion ${receipt.companionStateStatus}`,
         `${receipt.pieceCount || "unknown"} chunks`
@@ -3947,8 +3955,9 @@
       `receipt ${receipt.fileName}`,
       `evidence ${receipt.evidenceStatus}`,
       `manifest ${receipt.manifestSha256}`,
+      receipt.peerImport ? `receiver validation ${receipt.receiverValidationContractStatus}` : "",
       `quantization ${receipt.quantization}`
-    ].join(" / ");
+    ].filter(Boolean).join(" / ");
   }
 
   function localImportReceiptRouteSummary(receipt) {
@@ -3956,7 +3965,7 @@
       return "";
     }
     return receipt.peerImport
-      ? `receipt=${receipt.fileName} / peer=${receipt.peerBaseUrl} / companion=minimodel.peer_companion_state.v0.json`
+      ? `receipt=${receipt.fileName} / receiver-validation=${receipt.receiverValidationContractStatus} / peer=${receipt.peerBaseUrl} / companion=minimodel.peer_companion_state.v0.json`
       : `receipt=${receipt.fileName}`;
   }
 
@@ -3974,6 +3983,7 @@
     if (receipt.peerImport) {
       return [
         "receipt-chain-ready-for-browser-load",
+        `receiver validation ${receipt.receiverValidationContractStatus}`,
         `peer ${receipt.peerBaseUrl}`,
         `companion ${receipt.companionStateStatus}`,
         `chunks ${receipt.pieceCount || "unknown"}`,
