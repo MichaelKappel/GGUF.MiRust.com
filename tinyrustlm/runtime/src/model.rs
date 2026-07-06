@@ -106,8 +106,10 @@ impl LoadedTensor {
             }
             TensorStorage::Q8 { weights, scales } => {
                 let (rows, cols) = tensor_matrix_shape(&self.entry)?;
-                for row in 0..rows {
-                    let scale = scales[row];
+                if scales.len() != rows {
+                    return Err(ErrorCode::ShapeMismatch);
+                }
+                for (row, scale) in scales.iter().copied().enumerate().take(rows) {
                     let start = row * cols;
                     for col in 0..cols {
                         out[start + col] = f32::from(weights[start + col]) * scale;
@@ -661,12 +663,12 @@ fn load_q8_tensor(bytes: &[u8], entry: &TensorEntry) -> Result<TensorStorage, Er
 
 fn load_q4_tensor(bytes: &[u8], entry: &TensorEntry) -> Result<TensorStorage, ErrorCode> {
     let element_count = tensor_element_count(entry)?;
-    if element_count % 2 != 0 || entry.scale_offset == 0 || entry.block_size == 0 {
+    if !element_count.is_multiple_of(2) || entry.scale_offset == 0 || entry.block_size == 0 {
         return Err(ErrorCode::InvalidTensorDirectory);
     }
     let (rows, cols) = tensor_matrix_shape(entry)?;
     let block_size = entry.block_size as usize;
-    if block_size == 0 || block_size % 2 != 0 || cols % block_size != 0 {
+    if block_size == 0 || !block_size.is_multiple_of(2) || !cols.is_multiple_of(block_size) {
         return Err(ErrorCode::ShapeMismatch);
     }
     let packed_len = element_count / 2;
@@ -746,8 +748,8 @@ fn copy_q4_row_to_f32(
         || cols != expected_cols
         || out.len() != cols
         || block_size == 0
-        || block_size % 2 != 0
-        || cols % block_size != 0
+        || !block_size.is_multiple_of(2)
+        || !cols.is_multiple_of(block_size)
     {
         return Err(ErrorCode::ShapeMismatch);
     }
@@ -825,28 +827,28 @@ fn apply_q8_adapter_payload(
     let mut row_weights = vec![0i8; cols];
     match payload.kind {
         AdapterDeltaPayloadKind::RawF32 => {
-            for row in 0..rows {
+            for (row, scale) in scales.iter_mut().enumerate().take(rows) {
                 let row_start = row.checked_mul(cols).ok_or(ErrorCode::InvalidLength)?;
-                let base_scale = scales[row];
-                for col in 0..cols {
+                let base_scale = *scale;
+                for (col, row_value) in row_values.iter_mut().enumerate().take(cols) {
                     let index = row_start + col;
-                    row_values[col] = f32::from(weights[index]) * base_scale
+                    *row_value = f32::from(weights[index]) * base_scale
                         + adapter_delta_value(bytes, payload, index)?;
                 }
-                scales[row] = quantize_q8_row(&row_values, &mut row_weights)?;
+                *scale = quantize_q8_row(&row_values, &mut row_weights)?;
                 weights[row_start..row_start + cols].copy_from_slice(&row_weights);
             }
         }
         AdapterDeltaPayloadKind::SparseF32 { pair_count } => {
             let mut pair_index = 0usize;
-            for row in 0..rows {
+            for (row, scale) in scales.iter_mut().enumerate().take(rows) {
                 let row_start = row.checked_mul(cols).ok_or(ErrorCode::InvalidLength)?;
                 let row_end = row_start
                     .checked_add(cols)
                     .ok_or(ErrorCode::InvalidLength)?;
-                let base_scale = scales[row];
-                for col in 0..cols {
-                    row_values[col] = f32::from(weights[row_start + col]) * base_scale;
+                let base_scale = *scale;
+                for (col, row_value) in row_values.iter_mut().enumerate().take(cols) {
+                    *row_value = f32::from(weights[row_start + col]) * base_scale;
                 }
                 while pair_index < pair_count {
                     let (value_index, delta) = read_sparse_delta_pair(bytes, payload, pair_index)?;
@@ -859,7 +861,7 @@ fn apply_q8_adapter_payload(
                     row_values[value_index - row_start] += delta;
                     pair_index += 1;
                 }
-                scales[row] = quantize_q8_row(&row_values, &mut row_weights)?;
+                *scale = quantize_q8_row(&row_values, &mut row_weights)?;
                 weights[row_start..row_start + cols].copy_from_slice(&row_weights);
             }
             if pair_index != pair_count {
@@ -867,15 +869,15 @@ fn apply_q8_adapter_payload(
             }
         }
         AdapterDeltaPayloadKind::LowRankF32 { .. } => {
-            for row in 0..rows {
+            for (row, scale) in scales.iter_mut().enumerate().take(rows) {
                 let row_start = row.checked_mul(cols).ok_or(ErrorCode::InvalidLength)?;
-                let base_scale = scales[row];
-                for col in 0..cols {
+                let base_scale = *scale;
+                for (col, row_value) in row_values.iter_mut().enumerate().take(cols) {
                     let index = row_start + col;
-                    row_values[col] = f32::from(weights[index]) * base_scale
+                    *row_value = f32::from(weights[index]) * base_scale
                         + read_low_rank_delta_value(bytes, payload, index)?;
                 }
-                scales[row] = quantize_q8_row(&row_values, &mut row_weights)?;
+                *scale = quantize_q8_row(&row_values, &mut row_weights)?;
                 weights[row_start..row_start + cols].copy_from_slice(&row_weights);
             }
         }
@@ -893,8 +895,8 @@ fn apply_q4_adapter_payload(
 ) -> Result<(), ErrorCode> {
     let (rows, cols) = tensor_matrix_shape(entry)?;
     if block_size == 0
-        || block_size % 2 != 0
-        || cols % block_size != 0
+        || !block_size.is_multiple_of(2)
+        || !cols.is_multiple_of(block_size)
         || payload.element_count != rows.checked_mul(cols).ok_or(ErrorCode::InvalidLength)?
     {
         return Err(ErrorCode::ShapeMismatch);
@@ -920,13 +922,19 @@ fn apply_q4_adapter_payload(
                 for block in 0..blocks_per_row {
                     let scale_index = row * blocks_per_row + block;
                     let base_scale = scales[scale_index];
-                    for block_col in 0..block_size {
+                    for (block_col, block_value) in
+                        block_values.iter_mut().enumerate().take(block_size)
+                    {
                         let col = block * block_size + block_col;
                         let index = row * cols + col;
                         let byte_index = row * bytes_per_row + col / 2;
                         let byte = packed[byte_index];
-                        let nibble = if col % 2 == 0 { byte & 0x0f } else { byte >> 4 };
-                        block_values[block_col] = f32::from(sign_extend_4(nibble)) * base_scale
+                        let nibble = if col.is_multiple_of(2) {
+                            byte & 0x0f
+                        } else {
+                            byte >> 4
+                        };
+                        *block_value = f32::from(sign_extend_4(nibble)) * base_scale
                             + adapter_delta_value(bytes, payload, index)?;
                     }
                     scales[scale_index] = quantize_q4_block(&block_values, &mut block_weights)?;
@@ -946,12 +954,16 @@ fn apply_q4_adapter_payload(
                 let row_end = row_start
                     .checked_add(cols)
                     .ok_or(ErrorCode::InvalidLength)?;
-                for col in 0..cols {
+                for (col, row_value) in row_values.iter_mut().enumerate().take(cols) {
                     let byte_index = row * bytes_per_row + col / 2;
                     let byte = packed[byte_index];
-                    let nibble = if col % 2 == 0 { byte & 0x0f } else { byte >> 4 };
+                    let nibble = if col.is_multiple_of(2) {
+                        byte & 0x0f
+                    } else {
+                        byte >> 4
+                    };
                     let scale = scales[row * blocks_per_row + col / block_size];
-                    row_values[col] = f32::from(sign_extend_4(nibble)) * scale;
+                    *row_value = f32::from(sign_extend_4(nibble)) * scale;
                 }
                 while pair_index < pair_count {
                     let (value_index, delta) = read_sparse_delta_pair(bytes, payload, pair_index)?;
@@ -988,13 +1000,19 @@ fn apply_q4_adapter_payload(
                 for block in 0..blocks_per_row {
                     let scale_index = row * blocks_per_row + block;
                     let base_scale = scales[scale_index];
-                    for block_col in 0..block_size {
+                    for (block_col, block_value) in
+                        block_values.iter_mut().enumerate().take(block_size)
+                    {
                         let col = block * block_size + block_col;
                         let index = row * cols + col;
                         let byte_index = row * bytes_per_row + col / 2;
                         let byte = packed[byte_index];
-                        let nibble = if col % 2 == 0 { byte & 0x0f } else { byte >> 4 };
-                        block_values[block_col] = f32::from(sign_extend_4(nibble)) * base_scale
+                        let nibble = if col.is_multiple_of(2) {
+                            byte & 0x0f
+                        } else {
+                            byte >> 4
+                        };
+                        *block_value = f32::from(sign_extend_4(nibble)) * base_scale
                             + read_low_rank_delta_value(bytes, payload, index)?;
                     }
                     scales[scale_index] = quantize_q4_block(&block_values, &mut block_weights)?;
@@ -1018,7 +1036,7 @@ fn q4_value_at(
     value_index: usize,
 ) -> Result<f32, ErrorCode> {
     let (rows, cols) = tensor_matrix_shape(entry)?;
-    if block_size == 0 || block_size % 2 != 0 || cols % block_size != 0 {
+    if block_size == 0 || !block_size.is_multiple_of(2) || !cols.is_multiple_of(block_size) {
         return Err(ErrorCode::ShapeMismatch);
     }
     let element_count = rows.checked_mul(cols).ok_or(ErrorCode::InvalidLength)?;
@@ -1041,7 +1059,11 @@ fn q4_value_at(
     let row = value_index / cols;
     let col = value_index % cols;
     let byte = packed[row * bytes_per_row + col / 2];
-    let nibble = if col % 2 == 0 { byte & 0x0f } else { byte >> 4 };
+    let nibble = if col.is_multiple_of(2) {
+        byte & 0x0f
+    } else {
+        byte >> 4
+    };
     let scale = scales[row * blocks_per_row + col / block_size];
     Ok(f32::from(sign_extend_4(nibble)) * scale)
 }

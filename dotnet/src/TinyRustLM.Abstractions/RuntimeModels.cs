@@ -39,6 +39,7 @@ public sealed record TinyRustLmCapabilities(
     bool Diagnostics,
     [property: JsonPropertyName("p2p_metadata_workflows")]
     bool P2PMetadataWorkflows,
+    bool MemoryPackageWorkflows,
     IReadOnlyList<string> ExcludedPrivateCapabilities);
 
 /// <summary>Public TinyRustLM runtime harness.</summary>

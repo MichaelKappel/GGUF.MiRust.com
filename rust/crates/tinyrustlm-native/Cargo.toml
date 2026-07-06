@@ -13,6 +13,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
+tinyrustlm-memory = { path = "../tinyrustlm-memory" }
 tinyrustlm-p2p = { path = "../tinyrustlm-p2p" }
 tinyrustlm-runtime-sdk = { path = "../tinyrustlm-runtime" }
 tinyrustlm-slm = { path = "../tinyrustlm-slm" }

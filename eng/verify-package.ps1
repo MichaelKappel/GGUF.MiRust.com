@@ -60,7 +60,8 @@ if (-not $RequiredNativeRids -or $RequiredNativeRids.Count -eq 0) {
 
 Push-Location $RepoRoot
 try {
-    Invoke-Cargo -Arguments @("fmt", "-p", "tinyrustlm-slm", "-p", "tinyrustlm-runtime-sdk", "-p", "tinyrustlm-p2p", "-p", "tinyrustlm-native", "--check")
+    Invoke-Cargo -Arguments @("fmt", "--all", "--check")
+    Invoke-Cargo -Arguments @("clippy", "--workspace", "--all-targets", "--", "-D", "warnings")
     Invoke-Cargo -Arguments @("test", "-p", "tinyrustlm-slm", "-p", "tinyrustlm-runtime-sdk", "-p", "tinyrustlm-p2p", "-p", "tinyrustlm-native")
     & (Join-Path $PSScriptRoot "pack.ps1") -Configuration $Configuration -PackageOutput $PackageOutput
 

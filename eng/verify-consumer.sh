@@ -5,6 +5,8 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PACKAGE_SOURCE="${1:-$REPO_ROOT/artifacts/packages}"
 MODEL_PATH="${2:-$REPO_ROOT/tinyrustlm/models/tiny-test-model.slm}"
 PACKAGE_VERSION="${3:-$("$REPO_ROOT/eng/get-package-version.sh")}"
+CORE_PACKAGE_ID="${4:-${TINYRUSTLM_CONSUMER_CORE_PACKAGE_ID:-TinyRustLM.Core}}"
+P2P_PACKAGE_ID="${5:-${TINYRUSTLM_CONSUMER_P2P_PACKAGE_ID:-TinyRustLM.P2P}}"
 
 if ! command -v dotnet >/dev/null 2>&1; then
   echo "dotnet CLI is required to run TinyRustLM clean consumer package verification." >&2
@@ -31,8 +33,8 @@ trap cleanup EXIT
 dotnet new console --framework net8.0 --output "$PROJECT_DIR" >/dev/null
 (
   cd "$PROJECT_DIR"
-  dotnet add package TinyRustLM.Core --version "$PACKAGE_VERSION" --source "$PACKAGE_SOURCE" >/dev/null
-  dotnet add package TinyRustLM.P2P --version "$PACKAGE_VERSION" --source "$PACKAGE_SOURCE" >/dev/null
+  dotnet add package "$CORE_PACKAGE_ID" --version "$PACKAGE_VERSION" --source "$PACKAGE_SOURCE" >/dev/null
+  dotnet add package "$P2P_PACKAGE_ID" --version "$PACKAGE_VERSION" --source "$PACKAGE_SOURCE" >/dev/null
 )
 
 cat > "$PROJECT_DIR/Program.cs" <<'CS'
@@ -151,6 +153,37 @@ if (announcement.Kind != "tinyrustlm.p2p_announcement.v0"
 }
 var manifestJson = File.ReadAllText(shareReport.ManifestPath);
 var manifest = p2p.InspectManifest(manifestJson);
+var invalidSignedManifestJson = JsonSerializer.Serialize(new
+{
+    kind = "tinyrustlm.p2p_signed_manifest.v0",
+    version = 1,
+    manifest = JsonSerializer.Deserialize<JsonElement>(manifestJson),
+    signature = new
+    {
+        kind = "external-signature-v0",
+        key_id = "consumer-smoke-key",
+        publisher_id = "consumer-smoke-publisher",
+        public_key_route = "keys/consumer-smoke-key.public-key.json",
+        payload_sha256 = manifest.ManifestSha256,
+        value = "ed25519-base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    }
+}, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower });
+try
+{
+    p2p.VerifySignedManifest(invalidSignedManifestJson, "{\"key_kind\":\"minimodel.public_key.v0\"}");
+    throw new InvalidOperationException("Package consumer accepted an invalid signed P2P manifest.");
+}
+catch (TinyRustLmException ex) when (ex.Code == "p2p_signed_manifest_invalid")
+{
+}
+try
+{
+    p2p.VerifySignedManifestJson(invalidSignedManifestJson, "{\"key_kind\":\"minimodel.public_key.v0\"}");
+    throw new InvalidOperationException("Package consumer accepted an invalid signed P2P manifest JSON handoff.");
+}
+catch (TinyRustLmException ex) when (ex.Code == "p2p_signed_manifest_invalid")
+{
+}
 P2PShareMetadata metadata = p2p.ExportShareMetadata(manifestJson);
 var plan = p2p.ImportFromManifest(manifestJson);
 var assembledPath = Path.Combine(outputDir, "consumer-smoke-assembled.slm");

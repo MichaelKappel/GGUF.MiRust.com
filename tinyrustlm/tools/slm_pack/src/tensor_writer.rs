@@ -107,7 +107,7 @@ impl TensorSpec {
         let mut spec = Self::f32(name, dims, seed);
         spec.dtype = DTYPE_Q4_0;
         let cols = spec.cols_per_row();
-        spec.block_size = if cols >= 32 && cols % 32 == 0 {
+        spec.block_size = if cols >= 32 && cols.is_multiple_of(32) {
             32
         } else {
             cols as u32
@@ -168,11 +168,7 @@ impl TensorSpec {
     /// Returns q4 blocks per row.
     pub fn blocks_per_row(&self) -> usize {
         let block = self.block_size as usize;
-        if block == 0 {
-            0
-        } else {
-            self.cols_per_row() / block
-        }
+        self.cols_per_row().checked_div(block).unwrap_or(0)
     }
 }
 

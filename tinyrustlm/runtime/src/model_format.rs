@@ -190,7 +190,7 @@ fn validate_header(header: &SlmHeader, file_len: usize) -> Result<(), ErrorCode>
     if header.head_count.saturating_mul(header.head_dim) != header.hidden_size {
         return Err(ErrorCode::ShapeMismatch);
     }
-    if header.tensor_data_offset % 64 != 0 {
+    if !header.tensor_data_offset.is_multiple_of(64) {
         return Err(ErrorCode::InvalidHeader);
     }
     if !range_within(file_len, header.tokenizer_offset, header.tokenizer_length) {

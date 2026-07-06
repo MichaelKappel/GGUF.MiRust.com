@@ -197,7 +197,7 @@ impl KvCache {
 fn page_count_for_bytes(bytes: usize) -> usize {
     // Rounds the cache byte envelope up to WebAssembly page units for diagnostics.
     let page_bytes = 64 * 1024;
-    (bytes + page_bytes - 1) / page_bytes
+    bytes.div_ceil(page_bytes)
 }
 
 #[cfg(test)]

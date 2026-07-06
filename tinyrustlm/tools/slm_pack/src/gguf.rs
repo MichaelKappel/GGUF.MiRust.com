@@ -1300,7 +1300,7 @@ fn extract_source_payloads(
 fn decode_source_tensor_to_f32(type_name: &str, raw: &[u8]) -> io::Result<Vec<u8>> {
     match type_name {
         "F32" => {
-            if raw.len() % 4 != 0 {
+            if !raw.len().is_multiple_of(4) {
                 return invalid_data("F32 GGUF payload length must divide by four");
             }
             Ok(raw.to_vec())
@@ -1330,7 +1330,7 @@ fn unsupported_source_tensor_type<T>(type_name: &str) -> io::Result<T> {
 }
 
 fn decode_f16_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
-    if raw.len() % 2 != 0 {
+    if !raw.len().is_multiple_of(2) {
         return invalid_data("F16 GGUF payload length must divide by two");
     }
     let mut bytes = Vec::with_capacity(raw.len() * 2);
@@ -1342,7 +1342,7 @@ fn decode_f16_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
 }
 
 fn decode_bf16_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
-    if raw.len() % 2 != 0 {
+    if !raw.len().is_multiple_of(2) {
         return invalid_data("BF16 GGUF payload length must divide by two");
     }
     let mut bytes = Vec::with_capacity(raw.len() * 2);
@@ -1354,7 +1354,7 @@ fn decode_bf16_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
 }
 
 fn decode_q4_0_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
-    if raw.len() % GGUF_Q4_0_BLOCK_BYTES != 0 {
+    if !raw.len().is_multiple_of(GGUF_Q4_0_BLOCK_BYTES) {
         return invalid_data("Q4_0 GGUF payload length must divide into 18-byte blocks");
     }
     let block_count = raw.len() / GGUF_Q4_0_BLOCK_BYTES;
@@ -1384,7 +1384,7 @@ fn decode_q4_0_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
 }
 
 fn decode_q4_1_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
-    if raw.len() % GGUF_Q4_1_BLOCK_BYTES != 0 {
+    if !raw.len().is_multiple_of(GGUF_Q4_1_BLOCK_BYTES) {
         return invalid_data("Q4_1 GGUF payload length must divide into 20-byte blocks");
     }
     let block_count = raw.len() / GGUF_Q4_1_BLOCK_BYTES;
@@ -1415,7 +1415,7 @@ fn decode_q4_1_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
 }
 
 fn decode_q4_k_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
-    if raw.len() % GGUF_Q4_K_BLOCK_BYTES != 0 {
+    if !raw.len().is_multiple_of(GGUF_Q4_K_BLOCK_BYTES) {
         return invalid_data("Q4_K GGUF payload length must divide into 144-byte blocks");
     }
     let block_count = raw.len() / GGUF_Q4_K_BLOCK_BYTES;
@@ -1471,7 +1471,7 @@ fn k_scale_min_6bit(scales: &[u8], group_index: usize) -> (u8, u8) {
 }
 
 fn decode_q5_0_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
-    if raw.len() % GGUF_Q5_0_BLOCK_BYTES != 0 {
+    if !raw.len().is_multiple_of(GGUF_Q5_0_BLOCK_BYTES) {
         return invalid_data("Q5_0 GGUF payload length must divide into 22-byte blocks");
     }
     let block_count = raw.len() / GGUF_Q5_0_BLOCK_BYTES;
@@ -1504,7 +1504,7 @@ fn decode_q5_0_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
 }
 
 fn decode_q5_1_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
-    if raw.len() % GGUF_Q5_1_BLOCK_BYTES != 0 {
+    if !raw.len().is_multiple_of(GGUF_Q5_1_BLOCK_BYTES) {
         return invalid_data("Q5_1 GGUF payload length must divide into 24-byte blocks");
     }
     let block_count = raw.len() / GGUF_Q5_1_BLOCK_BYTES;
@@ -1538,7 +1538,7 @@ fn decode_q5_1_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
 }
 
 fn decode_q2_k_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
-    if raw.len() % GGUF_Q2_K_BLOCK_BYTES != 0 {
+    if !raw.len().is_multiple_of(GGUF_Q2_K_BLOCK_BYTES) {
         return invalid_data("Q2_K GGUF payload length must divide into 84-byte blocks");
     }
     let block_count = raw.len() / GGUF_Q2_K_BLOCK_BYTES;
@@ -1597,7 +1597,7 @@ fn decode_q2_k_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
 }
 
 fn decode_q3_k_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
-    if raw.len() % GGUF_Q3_K_BLOCK_BYTES != 0 {
+    if !raw.len().is_multiple_of(GGUF_Q3_K_BLOCK_BYTES) {
         return invalid_data("Q3_K GGUF payload length must divide into 110-byte blocks");
     }
     let block_count = raw.len() / GGUF_Q3_K_BLOCK_BYTES;
@@ -1681,7 +1681,7 @@ fn unpack_q3_k_scale_codes(scales: &[u8]) -> [u8; GGUF_Q3_K_GROUP_COUNT] {
 }
 
 fn decode_q5_k_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
-    if raw.len() % GGUF_Q5_K_BLOCK_BYTES != 0 {
+    if !raw.len().is_multiple_of(GGUF_Q5_K_BLOCK_BYTES) {
         return invalid_data("Q5_K GGUF payload length must divide into 176-byte blocks");
     }
     let block_count = raw.len() / GGUF_Q5_K_BLOCK_BYTES;
@@ -1738,7 +1738,7 @@ fn decode_q5_k_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
 }
 
 fn decode_q6_k_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
-    if raw.len() % GGUF_Q6_K_BLOCK_BYTES != 0 {
+    if !raw.len().is_multiple_of(GGUF_Q6_K_BLOCK_BYTES) {
         return invalid_data("Q6_K GGUF payload length must divide into 210-byte blocks");
     }
     let block_count = raw.len() / GGUF_Q6_K_BLOCK_BYTES;
@@ -1763,14 +1763,14 @@ fn decode_q6_k_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
             let scale_base = segment * 8;
             for lane in 0..32 {
                 let local_scale = |offset: usize| -> f32 {
-                    scale * f32::from(i8::from_ne_bytes([scales[scale_base + offset] as u8]))
+                    scale * f32::from(i8::from_ne_bytes([scales[scale_base + offset]]))
                 };
-                let scale_1 = local_scale((lane / 16) + 0);
+                let scale_1 = local_scale(lane / 16);
                 let scale_2 = local_scale((lane / 16) + 2);
                 let scale_3 = local_scale((lane / 16) + 4);
                 let scale_4 = local_scale((lane / 16) + 6);
                 let high = qh[qh_base + lane];
-                let q1 = i16::from((ql[ql_base + lane] & 0x0f) | (((high >> 0) & 0x03) << 4)) - 32;
+                let q1 = i16::from((ql[ql_base + lane] & 0x0f) | ((high & 0x03) << 4)) - 32;
                 let q2 =
                     i16::from((ql[ql_base + lane + 32] & 0x0f) | (((high >> 2) & 0x03) << 4)) - 32;
                 let q3 = i16::from((ql[ql_base + lane] >> 4) | (((high >> 4) & 0x03) << 4)) - 32;
@@ -1793,7 +1793,7 @@ fn decode_q6_k_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
 }
 
 fn decode_q8_0_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
-    if raw.len() % GGUF_Q8_0_BLOCK_BYTES != 0 {
+    if !raw.len().is_multiple_of(GGUF_Q8_0_BLOCK_BYTES) {
         return invalid_data("Q8_0 GGUF payload length must divide into 34-byte blocks");
     }
     let block_count = raw.len() / GGUF_Q8_0_BLOCK_BYTES;
@@ -1815,7 +1815,7 @@ fn decode_q8_0_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
 }
 
 fn decode_q8_1_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
-    if raw.len() % GGUF_Q8_1_BLOCK_BYTES != 0 {
+    if !raw.len().is_multiple_of(GGUF_Q8_1_BLOCK_BYTES) {
         return invalid_data("Q8_1 GGUF payload length must divide into 36-byte blocks");
     }
     let block_count = raw.len() / GGUF_Q8_1_BLOCK_BYTES;
@@ -1838,7 +1838,7 @@ fn decode_q8_1_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
 }
 
 fn decode_q8_k_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
-    if raw.len() % GGUF_Q8_K_BLOCK_BYTES != 0 {
+    if !raw.len().is_multiple_of(GGUF_Q8_K_BLOCK_BYTES) {
         return invalid_data("Q8_K GGUF payload length must divide into 292-byte blocks");
     }
     let block_count = raw.len() / GGUF_Q8_K_BLOCK_BYTES;
@@ -2081,7 +2081,7 @@ fn ggml_type(type_id: u32) -> Option<GgmlType> {
 }
 
 fn tensor_byte_count(name: &str, element_count: u64, ggml_type: GgmlType) -> io::Result<u64> {
-    if element_count % ggml_type.block_size != 0 {
+    if !element_count.is_multiple_of(ggml_type.block_size) {
         return invalid_data(format!(
             "GGUF tensor {name} element count {element_count} is not divisible by block size {} for type {}",
             ggml_type.block_size, ggml_type.name
@@ -2432,7 +2432,9 @@ fn source_fixture_bytes_with_encoding_and_token_count(
 
 fn q4_0_fixture_eligible(f32_payload: &[u8]) -> bool {
     f32_payload.len() >= GGUF_Q4_0_BLOCK_ELEMENTS * 4
-        && f32_payload.len() % (GGUF_Q4_0_BLOCK_ELEMENTS * 4) == 0
+        && f32_payload
+            .len()
+            .is_multiple_of(GGUF_Q4_0_BLOCK_ELEMENTS * 4)
 }
 
 fn encode_q4_0_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {
@@ -2463,7 +2465,9 @@ fn encode_q4_0_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {
 
 fn q4_1_fixture_eligible(f32_payload: &[u8]) -> bool {
     f32_payload.len() >= GGUF_Q4_1_BLOCK_ELEMENTS * 4
-        && f32_payload.len() % (GGUF_Q4_1_BLOCK_ELEMENTS * 4) == 0
+        && f32_payload
+            .len()
+            .is_multiple_of(GGUF_Q4_1_BLOCK_ELEMENTS * 4)
 }
 
 fn encode_q4_1_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {
@@ -2495,7 +2499,9 @@ fn encode_q4_1_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {
 
 fn q4_k_fixture_eligible(f32_payload: &[u8]) -> bool {
     f32_payload.len() >= GGUF_Q4_K_BLOCK_ELEMENTS * 4
-        && f32_payload.len() % (GGUF_Q4_K_BLOCK_ELEMENTS * 4) == 0
+        && f32_payload
+            .len()
+            .is_multiple_of(GGUF_Q4_K_BLOCK_ELEMENTS * 4)
 }
 
 fn encode_q4_k_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {
@@ -2557,7 +2563,9 @@ fn pack_k_scale_min_6bit(
 
 fn q5_0_fixture_eligible(f32_payload: &[u8]) -> bool {
     f32_payload.len() >= GGUF_Q5_0_BLOCK_ELEMENTS * 4
-        && f32_payload.len() % (GGUF_Q5_0_BLOCK_ELEMENTS * 4) == 0
+        && f32_payload
+            .len()
+            .is_multiple_of(GGUF_Q5_0_BLOCK_ELEMENTS * 4)
 }
 
 fn encode_q5_0_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {
@@ -2594,7 +2602,9 @@ fn encode_q5_0_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {
 
 fn q5_1_fixture_eligible(f32_payload: &[u8]) -> bool {
     f32_payload.len() >= GGUF_Q5_1_BLOCK_ELEMENTS * 4
-        && f32_payload.len() % (GGUF_Q5_1_BLOCK_ELEMENTS * 4) == 0
+        && f32_payload
+            .len()
+            .is_multiple_of(GGUF_Q5_1_BLOCK_ELEMENTS * 4)
 }
 
 fn encode_q5_1_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {
@@ -2632,7 +2642,9 @@ fn encode_q5_1_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {
 
 fn q2_k_fixture_eligible(f32_payload: &[u8]) -> bool {
     f32_payload.len() >= GGUF_Q2_K_BLOCK_ELEMENTS * 4
-        && f32_payload.len() % (GGUF_Q2_K_BLOCK_ELEMENTS * 4) == 0
+        && f32_payload
+            .len()
+            .is_multiple_of(GGUF_Q2_K_BLOCK_ELEMENTS * 4)
 }
 
 fn encode_q2_k_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {
@@ -2656,14 +2668,14 @@ fn encode_q2_k_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {
 
         let mut scales = [0u8; GGUF_Q2_K_SCALE_BYTES];
         let mut levels = [0u8; GGUF_Q2_K_BLOCK_ELEMENTS];
-        for group in 0..GGUF_Q2_K_GROUP_COUNT {
+        for (group, group_scale_ref) in scales.iter_mut().enumerate().take(GGUF_Q2_K_GROUP_COUNT) {
             let start = group * GGUF_Q2_K_GROUP_ELEMENTS;
             let max = source_values[start..start + GGUF_Q2_K_GROUP_ELEMENTS]
                 .iter()
                 .copied()
                 .fold(0.0f32, f32::max);
             let group_scale = ((max / (scale * 3.0)).ceil() as u8).clamp(1, 15);
-            scales[group] = group_scale;
+            *group_scale_ref = group_scale;
             let step = scale * f32::from(group_scale);
             for lane in 0..GGUF_Q2_K_GROUP_ELEMENTS {
                 let index = start + lane;
@@ -2691,7 +2703,9 @@ fn encode_q2_k_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {
 
 fn q3_k_fixture_eligible(f32_payload: &[u8]) -> bool {
     f32_payload.len() >= GGUF_Q3_K_BLOCK_ELEMENTS * 4
-        && f32_payload.len() % (GGUF_Q3_K_BLOCK_ELEMENTS * 4) == 0
+        && f32_payload
+            .len()
+            .is_multiple_of(GGUF_Q3_K_BLOCK_ELEMENTS * 4)
 }
 
 fn encode_q3_k_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {
@@ -2715,7 +2729,11 @@ fn encode_q3_k_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {
 
         let mut scale_codes = [0u8; GGUF_Q3_K_GROUP_COUNT];
         let mut levels = [0u8; GGUF_Q3_K_BLOCK_ELEMENTS];
-        for group in 0..GGUF_Q3_K_GROUP_COUNT {
+        for (group, scale_code_ref) in scale_codes
+            .iter_mut()
+            .enumerate()
+            .take(GGUF_Q3_K_GROUP_COUNT)
+        {
             let start = group * GGUF_Q3_K_GROUP_ELEMENTS;
             let max = source_values[start..start + GGUF_Q3_K_GROUP_ELEMENTS]
                 .iter()
@@ -2723,7 +2741,7 @@ fn encode_q3_k_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {
                 .map(f32::abs)
                 .fold(0.0f32, f32::max);
             let signed_scale = ((max / (scale * 3.0)).ceil() as i8).clamp(1, 31);
-            scale_codes[group] = (signed_scale + 32) as u8;
+            *scale_code_ref = (signed_scale + 32) as u8;
             let step = scale * f32::from(signed_scale);
             for lane in 0..GGUF_Q3_K_GROUP_ELEMENTS {
                 let index = start + lane;
@@ -2786,7 +2804,9 @@ fn pack_q3_k_scale_codes(codes: &[u8; GGUF_Q3_K_GROUP_COUNT]) -> [u8; GGUF_Q3_K_
 
 fn q5_k_fixture_eligible(f32_payload: &[u8]) -> bool {
     f32_payload.len() >= GGUF_Q5_K_BLOCK_ELEMENTS * 4
-        && f32_payload.len() % (GGUF_Q5_K_BLOCK_ELEMENTS * 4) == 0
+        && f32_payload
+            .len()
+            .is_multiple_of(GGUF_Q5_K_BLOCK_ELEMENTS * 4)
 }
 
 fn encode_q5_k_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {
@@ -2843,7 +2863,9 @@ fn encode_q5_k_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {
 
 fn q6_k_fixture_eligible(f32_payload: &[u8]) -> bool {
     f32_payload.len() >= GGUF_Q6_K_BLOCK_ELEMENTS * 4
-        && f32_payload.len() % (GGUF_Q6_K_BLOCK_ELEMENTS * 4) == 0
+        && f32_payload
+            .len()
+            .is_multiple_of(GGUF_Q6_K_BLOCK_ELEMENTS * 4)
 }
 
 fn encode_q6_k_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {
@@ -2885,9 +2907,10 @@ fn encode_q6_k_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {
         }
         encoded.extend_from_slice(&low);
         encoded.extend_from_slice(&high);
-        encoded.extend(
-            std::iter::repeat(GGUF_Q6_K_FIXTURE_SUBSCALE as u8).take(GGUF_Q6_K_SCALE_COUNT),
-        );
+        encoded.extend(std::iter::repeat_n(
+            GGUF_Q6_K_FIXTURE_SUBSCALE as u8,
+            GGUF_Q6_K_SCALE_COUNT,
+        ));
         encoded.extend_from_slice(&GGUF_Q6_K_FIXTURE_SCALE_BITS.to_le_bytes());
     }
     Ok(encoded)
@@ -2895,7 +2918,9 @@ fn encode_q6_k_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {
 
 fn q8_0_fixture_eligible(f32_payload: &[u8]) -> bool {
     f32_payload.len() >= GGUF_Q8_0_BLOCK_ELEMENTS * 4
-        && f32_payload.len() % (GGUF_Q8_0_BLOCK_ELEMENTS * 4) == 0
+        && f32_payload
+            .len()
+            .is_multiple_of(GGUF_Q8_0_BLOCK_ELEMENTS * 4)
 }
 
 fn encode_q8_0_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {
@@ -2922,7 +2947,9 @@ fn encode_q8_0_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {
 
 fn q8_1_fixture_eligible(f32_payload: &[u8]) -> bool {
     f32_payload.len() >= GGUF_Q8_1_BLOCK_ELEMENTS * 4
-        && f32_payload.len() % (GGUF_Q8_1_BLOCK_ELEMENTS * 4) == 0
+        && f32_payload
+            .len()
+            .is_multiple_of(GGUF_Q8_1_BLOCK_ELEMENTS * 4)
 }
 
 fn encode_q8_1_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {
@@ -2956,7 +2983,9 @@ fn encode_q8_1_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {
 
 fn q8_k_fixture_eligible(f32_payload: &[u8]) -> bool {
     f32_payload.len() >= GGUF_Q8_K_BLOCK_ELEMENTS * 4
-        && f32_payload.len() % (GGUF_Q8_K_BLOCK_ELEMENTS * 4) == 0
+        && f32_payload
+            .len()
+            .is_multiple_of(GGUF_Q8_K_BLOCK_ELEMENTS * 4)
 }
 
 fn encode_q8_k_payload_from_f32(f32_payload: &[u8]) -> io::Result<Vec<u8>> {

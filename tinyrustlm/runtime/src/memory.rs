@@ -23,6 +23,12 @@ pub fn allocate_bytes(len: usize) -> *mut u8 {
 /// Releases a buffer previously returned by [`allocate_bytes`].
 ///
 /// `ptr` must be the original pointer and `len` must be the original capacity.
+///
+/// # Safety
+///
+/// `ptr` must come from [`allocate_bytes`] with exactly the same `len`, and it
+/// must not have been released already. Passing any other pointer or length is
+/// undefined behavior because the function reconstructs the original allocation.
 pub unsafe fn deallocate_bytes(ptr: *mut u8, len: usize) {
     if !ptr.is_null() && len > 0 && len <= MAX_TRANSFER_BYTES {
         let _ = Vec::from_raw_parts(ptr, 0, len);
@@ -33,6 +39,11 @@ pub unsafe fn deallocate_bytes(ptr: *mut u8, len: usize) {
 ///
 /// The caller must ensure the pointer is valid for `len` bytes for the duration
 /// of the returned borrow.
+///
+/// # Safety
+///
+/// `ptr` must be non-null, aligned for `u8`, valid for `len` bytes, and must
+/// remain immutable for the returned borrow lifetime.
 pub unsafe fn slice_from_raw<'a>(ptr: *const u8, len: usize) -> Result<&'a [u8], ErrorCode> {
     if ptr.is_null() {
         return Err(ErrorCode::NullPointer);

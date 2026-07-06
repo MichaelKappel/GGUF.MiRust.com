@@ -1814,6 +1814,46 @@ pre {
   gap: 8px;
 }
 
+.memory-deck-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.memory-deck-summary {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  color: var(--text-secondary);
+  background: rgba(8, 19, 34, .68);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.memory-deck-summary strong {
+  color: var(--text);
+}
+
+.memory-deck-summary .memory-deck-warning {
+  color: #fbbf24;
+}
+
+.memory-deck-context-preview {
+  max-height: 160px;
+  min-height: 72px;
+  padding: 10px;
+  overflow: auto;
+  color: var(--text-secondary);
+  background: rgba(5, 13, 24, .76);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
 .peer-contact-book-list {
   display: grid;
   gap: 7px;

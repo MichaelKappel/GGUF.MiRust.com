@@ -100,6 +100,59 @@ function Read-ReportStatus {
     }
 }
 
+function Read-JsonReport {
+    param([string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return $null
+    }
+    try {
+        return Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    }
+    catch {
+        return $null
+    }
+}
+
+function Get-JsonStringValue {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    if ($null -eq $Object) {
+        return ""
+    }
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property -or $null -eq $property.Value) {
+        return ""
+    }
+    return [string]$property.Value
+}
+
+function Get-JsonIntValue {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    $value = Get-JsonStringValue -Object $Object -Name $Name
+    if ([string]::IsNullOrWhiteSpace($value)) {
+        return 0
+    }
+    return [int]$value
+}
+
+function Get-JsonBoolValue {
+    param(
+        $Object,
+        [string]$Name
+    )
+
+    $value = Get-JsonStringValue -Object $Object -Name $Name
+    return $value.Equals("true", [StringComparison]::OrdinalIgnoreCase)
+}
+
 function Invoke-ReadinessStep {
     param(
         [string]$Name,
@@ -231,6 +284,7 @@ elseif ($remoteCurrentStep.report_status -eq "pass") {
         $status = "blocked_remote_hash_mismatch"
         $blockers.Add("The feed exposes the declared version but package bytes do not match the audited publish plan.")
         $nextActions.Add("Investigate feed immutability and package provenance before claiming the feed is current.")
+        $nextActions.Add("If the published version is already immutable on NuGet.org, bump dotnet/Directory.Build.props VersionPrefix before publishing corrected packages.")
     }
 }
 elseif ($trustedPublishingSupported) {
@@ -252,6 +306,9 @@ if (Test-Path -LiteralPath $PackageSource) {
     $resolvedPackageSource = (Resolve-Path -LiteralPath $PackageSource).Path
 }
 
+$publishPlanSummary = Read-JsonReport -Path $PublishPlanReport
+$localFeedHashSummary = Read-JsonReport -Path $LocalFeedHashReport
+
 $report = [ordered]@{
     schema = "tinyrustlm.nuget.release_readiness.v0"
     generated_utc = [DateTimeOffset]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffffffZ")
@@ -266,8 +323,22 @@ $report = [ordered]@{
     trusted_publishing_supported = $trustedPublishingSupported
     fail_on_blocked = [bool]$FailOnBlocked
     publish_plan_report_path = $PublishPlanReport
+    publish_plan_status = Get-JsonStringValue -Object $publishPlanSummary -Name "status"
+    publish_plan_package_count = Get-JsonIntValue -Object $publishPlanSummary -Name "package_count"
+    publish_plan_symbol_package_count = Get-JsonIntValue -Object $publishPlanSummary -Name "symbol_package_count"
+    symbol_publish_mode = Get-JsonStringValue -Object $publishPlanSummary -Name "symbol_publish_mode"
+    package_hash_manifest_name = Get-JsonStringValue -Object $publishPlanSummary -Name "package_hash_manifest_name"
+    package_hash_manifest_sha256 = Get-JsonStringValue -Object $publishPlanSummary -Name "package_hash_manifest_sha256"
+    package_hash_manifest_match = Get-JsonBoolValue -Object $publishPlanSummary -Name "package_hash_manifest_match"
     local_feed_current_report_path = $LocalFeedCurrentReport
     local_feed_hash_report_path = $LocalFeedHashReport
+    local_feed_hash_status = Get-JsonStringValue -Object $localFeedHashSummary -Name "status"
+    local_feed_hash_package_count = Get-JsonIntValue -Object $localFeedHashSummary -Name "package_count"
+    local_feed_hash_symbol_package_count = Get-JsonIntValue -Object $localFeedHashSummary -Name "symbol_package_count"
+    local_feed_hash_symbol_verification_mode = Get-JsonStringValue -Object $localFeedHashSummary -Name "symbol_package_verification_mode"
+    local_feed_hash_mismatch_count = Get-JsonIntValue -Object $localFeedHashSummary -Name "hash_mismatch_count"
+    local_feed_hash_symbol_mismatch_count = Get-JsonIntValue -Object $localFeedHashSummary -Name "symbol_hash_mismatch_count"
+    local_feed_hash_symbol_byte_count_mismatch_count = Get-JsonIntValue -Object $localFeedHashSummary -Name "symbol_byte_count_mismatch_count"
     remote_feed_current_report_path = $RemoteFeedCurrentReport
     remote_feed_hash_report_path = $RemoteFeedHashReport
     blockers = $blockers.ToArray()

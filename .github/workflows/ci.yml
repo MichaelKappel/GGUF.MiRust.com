@@ -23,6 +23,21 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Verify TinyRustLM UI contract
+        shell: pwsh
+        run: eng/verify-tinyrustlm-ui.ps1 -RunBrowserSmoke
+
+      - name: Verify TinyRustLM public root contract
+        shell: pwsh
+        run: eng/verify-tinyrustlm-public-root.ps1
+
+      - name: Verify TinyRustLM UI report schema
+        shell: pwsh
+        env:
+          TINYRUSTLM_UI_VERIFICATION_REPORT: artifacts/reports/tinyrustlm-ui-verification.json
+          TINYRUSTLM_PUBLIC_ROOT_VERIFICATION_REPORT: artifacts/reports/tinyrustlm-public-root-verification.json
+        run: dotnet test dotnet/tests/TinyRustLM.Package.Tests/TinyRustLM.Package.Tests.csproj -c Release --filter "UiVerificationReportIsMachineReadableWhenPresent|PublicRootVerificationReportIsMachineReadableWhenPresent"
+
       - name: Verify package boundary
         shell: pwsh
         run: eng/verify-package.ps1
@@ -31,10 +46,25 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tinyrustlm-nuget-packages
-          path: artifacts/packages/*.nupkg
+          path: |
+            artifacts/packages/*.nupkg
+            artifacts/packages/*.snupkg
+          if-no-files-found: error
 
       - name: Upload NuGet audit reports
         uses: actions/upload-artifact@v4
         with:
           name: tinyrustlm-nuget-reports
           path: artifacts/reports/*.json
+
+      - name: Upload TinyRustLM UI verification reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: tinyrustlm-ui-verification
+          path: |
+            artifacts/reports/tinyrustlm-ui-verification.json
+            artifacts/reports/tinyrustlm-public-root-verification.json
+            artifacts/reports/tinyrustlm-source-options-ui-smoke.json
+            artifacts/reports/tinyrustlm-*-ui-smoke.json
+            artifacts/reports/tinyrustlm-public-root-*-smoke.json
+          if-no-files-found: error

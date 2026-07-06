@@ -1,6 +1,8 @@
 #![forbid(unsafe_code)]
 #![doc = "Public metadata-bound P2P share and import workflows for `.slm` artifacts."]
 
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
+use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
@@ -29,14 +31,25 @@ pub const LOCAL_IMPORT_RECEIPT_KIND: &str = "tinyrustlm.p2p_local_import_receipt
 /// Local import receipt inspection schema kind for public audit checks.
 pub const LOCAL_IMPORT_RECEIPT_INSPECTION_KIND: &str =
     "tinyrustlm.p2p_local_import_receipt_inspection.v0";
+/// Signed manifest envelope schema kind for public signature verification.
+pub const SIGNED_MANIFEST_KIND: &str = "tinyrustlm.p2p_signed_manifest.v0";
+/// Signed manifest verification report schema kind.
+pub const SIGNED_MANIFEST_VERIFICATION_KIND: &str =
+    "tinyrustlm.p2p_signed_manifest_verification.v0";
 
 const DEFAULT_PIECE_SIZE: u64 = 1024 * 1024;
 const MIN_PIECE_SIZE: u64 = 1024;
 const MAX_PIECE_SIZE: u64 = 16 * 1024 * 1024;
 const MAX_MANIFEST_BYTES: usize = 1024 * 1024;
+const MAX_PUBLIC_KEY_BYTES: usize = 16 * 1024;
 const MAX_ANNOUNCEMENT_BYTES: usize = 256 * 1024;
 const MAX_ANNOUNCEMENT_CATALOG_BYTES: usize = 4 * 1024 * 1024;
 const MAX_RECEIPT_BYTES: usize = 256 * 1024;
+const SIGNATURE_KIND_EXTERNAL_V0: &str = "external-signature-v0";
+const SIGNATURE_ALGORITHM_ED25519: &str = "ed25519";
+const SIGNATURE_VALUE_ED25519_BASE64_PREFIX: &str = "ed25519-base64:";
+const MINIMODEL_PUBLIC_KEY_KIND_V0: &str = "minimodel.public_key.v0";
+const MINIMODEL_MANIFEST_SIGNING_USAGE_V0: &str = "minimodel-manifest-signing-v0";
 
 /// Request used to prepare a local metadata-bound P2P share kit.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -100,6 +113,94 @@ pub struct P2pManifest {
     pub created_unix_seconds: u64,
     /// Boundary statement for package consumers.
     pub boundary: P2pBoundary,
+}
+
+/// Detached Ed25519 signature over a canonical TinyRustLM P2P manifest payload.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct P2pManifestSignature {
+    /// Signature envelope kind. Only `external-signature-v0` is accepted.
+    pub kind: String,
+    /// Publisher signing key id.
+    pub key_id: String,
+    /// Publisher identity bound to the public key document.
+    pub publisher_id: String,
+    /// Metadata route for the public key document.
+    pub public_key_route: String,
+    /// SHA-256 of the canonical manifest payload being signed.
+    pub payload_sha256: String,
+    /// Ed25519 signature value in `ed25519-base64:<base64>` form.
+    pub value: String,
+}
+
+/// Metadata-only signed P2P manifest envelope.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct P2pSignedManifest {
+    /// Stable schema kind.
+    pub kind: String,
+    /// Stable schema version.
+    pub version: u32,
+    /// The metadata-only P2P manifest being signed.
+    pub manifest: P2pManifest,
+    /// Detached signature over the canonical manifest payload.
+    pub signature: P2pManifestSignature,
+}
+
+/// Metadata-only MiniModel public key document consumed by the public verifier.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct P2pPublicKeyDocument {
+    /// Stable public key schema kind. Must be `minimodel.public_key.v0`.
+    pub key_kind: String,
+    /// Public key algorithm. Must be `ed25519`.
+    pub key_algorithm: String,
+    /// Publisher signing key id.
+    pub key_id: String,
+    /// Publisher identity.
+    pub publisher_id: String,
+    /// Metadata route where the key document is expected to live.
+    pub public_key_route: String,
+    /// Raw Ed25519 verifying key bytes encoded as base64.
+    pub public_key_base64: String,
+    /// SHA-256 of the raw verifying key bytes.
+    pub public_key_sha256: String,
+    /// Key usage. Must be `minimodel-manifest-signing-v0`.
+    pub usage: String,
+    /// UTC creation timestamp for audit display.
+    pub created_utc: String,
+    /// Revoked keys are rejected.
+    pub revoked: bool,
+}
+
+/// Report returned after local signed P2P manifest verification.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct P2pSignedManifestVerification {
+    /// Stable schema kind.
+    pub kind: String,
+    /// Stable schema version.
+    pub version: u32,
+    /// Signed manifest identifier.
+    pub manifest_id: String,
+    /// Signed model identifier.
+    pub model_id: String,
+    /// SHA-256 of the canonical manifest payload.
+    pub manifest_sha256: String,
+    /// Signature algorithm that was verified.
+    pub signature_algorithm: String,
+    /// Publisher signing key id.
+    pub key_id: String,
+    /// Publisher identity.
+    pub publisher_id: String,
+    /// Public key metadata route.
+    pub public_key_route: String,
+    /// SHA-256 of the raw public key bytes.
+    pub public_key_sha256: String,
+    /// SHA-256 from `signature.payload_sha256`.
+    pub payload_sha256: String,
+    /// Whether local verification passed.
+    pub valid: bool,
 }
 
 /// Public P2P boundary flags that protect private product surfaces.
@@ -563,6 +664,66 @@ pub fn inspect_p2p_manifest(
     })
 }
 
+/// Verifies a signed P2P manifest envelope with a local MiniModel public key document.
+pub fn verify_signed_manifest_text(
+    signed_manifest_json: &str,
+    public_key_json: &str,
+) -> Result<P2pSignedManifestVerification, P2pError> {
+    if signed_manifest_json.len() > MAX_MANIFEST_BYTES {
+        return Err(P2pError::Invalid(
+            "signed P2P manifest exceeded byte budget".to_string(),
+        ));
+    }
+    if public_key_json.len() > MAX_PUBLIC_KEY_BYTES {
+        return Err(P2pError::Invalid(
+            "P2P public key document exceeded byte budget".to_string(),
+        ));
+    }
+    let signed_manifest: P2pSignedManifest = serde_json::from_str(signed_manifest_json)
+        .map_err(|error| P2pError::Json(error.to_string()))?;
+    let public_key: P2pPublicKeyDocument =
+        serde_json::from_str(public_key_json).map_err(|error| P2pError::Json(error.to_string()))?;
+    verify_signed_manifest(&signed_manifest, &public_key)
+}
+
+/// Verifies a parsed signed P2P manifest envelope with a parsed public key document.
+pub fn verify_signed_manifest(
+    signed_manifest: &P2pSignedManifest,
+    public_key: &P2pPublicKeyDocument,
+) -> Result<P2pSignedManifestVerification, P2pError> {
+    validate_signed_manifest_envelope(signed_manifest)?;
+    validate_public_key_document(public_key, &signed_manifest.signature)?;
+    let canonical_payload = signed_manifest_payload_text(&signed_manifest.manifest)?;
+    let signature = parse_ed25519_signature_value(&signed_manifest.signature.value)?;
+    let public_key_bytes =
+        decode_base64_array::<32>(&public_key.public_key_base64, "public_key_base64")?;
+    let verifying_key = VerifyingKey::from_bytes(&public_key_bytes).map_err(|_| {
+        P2pError::Invalid("public_key_base64 is not a valid Ed25519 key".to_string())
+    })?;
+    verifying_key
+        .verify(canonical_payload.as_bytes(), &signature)
+        .map_err(|_| {
+            P2pError::Invalid(
+                "signature.value did not verify the canonical P2P manifest payload".to_string(),
+            )
+        })?;
+
+    Ok(P2pSignedManifestVerification {
+        kind: SIGNED_MANIFEST_VERIFICATION_KIND.to_string(),
+        version: 1,
+        manifest_id: signed_manifest.manifest.manifest_id.clone(),
+        model_id: signed_manifest.manifest.model_id.clone(),
+        manifest_sha256: sha256_text(&canonical_payload),
+        signature_algorithm: SIGNATURE_ALGORITHM_ED25519.to_string(),
+        key_id: signed_manifest.signature.key_id.clone(),
+        publisher_id: signed_manifest.signature.publisher_id.clone(),
+        public_key_route: signed_manifest.signature.public_key_route.clone(),
+        public_key_sha256: public_key.public_key_sha256.clone(),
+        payload_sha256: signed_manifest.signature.payload_sha256.clone(),
+        valid: true,
+    })
+}
+
 /// Creates a metadata-only import plan from a validated manifest JSON document.
 pub fn import_from_manifest_text(text: &str) -> Result<P2pImportPlan, P2pError> {
     if text.len() > MAX_MANIFEST_BYTES {
@@ -727,9 +888,7 @@ pub fn apply_received_announcement_text(
         .any(|existing| announcement_key(existing) == key)
     {
         catalog.announcements.push(announcement);
-        catalog
-            .announcements
-            .sort_by(|left, right| announcement_key(left).cmp(&announcement_key(right)));
+        catalog.announcements.sort_by_key(announcement_key);
     }
     Ok(catalog)
 }
@@ -997,6 +1156,105 @@ fn validate_manifest(manifest: &P2pManifest) -> Result<(), P2pError> {
         ));
     }
     Ok(())
+}
+
+fn validate_signed_manifest_envelope(signed_manifest: &P2pSignedManifest) -> Result<(), P2pError> {
+    require_equal(
+        "signed_manifest.kind",
+        SIGNED_MANIFEST_KIND,
+        &signed_manifest.kind,
+    )?;
+    if signed_manifest.version != 1 {
+        return Err(P2pError::Invalid(
+            "signed_manifest version must be 1".to_string(),
+        ));
+    }
+    validate_manifest(&signed_manifest.manifest)?;
+    require_equal(
+        "signature.kind",
+        SIGNATURE_KIND_EXTERNAL_V0,
+        &signed_manifest.signature.kind,
+    )?;
+    safe_identifier(&signed_manifest.signature.key_id)?;
+    safe_identifier(&signed_manifest.signature.publisher_id)?;
+    validate_piece_route(&signed_manifest.signature.public_key_route)?;
+    let expected_payload_sha256 = normalize_sha256(&signed_manifest.signature.payload_sha256)?;
+    let actual_payload_sha256 = signed_manifest_payload_sha256(&signed_manifest.manifest)?;
+    if expected_payload_sha256 != actual_payload_sha256 {
+        return Err(P2pError::Invalid(format!(
+            "signature.payload_sha256 mismatch: expected {expected_payload_sha256}, canonical payload had {actual_payload_sha256}"
+        )));
+    }
+    parse_ed25519_signature_value(&signed_manifest.signature.value)?;
+    Ok(())
+}
+
+fn validate_public_key_document(
+    public_key: &P2pPublicKeyDocument,
+    signature: &P2pManifestSignature,
+) -> Result<(), P2pError> {
+    require_equal(
+        "public_key.key_kind",
+        MINIMODEL_PUBLIC_KEY_KIND_V0,
+        &public_key.key_kind,
+    )?;
+    require_equal(
+        "public_key.key_algorithm",
+        SIGNATURE_ALGORITHM_ED25519,
+        &public_key.key_algorithm,
+    )?;
+    require_equal(
+        "public_key.usage",
+        MINIMODEL_MANIFEST_SIGNING_USAGE_V0,
+        &public_key.usage,
+    )?;
+    if public_key.revoked {
+        return Err(P2pError::Invalid(
+            "public key document is revoked".to_string(),
+        ));
+    }
+    if !public_key.created_utc.ends_with('Z') || !public_key.created_utc.contains('T') {
+        return Err(P2pError::Invalid(
+            "public_key.created_utc must be a UTC timestamp".to_string(),
+        ));
+    }
+    safe_identifier(&public_key.key_id)?;
+    safe_identifier(&public_key.publisher_id)?;
+    validate_piece_route(&public_key.public_key_route)?;
+    if public_key.key_id != signature.key_id {
+        return Err(P2pError::Invalid(
+            "public key key_id does not match signature.key_id".to_string(),
+        ));
+    }
+    if public_key.publisher_id != signature.publisher_id {
+        return Err(P2pError::Invalid(
+            "public key publisher_id does not match signature.publisher_id".to_string(),
+        ));
+    }
+    if public_key.public_key_route != signature.public_key_route {
+        return Err(P2pError::Invalid(
+            "public key route does not match signature.public_key_route".to_string(),
+        ));
+    }
+    let public_key_bytes =
+        decode_base64_array::<32>(&public_key.public_key_base64, "public_key_base64")?;
+    let expected_key_sha256 = normalize_sha256(&public_key.public_key_sha256)?;
+    let actual_key_sha256 = sha256_bytes(&public_key_bytes);
+    if expected_key_sha256 != actual_key_sha256 {
+        return Err(P2pError::Invalid(format!(
+            "public_key_sha256 mismatch: expected {expected_key_sha256}, public key had {actual_key_sha256}"
+        )));
+    }
+    Ok(())
+}
+
+fn signed_manifest_payload_text(manifest: &P2pManifest) -> Result<String, P2pError> {
+    validate_manifest(manifest)?;
+    to_pretty_json(manifest)
+}
+
+fn signed_manifest_payload_sha256(manifest: &P2pManifest) -> Result<String, P2pError> {
+    Ok(sha256_text(&signed_manifest_payload_text(manifest)?))
 }
 
 fn validate_announcement(announcement: &P2pAnnouncement) -> Result<(), P2pError> {
@@ -1381,16 +1639,44 @@ fn require_equal(label: &str, expected: &str, actual: &str) -> Result<(), P2pErr
 }
 
 fn require_sha256(label: &str, value: &str) -> Result<(), P2pError> {
+    normalize_sha256(value)
+        .map(|_| ())
+        .map_err(|_| P2pError::Invalid(format!("{label} must contain a 64-character hex SHA-256")))
+}
+
+fn normalize_sha256(value: &str) -> Result<String, P2pError> {
     let rest = value
         .strip_prefix("sha256:")
-        .ok_or_else(|| P2pError::Invalid(format!("{label} must start with sha256:")))?;
+        .ok_or_else(|| P2pError::Invalid("SHA-256 value must start with sha256:".to_string()))?;
     if rest.len() == 64 && rest.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        Ok(())
+        Ok(format!("sha256:{}", rest.to_ascii_lowercase()))
     } else {
-        Err(P2pError::Invalid(format!(
-            "{label} must contain a 64-character hex SHA-256"
-        )))
+        Err(P2pError::Invalid(
+            "SHA-256 value must contain a 64-character hex SHA-256".to_string(),
+        ))
     }
+}
+
+fn parse_ed25519_signature_value(value: &str) -> Result<Signature, P2pError> {
+    let encoded = value
+        .strip_prefix(SIGNATURE_VALUE_ED25519_BASE64_PREFIX)
+        .ok_or_else(|| {
+            P2pError::Invalid(format!(
+                "signature.value must start with {SIGNATURE_VALUE_ED25519_BASE64_PREFIX}"
+            ))
+        })?;
+    let signature_bytes = decode_base64_array::<64>(encoded, "signature.value")?;
+    Ok(Signature::from_bytes(&signature_bytes))
+}
+
+fn decode_base64_array<const N: usize>(value: &str, label: &str) -> Result<[u8; N], P2pError> {
+    let bytes = BASE64_STANDARD
+        .decode(value)
+        .map_err(|_| P2pError::Invalid(format!("{label} must be valid base64")))?;
+    let length = bytes.len();
+    bytes
+        .try_into()
+        .map_err(|_| P2pError::Invalid(format!("{label} must decode to {N} bytes, got {length}")))
 }
 
 fn safe_identifier(value: &str) -> Result<String, P2pError> {
@@ -1532,6 +1818,7 @@ fn hex_lower(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ed25519_dalek::{Signer, SigningKey};
     use std::fs;
 
     fn fixture_model() -> PathBuf {
@@ -1545,6 +1832,58 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).expect("temp dir");
         dir
+    }
+
+    fn signed_manifest_fixture(name: &str) -> (String, String, P2pSignedManifest) {
+        let report = prepare_local_share_kit(PrepareShareKitRequest {
+            model_path: fixture_model(),
+            output_dir: temp_dir(name),
+            manifest_id: Some(format!("{name}-manifest")),
+            model_id: Some(format!("{name}-model")),
+            peer_id: None,
+            public_base_url: None,
+            piece_size: Some(4096),
+        })
+        .expect("share kit");
+        let signing_key = SigningKey::from_bytes(&[7u8; 32]);
+        let public_key_bytes = signing_key.verifying_key().to_bytes();
+        let public_key_route = format!("keys/{name}.public-key.json");
+        let payload = signed_manifest_payload_text(&report.manifest).expect("payload");
+        let payload_sha256 = sha256_text(&payload);
+        let signature = signing_key.sign(payload.as_bytes());
+        let signed = P2pSignedManifest {
+            kind: SIGNED_MANIFEST_KIND.to_string(),
+            version: 1,
+            manifest: report.manifest,
+            signature: P2pManifestSignature {
+                kind: SIGNATURE_KIND_EXTERNAL_V0.to_string(),
+                key_id: format!("{name}-key"),
+                publisher_id: format!("{name}-publisher"),
+                public_key_route: public_key_route.clone(),
+                payload_sha256,
+                value: format!(
+                    "{SIGNATURE_VALUE_ED25519_BASE64_PREFIX}{}",
+                    BASE64_STANDARD.encode(signature.to_bytes())
+                ),
+            },
+        };
+        let public_key = P2pPublicKeyDocument {
+            key_kind: MINIMODEL_PUBLIC_KEY_KIND_V0.to_string(),
+            key_algorithm: SIGNATURE_ALGORITHM_ED25519.to_string(),
+            key_id: signed.signature.key_id.clone(),
+            publisher_id: signed.signature.publisher_id.clone(),
+            public_key_route,
+            public_key_base64: BASE64_STANDARD.encode(public_key_bytes),
+            public_key_sha256: sha256_bytes(&public_key_bytes),
+            usage: MINIMODEL_MANIFEST_SIGNING_USAGE_V0.to_string(),
+            created_utc: "2026-07-06T00:00:00Z".to_string(),
+            revoked: false,
+        };
+        (
+            to_pretty_json(&signed).expect("signed manifest json"),
+            to_pretty_json(&public_key).expect("public key json"),
+            signed,
+        )
     }
 
     #[test]
@@ -1567,6 +1906,78 @@ mod tests {
         assert_eq!(inspection.manifest_id, "fixture-share");
         let plan = import_from_manifest_text(&manifest_text).expect("plan");
         assert_eq!(plan.required_pieces.len(), report.manifest.pieces.len());
+    }
+
+    #[test]
+    fn verifies_signed_manifest_envelope_with_minimodel_key() {
+        let (signed_json, public_key_json, signed) = signed_manifest_fixture("signed-share-kit");
+
+        let verification =
+            verify_signed_manifest_text(&signed_json, &public_key_json).expect("verified");
+
+        assert_eq!(verification.kind, SIGNED_MANIFEST_VERIFICATION_KIND);
+        assert_eq!(verification.manifest_id, signed.manifest.manifest_id);
+        assert_eq!(verification.model_id, signed.manifest.model_id);
+        assert_eq!(
+            verification.signature_algorithm,
+            SIGNATURE_ALGORITHM_ED25519
+        );
+        assert_eq!(verification.key_id, signed.signature.key_id);
+        assert_eq!(verification.publisher_id, signed.signature.publisher_id);
+        assert_eq!(
+            verification.public_key_route,
+            signed.signature.public_key_route
+        );
+        assert_eq!(verification.payload_sha256, signed.signature.payload_sha256);
+        assert!(verification.valid);
+    }
+
+    #[test]
+    fn rejects_signed_manifest_payload_drift() {
+        let (_signed_json, public_key_json, mut signed) =
+            signed_manifest_fixture("signed-payload-drift");
+        signed.manifest.model_id = "signed-payload-drift-model-two".to_string();
+        let drifted_json = to_pretty_json(&signed).expect("drifted json");
+
+        let error = verify_signed_manifest_text(&drifted_json, &public_key_json)
+            .expect_err("payload drift");
+
+        assert!(
+            error
+                .to_string()
+                .contains("signature.payload_sha256 mismatch"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn rejects_signed_manifest_signature_drift() {
+        let (_signed_json, public_key_json, mut signed) =
+            signed_manifest_fixture("signed-signature-drift");
+        signed.signature.value = format!(
+            "{SIGNATURE_VALUE_ED25519_BASE64_PREFIX}{}",
+            BASE64_STANDARD.encode([0u8; 64])
+        );
+        let drifted_json = to_pretty_json(&signed).expect("drifted json");
+
+        let error = verify_signed_manifest_text(&drifted_json, &public_key_json)
+            .expect_err("signature drift");
+
+        assert!(
+            error.to_string().contains("signature.value did not verify"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn rejects_signed_manifest_revoked_public_key() {
+        let (signed_json, public_key_json, _) = signed_manifest_fixture("signed-revoked-key");
+        let revoked_key_json = public_key_json.replace("\"revoked\": false", "\"revoked\": true");
+
+        let error =
+            verify_signed_manifest_text(&signed_json, &revoked_key_json).expect_err("revoked key");
+
+        assert!(error.to_string().contains("revoked"), "{error}");
     }
 
     #[test]

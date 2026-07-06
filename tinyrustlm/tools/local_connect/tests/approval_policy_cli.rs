@@ -396,6 +396,9 @@ fn cli_dry_runs_gated_browser_action() {
     assert!(stdout.contains("decision=allow"));
     assert!(stdout.contains("action=open-url"));
     assert!(stdout.contains("action.request_sha256=sha256:"));
+    assert!(stdout.contains("app_approval_binding_policy=app-and-category-v1"));
+    assert!(stdout
+        .contains("action_execution_policy=typed-action-dry-run-default-execution-consent-v1"));
     assert!(stdout.contains("target_kind=https-url"));
     assert!(stdout.contains("dry_run=true"));
     assert!(stdout.contains("app_execution_performed=false"));
@@ -661,8 +664,25 @@ fn endpoint_serves_health_categories_and_decisions() {
     assert!(health.contains("\"policy_sha256\": \"sha256:"));
     assert!(health.contains("\"app_execution_endpoints\": true"));
     assert!(health.contains("\"action_endpoint_path\": \"/v0/action\""));
+    assert!(health.contains("\"app_inventory_policy\": \"bounded-name-discovery-no-paths-v1\""));
+    assert!(health.contains("\"app_inventory_path_exposure\": \"never\""));
+    assert!(health.contains("\"app_approval_binding_policy\": \"app-and-category-v1\""));
+    assert!(health.contains(
+        "\"action_execution_policy\": \"typed-action-dry-run-default-execution-consent-v1\""
+    ));
     assert!(health.contains("\"full_control_non_sensitive_machine_acknowledged\": false"));
     assert!(health.contains("access-control-allow-origin: http://127.0.0.1:8080"));
+
+    let preflight = http_request(
+        port,
+        "OPTIONS",
+        "/v0/action",
+        "",
+        Some("https://tinyrustlm.com"),
+    )
+    .unwrap();
+    assert_eq!(status_code(&preflight), 204);
+    assert!(preflight.contains("x-tinyrustlm-execution-consent"));
 
     let categories = http_request(port, "GET", "/v0/categories", "", None).unwrap();
     assert_eq!(status_code(&categories), 200);
@@ -675,6 +695,12 @@ fn endpoint_serves_health_categories_and_decisions() {
     assert!(apps.contains("\"policy_sha256\": \"sha256:"));
     assert!(apps
         .contains("\"inventory_source\": \"bounded-local-name-discovery-with-common-fallback\""));
+    assert!(apps.contains("\"app_inventory_policy\": \"bounded-name-discovery-no-paths-v1\""));
+    assert!(apps.contains("\"app_inventory_path_exposure\": \"never\""));
+    assert!(apps.contains("\"app_approval_binding_policy\": \"app-and-category-v1\""));
+    assert!(apps.contains(
+        "\"action_execution_policy\": \"typed-action-dry-run-default-execution-consent-v1\""
+    ));
     assert!(apps.contains("\"inventory_paths_exposed\": false"));
     assert!(apps.contains("\"local_inventory_observed_count\":"));
     assert!(apps.contains("\"app\": \"Chrome.exe\""));
@@ -701,6 +727,7 @@ fn endpoint_serves_health_categories_and_decisions() {
     assert!(decision.contains("\"policy_sha256\": \"sha256:"));
     assert!(decision.contains("\"decision\": \"allow\""));
     assert!(decision.contains("\"reason\": \"category-always-approved\""));
+    assert!(decision.contains("\"app_approval_binding_policy\": \"app-and-category-v1\""));
     assert!(decision.contains("\"app_execution_performed\": false"));
 
     let cross_category_decision = http_request(
@@ -728,6 +755,10 @@ fn endpoint_serves_health_categories_and_decisions() {
     assert_eq!(status_code(&action), 200);
     assert!(action.contains("\"policy_sha256\": \"sha256:"));
     assert!(action.contains("\"action_request_sha256\": \"sha256:"));
+    assert!(action.contains("\"app_approval_binding_policy\": \"app-and-category-v1\""));
+    assert!(action.contains(
+        "\"action_execution_policy\": \"typed-action-dry-run-default-execution-consent-v1\""
+    ));
     assert!(action.contains("\"decision\": \"allow\""));
     assert!(action.contains("\"action\": \"open-url\""));
     assert!(action.contains("\"target_kind\": \"https-url\""));
@@ -864,5 +895,55 @@ fn endpoint_rejects_action_without_digest_header() {
     assert_eq!(status_code(&response), 400);
     assert!(response.contains("\"error\": \"action-rejected\""));
     assert!(response.contains("policy digest"));
+    fs::remove_file(&path).unwrap();
+}
+
+#[test]
+fn endpoint_rejects_non_dry_run_action_without_execution_consent_header() {
+    let path = unique_policy_path("endpoint-action-execution-consent");
+    fs::write(&path, valid_policy()).unwrap();
+    let port = unused_loopback_port();
+    let child = Command::new(env!("CARGO_BIN_EXE_tinyrustlm-local-connect"))
+        .arg("serve-approval-endpoint")
+        .arg(&path)
+        .arg(port.to_string())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    let _guard = ChildGuard::new(child);
+    wait_for_endpoint(port);
+
+    let response = http_request_with_headers(
+        port,
+        "POST",
+        "/v0/action",
+        &action_json(false),
+        Some("https://tinyrustlm.com"),
+        &[("x-tinyrustlm-policy-sha256", &policy_sha256())],
+    )
+    .unwrap();
+
+    assert_eq!(status_code(&response), 400);
+    assert!(response.contains("\"error\": \"action-rejected\""));
+    assert!(response.contains("x-tinyrustlm-execution-consent"));
+    assert!(response.contains("native-opener-v1"));
+
+    let invalid_response = http_request_with_headers(
+        port,
+        "POST",
+        "/v0/action",
+        &action_json(false),
+        Some("https://tinyrustlm.com"),
+        &[
+            ("x-tinyrustlm-policy-sha256", &policy_sha256()),
+            ("x-tinyrustlm-execution-consent", "wrong-token"),
+        ],
+    )
+    .unwrap();
+
+    assert_eq!(status_code(&invalid_response), 400);
+    assert!(invalid_response.contains("\"error\": \"action-rejected\""));
+    assert!(invalid_response.contains("x-tinyrustlm-execution-consent"));
     fs::remove_file(&path).unwrap();
 }

@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\TinyRustLM.Core\TinyRustLM.Core.csproj" />
+    <ProjectReference Include="..\..\src\TinyRustLM.Memory\TinyRustLM.Memory.csproj" />
     <ProjectReference Include="..\..\src\TinyRustLM.P2P\TinyRustLM.P2P.csproj" />
   </ItemGroup>
 </Project>

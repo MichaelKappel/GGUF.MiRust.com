@@ -4,7 +4,7 @@ use crate::errors::ErrorCode;
 
 /// Applies RoPE to an even-length vector in-place.
 pub fn apply_rope(vector: &mut [f32], position: usize, theta: f32) -> Result<(), ErrorCode> {
-    if vector.len() % 2 != 0 || theta <= 0.0 {
+    if !vector.len().is_multiple_of(2) || theta <= 0.0 {
         return Err(ErrorCode::ShapeMismatch);
     }
     let half = vector.len() / 2;

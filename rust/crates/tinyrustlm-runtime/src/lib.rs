@@ -130,6 +130,8 @@ pub struct RuntimeCapabilities {
     pub diagnostics: bool,
     /// Whether public metadata-bound P2P workflows are available.
     pub p2p_metadata_workflows: bool,
+    /// Whether public UAIX memory and persona package workflows are available.
+    pub memory_package_workflows: bool,
     /// Capabilities intentionally withheld from the NuGet SDK.
     pub excluded_private_capabilities: Vec<String>,
 }
@@ -270,6 +272,7 @@ pub fn runtime_capabilities() -> RuntimeCapabilities {
         step_generation: true,
         diagnostics: true,
         p2p_metadata_workflows: true,
+        memory_package_workflows: true,
         excluded_private_capabilities: vec![
             ".slm authoring internals".to_string(),
             "model conversion tools".to_string(),

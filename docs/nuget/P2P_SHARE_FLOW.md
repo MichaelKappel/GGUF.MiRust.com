@@ -10,6 +10,12 @@ The public P2P SDK is metadata-bound. It helps developers share already-created 
 
 The manifest declares piece routes and checksums but does not embed model bytes.
 
+## Signed Manifest Verification
+
+`VerifySignedManifest(signedManifestJson, publicKeyJson)` validates a metadata-only `tinyrustlm.p2p_signed_manifest.v0` envelope before a catalog or receiver trusts the wrapped manifest. The verifier first validates the wrapped `tinyrustlm.p2p_manifest.v0` document, then checks that `signature.kind=external-signature-v0`, `signature.payload_sha256` matches the SDK canonical manifest payload, `signature.value` uses `ed25519-base64:`, and the signature verifies against the supplied local `minimodel.public_key.v0` public-key JSON.
+
+The public key document must declare `key_algorithm=ed25519`, `usage=minimodel-manifest-signing-v0`, matching publisher id, signing key id, public-key route, public-key SHA-256, and `revoked=false`. The API performs no signing, private-key handling, remote key discovery, transparency-log lookup, peer discovery, conversion, or catalog publication. Use `VerifySignedManifestJson` only when writing the exact native verification report for audit or interop storage.
+
 ## Import From Manifest
 
 `ImportFromManifest(manifestJson)` validates the manifest and returns an import plan. Importers that fetch pieces themselves must verify each piece SHA-256, assemble the `.slm`, and verify the final artifact SHA-256 before loading.

@@ -294,7 +294,7 @@ fn validate_member_manifest(
         validate_source_backed_low_rank_manifest(fields)?;
     }
     let base_quantization = require_key(fields, "adapter_base_quantization")?;
-    validate_apply_status_for_quantization(&format, &route.apply_status, &base_quantization)?;
+    validate_apply_status_for_quantization(&format, &route.apply_status, base_quantization)?;
     require_equal(fields, "adapter_apply_status", &route.apply_status)?;
     require_equal(
         fields,

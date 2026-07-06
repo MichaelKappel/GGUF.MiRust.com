@@ -114,6 +114,17 @@ def read_report_status(path):
         return "invalid"
 
 
+def read_report(path):
+    if not os.path.isfile(path):
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8-sig") as handle:
+            value = json.load(handle)
+            return value if isinstance(value, dict) else {}
+    except Exception:
+        return {}
+
+
 def step(name, status, report_path, error):
     return {
         "name": name,
@@ -181,6 +192,7 @@ elif remote_current["report_status"] == "pass":
         status = "blocked_remote_hash_mismatch"
         blockers.append("The feed exposes the declared version but package bytes do not match the audited publish plan.")
         next_actions.append("Investigate feed immutability and package provenance before claiming the feed is current.")
+        next_actions.append("If the published version is already immutable on NuGet.org, bump dotnet/Directory.Build.props VersionPrefix before publishing corrected packages.")
 elif trusted_publishing_supported:
     status = "ready_to_publish"
     next_actions.append("Configure a NuGet.org Trusted Publishing policy for workflow release-nuget.yml and environment nuget-release, then run the release workflow with auth_mode=trusted_publishing.")
@@ -196,6 +208,9 @@ package_source = os.environ["PACKAGE_SOURCE"]
 if os.path.isdir(package_source):
     package_source = os.path.abspath(package_source)
 
+publish_plan = read_report(os.environ["PUBLISH_PLAN_REPORT"])
+local_feed_hashes = read_report(os.environ["LOCAL_FEED_HASH_REPORT"])
+
 report = {
     "schema": "tinyrustlm.nuget.release_readiness.v0",
     "generated_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -210,8 +225,22 @@ report = {
     "trusted_publishing_supported": trusted_publishing_supported,
     "fail_on_blocked": os.environ["FAIL_ON_BLOCKED"] == "1",
     "publish_plan_report_path": os.environ["PUBLISH_PLAN_REPORT"],
+    "publish_plan_status": str(publish_plan.get("status", "")),
+    "publish_plan_package_count": int(publish_plan.get("package_count") or 0),
+    "publish_plan_symbol_package_count": int(publish_plan.get("symbol_package_count") or 0),
+    "symbol_publish_mode": str(publish_plan.get("symbol_publish_mode", "")),
+    "package_hash_manifest_name": str(publish_plan.get("package_hash_manifest_name", "")),
+    "package_hash_manifest_sha256": str(publish_plan.get("package_hash_manifest_sha256", "")),
+    "package_hash_manifest_match": bool(publish_plan.get("package_hash_manifest_match", False)),
     "local_feed_current_report_path": os.environ["LOCAL_FEED_CURRENT_REPORT"],
     "local_feed_hash_report_path": os.environ["LOCAL_FEED_HASH_REPORT"],
+    "local_feed_hash_status": str(local_feed_hashes.get("status", "")),
+    "local_feed_hash_package_count": int(local_feed_hashes.get("package_count") or 0),
+    "local_feed_hash_symbol_package_count": int(local_feed_hashes.get("symbol_package_count") or 0),
+    "local_feed_hash_symbol_verification_mode": str(local_feed_hashes.get("symbol_package_verification_mode", "")),
+    "local_feed_hash_mismatch_count": int(local_feed_hashes.get("hash_mismatch_count") or 0),
+    "local_feed_hash_symbol_mismatch_count": int(local_feed_hashes.get("symbol_hash_mismatch_count") or 0),
+    "local_feed_hash_symbol_byte_count_mismatch_count": int(local_feed_hashes.get("symbol_byte_count_mismatch_count") or 0),
     "remote_feed_current_report_path": os.environ["REMOTE_FEED_CURRENT_REPORT"],
     "remote_feed_hash_report_path": os.environ["REMOTE_FEED_HASH_REPORT"],
     "blockers": blockers,

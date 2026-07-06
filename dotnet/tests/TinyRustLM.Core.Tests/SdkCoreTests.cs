@@ -61,10 +61,230 @@ public sealed class SdkCoreTests
         Assert.True(version.NativeAbiVersion >= 1);
         Assert.True(capabilities.SlmValidation);
         Assert.True(capabilities.P2PMetadataWorkflows);
+        Assert.True(capabilities.MemoryPackageWorkflows);
         Assert.Contains(capabilities.ExcludedPrivateCapabilities, item =>
             item.Contains("model conversion", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(capabilities.ExcludedPrivateCapabilities, item =>
             string.IsNullOrWhiteSpace(item));
+    }
+
+    [Fact]
+    public void MemoryClientPlansAndInspectsUaixPersonaPackages()
+    {
+        var client = new TinyRustLmMemoryClient();
+        var catalog = client.GetSupportedSetups();
+        var catalogJson = client.GetSupportedSetupsJson();
+        var setupNames = catalog.Setups.Select(setup => setup.Setup).ToArray();
+        var expectedSetups = new[]
+        {
+            "base",
+            "agent_file_handoff",
+            "llm_wiki",
+            "file_handoff_llm_wiki",
+            "multi_agent_communication",
+            "talisman_system",
+            "advanced_persona_profile"
+        };
+
+        Assert.Equal("uaix.memory.setup_catalog.v0", catalog.Kind);
+        Assert.Equal(expectedSetups.Length, catalog.SetupCount);
+        foreach (var setup in expectedSetups)
+        {
+            Assert.Contains(setup, setupNames);
+        }
+        Assert.Contains(catalog.SourceUrls, url => url.Contains("ai-memory-package-wizard", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(catalog.SourceUrls, url => url.Contains("personality-packs", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(catalog.SourceUrls, url => url.Contains("talisman-system", StringComparison.OrdinalIgnoreCase));
+        Assert.All(catalog.Setups, setup =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(setup.Label));
+            Assert.False(string.IsNullOrWhiteSpace(setup.SetupUrl));
+            Assert.NotEmpty(setup.AuthorityUrls);
+            Assert.NotEmpty(setup.PackageFeatures);
+            Assert.Contains(setup.ExcludedPrivateCapabilities, item =>
+                item.Contains("automatic_repository_writes", StringComparison.OrdinalIgnoreCase));
+        });
+        Assert.False(catalog.Boundary.AutomaticRepositoryWrites);
+        Assert.Contains("\"kind\": \"uaix.memory.setup_catalog.v0\"", catalogJson, StringComparison.Ordinal);
+
+        var request = new UaixMemoryPackageRequest(
+            Setup: "advanced_persona_profile",
+            CodeLikeArtifacts: true,
+            AdvancedPersona: new UaixAdvancedPersonaOptions(SenseOfStyleDepth: 3));
+        var plan = client.GetRequiredFiles(request);
+        var planJson = client.GetRequiredFilesJson(request);
+
+        Assert.Equal("uaix.memory.package_plan.v0", plan.Kind);
+        Assert.Contains(plan.RequiredFiles, file => file.Path == ".uai/agent-pickup.uai");
+        Assert.Contains(plan.RequiredFiles, file => file.Path == ".uai/archives/session-log.uai");
+        Assert.Contains(plan.RequiredFiles, file => file.Path == ".uai/exports/manifest-overlay.json");
+        Assert.Contains(plan.RequiredFiles, file => file.Path == ".uai/exports/package-model.json");
+        Assert.Contains(plan.RequiredFiles, file => file.Path == ".uai/exports/knowledge-graph.json");
+        Assert.Contains(plan.RequiredFiles, file => file.Path == ".uai/personality/sense-of-winter.uai");
+        Assert.Contains(plan.RequiredFiles, file => file.Path == ".uai/evidence/provenance.uai");
+        Assert.False(plan.Boundary.PersonaSourceMutationAllowed);
+        Assert.True(plan.Boundary.UsesTinyrustlmRuntimeHarness);
+        Assert.Contains("ai-memory-package-wizard", string.Join('\n', plan.SourceUrls), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("\"kind\": \"uaix.memory.package_plan.v0\"", planJson, StringComparison.Ordinal);
+
+        const string manifestJson = """
+            {
+              "kind": "uaix.memory.manifest.v0",
+              "setup_mode": "advanced_persona_profile",
+              "files": [
+                { "path": ".uai/persona.uai" }
+              ]
+            }
+            """;
+        var manifest = client.InspectManifest(manifestJson);
+
+        Assert.Equal("uaix.memory.manifest_inspection.v0", manifest.Kind);
+        Assert.True(manifest.Valid);
+        Assert.True(manifest.AdvancedPersonaProfile);
+        Assert.Equal(1, manifest.DeclaredFileCount);
+        Assert.Contains(".uai/persona.uai", manifest.DeclaredFilePaths);
+
+        var multiAgentPlan = client.GetRequiredFiles(new UaixMemoryPackageRequest(Setup: "multi_agent_communication"));
+        Assert.Equal("multi_agent_communication", multiAgentPlan.Setup);
+        Assert.Contains(multiAgentPlan.RequiredFiles, file => file.Path == ".uai/agent-instructions.uai");
+        Assert.Contains(multiAgentPlan.RequiredFiles, file => file.Path == ".uai/current-state.uai");
+        Assert.Contains(multiAgentPlan.RequiredFiles, file => file.Path == ".uai/next-actions.uai");
+        Assert.Contains(multiAgentPlan.SourceUrls, url => url.Contains("agent-communication", StringComparison.OrdinalIgnoreCase));
+
+        var talismanPlan = client.GetRequiredFiles(new UaixMemoryPackageRequest(Setup: "talisman_system"));
+        Assert.Equal("talisman_system", talismanPlan.Setup);
+        Assert.Contains(talismanPlan.RequiredFiles, file => file.Path == ".uai/totem.uai");
+        Assert.Contains(talismanPlan.RequiredFiles, file => file.Path == ".uai/taboo.uai");
+        Assert.Contains(talismanPlan.RequiredFiles, file => file.Path == ".uai/talisman.uai");
+        Assert.Contains(talismanPlan.RequiredFiles, file => file.Path == "reports/deployment-memory-and-test-report.uai");
+        Assert.Contains(talismanPlan.SourceUrls, url => url.Contains("talisman-system", StringComparison.OrdinalIgnoreCase));
+        Assert.False(talismanPlan.Boundary.AutomaticRepositoryWrites);
+        Assert.False(talismanPlan.Boundary.HostedImportValidation);
+
+        var contentPlan = client.GetRequiredFiles(new UaixMemoryPackageRequest(
+            Deployment: true,
+            ContactMemory: true,
+            CalendarScheduling: true,
+            CommunicationStyle: true,
+            TasksCommitments: true,
+            RoutinesPreferences: true,
+            SafetySupportBoundaries: true,
+            PublicFacingBoundaries: true));
+        Assert.Contains(contentPlan.RequiredFiles, file => file.Path == "reports/deployment-memory-and-test-report.uai");
+        Assert.Contains(contentPlan.RequiredFiles, file => file.Path == ".uai/contact-memory.uai");
+        Assert.Contains(contentPlan.RequiredFiles, file => file.Path == ".uai/calendar-and-scheduling.uai");
+        Assert.Contains(contentPlan.RequiredFiles, file => file.Path == ".uai/communication-style.uai");
+        Assert.Contains(contentPlan.RequiredFiles, file => file.Path == ".uai/tasks-and-commitments.uai");
+        Assert.Contains(contentPlan.RequiredFiles, file => file.Path == ".uai/routines-and-preferences.uai");
+        Assert.Contains(contentPlan.RequiredFiles, file => file.Path == ".uai/safety-and-support-boundary.uai");
+        Assert.Contains(contentPlan.RequiredFiles, file => file.Path == ".uai/public-facing-boundary.uai");
+
+        var root = Path.Combine(Path.GetTempPath(), $"tinyrustlm-memory-dotnet-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(root, ".uai"));
+        File.WriteAllText(Path.Combine(root, ".uai", "memory-maintenance.uai"), "active");
+        File.WriteAllText(Path.Combine(root, ".uai", "manifest.uaix.json"), manifestJson);
+        try
+        {
+            var inspection = client.InspectPackage(root);
+
+            Assert.Equal("uaix.memory.package_inspection.v0", inspection.Kind);
+            Assert.Equal("directory", inspection.PackageSource);
+            Assert.False(inspection.Valid);
+            Assert.False(client.ValidatePackage(root));
+            Assert.NotNull(inspection.Manifest);
+            Assert.Contains(".uai/identity.uai", inspection.MissingRequiredFiles);
+            Assert.False(inspection.ManifestDeclaresRequiredFiles);
+            Assert.Contains(".uai/identity.uai", inspection.ManifestMissingRequiredFiles);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+
+        var personaRoot = Path.Combine(Path.GetTempPath(), $"tinyrustlm-memory-persona-dotnet-{Guid.NewGuid():N}");
+        var personaDimensionPaths = new HashSet<string>(
+            plan.RequiredFiles
+                .Where(file => file.Path.StartsWith(".uai/personality/", StringComparison.Ordinal)
+                    && file.Path is not ".uai/personality/identity.uai"
+                    && file.Path is not ".uai/personality/voice.uai"
+                    && file.Path is not ".uai/personality/values.uai"
+                    && file.Path is not ".uai/personality/temperament.uai"
+                    && file.Path is not ".uai/personality/reasoning-style.uai"
+                    && file.Path is not ".uai/personality/emotional-patterns.uai"
+                    && file.Path is not ".uai/personality/relationship-style.uai"
+                    && file.Path is not ".uai/personality/behavioral-patterns.uai"
+                    && file.Path is not ".uai/personality/boundaries.uai"
+                    && file.Path is not ".uai/personality/examples-dialogue.uai"
+                    && file.Path is not ".uai/personality/adaptation-rules.uai"
+                    && file.Path is not ".uai/personality/preservation-rules.uai")
+                .Select(file => file.Path),
+            StringComparer.Ordinal);
+        try
+        {
+            foreach (var file in plan.RequiredFiles)
+            {
+                var filePath = Path.Combine(
+                    personaRoot,
+                    file.Path.Replace('/', Path.DirectorySeparatorChar));
+                Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+                var content = personaDimensionPaths.Contains(file.Path)
+                    ? $"{file.Path}\ndepth_level_0_to_10: 6\ndisclosure_boundary: reviewed\nsource_confidence: high\nnon-inference rules: do not infer beyond source evidence\n"
+                    : $"required {file.Path}";
+                File.WriteAllText(filePath, content);
+            }
+
+            var fullManifest = new
+            {
+                kind = "uaix.memory.manifest.v0",
+                setup_mode = "advanced_persona_profile",
+                files = plan.RequiredFiles.Select(file => new { path = file.Path }).ToArray()
+            };
+            File.WriteAllText(
+                Path.Combine(personaRoot, ".uai", "manifest.uaix.json"),
+                JsonSerializer.Serialize(fullManifest, new JsonSerializerOptions { WriteIndented = true }));
+
+            var personaInspection = client.InspectPackage(personaRoot, request);
+            Assert.True(personaInspection.Valid);
+            Assert.True(personaInspection.PersonaDimensionsValid);
+            Assert.Equal(0, personaInspection.PersonaDimensionWarningCount);
+            Assert.NotEmpty(personaInspection.PersonaDimensions);
+            Assert.All(personaInspection.PersonaDimensions, dimension =>
+            {
+                Assert.True(dimension.Valid);
+                Assert.True(dimension.DeclaresDepthLevel);
+                Assert.Equal((byte?)6, dimension.DepthLevel0To10);
+                Assert.True(dimension.DeclaresDisclosureBoundary);
+                Assert.True(dimension.DeclaresSourceConfidence);
+                Assert.True(dimension.DeclaresNonInferenceRules);
+            });
+
+            File.WriteAllText(
+                Path.Combine(personaRoot, ".uai", "personality", "religion-worldview.uai"),
+                "depth_level_0_to_10: 6\ndisclosure_boundary: reviewed\nsource_confidence: high\n");
+            var driftedPersonaInspection = client.InspectPackage(personaRoot, request);
+            Assert.False(driftedPersonaInspection.Valid);
+            Assert.False(driftedPersonaInspection.PersonaDimensionsValid);
+            Assert.True(driftedPersonaInspection.PersonaDimensionWarningCount > 0);
+            var religion = Assert.Single(
+                driftedPersonaInspection.PersonaDimensions,
+                dimension => dimension.Path == ".uai/personality/religion-worldview.uai");
+            Assert.False(religion.Valid);
+            Assert.False(religion.DeclaresNonInferenceRules);
+            Assert.Contains(religion.Warnings, warning =>
+                warning.Contains("non-inference", StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            if (Directory.Exists(personaRoot))
+            {
+                Directory.Delete(personaRoot, recursive: true);
+            }
+        }
+
+        var oversizedManifest = new string('x', (512 * 1024) + 1);
+        var error = Assert.Throws<ArgumentException>(() => client.InspectManifest(oversizedManifest));
+        Assert.Equal("manifestJson", error.ParamName);
+        Assert.Contains("handoff limit", error.Message, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -175,6 +395,23 @@ public sealed class SdkCoreTests
         var oversizedApplyError = Assert.Throws<ArgumentException>(() =>
             client.ApplyReceivedAnnouncement(announcementJson, oversizedCatalogJson));
         var inspection = client.InspectManifest(manifestJson);
+        var invalidSignedManifestJson = JsonSerializer.Serialize(new
+        {
+            kind = "tinyrustlm.p2p_signed_manifest.v0",
+            version = 1,
+            manifest = JsonSerializer.Deserialize<JsonElement>(manifestJson, NativeJson.SerializerOptions),
+            signature = new
+            {
+                kind = "external-signature-v0",
+                key_id = "dotnet-key",
+                publisher_id = "dotnet-publisher",
+                public_key_route = "keys/dotnet-key.public-key.json",
+                payload_sha256 = inspection.ManifestSha256,
+                value = "ed25519-base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+            }
+        }, NativeJson.SerializerOptions);
+        var invalidSignedError = Assert.Throws<TinyRustLmException>(() =>
+            client.VerifySignedManifest(invalidSignedManifestJson, "{\"key_kind\":\"minimodel.public_key.v0\"}"));
         var plan = client.ImportFromManifest(manifestJson);
         var metadata = client.ExportShareMetadata(manifestJson);
         var metadataJson = client.ExportShareMetadataJson(manifestJson);
@@ -185,6 +422,7 @@ public sealed class SdkCoreTests
             assembledPath);
 
         Assert.Equal("dotnet-fixture-share", inspection.ManifestId);
+        Assert.Equal("p2p_signed_manifest_invalid", invalidSignedError.Code);
         Assert.Equal("tinyrustlm.p2p_announcement.v0", announcement.Kind);
         Assert.Equal("dotnet-peer", announcement.PeerId);
         Assert.Equal("dotnet-fixture-share", announcement.ManifestId);
@@ -359,6 +597,16 @@ public sealed class SdkCoreTests
         };
         yield return new object[]
         {
+            (Action)(() => new TinyRustLmP2PClient().VerifySignedManifest("{\"kind\":\"x\"}\0", "{}")),
+            "signedManifestJson"
+        };
+        yield return new object[]
+        {
+            (Action)(() => new TinyRustLmP2PClient().VerifySignedManifest("{\"kind\":\"x\"}", "{}\0")),
+            "publicKeyJson"
+        };
+        yield return new object[]
+        {
             (Action)(() => new TinyRustLmP2PClient().PrepareLocalShareKit(new PrepareShareKitRequest(
                 "bad\0path.slm",
                 Path.Combine(Path.GetTempPath(), $"tinyrustlm-dotnet-nul-{Guid.NewGuid():N}")))),
@@ -432,6 +680,20 @@ public sealed class SdkCoreTests
                 Path.GetTempPath(),
                 Path.Combine(Path.GetTempPath(), "tinyrustlm-oversized.slm"))),
             "manifestJson"
+        };
+        yield return new object[]
+        {
+            (Action)(() => new TinyRustLmP2PClient().VerifySignedManifest(
+                OversizedJson(MaxManifestJsonBytes),
+                "{}")),
+            "signedManifestJson"
+        };
+        yield return new object[]
+        {
+            (Action)(() => new TinyRustLmP2PClient().VerifySignedManifest(
+                "{\"kind\":\"tinyrustlm.p2p_signed_manifest.v0\"}",
+                OversizedJson(16 * 1024))),
+            "publicKeyJson"
         };
         yield return new object[]
         {

@@ -97,8 +97,8 @@ pub fn matvec_q4_0(
     out: &mut [f32],
 ) -> Result<(), ErrorCode> {
     if block_size == 0
-        || block_size % 2 != 0
-        || cols % block_size != 0
+        || !block_size.is_multiple_of(2)
+        || !cols.is_multiple_of(block_size)
         || vector.len() != cols
         || out.len() != rows
     {

@@ -829,7 +829,7 @@ fn build_adapter_bytes(
     write_u32(&mut bytes, 12, tensor_count as u32)?;
     write_u32(&mut bytes, 16, base.flags)?;
     write_u32(&mut bytes, 20, ENTRY_LEN as u32)?;
-    write_u64(&mut bytes, 24, base_report.parameter_count() as u64)?;
+    write_u64(&mut bytes, 24, base_report.parameter_count())?;
     write_u64(&mut bytes, 32, base_report.tensor_layout_checksum())?;
     write_u64(&mut bytes, 40, base_report.tokenizer_checksum())?;
     write_u64(&mut bytes, 48, data_offset as u64)?;
@@ -948,7 +948,7 @@ fn build_sparse_adapter_bytes(
     write_u32(&mut bytes, 12, tensor_count as u32)?;
     write_u32(&mut bytes, 16, base.flags)?;
     write_u32(&mut bytes, 20, ENTRY_LEN as u32)?;
-    write_u64(&mut bytes, 24, base_report.parameter_count() as u64)?;
+    write_u64(&mut bytes, 24, base_report.parameter_count())?;
     write_u64(&mut bytes, 32, base_report.tensor_layout_checksum())?;
     write_u64(&mut bytes, 40, base_report.tokenizer_checksum())?;
     write_u64(&mut bytes, 48, data_offset as u64)?;
@@ -1028,7 +1028,7 @@ fn build_low_rank_adapter_bytes(
     write_u32(&mut bytes, 12, tensor_count as u32)?;
     write_u32(&mut bytes, 16, base.flags)?;
     write_u32(&mut bytes, 20, ENTRY_LEN as u32)?;
-    write_u64(&mut bytes, 24, base_report.parameter_count() as u64)?;
+    write_u64(&mut bytes, 24, base_report.parameter_count())?;
     write_u64(&mut bytes, 32, base_report.tensor_layout_checksum())?;
     write_u64(&mut bytes, 40, base_report.tokenizer_checksum())?;
     write_u64(&mut bytes, 48, data_offset as u64)?;
@@ -2012,7 +2012,7 @@ fn read_adapter_deltas(
             "adapter output flags do not match base parent output flags",
         ));
     }
-    if read_u64(bytes, 24)? != base_report.parameter_count() as u64 {
+    if read_u64(bytes, 24)? != base_report.parameter_count() {
         return Err(invalid(
             "adapter parameter count does not match base parent parameter count",
         ));
@@ -2048,7 +2048,7 @@ fn read_adapter_deltas(
             return Err(invalid("adapter tensor reserved field is not zero"));
         }
         let byte_offset = read_u64(bytes, entry + 32)? as usize;
-        if byte_offset < data_offset || byte_offset % 64 != 0 {
+        if byte_offset < data_offset || !byte_offset.is_multiple_of(64) {
             return Err(invalid("adapter tensor payload offset is invalid"));
         }
         let byte_length = read_u64(bytes, entry + 40)? as usize;
@@ -2142,7 +2142,7 @@ fn validate_adapter_bytes(bytes: &[u8]) -> io::Result<()> {
                 .ok_or_else(|| invalid("adapter directory length overflow"))?,
         )
         .ok_or_else(|| invalid("adapter directory end overflow"))?;
-    if data_offset < directory_end || data_offset % 64 != 0 {
+    if data_offset < directory_end || !data_offset.is_multiple_of(64) {
         return Err(invalid("adapter artifact has invalid data offset"));
     }
     if read_u64(bytes, CHECKSUM_OFFSET)? != adapter_checksum(bytes)? {
@@ -2199,7 +2199,7 @@ fn validate_sparse_adapter_bytes(bytes: &[u8]) -> io::Result<()> {
                 .ok_or_else(|| invalid("sparse adapter directory length overflow"))?,
         )
         .ok_or_else(|| invalid("sparse adapter directory end overflow"))?;
-    if data_offset < directory_end || data_offset % 64 != 0 {
+    if data_offset < directory_end || !data_offset.is_multiple_of(64) {
         return Err(invalid("sparse adapter artifact has invalid data offset"));
     }
     if read_u64(bytes, CHECKSUM_OFFSET)? != adapter_checksum(bytes)? {
@@ -2210,7 +2210,9 @@ fn validate_sparse_adapter_bytes(bytes: &[u8]) -> io::Result<()> {
         let byte_offset = read_u64(bytes, entry + 32)? as usize;
         let byte_length = read_u64(bytes, entry + 40)? as usize;
         let element_count = read_u64(bytes, entry + 48)? as usize;
-        if byte_length % SPARSE_PAIR_LEN != 0 || byte_length / SPARSE_PAIR_LEN > element_count {
+        if !byte_length.is_multiple_of(SPARSE_PAIR_LEN)
+            || byte_length / SPARSE_PAIR_LEN > element_count
+        {
             return Err(invalid(
                 "sparse adapter tensor byte length does not match sparse pairs",
             ));
@@ -2273,7 +2275,7 @@ pub(crate) fn validate_low_rank_adapter_bytes(bytes: &[u8]) -> io::Result<()> {
                 .ok_or_else(|| invalid("low-rank adapter directory length overflow"))?,
         )
         .ok_or_else(|| invalid("low-rank adapter directory end overflow"))?;
-    if data_offset < directory_end || data_offset % 64 != 0 {
+    if data_offset < directory_end || !data_offset.is_multiple_of(64) {
         return Err(invalid("low-rank adapter artifact has invalid data offset"));
     }
     if read_u64(bytes, CHECKSUM_OFFSET)? != adapter_checksum(bytes)? {
@@ -2473,19 +2475,19 @@ fn low_rank_components(
         let pivot_col = pivot_index % cols;
         let mut a = vec![0.0f32; rows];
         let mut b = vec![0.0f32; cols];
-        for row in 0..rows {
-            a[row] = residual[row * cols + pivot_col];
+        for (row, value) in a.iter_mut().enumerate().take(rows) {
+            *value = residual[row * cols + pivot_col];
         }
-        for col in 0..cols {
-            b[col] = residual[pivot_row * cols + col] / pivot;
-            if !b[col].is_finite() {
+        for (col, value) in b.iter_mut().enumerate().take(cols) {
+            *value = residual[pivot_row * cols + col] / pivot;
+            if !value.is_finite() {
                 return Err(invalid("low-rank adapter factor is not finite"));
             }
         }
-        for row in 0..rows {
-            for col in 0..cols {
+        for (row, a_value) in a.iter().copied().enumerate().take(rows) {
+            for (col, b_value) in b.iter().copied().enumerate().take(cols) {
                 let index = row * cols + col;
-                residual[index] -= a[row] * b[col];
+                residual[index] -= a_value * b_value;
                 if !residual[index].is_finite() {
                     return Err(invalid("low-rank adapter residual update is not finite"));
                 }

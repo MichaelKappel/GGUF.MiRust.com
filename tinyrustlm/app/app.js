@@ -119,6 +119,145 @@
     ".mirust.com",
     ".huggingface.co"
   ];
+  const localMemoryUniversalPaths = [
+    ".uai/memory-maintenance.uai",
+    ".uai/identity.uai",
+    ".uai/world-context.uai",
+    ".uai/totem.uai",
+    ".uai/taboo.uai",
+    ".uai/talisman.uai",
+    ".uai/short-term-memory.uai"
+  ];
+  const localMemoryBaselinePaths = [
+    ".uai/manifest.uaix.json",
+    ".uai/startup-packet.uai",
+    ".uai/system-profile.uai",
+    ".uai/receiver-brief.uai",
+    ".uai/index.uai",
+    ".uai/context.uai",
+    ".uai/constraints.uai",
+    ".uai/progress.uai",
+    ".uai/operations.uai",
+    ".uai/test-plan.uai",
+    ".uai/decisions.uai",
+    ".uai/memory.uai",
+    ".uai/agent-pickup.uai",
+    ".uai/archives/session-log.uai",
+    ".uai/exports/manifest.json",
+    ".uai/exports/manifest-overlay.json",
+    ".uai/exports/package-model.json",
+    ".uai/exports/knowledge-graph.json",
+    ".uai/exports/llms.uai",
+    ".uai/exports/llms-full.uai"
+  ];
+  const localMemoryFileHandoffPaths = [
+    ".uai/file-handoff.uai",
+    ".uai/intake-outcome-ledger.uai"
+  ];
+  const localMemoryCodeBearingPaths = [
+    ".uai/coding-standards.uai",
+    ".uai/architecture.uai",
+    ".uai/next-recursive-prompt.uai"
+  ];
+  const localMemoryMultiAgentPaths = [
+    ".uai/agent-instructions.uai",
+    ".uai/owners.uai",
+    ".uai/current-state.uai",
+    ".uai/next-actions.uai",
+    ".uai/open-questions.uai",
+    ".uai/risk-register.uai"
+  ];
+  const localMemoryTalismanPaths = [
+    ".uai/agent-instructions.uai",
+    ".uai/owners.uai",
+    ".uai/risk-register.uai",
+    "reports/deployment-memory-and-test-report.uai"
+  ];
+  const localMemoryAdvancedPersonaPaths = [
+    ".uai/readme.human",
+    ".uai/persona.uai",
+    ".uai/personality/identity.uai",
+    ".uai/personality/religion-worldview.uai",
+    ".uai/personality/political-leaning.uai",
+    ".uai/personality/sense-of-style.uai",
+    ".uai/personality/physical-appearance.uai",
+    ".uai/personality/birth-age-generation.uai",
+    ".uai/personality/romantic-orientation.uai",
+    ".uai/personality/voice.uai",
+    ".uai/personality/values.uai",
+    ".uai/personality/temperament.uai",
+    ".uai/personality/reasoning-style.uai",
+    ".uai/personality/emotional-patterns.uai",
+    ".uai/personality/relationship-style.uai",
+    ".uai/personality/behavioral-patterns.uai",
+    ".uai/personality/boundaries.uai",
+    ".uai/personality/examples-dialogue.uai",
+    ".uai/personality/adaptation-rules.uai",
+    ".uai/personality/preservation-rules.uai",
+    ".uai/evidence/source-excerpts.uai",
+    ".uai/evidence/source-platform-profile.uai",
+    ".uai/evidence/persona-fidelity-test-deck.uai",
+    ".uai/evidence/variance-report-template.uai",
+    ".uai/evidence/provenance.uai",
+    ".uai/personality/sense-of-winter.uai",
+    ".uai/personality/sense-of-spring-fall.uai",
+    ".uai/personality/super-fashion-style.uai",
+    ".uai/personality/jewelry-choices.uai"
+  ];
+  const localMemoryAdvancedPersonaDimensions = [
+    ["Religion and worldview", ".uai/personality/religion-worldview.uai"],
+    ["Political leaning", ".uai/personality/political-leaning.uai"],
+    ["Sense of style", ".uai/personality/sense-of-style.uai"],
+    ["Physical appearance", ".uai/personality/physical-appearance.uai"],
+    ["Birth, age, and generation", ".uai/personality/birth-age-generation.uai"],
+    ["Romantic orientation", ".uai/personality/romantic-orientation.uai"],
+    ["Winter style", ".uai/personality/sense-of-winter.uai"],
+    ["Spring/fall style", ".uai/personality/sense-of-spring-fall.uai"],
+    ["Super fashion/style", ".uai/personality/super-fashion-style.uai"],
+    ["Jewelry choices", ".uai/personality/jewelry-choices.uai"]
+  ];
+  const localMemoryOptionalContentPaths = [
+    ["tool_permissions", ".uai/tool-permissions.uai"],
+    ["delegated_operations", ".uai/credential-inventory.uai"],
+    ["deployment", "reports/deployment-memory-and-test-report.uai"],
+    ["contact_memory", ".uai/contact-memory.uai"],
+    ["calendar_scheduling", ".uai/calendar-and-scheduling.uai"],
+    ["communication_style", ".uai/communication-style.uai"],
+    ["tasks_commitments", ".uai/tasks-and-commitments.uai"],
+    ["routines_preferences", ".uai/routines-and-preferences.uai"],
+    ["safety_support_boundaries", ".uai/safety-and-support-boundary.uai"],
+    ["source_notes", ".uai/source-notes.uai"],
+    ["public_facing_boundaries", ".uai/public-facing-boundary.uai"]
+  ];
+  const localMemoryContextPriority = [
+    ".uai/persona.uai",
+    ".uai/system-profile.uai",
+    ".uai/receiver-brief.uai",
+    ".uai/context.uai",
+    ".uai/constraints.uai",
+    ".uai/memory.uai",
+    ".uai/short-term-memory.uai",
+    ".uai/identity.uai",
+    ".uai/world-context.uai",
+    ".uai/totem.uai",
+    ".uai/taboo.uai",
+    ".uai/talisman.uai",
+    ".uai/long-term-memory.uai",
+    ".uai/tasks-and-commitments.uai",
+    ".uai/communication-style.uai",
+    ".uai/agent-instructions.uai",
+    ".uai/current-state.uai",
+    ".uai/next-actions.uai",
+    ".uai/open-questions.uai",
+    ".uai/risk-register.uai",
+    ".uai/personality/identity.uai",
+    ".uai/personality/values.uai",
+    ".uai/personality/temperament.uai",
+    ".uai/personality/reasoning-style.uai",
+    ".uai/personality/relationship-style.uai",
+    ".uai/personality/boundaries.uai",
+    ".uai/personality/preservation-rules.uai"
+  ];
 
   const registryAdapterApplyStatus = "runtime-f32-compatible-or-fuse-to-slm";
   const registryQuantizedAdapterApplyStatus = "runtime-q8-q4-compatible-or-fuse-to-slm";
@@ -181,6 +320,12 @@
   const registryModulePlanContextTokenLimitLimit = 4096;
   const registryModulePlanSamplerCandidateCap = 1024;
   const registryModulePlanPromptByteLimit = 4 * 1024;
+  const localMemoryPackageMaxFiles = 512;
+  const localMemoryPackageMaxFileBytes = 1024 * 1024;
+  const localMemoryPackageMaxBytes = 16 * 1024 * 1024;
+  const localMemoryContextByteLimit = 192;
+  const uaixMemoryWizardUrl = `${httpsScheme}uaix.org/en-us/tools/ai-memory-package-wizard/`;
+  const uaixPersonaPackUrl = `${httpsScheme}uaix.org/en-us/ai-memory/uai-files/persona-uai/personality-packs/`;
   const registryModulePlanRuntimeScratchByteBudget = 64 * 1024;
   const registryModulePlanOutputByteLimit = 64 * 1024;
   const registryModulePlanKvCacheByteBudgetLimit = 8 * 1024 * 1024;
@@ -348,6 +493,7 @@
     importReceiptLedger: null,
     peerStatusCheck: null,
     peerCompanionInventory: null,
+    localMemoryPackage: null,
     pendingConversionRequest: null,
     catalogFetchAbort: null,
     hfSearchAbort: null,
@@ -426,6 +572,9 @@
     simpleLocalConnectStatus: document.getElementById("simpleLocalConnectStatus"),
     simpleOpenAdvancedDiscoveryButton: document.getElementById("simpleOpenAdvancedDiscoveryButton"),
     simpleDiscoveryStatus: document.getElementById("simpleDiscoveryStatus"),
+    simpleLocalMemoryPackageFiles: document.getElementById("simpleLocalMemoryPackageFiles"),
+    simpleInspectLocalMemoryPackageButton: document.getElementById("simpleInspectLocalMemoryPackageButton"),
+    simpleLocalMemoryPackageStatus: document.getElementById("simpleLocalMemoryPackageStatus"),
     simpleErrorPanel: document.getElementById("simpleErrorPanel"),
     simpleErrorMessage: document.getElementById("simpleErrorMessage"),
     modelToolbarName: document.getElementById("modelToolbarName"),
@@ -464,6 +613,13 @@
     conversionRequestFile: document.getElementById("conversionRequestFile"),
     importConversionRequestButton: document.getElementById("importConversionRequestButton"),
     conversionRequestState: document.getElementById("conversionRequestState"),
+    localMemoryPackageSetup: document.getElementById("localMemoryPackageSetup"),
+    localMemoryPackageFiles: document.getElementById("localMemoryPackageFiles"),
+    inspectLocalMemoryPackageButton: document.getElementById("inspectLocalMemoryPackageButton"),
+    clearLocalMemoryPackageButton: document.getElementById("clearLocalMemoryPackageButton"),
+    localMemoryPackageStatus: document.getElementById("localMemoryPackageStatus"),
+    localMemoryPackageSummary: document.getElementById("localMemoryPackageSummary"),
+    localMemoryPackageContextPreview: document.getElementById("localMemoryPackageContextPreview"),
     catalogUrlInput: document.getElementById("catalogUrlInput"),
     catalogLoadButton: document.getElementById("catalogLoadButton"),
     localCatalogFile: document.getElementById("localCatalogFile"),
@@ -509,6 +665,7 @@
     checkLocalConnectEndpointButton: document.getElementById("checkLocalConnectEndpointButton"),
     dryRunLocalConnectDecisionButton: document.getElementById("dryRunLocalConnectDecisionButton"),
     dryRunLocalConnectActionButton: document.getElementById("dryRunLocalConnectActionButton"),
+    executeLocalConnectActionButton: document.getElementById("executeLocalConnectActionButton"),
     localConnectEndpointStatus: document.getElementById("localConnectEndpointStatus"),
     localConnectEndpointAppList: document.getElementById("localConnectEndpointAppList"),
     localConnectPolicyStatus: document.getElementById("localConnectPolicyStatus"),
@@ -678,6 +835,10 @@
 
   const localConnectPolicyKind = "tinyrustlm.local_connect_approval_policy.v0";
   const localConnectPolicyVersion = 2;
+  const localConnectAppInventoryPolicy = "bounded-name-discovery-no-paths-v1";
+  const localConnectAppInventoryPathExposure = "never";
+  const localConnectAppApprovalBindingPolicy = "app-and-category-v1";
+  const localConnectActionExecutionPolicy = "typed-action-dry-run-default-execution-consent-v1";
   const localConnectApprovalModes = {
     ask: {
       label: "Ask every time",
@@ -1027,9 +1188,14 @@
       el.modelLoadPill.replaceChildren(dot, document.createTextNode(pillText));
     }
     if (el.modelContextPill) {
-      el.modelContextPill.textContent = hasLoadedModel && model && Number.isFinite(model.maxTokens)
+      el.modelContextPill.textContent = state.localMemoryPackage && state.localMemoryPackage.valid
+        ? "UAIX memory active"
+        : hasLoadedModel && model && Number.isFinite(model.maxTokens)
         ? `${model.maxTokens} max tokens`
         : "Browser local";
+      el.modelContextPill.className = state.localMemoryPackage && state.localMemoryPackage.valid
+        ? "status-pill info"
+        : "status-pill neutral";
     }
     el.currentModelSummary.textContent = `${selected} / ${stateText || "waiting"}`;
     updateShareMetadataControls();
@@ -1303,6 +1469,18 @@
     if (health.app_execution_endpoints !== true || health.action_endpoint_path !== "/v0/action") {
       throw new Error("Local Connect endpoint did not expose the gated action endpoint.");
     }
+    if (
+      health.app_inventory_policy !== localConnectAppInventoryPolicy ||
+      health.app_inventory_path_exposure !== localConnectAppInventoryPathExposure
+    ) {
+      throw new Error("Local Connect endpoint did not advertise the path-free app inventory contract.");
+    }
+    if (health.app_approval_binding_policy !== localConnectAppApprovalBindingPolicy) {
+      throw new Error("Local Connect endpoint did not advertise category-bound app approval.");
+    }
+    if (health.action_execution_policy !== localConnectActionExecutionPolicy) {
+      throw new Error("Local Connect endpoint did not advertise the dry-run-first execution-consent action contract.");
+    }
     if (!Array.isArray(health.supported_actions) || !health.supported_actions.includes("open-url")) {
       throw new Error("Local Connect endpoint did not advertise browser open-url action support.");
     }
@@ -1331,6 +1509,18 @@
     validateLocalConnectPolicySha256(apps.policy_sha256, expectedPolicySha256, "app-list");
     if (apps.inventory_paths_exposed !== false) {
       throw new Error("Local Connect endpoint app inventory must not expose local paths.");
+    }
+    if (
+      apps.app_inventory_policy !== localConnectAppInventoryPolicy ||
+      apps.app_inventory_path_exposure !== localConnectAppInventoryPathExposure
+    ) {
+      throw new Error("Local Connect endpoint app inventory contract was not recognized.");
+    }
+    if (apps.app_approval_binding_policy !== localConnectAppApprovalBindingPolicy) {
+      throw new Error("Local Connect endpoint app approval binding contract was not recognized.");
+    }
+    if (apps.action_execution_policy !== localConnectActionExecutionPolicy) {
+      throw new Error("Local Connect endpoint action execution contract was not recognized.");
     }
     if (typeof apps.inventory_source !== "string" || !apps.inventory_source.trim()) {
       throw new Error("Local Connect endpoint app inventory source was missing.");
@@ -1366,6 +1556,12 @@
       if (app.inventory_paths_exposed !== false) {
         throw new Error("Local Connect endpoint app row exposed a local path.");
       }
+      if (app.app_approval_binding_policy !== localConnectAppApprovalBindingPolicy) {
+        throw new Error("Local Connect endpoint app row approval binding contract was not recognized.");
+      }
+      if (app.action_execution_policy !== localConnectActionExecutionPolicy) {
+        throw new Error("Local Connect endpoint app row action execution contract was not recognized.");
+      }
       if (typeof app.source_label !== "string" || !app.source_label.trim()) {
         throw new Error("Local Connect endpoint app row was missing a source label.");
       }
@@ -1396,6 +1592,9 @@
       throw new Error("Local Connect endpoint decision response was not recognized.");
     }
     validateLocalConnectPolicySha256(decision.policy_sha256, expectedPolicySha256, "decision");
+    if (decision.app_approval_binding_policy !== localConnectAppApprovalBindingPolicy) {
+      throw new Error("Local Connect endpoint decision did not bind approved apps to categories.");
+    }
     if (!["allow", "ask", "deny"].includes(decision.decision)) {
       throw new Error("Local Connect endpoint returned an unknown decision.");
     }
@@ -1404,11 +1603,17 @@
     }
   }
 
-  function validateLocalConnectAction(action, expectedPolicySha256, snapshot) {
+  function validateLocalConnectAction(action, expectedPolicySha256, snapshot, expectedDryRun = true) {
     if (!action || action.endpoint_kind !== "tinyrustlm.local_connect_endpoint.v0") {
       throw new Error("Local Connect endpoint action response was not recognized.");
     }
     validateLocalConnectPolicySha256(action.policy_sha256, expectedPolicySha256, "action");
+    if (action.app_approval_binding_policy !== localConnectAppApprovalBindingPolicy) {
+      throw new Error("Local Connect endpoint action did not bind approved apps to categories.");
+    }
+    if (action.action_execution_policy !== localConnectActionExecutionPolicy) {
+      throw new Error("Local Connect endpoint action did not use the dry-run-first execution-consent contract.");
+    }
     const allowedReasons = new Set(["category-always-approved", "app-approved"]);
     if (localConnectFullControlReady(snapshot)) {
       allowedReasons.add("full-local-control");
@@ -1425,8 +1630,11 @@
     if (!isCatalogSha256(action.action_request_sha256)) {
       throw new Error("Local Connect endpoint action response did not include a valid request fingerprint.");
     }
-    if (action.dry_run !== true || action.app_execution_performed !== false || action.execution_status !== "dry-run") {
+    if (expectedDryRun && (action.dry_run !== true || action.app_execution_performed !== false || action.execution_status !== "dry-run")) {
       throw new Error("Local Connect endpoint action dry run performed app execution.");
+    }
+    if (!expectedDryRun && (action.dry_run !== false || action.app_execution_performed !== true || action.execution_status !== "started")) {
+      throw new Error("Local Connect endpoint action did not report explicit execution.");
     }
   }
 
@@ -1641,7 +1849,7 @@
     );
   }
 
-  async function dryRunLocalConnectAction() {
+  async function requestLocalConnectOpenUrlAction(dryRun) {
     persistLocalConnectPolicy(undefined, { preserveEndpointApps: true });
     const endpoint = sanitizeLocalConnectEndpointUrl(
       el.localConnectEndpointUrl ? el.localConnectEndpointUrl.value : state.localConnectEndpointUrl
@@ -1651,30 +1859,49 @@
     if (el.localConnectEndpointUrl) {
       el.localConnectEndpointUrl.value = endpoint;
     }
-    setLocalConnectEndpointStatus("Dry-running Local Connect open-url action...", false);
+    setLocalConnectEndpointStatus(
+      dryRun ? "Dry-running Local Connect open-url action..." : "Executing Local Connect open-url action...",
+      false
+    );
     const snapshot = localConnectPolicySnapshot();
     assertLocalConnectPolicyReadyForEndpoint(snapshot);
     const expectedPolicySha256 = await localConnectPolicySha256(snapshot);
+    const headers = {
+      "content-type": "application/json",
+      "x-tinyrustlm-policy-sha256": expectedPolicySha256
+    };
+    if (!dryRun) {
+      headers["x-tinyrustlm-execution-consent"] = "native-opener-v1";
+    }
     const action = await fetchLocalConnectJson(`${endpoint}/v0/action`, {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-tinyrustlm-policy-sha256": expectedPolicySha256
-      },
+      headers,
       body: JSON.stringify({
         policy_sha256: expectedPolicySha256,
         category: "browser",
         app: "chrome.exe",
         action: "open-url",
-        target: "https://tinyrustlm.com/local-connect-dry-run",
-        dry_run: true
+        target: dryRun
+          ? `${"https:"}//tinyrustlm.com/local-connect-dry-run`
+          : `${"https:"}//tinyrustlm.com/local-connect-executed`,
+        dry_run: dryRun
       })
     });
-    validateLocalConnectAction(action, expectedPolicySha256, snapshot);
+    validateLocalConnectAction(action, expectedPolicySha256, snapshot, dryRun);
     setLocalConnectEndpointStatus(
-      `Endpoint action dry run: ${action.decision} ${action.action} for browser/chrome.exe; request fingerprint ${action.action_request_sha256}; no app execution performed.`,
+      dryRun
+        ? `Endpoint action dry run: ${action.decision} ${action.action} for browser/chrome.exe; request fingerprint ${action.action_request_sha256}; no app execution performed.`
+        : `Endpoint action executed: ${action.decision} ${action.action} for browser/chrome.exe; request fingerprint ${action.action_request_sha256}; endpoint reported native opener start.`,
       false
     );
+  }
+
+  async function dryRunLocalConnectAction() {
+    await requestLocalConnectOpenUrlAction(true);
+  }
+
+  async function executeLocalConnectAction() {
+    await requestLocalConnectOpenUrlAction(false);
   }
 
   function saveLocalConnectEndpointPolicyJson() {
@@ -2707,6 +2934,24 @@
         });
       });
     }
+    if (el.simpleInspectLocalMemoryPackageButton) {
+      el.simpleInspectLocalMemoryPackageButton.addEventListener("click", () => {
+        bindLocalMemoryPackage(el.simpleLocalMemoryPackageFiles, { setup: "auto" }).catch((error) => {
+          const text = errorMessage(error);
+          state.localMemoryPackage = null;
+          renderLocalMemoryPackageSummary(null);
+          setLocalMemoryPackageStatus(text, true);
+        }).finally(() => {
+          holdModelPopoverOpen(2500);
+        });
+      });
+    }
+    if (el.simpleLocalMemoryPackageFiles) {
+      el.simpleLocalMemoryPackageFiles.addEventListener("change", () => {
+        setLocalMemorySelectionStatus(el.simpleLocalMemoryPackageFiles);
+        holdModelPopoverOpen(2000);
+      });
+    }
     document.querySelectorAll('input[name="simpleCreativity"], input[name="simpleLength"]').forEach((input) => {
       input.addEventListener("change", () => syncSemanticControls(true));
     });
@@ -2926,6 +3171,13 @@
     if (el.dryRunLocalConnectActionButton) {
       el.dryRunLocalConnectActionButton.addEventListener("click", () => {
         dryRunLocalConnectAction().catch((error) => {
+          setLocalConnectEndpointStatus(errorMessage(error), true);
+        });
+      });
+    }
+    if (el.executeLocalConnectActionButton) {
+      el.executeLocalConnectActionButton.addEventListener("click", () => {
+        executeLocalConnectAction().catch((error) => {
           setLocalConnectEndpointStatus(errorMessage(error), true);
         });
       });
@@ -3613,6 +3865,573 @@
     const text = String(pathHint || "").replace(/\\/g, "/");
     const leaf = text.split("/").filter(Boolean).pop() || fallback;
     return safeLocalModelName(leaf);
+  }
+
+  function normalizeLocalMemoryPath(pathHint, fallback = "memory.uai") {
+    const raw = String(pathHint || fallback)
+      .replace(/\\/g, "/")
+      .replace(/^[a-zA-Z]:\//, "")
+      .replace(/^\/+/, "")
+      .trim();
+    let parts = raw.split("/").filter(Boolean);
+    const uaiIndex = parts.findIndex((segment) => segment.toLowerCase() === ".uai");
+    if (uaiIndex >= 0) {
+      parts = parts.slice(uaiIndex);
+    } else if (parts[0] && parts[0].toLowerCase() === "uai") {
+      parts[0] = ".uai";
+    } else {
+      const leaf = safeLocalModelName(parts[parts.length - 1] || fallback);
+      const requiredPaths = [
+        ...localMemoryUniversalPaths,
+        ...localMemoryBaselinePaths,
+        ...localMemoryFileHandoffPaths,
+        ...localMemoryCodeBearingPaths,
+        ...localMemoryMultiAgentPaths,
+        ...localMemoryTalismanPaths,
+        ...localMemoryAdvancedPersonaPaths,
+        ...localMemoryOptionalContentPaths.map((entry) => entry[1])
+      ];
+      const candidates = requiredPaths.filter((path) => safeLocalPathLeaf(path).toLowerCase() === leaf.toLowerCase());
+      if (candidates.length === 1) {
+        return candidates[0];
+      }
+      parts = [".uai", leaf];
+    }
+    if (!parts.length || parts[0].toLowerCase() !== ".uai") {
+      throw new Error("UAIX memory deck files must be inside a .uai folder");
+    }
+    const normalized = parts.map((segment, index) => {
+      const value = String(segment || "").trim();
+      if (!value || value === "." || value === "..") {
+        throw new Error("UAIX memory deck paths cannot contain empty or parent segments");
+      }
+      return index === 0 ? ".uai" : safeLocalModelName(value);
+    }).join("/");
+    return normalized.toLowerCase();
+  }
+
+  function normalizeLocalMemoryManifestPath(value) {
+    try {
+      return normalizeLocalMemoryPath(value, "");
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function localMemoryPathHintFromText(text) {
+    const match = String(text || "").match(/(?:^|\n)\s*(\.uai\/[A-Za-z0-9._/-]+)/);
+    return match ? match[1] : "";
+  }
+
+  function localMemoryManifestEntry(entries) {
+    return entries.get(".uai/manifest.uaix.json") || null;
+  }
+
+  function localMemorySelectedFiles(input) {
+    return Array.from(input && input.files ? input.files : []);
+  }
+
+  function localMemorySetupLabel(setup) {
+    const labels = {
+      base: "Base active memory",
+      agent_file_handoff: "Agent File Handoff",
+      llm_wiki: "LLM Wiki",
+      file_handoff_llm_wiki: "File Handoff + LLM Wiki",
+      multi_agent_communication: "Multi-Agent Communication",
+      talisman_system: "Talisman System",
+      advanced_persona_profile: "Advanced Persona Profile"
+    };
+    return labels[setup] || labels.base;
+  }
+
+  function valueContainsLocalMemoryString(value, needle) {
+    const target = String(needle || "").toLowerCase();
+    if (!target) {
+      return false;
+    }
+    if (typeof value === "string") {
+      return value.toLowerCase().includes(target);
+    }
+    if (Array.isArray(value)) {
+      return value.some((item) => valueContainsLocalMemoryString(item, target));
+    }
+    if (value && typeof value === "object") {
+      return Object.entries(value).some(([key, item]) => {
+        return String(key).toLowerCase().includes(target) || valueContainsLocalMemoryString(item, target);
+      });
+    }
+    return false;
+  }
+
+  function localMemoryManifestBoolean(manifest, key) {
+    if (!manifest || typeof manifest !== "object") {
+      return false;
+    }
+    if (manifest[key] === true) {
+      return true;
+    }
+    const dashed = key.replace(/_/g, "-");
+    return valueContainsLocalMemoryString(manifest, key) || valueContainsLocalMemoryString(manifest, dashed);
+  }
+
+  function extractLocalMemoryManifestPaths(value, paths = new Set()) {
+    if (typeof value === "string") {
+      const pathValue = normalizeLocalMemoryManifestPath(value);
+      if (pathValue) {
+        paths.add(pathValue);
+      }
+      return paths;
+    }
+    if (Array.isArray(value)) {
+      value.forEach((item) => extractLocalMemoryManifestPaths(item, paths));
+      return paths;
+    }
+    if (value && typeof value === "object") {
+      Object.entries(value).forEach(([key, item]) => {
+        const keyText = String(key || "").toLowerCase();
+        if (typeof item === "string" && (keyText.includes("path") || keyText.includes("file") || keyText.includes("entry"))) {
+          const pathValue = normalizeLocalMemoryManifestPath(item);
+          if (pathValue) {
+            paths.add(pathValue);
+          }
+        }
+        extractLocalMemoryManifestPaths(item, paths);
+      });
+    }
+    return paths;
+  }
+
+  function inferLocalMemorySetup(manifest, selectedSetup) {
+    if (selectedSetup && selectedSetup !== "auto") {
+      return selectedSetup;
+    }
+    if (valueContainsLocalMemoryString(manifest, "advanced_persona_profile")) {
+      return "advanced_persona_profile";
+    }
+    if (valueContainsLocalMemoryString(manifest, "talisman_system")) {
+      return "talisman_system";
+    }
+    if (valueContainsLocalMemoryString(manifest, "multi_agent_communication")) {
+      return "multi_agent_communication";
+    }
+    if (valueContainsLocalMemoryString(manifest, "file_handoff_llm_wiki")) {
+      return "file_handoff_llm_wiki";
+    }
+    if (valueContainsLocalMemoryString(manifest, "agent_file_handoff")) {
+      return "agent_file_handoff";
+    }
+    if (valueContainsLocalMemoryString(manifest, "llm_wiki")) {
+      return "llm_wiki";
+    }
+    return "base";
+  }
+
+  function uniqueLocalMemoryPaths(paths) {
+    return Array.from(new Set(paths.map((path) => normalizeLocalMemoryPath(path)))).sort();
+  }
+
+  function orderedUniqueLocalMemoryPaths(paths) {
+    const seen = new Set();
+    const result = [];
+    for (const path of paths) {
+      const normalized = normalizeLocalMemoryPath(path);
+      if (seen.has(normalized)) {
+        continue;
+      }
+      seen.add(normalized);
+      result.push(normalized);
+    }
+    return result;
+  }
+
+  function localMemoryRequiredPaths(setup, manifest, entries, declaredPaths) {
+    const required = [
+      ...localMemoryUniversalPaths,
+      ...localMemoryBaselinePaths
+    ];
+    if (setup === "agent_file_handoff" || setup === "file_handoff_llm_wiki") {
+      required.push(...localMemoryFileHandoffPaths);
+    }
+    if (setup === "llm_wiki" || setup === "file_handoff_llm_wiki") {
+      required.push(".uai/long-term-memory.uai");
+    }
+    if (setup === "file_handoff_llm_wiki" || localMemoryManifestBoolean(manifest, "code_like_artifacts")) {
+      required.push(...localMemoryCodeBearingPaths);
+    }
+    if (setup === "multi_agent_communication") {
+      required.push(...localMemoryMultiAgentPaths);
+    }
+    if (setup === "talisman_system") {
+      required.push(...localMemoryTalismanPaths);
+    }
+    for (const [key, path] of localMemoryOptionalContentPaths) {
+      const normalized = normalizeLocalMemoryPath(path);
+      if (localMemoryManifestBoolean(manifest, key) || entries.has(normalized) || declaredPaths.has(normalized)) {
+        required.push(path);
+      }
+    }
+    if (setup === "advanced_persona_profile") {
+      required.push(...localMemoryAdvancedPersonaPaths);
+    }
+    return uniqueLocalMemoryPaths(required);
+  }
+
+  function localMemoryTextContainsMarker(text, markers) {
+    const normalized = String(text || "").toLowerCase();
+    return markers.some((marker) => normalized.includes(String(marker).toLowerCase()));
+  }
+
+  function localMemoryDepthLevel(text) {
+    const normalized = String(text || "").toLowerCase();
+    for (const marker of ["depth_level_0_to_10", "depth level 0 to 10"]) {
+      const index = normalized.indexOf(marker);
+      if (index < 0) {
+        continue;
+      }
+      const tail = normalized.slice(index + marker.length);
+      const match = tail.match(/\d+/);
+      if (!match) {
+        continue;
+      }
+      const value = Number.parseInt(match[0], 10);
+      if (Number.isInteger(value) && value >= 0 && value <= 10) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  function inspectLocalMemoryPersonaDimensions(entries, setup) {
+    if (setup !== "advanced_persona_profile") {
+      return [];
+    }
+    return localMemoryAdvancedPersonaDimensions.map(([dimension, path]) => {
+      const normalized = normalizeLocalMemoryPath(path);
+      const entry = entries.get(normalized) || null;
+      const text = entry && entry.text ? entry.text : "";
+      const warnings = [];
+      const exists = Boolean(entry && entry.byteCount > 0);
+      if (!exists) {
+        warnings.push("persona dimension file is missing or empty");
+      }
+      const declaresDepthLevel = localMemoryTextContainsMarker(text, ["depth_level_0_to_10", "depth level 0 to 10"]);
+      const depthLevel0To10 = localMemoryDepthLevel(text);
+      const declaresDisclosureBoundary = localMemoryTextContainsMarker(text, ["disclosure_boundary", "disclosure boundary"]);
+      const declaresSourceConfidence = localMemoryTextContainsMarker(text, ["source_confidence", "source confidence"]);
+      const declaresNonInferenceRules = localMemoryTextContainsMarker(text, [
+        "non_inference",
+        "non-inference",
+        "non inference",
+        "do not infer",
+        "no inference"
+      ]);
+      if (exists && !declaresDepthLevel) {
+        warnings.push("persona dimension did not declare depth_level_0_to_10");
+      }
+      if (exists && depthLevel0To10 === null) {
+        warnings.push("persona dimension did not provide a parsed depth value from 0 to 10");
+      }
+      if (exists && !declaresDisclosureBoundary) {
+        warnings.push("persona dimension did not declare a disclosure boundary");
+      }
+      if (exists && !declaresSourceConfidence) {
+        warnings.push("persona dimension did not declare source confidence");
+      }
+      if (exists && !declaresNonInferenceRules) {
+        warnings.push("persona dimension did not declare non-inference rules");
+      }
+      return {
+        dimension,
+        path: normalized,
+        exists,
+        byteCount: entry ? entry.byteCount : 0,
+        sha256: entry ? entry.sha256 : "",
+        declaresDepthLevel,
+        depthLevel0To10,
+        declaresDisclosureBoundary,
+        declaresSourceConfidence,
+        declaresNonInferenceRules,
+        valid: exists && declaresDepthLevel && depthLevel0To10 !== null && declaresDisclosureBoundary && declaresSourceConfidence && declaresNonInferenceRules,
+        warnings
+      };
+    });
+  }
+
+  function trimTextToByteLimit(text, byteLimit) {
+    const limit = Math.max(0, Number.parseInt(byteLimit, 10) || 0);
+    const value = String(text || "");
+    if (state.encoder.encode(value).length <= limit) {
+      return value;
+    }
+    let low = 0;
+    let high = value.length;
+    while (low < high) {
+      const mid = Math.ceil((low + high) / 2);
+      if (state.encoder.encode(value.slice(0, mid)).length <= limit) {
+        low = mid;
+      } else {
+        high = mid - 1;
+      }
+    }
+    return `${value.slice(0, low).trimEnd()}\n[trimmed]`;
+  }
+
+  function buildLocalMemoryContextText(entries, requiredPaths) {
+    const contextPaths = orderedUniqueLocalMemoryPaths([
+      ...localMemoryContextPriority,
+      ...localMemoryAdvancedPersonaDimensions.map((entry) => entry[1]),
+      ...requiredPaths.filter((path) => path.endsWith(".uai"))
+    ]);
+    const sections = [];
+    let usedBytes = 0;
+    for (const path of contextPaths) {
+      const entry = entries.get(path);
+      if (!entry || !entry.text || !entry.text.trim()) {
+        continue;
+      }
+      const body = entry.text.replace(/\u0000/g, "").trim();
+      if (!body) {
+        continue;
+      }
+      const sectionHeader = `## ${path}\n`;
+      const remaining = localMemoryContextByteLimit - usedBytes - state.encoder.encode(sectionHeader).length - 2;
+      if (remaining < 96) {
+        break;
+      }
+      const trimmedBody = trimTextToByteLimit(body, Math.min(remaining, 512));
+      const section = `${sectionHeader}${trimmedBody}`;
+      usedBytes += state.encoder.encode(`${section}\n\n`).length;
+      sections.push(section);
+      if (usedBytes >= localMemoryContextByteLimit) {
+        break;
+      }
+    }
+    return sections.join("\n\n").trim();
+  }
+
+  async function loadLocalMemoryPackageEntries(files) {
+    if (!files.length) {
+      throw new Error("Choose an extracted `.uai` folder before inspecting memory");
+    }
+    if (files.length > localMemoryPackageMaxFiles) {
+      throw new Error(`UAIX memory deck exceeds ${localMemoryPackageMaxFiles} browser file limit`);
+    }
+    const entries = new Map();
+    let totalBytes = 0;
+    for (const file of files) {
+      totalBytes += file.size || 0;
+      if (totalBytes > localMemoryPackageMaxBytes) {
+        throw new Error(`UAIX memory deck exceeds ${formatByteCount(localMemoryPackageMaxBytes)} browser limit`);
+      }
+      if (file.size > localMemoryPackageMaxFileBytes) {
+        throw new Error(`${safeLocalModelName(file.name)} exceeds ${formatByteCount(localMemoryPackageMaxFileBytes)} per-file limit`);
+      }
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      let text = "";
+      try {
+        text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+      } catch (_error) {
+        text = "";
+      }
+      const relativePath = normalizeLocalMemoryPath(file.webkitRelativePath || localMemoryPathHintFromText(text) || file.name, file.name);
+      if (entries.has(relativePath)) {
+        throw new Error(`Duplicate UAIX memory file path: ${relativePath}`);
+      }
+      entries.set(relativePath, {
+        path: relativePath,
+        name: safeLocalModelName(file.name),
+        byteCount: bytes.length,
+        sha256: await sha256Hex(bytes),
+        text
+      });
+    }
+    return entries;
+  }
+
+  async function inspectLocalMemoryPackage(input = el.localMemoryPackageFiles, options = {}) {
+    const files = localMemorySelectedFiles(input);
+    const entries = await loadLocalMemoryPackageEntries(files);
+    const manifestEntry = localMemoryManifestEntry(entries);
+    if (!manifestEntry || !manifestEntry.text) {
+      throw new Error("UAIX memory deck is missing `.uai/manifest.uaix.json`");
+    }
+    let manifest = null;
+    try {
+      manifest = JSON.parse(manifestEntry.text);
+    } catch (error) {
+      throw new Error(`UAIX memory manifest JSON is invalid: ${errorMessage(error)}`);
+    }
+    if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
+      throw new Error("UAIX memory manifest must be a JSON object");
+    }
+    const declaredPaths = extractLocalMemoryManifestPaths(manifest);
+    const selectedSetup = Object.prototype.hasOwnProperty.call(options, "setup")
+      ? options.setup
+      : (el.localMemoryPackageSetup ? el.localMemoryPackageSetup.value : "auto");
+    const setup = inferLocalMemorySetup(manifest, selectedSetup);
+    const requiredPaths = localMemoryRequiredPaths(setup, manifest, entries, declaredPaths);
+    const requiredFiles = requiredPaths.map((path) => {
+      const entry = entries.get(path) || null;
+      return {
+        path,
+        exists: Boolean(entry && entry.byteCount > 0),
+        byteCount: entry ? entry.byteCount : 0,
+        sha256: entry ? entry.sha256 : ""
+      };
+    });
+    const missingRequiredFiles = requiredFiles.filter((file) => !file.exists).map((file) => file.path);
+    const manifestMissingRequiredFiles = requiredPaths.filter((path) => !declaredPaths.has(path));
+    const personaDimensions = inspectLocalMemoryPersonaDimensions(entries, setup);
+    const personaDimensionWarnings = personaDimensions.reduce((count, dimension) => count + dimension.warnings.length, 0);
+    const personaDimensionsValid = setup !== "advanced_persona_profile" || personaDimensions.every((dimension) => dimension.valid);
+    const valid = missingRequiredFiles.length === 0 && manifestMissingRequiredFiles.length === 0 && personaDimensionsValid;
+    const contextText = valid ? buildLocalMemoryContextText(entries, requiredPaths) : "";
+    return {
+      kind: "uaix.memory.browser_deck_inspection.v0",
+      setup,
+      setupLabel: localMemorySetupLabel(setup),
+      fileCount: entries.size,
+      byteCount: Array.from(entries.values()).reduce((total, entry) => total + entry.byteCount, 0),
+      manifestSha256: manifestEntry.sha256,
+      requiredFiles,
+      missingRequiredFiles,
+      manifestMissingRequiredFiles,
+      manifestDeclaresRequiredFiles: manifestMissingRequiredFiles.length === 0,
+      personaDimensions,
+      personaDimensionsValid,
+      personaDimensionWarnings,
+      contextText,
+      valid,
+      sourceUrls: [uaixMemoryWizardUrl, uaixPersonaPackUrl],
+      boundary: {
+        browser_local_only: true,
+        project_server_receives_memory_files: false,
+        persona_source_mutation_allowed: false,
+        native_archive_validation_package: "UAIX.Browser.Memory"
+      }
+    };
+  }
+
+  function setLocalMemoryPackageStatus(text, isError) {
+    if (el.localMemoryPackageStatus) {
+      setText(el.localMemoryPackageStatus, text, isError);
+    }
+    if (el.simpleLocalMemoryPackageStatus) {
+      setText(el.simpleLocalMemoryPackageStatus, text, isError);
+    }
+    updateModelSummary();
+  }
+
+  function renderLocalMemoryPackageSummary(inspection) {
+    if (!el.localMemoryPackageSummary || !el.localMemoryPackageContextPreview) {
+      return;
+    }
+    el.localMemoryPackageSummary.replaceChildren();
+    if (!inspection) {
+      el.localMemoryPackageSummary.hidden = true;
+      el.localMemoryPackageContextPreview.textContent = "";
+      return;
+    }
+    el.localMemoryPackageSummary.hidden = false;
+    const summary = elementWithText(
+      "strong",
+      "",
+      `${inspection.setupLabel} / ${inspection.fileCount} files / ${formatByteCount(inspection.byteCount)} / manifest ${shortSha256(inspection.manifestSha256)}`
+    );
+    el.localMemoryPackageSummary.append(summary);
+    const required = elementWithText(
+      "span",
+      "",
+      `${inspection.requiredFiles.length} required files checked; project server receives memory files: no`
+    );
+    el.localMemoryPackageSummary.append(required);
+    if (inspection.missingRequiredFiles.length) {
+      el.localMemoryPackageSummary.append(elementWithText(
+        "span",
+        "memory-deck-warning",
+        `Missing: ${inspection.missingRequiredFiles.slice(0, 6).join(", ")}`
+      ));
+    }
+    if (inspection.manifestMissingRequiredFiles.length) {
+      el.localMemoryPackageSummary.append(elementWithText(
+        "span",
+        "memory-deck-warning",
+        `Manifest does not declare: ${inspection.manifestMissingRequiredFiles.slice(0, 6).join(", ")}`
+      ));
+    }
+    if (inspection.personaDimensionWarnings > 0) {
+      const warnings = inspection.personaDimensions
+        .filter((dimension) => dimension.warnings.length)
+        .slice(0, 4)
+        .map((dimension) => `${dimension.dimension}: ${dimension.warnings[0]}`)
+        .join("; ");
+      el.localMemoryPackageSummary.append(elementWithText("span", "memory-deck-warning", warnings));
+    }
+    el.localMemoryPackageContextPreview.textContent = inspection.contextText || "No runtime memory context is active until the deck passes validation.";
+  }
+
+  async function bindLocalMemoryPackage(input = el.localMemoryPackageFiles, options = {}) {
+    setLocalMemoryPackageStatus("inspecting UAIX memory deck", false);
+    const inspection = await inspectLocalMemoryPackage(input, options);
+    state.localMemoryPackage = inspection.valid ? inspection : null;
+    renderLocalMemoryPackageSummary(inspection);
+    if (!inspection.valid) {
+      setLocalMemoryPackageStatus("UAIX memory deck failed validation; context not bound", true);
+      return inspection;
+    }
+    setLocalMemoryPackageStatus(
+      `${inspection.setupLabel} bound locally; ${inspection.requiredFiles.length} required files verified`,
+      false
+    );
+    return inspection;
+  }
+
+  function clearLocalMemoryPackage() {
+    state.localMemoryPackage = null;
+    if (el.localMemoryPackageFiles) {
+      el.localMemoryPackageFiles.value = "";
+    }
+    if (el.simpleLocalMemoryPackageFiles) {
+      el.simpleLocalMemoryPackageFiles.value = "";
+    }
+    renderLocalMemoryPackageSummary(null);
+    setLocalMemoryPackageStatus("memory deck optional", false);
+  }
+
+  function setLocalMemorySelectionStatus(input) {
+    const files = localMemorySelectedFiles(input);
+    if (!files.length) {
+      setLocalMemoryPackageStatus("memory deck optional", false);
+      return;
+    }
+    const totalBytes = files.reduce((total, file) => total + (file.size || 0), 0);
+    setLocalMemoryPackageStatus(`${files.length} UAIX memory files selected / ${formatByteCount(totalBytes)}`, false);
+  }
+
+  function runtimePromptWithLocalMemory(promptText) {
+    const prompt = String(promptText || "");
+    const memory = state.localMemoryPackage;
+    if (!memory || !memory.valid || !memory.contextText) {
+      return prompt;
+    }
+    const prefix = [
+      "[UAIX memory context]",
+      `setup=${memory.setup}`,
+      "source=local user-selected .uai deck",
+      "boundary=local-only; no project-server memory upload; do not mutate source persona",
+      ""
+    ].join("\n");
+    const suffix = `\n[End UAIX memory context]\n\n[User prompt]\n${prompt}`;
+    const fixedBytes = state.encoder.encode(prefix + suffix).length;
+    const availableContextBytes = Math.min(localMemoryContextByteLimit, registryModulePlanPromptByteLimit - fixedBytes);
+    if (availableContextBytes < 128) {
+      return prompt;
+    }
+    const context = trimTextToByteLimit(memory.contextText, availableContextBytes);
+    const combined = `${prefix}${context}${suffix}`;
+    return state.encoder.encode(combined).length <= registryModulePlanPromptByteLimit
+      ? combined
+      : prompt;
   }
 
   function shortSha256(sha256) {
@@ -14106,7 +14925,8 @@
       syncSemanticControls(true);
     }
     const promptText = el.prompt.value;
-    const bytes = state.encoder.encode(promptText);
+    const runtimePromptText = runtimePromptWithLocalMemory(promptText);
+    const bytes = state.encoder.encode(runtimePromptText);
     // Keeps prompt transfer bytes inside the same envelope declared by generated module plans.
     if (bytes.length > registryModulePlanPromptByteLimit) {
       const text = "prompt byte limit exceeded";
@@ -14150,7 +14970,8 @@
     const text = readLastResult();
     state.hasContext = code === 0;
     setText(el.response, text, code !== 0);
-    el.console.textContent = `generate(max_new_tokens=${maxTokens}, temperature=${sampling.temperature}, top_k=${sampling.topK}, top_p=${sampling.topP}, seed=${sampling.seed}) -> ${code} in ${state.lastGenerateMs} ms\n${text}`;
+    const memorySuffix = state.localMemoryPackage && state.localMemoryPackage.valid ? `, uaix_memory=${state.localMemoryPackage.setup}` : "";
+    el.console.textContent = `generate(max_new_tokens=${maxTokens}, temperature=${sampling.temperature}, top_k=${sampling.topK}, top_p=${sampling.topP}, seed=${sampling.seed}${memorySuffix}) -> ${code} in ${state.lastGenerateMs} ms\n${text}`;
     setText(el.errorState, code === 0 ? "none" : text, code !== 0);
     setText(el.runtimeStatus, code === 0 ? "Ready" : "Generate failed", code !== 0);
     appendMessage("user", promptText, false);
@@ -14261,6 +15082,37 @@
     }
     setConversionRequestStatus(`${safeLocalModelName(file.name)} / ${formatByteCount(file.size)} selected`, false);
   });
+
+  if (el.inspectLocalMemoryPackageButton) {
+    el.inspectLocalMemoryPackageButton.addEventListener("click", function () {
+      bindLocalMemoryPackage(el.localMemoryPackageFiles).catch((error) => {
+        const text = errorMessage(error);
+        state.localMemoryPackage = null;
+        renderLocalMemoryPackageSummary(null);
+        setLocalMemoryPackageStatus(text, true);
+      });
+    });
+  }
+
+  if (el.clearLocalMemoryPackageButton) {
+    el.clearLocalMemoryPackageButton.addEventListener("click", function () {
+      clearLocalMemoryPackage();
+    });
+  }
+
+  if (el.localMemoryPackageFiles) {
+    el.localMemoryPackageFiles.addEventListener("change", function () {
+      setLocalMemorySelectionStatus(el.localMemoryPackageFiles);
+    });
+  }
+
+  if (el.localMemoryPackageSetup) {
+    el.localMemoryPackageSetup.addEventListener("change", function () {
+      if (localMemorySelectedFiles(el.localMemoryPackageFiles).length) {
+        setLocalMemorySelectionStatus(el.localMemoryPackageFiles);
+      }
+    });
+  }
 
   el.catalogLoadButton.addEventListener("click", function () {
     loadCatalogFromUrl().catch((error) => {

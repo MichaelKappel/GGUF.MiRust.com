@@ -219,10 +219,12 @@ mod tests {
 
     #[test]
     fn diagnostics_json_escapes_control_characters() {
-        let mut diagnostics = Diagnostics::default();
-        diagnostics.tokenizer_output = "quote \" slash \\ bell \u{0007} next\nline".to_string();
-        diagnostics.logits_summary = "separator \u{2028} paragraph \u{2029}".to_string();
-        diagnostics.top_k_candidates = "tab\tform\u{000C}back\u{0008}".to_string();
+        let diagnostics = Diagnostics {
+            tokenizer_output: "quote \" slash \\ bell \u{0007} next\nline".to_string(),
+            logits_summary: "separator \u{2028} paragraph \u{2029}".to_string(),
+            top_k_candidates: "tab\tform\u{000C}back\u{0008}".to_string(),
+            ..Diagnostics::default()
+        };
 
         let mut rendered = Vec::new();
         diagnostics.render_json(&mut rendered);

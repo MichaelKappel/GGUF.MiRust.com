@@ -276,7 +276,9 @@ fn validate_header(bytes: &[u8], header: &SlmHeader) -> io::Result<()> {
     if header.head_count.checked_mul(header.head_dim) != Some(header.hidden_size) {
         return Err(invalid("hidden_size must equal head_count * head_dim"));
     }
-    if header.kv_head_count > header.head_count || header.head_count % header.kv_head_count != 0 {
+    if header.kv_head_count > header.head_count
+        || !header.head_count.is_multiple_of(header.kv_head_count)
+    {
         return Err(invalid("kv_head_count must divide head_count"));
     }
     if !header.rope_theta.is_finite() || header.rope_theta <= 0.0 {
@@ -298,7 +300,9 @@ fn validate_header(bytes: &[u8], header: &SlmHeader) -> io::Result<()> {
     ) {
         return Err(invalid("tokenizer range escapes the file"));
     }
-    if header.tensor_directory_offset % 64 != 0 || header.tensor_data_offset % 64 != 0 {
+    if !header.tensor_directory_offset.is_multiple_of(64)
+        || !header.tensor_data_offset.is_multiple_of(64)
+    {
         return Err(invalid(
             "tensor directory and data offsets must be 64-byte aligned",
         ));
@@ -490,7 +494,7 @@ fn validate_tensor_directory_entry(file_len: usize, tensor: &TensorEntry) -> io:
             return Err(invalid("tensor dimensions must be nonzero"));
         }
     }
-    if tensor.byte_offset % 64 != 0 {
+    if !tensor.byte_offset.is_multiple_of(64) {
         return Err(invalid("tensor payload offset must be 64-byte aligned"));
     }
     if !range_within(file_len, tensor.byte_offset, tensor.byte_length) {
@@ -530,7 +534,7 @@ fn validate_tensor_directory_entry(file_len: usize, tensor: &TensorEntry) -> io:
             }
             let cols = cols_per_row(tensor)?;
             let block = tensor.block_size as usize;
-            if block % 2 != 0 || cols % block != 0 {
+            if !block.is_multiple_of(2) || cols % block != 0 {
                 return Err(invalid(
                     "q4_0 block size must be even and divide columns per row",
                 ));
@@ -684,7 +688,7 @@ fn expected_payload_len(tensor: &TensorEntry) -> io::Result<u64> {
             .ok_or_else(|| invalid("f32 payload length overflow")),
         DTYPE_Q8_0 => Ok(elements),
         DTYPE_Q4_0 => {
-            if elements % 2 != 0 {
+            if !elements.is_multiple_of(2) {
                 return Err(invalid("q4_0 tensor element count must be even"));
             }
             Ok(elements / 2)

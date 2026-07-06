@@ -47,6 +47,7 @@ if not package_source.is_dir():
 package_files = sorted(package_source.glob("TinyRustLM*.nupkg"), key=lambda path: path.name)
 if not package_files:
     raise SystemExit(f"No TinyRustLM packages were found in {package_source}")
+symbol_package_files = sorted(package_source.glob("TinyRustLM*.snupkg"), key=lambda path: path.name)
 
 text_extensions = (
     ".nuspec",
@@ -158,11 +159,28 @@ def expected_package_names(package_version):
         f"TinyRustLM.Abstractions.{package_version}.nupkg",
         f"TinyRustLM.Core.{package_version}.nupkg",
         f"TinyRustLM.P2P.{package_version}.nupkg",
+        f"TinyRustLM.Memory.{package_version}.nupkg",
+    ]
+
+
+def expected_symbol_package_names(package_version):
+    return [
+        f"TinyRustLM.Abstractions.{package_version}.snupkg",
+        f"TinyRustLM.Core.{package_version}.snupkg",
+        f"TinyRustLM.P2P.{package_version}.snupkg",
+        f"TinyRustLM.Memory.{package_version}.snupkg",
     ]
 
 
 def expected_package_id_for_name(package_name, package_version):
     suffix = f".{package_version}.nupkg"
+    if package_name.lower().endswith(suffix.lower()):
+        return package_name[:-len(suffix)]
+    return ""
+
+
+def expected_symbol_package_id_for_name(package_name, package_version):
+    suffix = f".{package_version}.snupkg"
     if package_name.lower().endswith(suffix.lower()):
         return package_name[:-len(suffix)]
     return ""
@@ -263,6 +281,122 @@ def missing_metadata_fields(metadata):
     return missing
 
 
+def normalize_metadata_url(value):
+    normalized = str(value or "").strip()
+    if not normalized:
+        return ""
+    if not normalized.endswith("/"):
+        normalized += "/"
+    return normalized.lower()
+
+
+def metadata_policy_violations(package_id, metadata):
+    violations = []
+    if normalize_metadata_url(metadata.get("project_url", "")) != "https://tinyrustlm.com/":
+        violations.append("project_url:https://tinyrustlm.com/")
+    if metadata.get("repository_type") != "git":
+        violations.append("repository_type:git")
+    if metadata.get("license_type") != "file" or metadata.get("license") != "LICENSE.txt":
+        violations.append("license_file:LICENSE.txt")
+    if metadata.get("readme") != "README.md":
+        violations.append("readme:README.md")
+    if metadata.get("require_license_acceptance") != "true":
+        violations.append("require_license_acceptance:true")
+    if "tinyrustlm" not in str(metadata.get("authors", "")).lower():
+        violations.append("authors:TinyRustLM")
+    title = str(metadata.get("title", "")).lower()
+    if "tinyrustlm" not in title or "uaix browser" not in title:
+        violations.append("title:TinyRustLM-UAIX-Browser")
+    if len(str(metadata.get("description", ""))) < 120:
+        violations.append("description:min-120")
+    if package_id.lower() not in str(metadata.get("tags", "")).lower():
+        violations.append("tags:package-id")
+    return violations
+
+
+def required_search_terms(package_id):
+    terms = {
+        "TinyRustLM",
+        "UAIX",
+        "UAIX.org",
+        "Rust",
+        "AI",
+        "UAIX.Browser",
+    }
+    if package_id == "TinyRustLM.Abstractions":
+        terms.update({
+            "abstractions",
+            "SDK",
+            "p2pRuntime",
+            "p2pRuntime.com",
+            "p2pLLM",
+            "p2pLLM.com",
+            "MiniModel",
+            ".slm",
+            ".uai",
+            "memory",
+            "persona",
+        })
+    elif package_id == "TinyRustLM.Core":
+        terms.update({
+            "p2pLLM",
+            "p2pLLM.com",
+            ".slm",
+            "runtime",
+            "harness",
+            "native",
+            "safe",
+            "generate",
+            "diagnostics",
+        })
+    elif package_id == "TinyRustLM.P2P":
+        terms.update({
+            "p2pRuntime",
+            "p2pRuntime.com",
+            "P2P",
+            "peer-to-peer",
+            "model-sharing",
+            "MiniModel",
+            "manifest",
+            "announcement",
+            "catalog",
+            "receipt",
+        })
+    elif package_id == "TinyRustLM.Memory":
+        terms.update({
+            "memory",
+            "ai-memory",
+            ".uai",
+            "persona",
+            "AI Memory Package Wizard",
+            "agent-pickup",
+            "session-log",
+            "manifest-overlay",
+            "package-model",
+            "knowledge-graph",
+            "personality-pack",
+            "LLM Wiki",
+            "file-handoff",
+        })
+    return sorted(terms)
+
+
+def missing_search_terms(package_id, metadata):
+    haystack = " ".join((
+        str(metadata.get("id", "")),
+        str(metadata.get("title", "")),
+        str(metadata.get("description", "")),
+        str(metadata.get("tags", "")),
+        str(metadata.get("release_notes", "")),
+        str(metadata.get("project_url", "")),
+        str(metadata.get("repository_url", "")),
+    )).lower()
+    return [
+        term for term in required_search_terms(package_id)
+        if term.lower() not in haystack
+    ]
+
+
 def declared_package_file_entries(metadata):
     declared = []
     if metadata.get("readme", "").strip():
@@ -289,6 +423,9 @@ def expected_package_documentation_entries(package_id):
     elif package_id == "TinyRustLM.P2P":
         entries.append({"entry": "docs/API_BOUNDARY.md", "source": "docs/nuget/API_BOUNDARY.md"})
         entries.append({"entry": "docs/P2P_SHARE_FLOW.md", "source": "docs/nuget/P2P_SHARE_FLOW.md"})
+    elif package_id == "TinyRustLM.Memory":
+        entries.append({"entry": "docs/API_BOUNDARY.md", "source": "docs/nuget/API_BOUNDARY.md"})
+        entries.append({"entry": "docs/MEMORY_HARNESS.md", "source": "docs/nuget/MEMORY_HARNESS.md"})
     return entries
 
 
@@ -315,7 +452,11 @@ def package_documentation_verification(archive, entry_names, package_id):
 def xml_documentation_member_names(archive, entry_name):
     if not entry_name:
         return []
-    text = read_zip_entry_text(archive, entry_name)
+    try:
+        entry = archive.getinfo(entry_name)
+    except KeyError:
+        return []
+    text = read_zip_entry_text(archive, entry)
     if not text.strip():
         return []
     try:
@@ -334,6 +475,13 @@ def expected_public_api_entries(package_id):
     entries = {
         "TinyRustLM.Abstractions": [
             "M:TinyRustLM.ISlmInspector.Inspect(System.String)",
+            "M:TinyRustLM.ITinyRustLmMemoryClient.GetRequiredFiles(TinyRustLM.UaixMemoryPackageRequest)",
+            "M:TinyRustLM.ITinyRustLmMemoryClient.GetRequiredFilesJson(TinyRustLM.UaixMemoryPackageRequest)",
+            "M:TinyRustLM.ITinyRustLmMemoryClient.GetSupportedSetups",
+            "M:TinyRustLM.ITinyRustLmMemoryClient.GetSupportedSetupsJson",
+            "M:TinyRustLM.ITinyRustLmMemoryClient.InspectManifest(System.String)",
+            "M:TinyRustLM.ITinyRustLmMemoryClient.InspectPackage(System.String,TinyRustLM.UaixMemoryPackageRequest)",
+            "M:TinyRustLM.ITinyRustLmMemoryClient.ValidatePackage(System.String,TinyRustLM.UaixMemoryPackageRequest)",
             "M:TinyRustLM.ITinyRustLmP2PClient.ApplyReceivedAnnouncement(System.String,System.String)",
             "M:TinyRustLM.ITinyRustLmP2PClient.ApplyReceivedAnnouncementJson(System.String,System.String)",
             "M:TinyRustLM.ITinyRustLmP2PClient.ExportShareMetadata(System.String)",
@@ -348,6 +496,8 @@ def expected_public_api_entries(package_id):
             "M:TinyRustLM.ITinyRustLmP2PClient.PrepareLocalShareKitJson(TinyRustLM.PrepareShareKitRequest)",
             "M:TinyRustLM.ITinyRustLmP2PClient.ValidateAnnouncement(System.String)",
             "M:TinyRustLM.ITinyRustLmP2PClient.ValidateAnnouncementJson(System.String)",
+            "M:TinyRustLM.ITinyRustLmP2PClient.VerifySignedManifest(System.String,System.String)",
+            "M:TinyRustLM.ITinyRustLmP2PClient.VerifySignedManifestJson(System.String,System.String)",
             "M:TinyRustLM.ITinyRustLmRuntime.Generate(System.String,TinyRustLM.TinyRustLmGenerationOptions)",
             "M:TinyRustLM.ITinyRustLmRuntime.GetDiagnostics",
             "M:TinyRustLM.ITinyRustLmRuntime.LoadModel(System.String,System.String)",
@@ -367,22 +517,38 @@ def expected_public_api_entries(package_id):
             "M:TinyRustLM.P2PManifest.#ctor(System.String,System.Int32,System.String,System.String,TinyRustLM.SlmInspection,System.String,System.Int64,System.Int64,System.Int32,System.Collections.Generic.IReadOnlyList{TinyRustLM.P2PPiece},System.Int64,TinyRustLM.P2PManifestBoundary)",
             "M:TinyRustLM.P2PManifestBoundary.#ctor(System.Boolean,System.Boolean,System.Boolean,System.Boolean)",
             "M:TinyRustLM.P2PManifestInspection.#ctor(System.String,System.Int32,System.String,System.String,System.String,System.String,System.Int64,System.Int32,System.Int64,System.Boolean)",
+            "M:TinyRustLM.P2PManifestSignature.#ctor(System.String,System.String,System.String,System.String,System.String,System.String)",
             "M:TinyRustLM.P2PPiece.#ctor(System.Int32,System.String,System.Int64,System.String)",
+            "M:TinyRustLM.P2PPublicKeyDocument.#ctor(System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.Boolean)",
             "M:TinyRustLM.P2PShareKitReport.#ctor(System.String,System.Int32,System.String,System.String,System.String,System.String,System.String,System.String,System.String,TinyRustLM.P2PManifest)",
             "M:TinyRustLM.P2PShareMetadata.#ctor(System.String,System.Int32,System.String,System.String,System.String,System.String,System.Int64,System.Int32,System.Int64,TinyRustLM.P2PManifestBoundary)",
+            "M:TinyRustLM.P2PSignedManifest.#ctor(System.String,System.Int32,TinyRustLM.P2PManifest,TinyRustLM.P2PManifestSignature)",
+            "M:TinyRustLM.P2PSignedManifestVerification.#ctor(System.String,System.Int32,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.Boolean)",
             "M:TinyRustLM.PrepareShareKitRequest.#ctor(System.String,System.String,System.String,System.String,System.String,System.String,System.Nullable{System.Int64})",
             "M:TinyRustLM.SlmInspection.#ctor(System.String,System.Int32,System.String,System.Int64,System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Int64,System.Int32,System.Int32,System.Int32,System.Int32,System.String,System.UInt64)",
-            "M:TinyRustLM.TinyRustLmCapabilities.#ctor(System.String,System.Int32,System.String,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Collections.Generic.IReadOnlyList{System.String})",
+            "M:TinyRustLM.TinyRustLmCapabilities.#ctor(System.String,System.Int32,System.String,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Collections.Generic.IReadOnlyList{System.String})",
             "M:TinyRustLM.TinyRustLmGenerationOptions.#ctor(System.Int32,System.Single,System.Int32,System.Single,System.UInt32)",
             "M:TinyRustLM.TinyRustLmGenerationResult.#ctor(System.String,System.String)",
             "M:TinyRustLM.TinyRustLmLoadReport.#ctor(TinyRustLM.SlmInspection,System.String)",
             "M:TinyRustLM.TinyRustLmSdkVersion.#ctor(System.String,System.Int32,System.String)",
+            "M:TinyRustLM.UaixAdvancedPersonaOptions.#ctor(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Byte,System.Byte,System.Byte,System.Byte,System.Byte,System.Byte)",
+            "M:TinyRustLM.UaixMemoryBoundary.#ctor(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)",
+            "M:TinyRustLM.UaixMemoryFileStatus.#ctor(System.String,System.String,System.String,System.Boolean,System.Int64,System.String)",
+            "M:TinyRustLM.UaixMemoryManifestInspection.#ctor(System.String,System.Int32,System.String,System.String,System.String,System.Boolean,System.Int32,System.Collections.Generic.IReadOnlyList{System.String},System.Boolean,System.Collections.Generic.IReadOnlyList{System.String})",
+            "M:TinyRustLM.UaixMemoryPackageInspection.#ctor(System.String,System.Int32,System.String,System.String,System.String,System.Collections.Generic.IReadOnlyList{TinyRustLM.UaixMemoryFileStatus},System.Collections.Generic.IReadOnlyList{TinyRustLM.UaixPersonaDimensionInspection},System.Boolean,System.Int32,System.Collections.Generic.IReadOnlyList{System.String},System.Collections.Generic.IReadOnlyList{System.String},System.Boolean,System.Int32,System.Boolean,TinyRustLM.UaixMemoryManifestInspection,TinyRustLM.UaixMemoryBoundary)",
+            "M:TinyRustLM.UaixMemoryPackagePlan.#ctor(System.String,System.Int32,System.String,System.Collections.Generic.IReadOnlyList{TinyRustLM.UaixMemoryRequiredFile},System.Int32,System.Collections.Generic.IReadOnlyList{System.String},TinyRustLM.UaixMemoryBoundary)",
+            "M:TinyRustLM.UaixMemoryPackageRequest.#ctor(System.String,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,TinyRustLM.UaixAdvancedPersonaOptions)",
+            "M:TinyRustLM.UaixMemoryRequiredFile.#ctor(System.String,System.String,System.String,System.String)",
+            "M:TinyRustLM.UaixMemorySetupCatalog.#ctor(System.String,System.Int32,System.Collections.Generic.IReadOnlyList{TinyRustLM.UaixMemorySetupDescriptor},System.Int32,System.Collections.Generic.IReadOnlyList{System.String},TinyRustLM.UaixMemoryBoundary)",
+            "M:TinyRustLM.UaixMemorySetupDescriptor.#ctor(System.String,System.String,System.String,System.String,System.Collections.Generic.IReadOnlyList{System.String},System.Collections.Generic.IReadOnlyList{System.String},System.Collections.Generic.IReadOnlyList{System.String})",
+            "M:TinyRustLM.UaixPersonaDimensionInspection.#ctor(System.String,System.String,System.Boolean,System.Int64,System.String,System.Boolean,System.Nullable{System.Byte},System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Collections.Generic.IReadOnlyList{System.String})",
             "P:TinyRustLM.TinyRustLmGenerationOptions.MaxNewTokens",
             "P:TinyRustLM.TinyRustLmGenerationOptions.Seed",
             "P:TinyRustLM.TinyRustLmGenerationOptions.Temperature",
             "P:TinyRustLM.TinyRustLmGenerationOptions.TopK",
             "P:TinyRustLM.TinyRustLmGenerationOptions.TopP",
             "T:TinyRustLM.ISlmInspector",
+            "T:TinyRustLM.ITinyRustLmMemoryClient",
             "T:TinyRustLM.ITinyRustLmP2PClient",
             "T:TinyRustLM.ITinyRustLmRuntime",
             "T:TinyRustLM.ITinyRustLmRuntimeFactory",
@@ -396,9 +562,13 @@ def expected_public_api_entries(package_id):
             "T:TinyRustLM.P2PManifest",
             "T:TinyRustLM.P2PManifestBoundary",
             "T:TinyRustLM.P2PManifestInspection",
+            "T:TinyRustLM.P2PManifestSignature",
             "T:TinyRustLM.P2PPiece",
+            "T:TinyRustLM.P2PPublicKeyDocument",
             "T:TinyRustLM.P2PShareKitReport",
             "T:TinyRustLM.P2PShareMetadata",
+            "T:TinyRustLM.P2PSignedManifest",
+            "T:TinyRustLM.P2PSignedManifestVerification",
             "T:TinyRustLM.PrepareShareKitRequest",
             "T:TinyRustLM.SlmInspection",
             "T:TinyRustLM.TinyRustLmCapabilities",
@@ -406,6 +576,17 @@ def expected_public_api_entries(package_id):
             "T:TinyRustLM.TinyRustLmGenerationResult",
             "T:TinyRustLM.TinyRustLmLoadReport",
             "T:TinyRustLM.TinyRustLmSdkVersion",
+            "T:TinyRustLM.UaixAdvancedPersonaOptions",
+            "T:TinyRustLM.UaixMemoryBoundary",
+            "T:TinyRustLM.UaixMemoryFileStatus",
+            "T:TinyRustLM.UaixMemoryManifestInspection",
+            "T:TinyRustLM.UaixMemoryPackageInspection",
+            "T:TinyRustLM.UaixMemoryPackagePlan",
+            "T:TinyRustLM.UaixMemoryPackageRequest",
+            "T:TinyRustLM.UaixMemoryRequiredFile",
+            "T:TinyRustLM.UaixMemorySetupCatalog",
+            "T:TinyRustLM.UaixMemorySetupDescriptor",
+            "T:TinyRustLM.UaixPersonaDimensionInspection",
         ],
         "TinyRustLM.Core": [
             "M:TinyRustLM.TinyRustLmException.#ctor(System.String,System.String)",
@@ -441,7 +622,19 @@ def expected_public_api_entries(package_id):
             "M:TinyRustLM.TinyRustLmP2PClient.PrepareLocalShareKitJson(TinyRustLM.PrepareShareKitRequest)",
             "M:TinyRustLM.TinyRustLmP2PClient.ValidateAnnouncement(System.String)",
             "M:TinyRustLM.TinyRustLmP2PClient.ValidateAnnouncementJson(System.String)",
+            "M:TinyRustLM.TinyRustLmP2PClient.VerifySignedManifest(System.String,System.String)",
+            "M:TinyRustLM.TinyRustLmP2PClient.VerifySignedManifestJson(System.String,System.String)",
             "T:TinyRustLM.TinyRustLmP2PClient",
+        ],
+        "TinyRustLM.Memory": [
+            "M:TinyRustLM.TinyRustLmMemoryClient.GetRequiredFiles(TinyRustLM.UaixMemoryPackageRequest)",
+            "M:TinyRustLM.TinyRustLmMemoryClient.GetRequiredFilesJson(TinyRustLM.UaixMemoryPackageRequest)",
+            "M:TinyRustLM.TinyRustLmMemoryClient.GetSupportedSetups",
+            "M:TinyRustLM.TinyRustLmMemoryClient.GetSupportedSetupsJson",
+            "M:TinyRustLM.TinyRustLmMemoryClient.InspectManifest(System.String)",
+            "M:TinyRustLM.TinyRustLmMemoryClient.InspectPackage(System.String,TinyRustLM.UaixMemoryPackageRequest)",
+            "M:TinyRustLM.TinyRustLmMemoryClient.ValidatePackage(System.String,TinyRustLM.UaixMemoryPackageRequest)",
+            "T:TinyRustLM.TinyRustLmMemoryClient",
         ],
     }
     return entries.get(package_id, [])
@@ -521,6 +714,19 @@ def expected_dependencies(package_id, package_version):
                 "exclude": "Build,Analyzers",
             },
         ]
+    if package_id == "TinyRustLM.Memory":
+        return [
+            {
+                "id": "TinyRustLM.Abstractions",
+                "version": package_version,
+                "exclude": "Build,Analyzers",
+            },
+            {
+                "id": "TinyRustLM.Core",
+                "version": package_version,
+                "exclude": "Build,Analyzers",
+            },
+        ]
     return []
 
 
@@ -582,6 +788,54 @@ def package_identity_mismatches(package_name, expected_id, expected_version, met
     }]
 
 
+def has_symbols_package_type(nuspec_text):
+    root = parse_nuspec(nuspec_text)
+    if root is None:
+        return False
+    for node in root.iter():
+        if local_name(node.tag) == "packageType" and node.attrib.get("name", "") == "SymbolsPackage":
+            return True
+    return False
+
+
+def symbol_package_identity_mismatches(
+    package_name,
+    expected_id,
+    expected_version,
+    metadata,
+    has_symbols_type,
+):
+    mismatches = package_identity_mismatches(
+        package_name,
+        expected_id,
+        expected_version,
+        metadata,
+    )
+    if not has_symbols_type:
+        mismatches.append({
+            "name": package_name,
+            "expected_package_type": "SymbolsPackage",
+            "actual_package_type": "",
+        })
+    return mismatches
+
+
+def symbol_package_entry_allowed(entry_name):
+    if entry_name in ("[Content_Types].xml", "_rels/.rels"):
+        return True
+    if re.fullmatch(r"[^/]+\.nuspec", entry_name):
+        return True
+    if re.fullmatch(r"package/services/metadata/core-properties/[^/]+\.psmdcp", entry_name):
+        return True
+    if re.fullmatch(r"lib/[^/]+/TinyRustLM\.[^/]+\.pdb", entry_name):
+        return True
+    return False
+
+
+def unexpected_symbol_package_entries(entry_names):
+    return [name for name in entry_names if not symbol_package_entry_allowed(name)]
+
+
 def absolute_path_matches(archive, entries):
     matches = []
     for entry in entries:
@@ -619,9 +873,16 @@ def native_rid(entry_name):
 
 source_version = source_package_version()
 expected_names = expected_package_names(source_version)
+expected_symbol_names = expected_symbol_package_names(source_version)
 package_names = [path.name for path in package_files]
+symbol_package_names = [path.name for path in symbol_package_files]
 missing_package_entries = [name for name in expected_names if name not in package_names]
 unexpected_package_entries = [name for name in package_names if name not in expected_names]
+missing_symbol_package_entries = [name for name in expected_symbol_names if name not in symbol_package_names]
+unexpected_symbol_package_entries_for_set = [
+    name for name in symbol_package_names
+    if name not in expected_symbol_names
+]
 
 package_reports = []
 for package_path in package_files:
@@ -677,6 +938,9 @@ for package_path in package_files:
             entry for entry in expected_documentation_entries
             if not entry["sha256_match"]
         ]
+        package_required_search_terms = required_search_terms(package_id)
+        package_missing_search_terms = missing_search_terms(package_id, metadata)
+        package_metadata_policy_violations = metadata_policy_violations(package_id, metadata)
 
     package_reports.append({
         "name": package_path.name,
@@ -701,6 +965,9 @@ for package_path in package_files:
         "metadata": metadata,
         "package_identity_mismatches": identity_mismatches,
         "missing_metadata_fields": missing_metadata_fields(metadata),
+        "metadata_policy_violations": package_metadata_policy_violations,
+        "required_search_terms": package_required_search_terms,
+        "missing_search_terms": package_missing_search_terms,
         "declared_package_file_entries": declared_file_entries,
         "missing_package_file_entries": missing_package_file_entries,
         "package_documentation_entries": documentation_entries,
@@ -719,6 +986,52 @@ for package_path in package_files:
         "absolute_path_matches": path_matches,
     })
 
+symbol_package_reports = []
+for symbol_package_path in symbol_package_files:
+    with zipfile.ZipFile(symbol_package_path, "r") as archive:
+        infos = sorted(archive.infolist(), key=lambda item: item.filename)
+        entry_names = [entry.filename for entry in infos]
+        symbol_source_file_entries = [name for name in entry_names if source_file_pattern.search(name)]
+        symbol_generated_output_entries = [name for name in entry_names if generated_output_pattern.search(name)]
+        symbol_path_matches = absolute_path_matches(archive, infos)
+        pdb_entries = [
+            name for name in entry_names
+            if re.fullmatch(r"lib/[^/]+/TinyRustLM\.[^/]+\.pdb", name)
+        ]
+        unexpected_symbol_entries = unexpected_symbol_package_entries(entry_names)
+        nuspec_entry = next((entry for entry in infos if entry.filename.lower().endswith(".nuspec")), None)
+        nuspec_text = read_zip_entry_text(archive, nuspec_entry) if nuspec_entry is not None else ""
+        metadata = read_nuspec_metadata(nuspec_text)
+        expected_package_id = expected_symbol_package_id_for_name(symbol_package_path.name, source_version)
+        expected_package_version = source_version if expected_package_id else ""
+        symbols_type = has_symbols_package_type(nuspec_text)
+        identity_mismatches = symbol_package_identity_mismatches(
+            symbol_package_path.name,
+            expected_package_id,
+            expected_package_version,
+            metadata,
+            symbols_type,
+        )
+
+    symbol_package_reports.append({
+        "name": symbol_package_path.name,
+        "package_id": expected_package_id,
+        "expected_package_id": expected_package_id,
+        "expected_package_version": expected_package_version,
+        "path": str(symbol_package_path.resolve()),
+        "sha256": sha256_file(symbol_package_path),
+        "byte_count": symbol_package_path.stat().st_size,
+        "entry_count": len(entry_names),
+        "package_entry_names": entry_names,
+        "pdb_entries": pdb_entries,
+        "has_symbols_package_type": symbols_type,
+        "package_identity_mismatches": identity_mismatches,
+        "unexpected_symbol_package_entries": unexpected_symbol_entries,
+        "source_file_entries": symbol_source_file_entries,
+        "generated_output_entries": symbol_generated_output_entries,
+        "absolute_path_matches": symbol_path_matches,
+    })
+
 core_package = next((package for package in package_reports if package["name"].startswith("TinyRustLM.Core.")), None)
 if core_package is not None:
     missing_native_rids = [rid for rid in required_native_rids if rid not in core_package["native_rids"]]
@@ -730,6 +1043,8 @@ else:
 all_private_matches = [item for package in package_reports for item in package["private_surface_matches"]]
 all_package_identity_mismatches = [item for package in package_reports for item in package["package_identity_mismatches"]]
 all_missing_metadata = [item for package in package_reports for item in package["missing_metadata_fields"]]
+all_metadata_policy_violations = [item for package in package_reports for item in package["metadata_policy_violations"]]
+all_missing_search_terms = [item for package in package_reports for item in package["missing_search_terms"]]
 all_missing_package_files = [item for package in package_reports for item in package["missing_package_file_entries"]]
 all_package_documentation_mismatches = [item for package in package_reports for item in package["package_documentation_mismatches"]]
 all_missing_dependencies = [item for package in package_reports for item in package["missing_dependency_entries"]]
@@ -743,14 +1058,43 @@ all_source_file_entries = [item for package in package_reports for item in packa
 all_debug_symbol_entries = [item for package in package_reports for item in package["debug_symbol_entries"]]
 all_generated_output_entries = [item for package in package_reports for item in package["generated_output_entries"]]
 all_absolute_path_matches = [item for package in package_reports for item in package["absolute_path_matches"]]
+all_symbol_package_identity_mismatches = [
+    item for package in symbol_package_reports
+    for item in package["package_identity_mismatches"]
+]
+all_symbol_package_unexpected_entries = [
+    item for package in symbol_package_reports
+    for item in package["unexpected_symbol_package_entries"]
+]
+all_symbol_package_missing_pdb_entries = [
+    package["name"] for package in symbol_package_reports
+    if not package["pdb_entries"]
+]
+all_symbol_package_source_file_entries = [
+    item for package in symbol_package_reports
+    for item in package["source_file_entries"]
+]
+all_symbol_package_generated_output_entries = [
+    item for package in symbol_package_reports
+    for item in package["generated_output_entries"]
+]
+all_symbol_package_absolute_path_matches = [
+    item for package in symbol_package_reports
+    for item in package["absolute_path_matches"]
+]
 
 checks_passed = not any((
     missing_package_entries,
     unexpected_package_entries,
+    missing_symbol_package_entries,
+    unexpected_symbol_package_entries_for_set,
     all_package_identity_mismatches,
+    all_symbol_package_identity_mismatches,
     missing_native_rids,
     all_private_matches,
     all_missing_metadata,
+    all_metadata_policy_violations,
+    all_missing_search_terms,
     all_missing_package_files,
     all_package_documentation_mismatches,
     all_missing_dependencies,
@@ -764,6 +1108,11 @@ checks_passed = not any((
     all_debug_symbol_entries,
     all_generated_output_entries,
     all_absolute_path_matches,
+    all_symbol_package_unexpected_entries,
+    all_symbol_package_missing_pdb_entries,
+    all_symbol_package_source_file_entries,
+    all_symbol_package_generated_output_entries,
+    all_symbol_package_absolute_path_matches,
 ))
 status = "pass" if checks_passed else "fail"
 report = {
@@ -772,15 +1121,23 @@ report = {
     "package_source": str(package_source.resolve()),
     "package_version": source_version,
     "expected_package_names": expected_names,
+    "expected_symbol_package_names": expected_symbol_names,
     "required_native_rids": required_native_rids,
     "status": status,
     "missing_package_entries": missing_package_entries,
     "unexpected_package_entries": unexpected_package_entries,
+    "missing_symbol_package_entries": missing_symbol_package_entries,
+    "unexpected_symbol_package_entries": unexpected_symbol_package_entries_for_set,
     "missing_native_rids": missing_native_rids,
     "missing_package_count": len(missing_package_entries),
     "unexpected_package_count": len(unexpected_package_entries),
+    "missing_symbol_package_count": len(missing_symbol_package_entries),
+    "unexpected_symbol_package_count": len(unexpected_symbol_package_entries_for_set),
     "package_identity_mismatch_count": len(all_package_identity_mismatches),
+    "symbol_package_identity_mismatch_count": len(all_symbol_package_identity_mismatches),
     "missing_metadata_count": len(all_missing_metadata),
+    "metadata_policy_violation_count": len(all_metadata_policy_violations),
+    "missing_search_term_count": len(all_missing_search_terms),
     "missing_package_file_count": len(all_missing_package_files),
     "package_documentation_mismatch_count": len(all_package_documentation_mismatches),
     "missing_dependency_count": len(all_missing_dependencies),
@@ -794,8 +1151,15 @@ report = {
     "debug_symbol_count": len(all_debug_symbol_entries),
     "generated_output_count": len(all_generated_output_entries),
     "absolute_path_match_count": len(all_absolute_path_matches),
+    "symbol_package_unexpected_entry_count": len(all_symbol_package_unexpected_entries),
+    "symbol_package_missing_pdb_count": len(all_symbol_package_missing_pdb_entries),
+    "symbol_package_source_file_count": len(all_symbol_package_source_file_entries),
+    "symbol_package_generated_output_count": len(all_symbol_package_generated_output_entries),
+    "symbol_package_absolute_path_match_count": len(all_symbol_package_absolute_path_matches),
     "package_count": len(package_reports),
+    "symbol_package_count": len(symbol_package_reports),
     "packages": package_reports,
+    "symbol_packages": symbol_package_reports,
 }
 
 report_output.parent.mkdir(parents=True, exist_ok=True)

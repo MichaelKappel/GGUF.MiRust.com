@@ -126,7 +126,7 @@ impl ByteTokenizer {
 
     /// Encodes UTF-8 text into byte tokens with BOS and EOS delimiters.
     pub fn encode(&self, text: &str, out: &mut Vec<u32>) -> Result<(), ErrorCode> {
-        if text.as_bytes().len() + 2 > u32::MAX as usize {
+        if text.len() + 2 > u32::MAX as usize {
             return Err(ErrorCode::InvalidLength);
         }
         out.clear();
@@ -289,7 +289,7 @@ impl CustomBpeTokenizer {
     /// The output always starts with BOS and ends with EOS when encoding
     /// succeeds.
     pub fn encode(&self, text: &str, out: &mut Vec<u32>) -> Result<(), ErrorCode> {
-        if text.as_bytes().len() + 2 > u32::MAX as usize {
+        if text.len() + 2 > u32::MAX as usize {
             return Err(ErrorCode::InvalidLength);
         }
         let mut merged: Vec<u32> = text
@@ -348,10 +348,7 @@ impl CustomBpeTokenizer {
     }
 
     fn apply_merges(&self, tokens: &mut Vec<u32>) {
-        loop {
-            let Some((index, merge)) = self.best_merge(tokens) else {
-                break;
-            };
+        while let Some((index, merge)) = self.best_merge(tokens) {
             tokens[index] = merge.output;
             tokens.remove(index + 1);
         }

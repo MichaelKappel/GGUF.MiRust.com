@@ -65,6 +65,11 @@ internal static class NativeMethods
     internal static extern IntPtr tinyrustlm_p2p_inspect_manifest_json(IntPtr manifestJson);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern IntPtr tinyrustlm_p2p_verify_signed_manifest_json(
+        IntPtr signedManifestJson,
+        IntPtr publicKeyJson);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern IntPtr tinyrustlm_p2p_import_from_manifest_json(IntPtr manifestJson);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -91,6 +96,20 @@ internal static class NativeMethods
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
     internal static extern IntPtr tinyrustlm_p2p_inspect_announcement_catalog_json(IntPtr catalogJson);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern IntPtr tinyrustlm_memory_required_files_json(IntPtr requestJson);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern IntPtr tinyrustlm_memory_supported_setups_json();
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern IntPtr tinyrustlm_memory_inspect_package_path_json(
+        IntPtr packagePath,
+        IntPtr requestJson);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern IntPtr tinyrustlm_memory_inspect_manifest_json(IntPtr manifestJson);
 
     private static IntPtr ResolveNativeLibrary(
         string libraryName,

@@ -876,7 +876,9 @@ fn shape_from_fields(fields: &HashMap<String, String>) -> io::Result<(ModelShape
             "adapter source hidden_size must equal heads * head_dim",
         ));
     }
-    if shape.kv_head_count > shape.head_count || shape.head_count % shape.kv_head_count != 0 {
+    if shape.kv_head_count > shape.head_count
+        || !shape.head_count.is_multiple_of(shape.kv_head_count)
+    {
         return Err(invalid(
             "adapter source kv_head_count must divide head_count",
         ));

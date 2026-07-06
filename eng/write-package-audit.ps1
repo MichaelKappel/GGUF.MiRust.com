@@ -189,7 +189,19 @@ function Get-ExpectedPackageNames {
     return @(
         "TinyRustLM.Abstractions.$PackageVersion.nupkg",
         "TinyRustLM.Core.$PackageVersion.nupkg",
-        "TinyRustLM.P2P.$PackageVersion.nupkg"
+        "TinyRustLM.P2P.$PackageVersion.nupkg",
+        "TinyRustLM.Memory.$PackageVersion.nupkg"
+    )
+}
+
+function Get-ExpectedSymbolPackageNames {
+    param([string]$PackageVersion)
+
+    return @(
+        "TinyRustLM.Abstractions.$PackageVersion.snupkg",
+        "TinyRustLM.Core.$PackageVersion.snupkg",
+        "TinyRustLM.P2P.$PackageVersion.snupkg",
+        "TinyRustLM.Memory.$PackageVersion.snupkg"
     )
 }
 
@@ -200,6 +212,19 @@ function Get-ExpectedPackageIdForName {
     )
 
     $suffix = ".$PackageVersion.nupkg"
+    if ($PackageName.EndsWith($suffix, [StringComparison]::OrdinalIgnoreCase)) {
+        return $PackageName.Substring(0, $PackageName.Length - $suffix.Length)
+    }
+    return ""
+}
+
+function Get-ExpectedSymbolPackageIdForName {
+    param(
+        [string]$PackageName,
+        [string]$PackageVersion
+    )
+
+    $suffix = ".$PackageVersion.snupkg"
     if ($PackageName.EndsWith($suffix, [StringComparison]::OrdinalIgnoreCase)) {
         return $PackageName.Substring(0, $PackageName.Length - $suffix.Length)
     }
@@ -285,6 +310,105 @@ function Get-MissingMetadataFields {
     return $missing
 }
 
+function Normalize-MetadataUrl {
+    param([string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return ""
+    }
+
+    $normalized = $Value.Trim()
+    if (-not $normalized.EndsWith("/", [StringComparison]::Ordinal)) {
+        $normalized = "$normalized/"
+    }
+    return $normalized.ToLowerInvariant()
+}
+
+function Get-MetadataPolicyViolations {
+    param(
+        [string]$PackageId,
+        $Metadata
+    )
+
+    $violations = @()
+    if ((Normalize-MetadataUrl -Value ([string]$Metadata.project_url)) -ne "https://tinyrustlm.com/") {
+        $violations += "project_url:https://tinyrustlm.com/"
+    }
+    if ([string]$Metadata.repository_type -ne "git") {
+        $violations += "repository_type:git"
+    }
+    if ([string]$Metadata.license_type -ne "file" -or [string]$Metadata.license -ne "LICENSE.txt") {
+        $violations += "license_file:LICENSE.txt"
+    }
+    if ([string]$Metadata.readme -ne "README.md") {
+        $violations += "readme:README.md"
+    }
+    if ([string]$Metadata.require_license_acceptance -ne "true") {
+        $violations += "require_license_acceptance:true"
+    }
+    if (([string]$Metadata.authors).IndexOf("TinyRustLM", [StringComparison]::OrdinalIgnoreCase) -lt 0) {
+        $violations += "authors:TinyRustLM"
+    }
+    if (([string]$Metadata.title).IndexOf("TinyRustLM", [StringComparison]::OrdinalIgnoreCase) -lt 0 `
+        -or ([string]$Metadata.title).IndexOf("UAIX Browser", [StringComparison]::OrdinalIgnoreCase) -lt 0) {
+        $violations += "title:TinyRustLM-UAIX-Browser"
+    }
+    if (([string]$Metadata.description).Length -lt 120) {
+        $violations += "description:min-120"
+    }
+    if (([string]$Metadata.tags).IndexOf($PackageId, [StringComparison]::OrdinalIgnoreCase) -lt 0) {
+        $violations += "tags:package-id"
+    }
+    return $violations
+}
+
+function Get-RequiredSearchTerms {
+    param([string]$PackageId)
+
+    $terms = @("TinyRustLM", "UAIX", "UAIX.org", "Rust", "AI", "UAIX.Browser")
+    switch ($PackageId) {
+        "TinyRustLM.Abstractions" {
+            $terms += @("abstractions", "SDK", "p2pRuntime", "p2pRuntime.com", "p2pLLM", "p2pLLM.com", "MiniModel", ".slm", ".uai", "memory", "persona")
+        }
+        "TinyRustLM.Core" {
+            $terms += @("p2pLLM", "p2pLLM.com", ".slm", "runtime", "harness", "native", "safe", "generate", "diagnostics")
+        }
+        "TinyRustLM.P2P" {
+            $terms += @("p2pRuntime", "p2pRuntime.com", "P2P", "peer-to-peer", "model-sharing", "MiniModel", "manifest", "announcement", "catalog", "receipt")
+        }
+        "TinyRustLM.Memory" {
+            $terms += @("memory", "ai-memory", ".uai", "persona", "AI Memory Package Wizard", "agent-pickup", "session-log", "manifest-overlay", "package-model", "knowledge-graph", "personality-pack", "LLM Wiki", "file-handoff")
+        }
+    }
+    return @($terms | Sort-Object -Unique)
+}
+
+function Get-MissingSearchTerms {
+    param(
+        [string]$PackageId,
+        $Metadata
+    )
+
+    $haystack = @(
+        [string]$Metadata.id,
+        [string]$Metadata.title,
+        [string]$Metadata.description,
+        [string]$Metadata.tags,
+        [string]$Metadata.release_notes,
+        [string]$Metadata.project_url,
+        [string]$Metadata.repository_url
+    ) -join " "
+    $haystackLower = $haystack.ToLowerInvariant()
+
+    $missing = @()
+    foreach ($term in Get-RequiredSearchTerms -PackageId $PackageId) {
+        if (-not $haystackLower.Contains($term.ToLowerInvariant())) {
+            $missing += $term
+        }
+    }
+    return $missing
+}
+
 function Get-DeclaredPackageFileEntries {
     param($Metadata)
 
@@ -334,6 +458,10 @@ function Get-ExpectedPackageDocumentationEntries {
     elseif ($PackageId -eq "TinyRustLM.P2P") {
         $entries += New-ExpectedPackageDocumentationEntry -Entry "docs/API_BOUNDARY.md" -Source "docs/nuget/API_BOUNDARY.md"
         $entries += New-ExpectedPackageDocumentationEntry -Entry "docs/P2P_SHARE_FLOW.md" -Source "docs/nuget/P2P_SHARE_FLOW.md"
+    }
+    elseif ($PackageId -eq "TinyRustLM.Memory") {
+        $entries += New-ExpectedPackageDocumentationEntry -Entry "docs/API_BOUNDARY.md" -Source "docs/nuget/API_BOUNDARY.md"
+        $entries += New-ExpectedPackageDocumentationEntry -Entry "docs/MEMORY_HARNESS.md" -Source "docs/nuget/MEMORY_HARNESS.md"
     }
 
     return $entries
@@ -476,6 +604,13 @@ function Get-ExpectedPublicApiEntries {
     if ($PackageId -eq "TinyRustLM.Abstractions") {
         return @(
             'M:TinyRustLM.ISlmInspector.Inspect(System.String)',
+            'M:TinyRustLM.ITinyRustLmMemoryClient.GetRequiredFiles(TinyRustLM.UaixMemoryPackageRequest)',
+            'M:TinyRustLM.ITinyRustLmMemoryClient.GetRequiredFilesJson(TinyRustLM.UaixMemoryPackageRequest)',
+            'M:TinyRustLM.ITinyRustLmMemoryClient.GetSupportedSetups',
+            'M:TinyRustLM.ITinyRustLmMemoryClient.GetSupportedSetupsJson',
+            'M:TinyRustLM.ITinyRustLmMemoryClient.InspectManifest(System.String)',
+            'M:TinyRustLM.ITinyRustLmMemoryClient.InspectPackage(System.String,TinyRustLM.UaixMemoryPackageRequest)',
+            'M:TinyRustLM.ITinyRustLmMemoryClient.ValidatePackage(System.String,TinyRustLM.UaixMemoryPackageRequest)',
             'M:TinyRustLM.ITinyRustLmP2PClient.ApplyReceivedAnnouncement(System.String,System.String)',
             'M:TinyRustLM.ITinyRustLmP2PClient.ApplyReceivedAnnouncementJson(System.String,System.String)',
             'M:TinyRustLM.ITinyRustLmP2PClient.ExportShareMetadata(System.String)',
@@ -490,6 +625,8 @@ function Get-ExpectedPublicApiEntries {
             'M:TinyRustLM.ITinyRustLmP2PClient.PrepareLocalShareKitJson(TinyRustLM.PrepareShareKitRequest)',
             'M:TinyRustLM.ITinyRustLmP2PClient.ValidateAnnouncement(System.String)',
             'M:TinyRustLM.ITinyRustLmP2PClient.ValidateAnnouncementJson(System.String)',
+            'M:TinyRustLM.ITinyRustLmP2PClient.VerifySignedManifest(System.String,System.String)',
+            'M:TinyRustLM.ITinyRustLmP2PClient.VerifySignedManifestJson(System.String,System.String)',
             'M:TinyRustLM.ITinyRustLmRuntime.Generate(System.String,TinyRustLM.TinyRustLmGenerationOptions)',
             'M:TinyRustLM.ITinyRustLmRuntime.GetDiagnostics',
             'M:TinyRustLM.ITinyRustLmRuntime.LoadModel(System.String,System.String)',
@@ -509,22 +646,38 @@ function Get-ExpectedPublicApiEntries {
             'M:TinyRustLM.P2PManifest.#ctor(System.String,System.Int32,System.String,System.String,TinyRustLM.SlmInspection,System.String,System.Int64,System.Int64,System.Int32,System.Collections.Generic.IReadOnlyList{TinyRustLM.P2PPiece},System.Int64,TinyRustLM.P2PManifestBoundary)',
             'M:TinyRustLM.P2PManifestBoundary.#ctor(System.Boolean,System.Boolean,System.Boolean,System.Boolean)',
             'M:TinyRustLM.P2PManifestInspection.#ctor(System.String,System.Int32,System.String,System.String,System.String,System.String,System.Int64,System.Int32,System.Int64,System.Boolean)',
+            'M:TinyRustLM.P2PManifestSignature.#ctor(System.String,System.String,System.String,System.String,System.String,System.String)',
             'M:TinyRustLM.P2PPiece.#ctor(System.Int32,System.String,System.Int64,System.String)',
+            'M:TinyRustLM.P2PPublicKeyDocument.#ctor(System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.Boolean)',
             'M:TinyRustLM.P2PShareKitReport.#ctor(System.String,System.Int32,System.String,System.String,System.String,System.String,System.String,System.String,System.String,TinyRustLM.P2PManifest)',
             'M:TinyRustLM.P2PShareMetadata.#ctor(System.String,System.Int32,System.String,System.String,System.String,System.String,System.Int64,System.Int32,System.Int64,TinyRustLM.P2PManifestBoundary)',
+            'M:TinyRustLM.P2PSignedManifest.#ctor(System.String,System.Int32,TinyRustLM.P2PManifest,TinyRustLM.P2PManifestSignature)',
+            'M:TinyRustLM.P2PSignedManifestVerification.#ctor(System.String,System.Int32,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.Boolean)',
             'M:TinyRustLM.PrepareShareKitRequest.#ctor(System.String,System.String,System.String,System.String,System.String,System.String,System.Nullable{System.Int64})',
             'M:TinyRustLM.SlmInspection.#ctor(System.String,System.Int32,System.String,System.Int64,System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Int64,System.Int32,System.Int32,System.Int32,System.Int32,System.String,System.UInt64)',
-            'M:TinyRustLM.TinyRustLmCapabilities.#ctor(System.String,System.Int32,System.String,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Collections.Generic.IReadOnlyList{System.String})',
+            'M:TinyRustLM.TinyRustLmCapabilities.#ctor(System.String,System.Int32,System.String,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Collections.Generic.IReadOnlyList{System.String})',
             'M:TinyRustLM.TinyRustLmGenerationOptions.#ctor(System.Int32,System.Single,System.Int32,System.Single,System.UInt32)',
             'M:TinyRustLM.TinyRustLmGenerationResult.#ctor(System.String,System.String)',
             'M:TinyRustLM.TinyRustLmLoadReport.#ctor(TinyRustLM.SlmInspection,System.String)',
             'M:TinyRustLM.TinyRustLmSdkVersion.#ctor(System.String,System.Int32,System.String)',
+            'M:TinyRustLM.UaixAdvancedPersonaOptions.#ctor(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Byte,System.Byte,System.Byte,System.Byte,System.Byte,System.Byte)',
+            'M:TinyRustLM.UaixMemoryBoundary.#ctor(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)',
+            'M:TinyRustLM.UaixMemoryFileStatus.#ctor(System.String,System.String,System.String,System.Boolean,System.Int64,System.String)',
+            'M:TinyRustLM.UaixMemoryManifestInspection.#ctor(System.String,System.Int32,System.String,System.String,System.String,System.Boolean,System.Int32,System.Collections.Generic.IReadOnlyList{System.String},System.Boolean,System.Collections.Generic.IReadOnlyList{System.String})',
+            'M:TinyRustLM.UaixMemoryPackageInspection.#ctor(System.String,System.Int32,System.String,System.String,System.String,System.Collections.Generic.IReadOnlyList{TinyRustLM.UaixMemoryFileStatus},System.Collections.Generic.IReadOnlyList{TinyRustLM.UaixPersonaDimensionInspection},System.Boolean,System.Int32,System.Collections.Generic.IReadOnlyList{System.String},System.Collections.Generic.IReadOnlyList{System.String},System.Boolean,System.Int32,System.Boolean,TinyRustLM.UaixMemoryManifestInspection,TinyRustLM.UaixMemoryBoundary)',
+            'M:TinyRustLM.UaixMemoryPackagePlan.#ctor(System.String,System.Int32,System.String,System.Collections.Generic.IReadOnlyList{TinyRustLM.UaixMemoryRequiredFile},System.Int32,System.Collections.Generic.IReadOnlyList{System.String},TinyRustLM.UaixMemoryBoundary)',
+            'M:TinyRustLM.UaixMemoryPackageRequest.#ctor(System.String,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,TinyRustLM.UaixAdvancedPersonaOptions)',
+            'M:TinyRustLM.UaixMemoryRequiredFile.#ctor(System.String,System.String,System.String,System.String)',
+            'M:TinyRustLM.UaixMemorySetupCatalog.#ctor(System.String,System.Int32,System.Collections.Generic.IReadOnlyList{TinyRustLM.UaixMemorySetupDescriptor},System.Int32,System.Collections.Generic.IReadOnlyList{System.String},TinyRustLM.UaixMemoryBoundary)',
+            'M:TinyRustLM.UaixMemorySetupDescriptor.#ctor(System.String,System.String,System.String,System.String,System.Collections.Generic.IReadOnlyList{System.String},System.Collections.Generic.IReadOnlyList{System.String},System.Collections.Generic.IReadOnlyList{System.String})',
+            'M:TinyRustLM.UaixPersonaDimensionInspection.#ctor(System.String,System.String,System.Boolean,System.Int64,System.String,System.Boolean,System.Nullable{System.Byte},System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Collections.Generic.IReadOnlyList{System.String})',
             'P:TinyRustLM.TinyRustLmGenerationOptions.MaxNewTokens',
             'P:TinyRustLM.TinyRustLmGenerationOptions.Seed',
             'P:TinyRustLM.TinyRustLmGenerationOptions.Temperature',
             'P:TinyRustLM.TinyRustLmGenerationOptions.TopK',
             'P:TinyRustLM.TinyRustLmGenerationOptions.TopP',
             'T:TinyRustLM.ISlmInspector',
+            'T:TinyRustLM.ITinyRustLmMemoryClient',
             'T:TinyRustLM.ITinyRustLmP2PClient',
             'T:TinyRustLM.ITinyRustLmRuntime',
             'T:TinyRustLM.ITinyRustLmRuntimeFactory',
@@ -538,16 +691,31 @@ function Get-ExpectedPublicApiEntries {
             'T:TinyRustLM.P2PManifest',
             'T:TinyRustLM.P2PManifestBoundary',
             'T:TinyRustLM.P2PManifestInspection',
+            'T:TinyRustLM.P2PManifestSignature',
             'T:TinyRustLM.P2PPiece',
+            'T:TinyRustLM.P2PPublicKeyDocument',
             'T:TinyRustLM.P2PShareKitReport',
             'T:TinyRustLM.P2PShareMetadata',
+            'T:TinyRustLM.P2PSignedManifest',
+            'T:TinyRustLM.P2PSignedManifestVerification',
             'T:TinyRustLM.PrepareShareKitRequest',
             'T:TinyRustLM.SlmInspection',
             'T:TinyRustLM.TinyRustLmCapabilities',
             'T:TinyRustLM.TinyRustLmGenerationOptions',
             'T:TinyRustLM.TinyRustLmGenerationResult',
             'T:TinyRustLM.TinyRustLmLoadReport',
-            'T:TinyRustLM.TinyRustLmSdkVersion'
+            'T:TinyRustLM.TinyRustLmSdkVersion',
+            'T:TinyRustLM.UaixAdvancedPersonaOptions',
+            'T:TinyRustLM.UaixMemoryBoundary',
+            'T:TinyRustLM.UaixMemoryFileStatus',
+            'T:TinyRustLM.UaixMemoryManifestInspection',
+            'T:TinyRustLM.UaixMemoryPackageInspection',
+            'T:TinyRustLM.UaixMemoryPackagePlan',
+            'T:TinyRustLM.UaixMemoryPackageRequest',
+            'T:TinyRustLM.UaixMemoryRequiredFile',
+            'T:TinyRustLM.UaixMemorySetupCatalog',
+            'T:TinyRustLM.UaixMemorySetupDescriptor',
+            'T:TinyRustLM.UaixPersonaDimensionInspection'
         )
     }
 
@@ -589,7 +757,22 @@ function Get-ExpectedPublicApiEntries {
             'M:TinyRustLM.TinyRustLmP2PClient.PrepareLocalShareKitJson(TinyRustLM.PrepareShareKitRequest)',
             'M:TinyRustLM.TinyRustLmP2PClient.ValidateAnnouncement(System.String)',
             'M:TinyRustLM.TinyRustLmP2PClient.ValidateAnnouncementJson(System.String)',
+            'M:TinyRustLM.TinyRustLmP2PClient.VerifySignedManifest(System.String,System.String)',
+            'M:TinyRustLM.TinyRustLmP2PClient.VerifySignedManifestJson(System.String,System.String)',
             'T:TinyRustLM.TinyRustLmP2PClient'
+        )
+    }
+
+    if ($PackageId -eq "TinyRustLM.Memory") {
+        return @(
+            'M:TinyRustLM.TinyRustLmMemoryClient.GetRequiredFiles(TinyRustLM.UaixMemoryPackageRequest)',
+            'M:TinyRustLM.TinyRustLmMemoryClient.GetRequiredFilesJson(TinyRustLM.UaixMemoryPackageRequest)',
+            'M:TinyRustLM.TinyRustLmMemoryClient.GetSupportedSetups',
+            'M:TinyRustLM.TinyRustLmMemoryClient.GetSupportedSetupsJson',
+            'M:TinyRustLM.TinyRustLmMemoryClient.InspectManifest(System.String)',
+            'M:TinyRustLM.TinyRustLmMemoryClient.InspectPackage(System.String,TinyRustLM.UaixMemoryPackageRequest)',
+            'M:TinyRustLM.TinyRustLmMemoryClient.ValidatePackage(System.String,TinyRustLM.UaixMemoryPackageRequest)',
+            'T:TinyRustLM.TinyRustLmMemoryClient'
         )
     }
 
@@ -640,6 +823,12 @@ function Get-ExpectedDependencies {
         )
     }
     if ($PackageId -eq "TinyRustLM.P2P") {
+        return @(
+            (New-ExpectedDependencyEntry -Id "TinyRustLM.Abstractions" -Version $PackageVersion),
+            (New-ExpectedDependencyEntry -Id "TinyRustLM.Core" -Version $PackageVersion)
+        )
+    }
+    if ($PackageId -eq "TinyRustLM.Memory") {
         return @(
             (New-ExpectedDependencyEntry -Id "TinyRustLM.Abstractions" -Version $PackageVersion),
             (New-ExpectedDependencyEntry -Id "TinyRustLM.Core" -Version $PackageVersion)
@@ -747,16 +936,82 @@ function Get-PackageIdentityMismatches {
     return $mismatches
 }
 
+function Get-SymbolPackageIdentityMismatches {
+    param(
+        [string]$PackageName,
+        [string]$ExpectedPackageId,
+        [string]$ExpectedPackageVersion,
+        $Metadata,
+        [bool]$HasSymbolsPackageType
+    )
+
+    $mismatches = @(Get-PackageIdentityMismatches `
+        -PackageName $PackageName `
+        -ExpectedPackageId $ExpectedPackageId `
+        -ExpectedPackageVersion $ExpectedPackageVersion `
+        -Metadata $Metadata)
+    if (-not $HasSymbolsPackageType) {
+        $mismatches += "package_type:SymbolsPackage"
+    }
+    return $mismatches
+}
+
+function Test-SymbolPackageEntryAllowed {
+    param([string]$EntryName)
+
+    if ($EntryName -eq "[Content_Types].xml" -or $EntryName -eq "_rels/.rels") {
+        return $true
+    }
+    if ($EntryName -match "^[^/]+\.nuspec$") {
+        return $true
+    }
+    if ($EntryName -match "^package/services/metadata/core-properties/[^/]+\.psmdcp$") {
+        return $true
+    }
+    if ($EntryName -match "^lib/[^/]+/TinyRustLM\.[^/]+\.pdb$") {
+        return $true
+    }
+    return $false
+}
+
+function Get-SymbolPackageUnexpectedEntries {
+    param([string[]]$EntryNames)
+
+    return @($EntryNames | Where-Object { -not (Test-SymbolPackageEntryAllowed -EntryName $_) })
+}
+
+function Test-SymbolsPackageType {
+    param([string]$NuspecText)
+
+    if (-not $NuspecText) {
+        return $false
+    }
+
+    [xml]$nuspec = $NuspecText
+    $packageTypeNodes = $nuspec.SelectNodes("//*[local-name()='packageType']")
+    foreach ($node in $packageTypeNodes) {
+        if ($node.GetAttribute("name") -eq "SymbolsPackage") {
+            return $true
+        }
+    }
+    return $false
+}
+
 $packageFiles = Get-ChildItem -Path $PackageSource -Filter "TinyRustLM*.nupkg" -File | Sort-Object Name
 if (-not $packageFiles) {
     throw "No TinyRustLM packages were found in $PackageSource"
 }
+$symbolPackageFiles = Get-ChildItem -Path $PackageSource -Filter "TinyRustLM*.snupkg" -File | Sort-Object Name
 
 $sourcePackageVersion = Get-SourcePackageVersion
 $expectedPackageNames = @(Get-ExpectedPackageNames -PackageVersion $sourcePackageVersion)
+$expectedSymbolPackageNames = @(Get-ExpectedSymbolPackageNames -PackageVersion $sourcePackageVersion)
 $packageNames = @($packageFiles | ForEach-Object { $_.Name })
+$symbolPackageNames = @($symbolPackageFiles | ForEach-Object { $_.Name })
 $missingPackageEntries = @($expectedPackageNames | Where-Object { $packageNames -notcontains $_ })
 $unexpectedPackageEntries = @($packageNames | Where-Object { $expectedPackageNames -notcontains $_ })
+$missingSymbolPackageEntries = @($expectedSymbolPackageNames | Where-Object { $symbolPackageNames -notcontains $_ })
+$unexpectedSymbolPackageEntries = @($symbolPackageNames | Where-Object { $expectedSymbolPackageNames -notcontains $_ })
 
 $privateSurfacePattern = "slm_pack|selector|adapter_family|trained_source|breeding"
 $sourceFilePattern = "\.(cs|fs|vb|rs|c|cc|cpp|cxx|h|hh|hpp|hxx|m|mm|swift|kt|kts|java|go|py|ts|tsx|js|jsx|ps1|psm1|psd1|sh|bash)$"
@@ -820,6 +1075,9 @@ foreach ($package in $packageFiles) {
         $packageDocumentationEntries = @(Get-PackageDocumentationEntries -EntryNames $entryNames)
         $expectedPackageDocumentationEntries = @(Get-PackageDocumentationVerification -PackageId $packageId -Entries $entries)
         $packageDocumentationMismatches = @($expectedPackageDocumentationEntries | Where-Object { -not $_.sha256_match })
+        $requiredSearchTerms = @(Get-RequiredSearchTerms -PackageId $packageId)
+        $missingSearchTerms = @(Get-MissingSearchTerms -PackageId $packageId -Metadata $metadata)
+        $metadataPolicyViolations = @(Get-MetadataPolicyViolations -PackageId $packageId -Metadata $metadata)
 
         $packageReports += [ordered]@{
             name = $package.Name
@@ -844,6 +1102,9 @@ foreach ($package in $packageFiles) {
             metadata = $metadata
             package_identity_mismatches = $packageIdentityMismatches
             missing_metadata_fields = @(Get-MissingMetadataFields -Metadata $metadata)
+            metadata_policy_violations = $metadataPolicyViolations
+            required_search_terms = $requiredSearchTerms
+            missing_search_terms = $missingSearchTerms
             declared_package_file_entries = $declaredPackageFileEntries
             missing_package_file_entries = $missingPackageFileEntries
             package_documentation_entries = $packageDocumentationEntries
@@ -858,6 +1119,54 @@ foreach ($package in $packageFiles) {
             private_surface_matches = $privateMatches
             source_file_entries = $sourceFileEntries
             debug_symbol_entries = $debugSymbolEntries
+            generated_output_entries = $generatedOutputEntries
+            absolute_path_matches = $absolutePathMatches
+        }
+    }
+    finally {
+        $zip.Dispose()
+    }
+}
+
+$symbolPackageReports = @()
+foreach ($symbolPackage in $symbolPackageFiles) {
+    $zip = [System.IO.Compression.ZipFile]::OpenRead($symbolPackage.FullName)
+    try {
+        $entries = $zip.Entries | Sort-Object FullName
+        $entryNames = $entries | ForEach-Object { $_.FullName }
+        $sourceFileEntries = @($entryNames | Where-Object { $_ -match $sourceFilePattern })
+        $generatedOutputEntries = @($entryNames | Where-Object { $_ -match $generatedOutputPattern })
+        $absolutePathMatches = @(Get-AbsolutePathMatches -Entries $entries)
+        $pdbEntries = @($entryNames | Where-Object { $_ -match "^lib/[^/]+/TinyRustLM\.[^/]+\.pdb$" })
+        $unexpectedSymbolPackageEntriesForPackage = @(Get-SymbolPackageUnexpectedEntries -EntryNames $entryNames)
+        $nuspecEntry = $entries | Where-Object { $_.FullName -like "*.nuspec" } | Select-Object -First 1
+        $nuspecText = if ($nuspecEntry) { Read-ZipEntryText -Entry $nuspecEntry } else { "" }
+        $metadata = Read-NuspecMetadata -NuspecText $nuspecText
+        $expectedPackageId = Get-ExpectedSymbolPackageIdForName -PackageName $symbolPackage.Name -PackageVersion $sourcePackageVersion
+        $expectedPackageVersion = if ($expectedPackageId) { $sourcePackageVersion } else { "" }
+        $hasSymbolsPackageType = Test-SymbolsPackageType -NuspecText $nuspecText
+        $symbolIdentityMismatches = @(Get-SymbolPackageIdentityMismatches `
+            -PackageName $symbolPackage.Name `
+            -ExpectedPackageId $expectedPackageId `
+            -ExpectedPackageVersion $expectedPackageVersion `
+            -Metadata $metadata `
+            -HasSymbolsPackageType $hasSymbolsPackageType)
+
+        $symbolPackageReports += [ordered]@{
+            name = $symbolPackage.Name
+            package_id = $expectedPackageId
+            expected_package_id = $expectedPackageId
+            expected_package_version = $expectedPackageVersion
+            path = $symbolPackage.FullName
+            sha256 = (Get-FileHash -LiteralPath $symbolPackage.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            byte_count = $symbolPackage.Length
+            entry_count = $entries.Count
+            package_entry_names = $entryNames
+            pdb_entries = $pdbEntries
+            has_symbols_package_type = $hasSymbolsPackageType
+            package_identity_mismatches = $symbolIdentityMismatches
+            unexpected_symbol_package_entries = $unexpectedSymbolPackageEntriesForPackage
+            source_file_entries = $sourceFileEntries
             generated_output_entries = $generatedOutputEntries
             absolute_path_matches = $absolutePathMatches
         }
@@ -883,6 +1192,8 @@ elseif ($RequiredNativeRids.Count -gt 0) {
 $allPrivateMatches = @($packageReports | ForEach-Object { $_.private_surface_matches } | Where-Object { $_ })
 $allPackageIdentityMismatches = @($packageReports | ForEach-Object { $_.package_identity_mismatches } | Where-Object { $_ })
 $allMissingMetadata = @($packageReports | ForEach-Object { $_.missing_metadata_fields } | Where-Object { $_ })
+$allMetadataPolicyViolations = @($packageReports | ForEach-Object { $_.metadata_policy_violations } | Where-Object { $_ })
+$allMissingSearchTerms = @($packageReports | ForEach-Object { $_.missing_search_terms } | Where-Object { $_ })
 $allMissingPackageFiles = @($packageReports | ForEach-Object { $_.missing_package_file_entries } | Where-Object { $_ })
 $allPackageDocumentationMismatches = @($packageReports | ForEach-Object { $_.package_documentation_mismatches } | Where-Object { $_ })
 $allMissingDependencies = @($packageReports | ForEach-Object { $_.missing_dependency_entries } | Where-Object { $_ })
@@ -896,13 +1207,24 @@ $allSourceFileEntries = @($packageReports | ForEach-Object { $_.source_file_entr
 $allDebugSymbolEntries = @($packageReports | ForEach-Object { $_.debug_symbol_entries } | Where-Object { $_ })
 $allGeneratedOutputEntries = @($packageReports | ForEach-Object { $_.generated_output_entries } | Where-Object { $_ })
 $allAbsolutePathMatches = @($packageReports | ForEach-Object { $_.absolute_path_matches } | Where-Object { $_ })
+$allSymbolPackageIdentityMismatches = @($symbolPackageReports | ForEach-Object { $_.package_identity_mismatches } | Where-Object { $_ })
+$allSymbolPackageUnexpectedEntries = @($symbolPackageReports | ForEach-Object { $_.unexpected_symbol_package_entries } | Where-Object { $_ })
+$allSymbolPackageMissingPdbEntries = @($symbolPackageReports | Where-Object { @($_.pdb_entries).Count -eq 0 } | ForEach-Object { $_.name })
+$allSymbolPackageSourceFileEntries = @($symbolPackageReports | ForEach-Object { $_.source_file_entries } | Where-Object { $_ })
+$allSymbolPackageGeneratedOutputEntries = @($symbolPackageReports | ForEach-Object { $_.generated_output_entries } | Where-Object { $_ })
+$allSymbolPackageAbsolutePathMatches = @($symbolPackageReports | ForEach-Object { $_.absolute_path_matches } | Where-Object { $_ })
 $checksPassed = @(
     $missingPackageEntries.Count -eq 0
     $unexpectedPackageEntries.Count -eq 0
+    $missingSymbolPackageEntries.Count -eq 0
+    $unexpectedSymbolPackageEntries.Count -eq 0
     $allPackageIdentityMismatches.Count -eq 0
+    $allSymbolPackageIdentityMismatches.Count -eq 0
     $missingNativeRids.Count -eq 0
     $allPrivateMatches.Count -eq 0
     $allMissingMetadata.Count -eq 0
+    $allMetadataPolicyViolations.Count -eq 0
+    $allMissingSearchTerms.Count -eq 0
     $allMissingPackageFiles.Count -eq 0
     $allPackageDocumentationMismatches.Count -eq 0
     $allMissingDependencies.Count -eq 0
@@ -916,6 +1238,11 @@ $checksPassed = @(
     $allDebugSymbolEntries.Count -eq 0
     $allGeneratedOutputEntries.Count -eq 0
     $allAbsolutePathMatches.Count -eq 0
+    $allSymbolPackageUnexpectedEntries.Count -eq 0
+    $allSymbolPackageMissingPdbEntries.Count -eq 0
+    $allSymbolPackageSourceFileEntries.Count -eq 0
+    $allSymbolPackageGeneratedOutputEntries.Count -eq 0
+    $allSymbolPackageAbsolutePathMatches.Count -eq 0
 ) -notcontains $false
 $status = if ($checksPassed) { "pass" } else { "fail" }
 $report = [ordered]@{
@@ -924,15 +1251,23 @@ $report = [ordered]@{
     package_source = (Resolve-Path -LiteralPath $PackageSource).Path
     package_version = $sourcePackageVersion
     expected_package_names = $expectedPackageNames
+    expected_symbol_package_names = $expectedSymbolPackageNames
     required_native_rids = $RequiredNativeRids
     status = $status
     missing_package_entries = $missingPackageEntries
     unexpected_package_entries = $unexpectedPackageEntries
+    missing_symbol_package_entries = $missingSymbolPackageEntries
+    unexpected_symbol_package_entries = $unexpectedSymbolPackageEntries
     missing_native_rids = $missingNativeRids
     missing_package_count = $missingPackageEntries.Count
     unexpected_package_count = $unexpectedPackageEntries.Count
+    missing_symbol_package_count = $missingSymbolPackageEntries.Count
+    unexpected_symbol_package_count = $unexpectedSymbolPackageEntries.Count
     package_identity_mismatch_count = $allPackageIdentityMismatches.Count
+    symbol_package_identity_mismatch_count = $allSymbolPackageIdentityMismatches.Count
     missing_metadata_count = $allMissingMetadata.Count
+    metadata_policy_violation_count = $allMetadataPolicyViolations.Count
+    missing_search_term_count = $allMissingSearchTerms.Count
     missing_package_file_count = $allMissingPackageFiles.Count
     package_documentation_mismatch_count = $allPackageDocumentationMismatches.Count
     missing_dependency_count = $allMissingDependencies.Count
@@ -946,8 +1281,15 @@ $report = [ordered]@{
     debug_symbol_count = $allDebugSymbolEntries.Count
     generated_output_count = $allGeneratedOutputEntries.Count
     absolute_path_match_count = $allAbsolutePathMatches.Count
+    symbol_package_unexpected_entry_count = $allSymbolPackageUnexpectedEntries.Count
+    symbol_package_missing_pdb_count = $allSymbolPackageMissingPdbEntries.Count
+    symbol_package_source_file_count = $allSymbolPackageSourceFileEntries.Count
+    symbol_package_generated_output_count = $allSymbolPackageGeneratedOutputEntries.Count
+    symbol_package_absolute_path_match_count = $allSymbolPackageAbsolutePathMatches.Count
     package_count = $packageReports.Count
+    symbol_package_count = $symbolPackageReports.Count
     packages = $packageReports
+    symbol_packages = $symbolPackageReports
 }
 
 $reportDirectory = Split-Path -Parent $ReportOutput

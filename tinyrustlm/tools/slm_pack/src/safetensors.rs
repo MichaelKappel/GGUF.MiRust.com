@@ -1668,7 +1668,7 @@ fn extract_source_payloads(
 fn decode_source_tensor_to_f32(dtype: &str, raw: &[u8]) -> io::Result<Vec<u8>> {
     match dtype {
         "F32" => {
-            if raw.len() % 4 != 0 {
+            if !raw.len().is_multiple_of(4) {
                 return Err(invalid(
                     "F32 safetensors payload length must divide by four",
                 ));
@@ -1685,7 +1685,7 @@ fn decode_source_tensor_to_f32(dtype: &str, raw: &[u8]) -> io::Result<Vec<u8>> {
 
 /// Decodes little-endian IEEE f16 values into raw little-endian f32 bytes.
 fn decode_f16_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
-    if raw.len() % 2 != 0 {
+    if !raw.len().is_multiple_of(2) {
         return Err(invalid("F16 safetensors payload length must divide by two"));
     }
     let mut bytes = Vec::with_capacity(raw.len() * 2);
@@ -1698,7 +1698,7 @@ fn decode_f16_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
 
 /// Decodes little-endian bfloat16 values into raw little-endian f32 bytes.
 fn decode_bf16_payload_to_f32(raw: &[u8]) -> io::Result<Vec<u8>> {
-    if raw.len() % 2 != 0 {
+    if !raw.len().is_multiple_of(2) {
         return Err(invalid(
             "BF16 safetensors payload length must divide by two",
         ));
@@ -8125,7 +8125,7 @@ mod tests {
         let mut bytes = Vec::new();
         bytes.extend_from_slice(&(header.len() as u64).to_le_bytes());
         bytes.extend_from_slice(header.as_bytes());
-        bytes.extend(std::iter::repeat(0u8).take(data_len));
+        bytes.extend(std::iter::repeat_n(0u8, data_len));
         fs::write(path, bytes).unwrap();
     }
 

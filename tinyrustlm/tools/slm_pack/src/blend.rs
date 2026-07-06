@@ -706,7 +706,7 @@ fn read_q4_values(bytes: &[u8], entry: &TensorEntry) -> io::Result<Vec<f32>> {
     let rows = entry.spec.rows();
     let cols = entry.spec.cols_per_row();
     let block = entry.spec.block_size as usize;
-    if block == 0 || cols % block != 0 {
+    if block == 0 || !cols.is_multiple_of(block) {
         return Err(invalid("q4 tensor block layout is invalid for blending"));
     }
     let blocks_per_row = cols / block;
@@ -733,7 +733,7 @@ fn read_q4_values(bytes: &[u8], entry: &TensorEntry) -> io::Result<Vec<f32>> {
             for col in 0..block {
                 let absolute_col = block_index * block + col;
                 let byte = payload[(row * cols + absolute_col) / 2];
-                let nibble = if absolute_col % 2 == 0 {
+                let nibble = if absolute_col.is_multiple_of(2) {
                     byte & 0x0f
                 } else {
                     byte >> 4

@@ -3,8 +3,22 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-fn eval_bin() -> &'static str {
-    env!("CARGO_BIN_EXE_tinyrustlm-eval")
+fn eval_bin() -> PathBuf {
+    if let Ok(path) = std::env::var("CARGO_BIN_EXE_tinyrustlm-eval") {
+        return PathBuf::from(path);
+    }
+    if let Some(path) = option_env!("CARGO_BIN_EXE_tinyrustlm-eval") {
+        return PathBuf::from(path);
+    }
+
+    let test_exe = std::env::current_exe().expect("resolve eval_cli test executable");
+    let deps_dir = test_exe.parent().expect("test executable has deps parent");
+    let target_dir = deps_dir.parent().expect("deps directory has target parent");
+    target_dir.join(if cfg!(windows) {
+        "tinyrustlm-eval.exe"
+    } else {
+        "tinyrustlm-eval"
+    })
 }
 
 #[test]

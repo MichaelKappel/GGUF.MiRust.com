@@ -283,7 +283,7 @@ fn validate_adapter_bytes(bytes: &[u8]) -> Result<AdapterPackageFormat, ErrorCod
                 .ok_or(ErrorCode::InvalidLength)?,
         )
         .ok_or(ErrorCode::InvalidLength)?;
-    if data_offset < directory_end || data_offset % 64 != 0 || data_offset > bytes.len() {
+    if data_offset < directory_end || !data_offset.is_multiple_of(64) || data_offset > bytes.len() {
         return Err(ErrorCode::InvalidHeader);
     }
     if read_u64(bytes, CHECKSUM_OFFSET)? != adapter_checksum(bytes)? {
@@ -304,7 +304,7 @@ fn validate_adapter_bytes(bytes: &[u8]) -> Result<AdapterPackageFormat, ErrorCod
                 }
             }
             AdapterPackageFormat::SparseF32 => {
-                if byte_length % SPARSE_PAIR_LEN != 0
+                if !byte_length.is_multiple_of(SPARSE_PAIR_LEN)
                     || byte_length / SPARSE_PAIR_LEN > element_count
                 {
                     return Err(ErrorCode::ShapeMismatch);
@@ -367,7 +367,7 @@ fn validate_entry_identity(
         return Err(ErrorCode::InvalidHeader);
     }
     let byte_offset = usize_from_u64(read_u64(bytes, entry_offset + 32)?)?;
-    if byte_offset < data_offset || byte_offset % 64 != 0 {
+    if byte_offset < data_offset || !byte_offset.is_multiple_of(64) {
         return Err(ErrorCode::InvalidHeader);
     }
     let element_count = read_u64(bytes, entry_offset + 48)?;

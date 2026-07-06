@@ -366,10 +366,12 @@ mod tests {
     #[test]
     fn rejects_ledger_entry_drift() {
         let admission = fixture_admission("candidate-a", "target/ledger/a.slm", DTYPE_Q8_0);
-        let ledger = build_ledger_text(&[admission.clone()]).unwrap().replace(
-            "entry.0.ledger_entry_status=promoted-and-admitted",
-            "entry.0.ledger_entry_status=pending",
-        );
+        let ledger = build_ledger_text(std::slice::from_ref(&admission))
+            .unwrap()
+            .replace(
+                "entry.0.ledger_entry_status=promoted-and-admitted",
+                "entry.0.ledger_entry_status=pending",
+            );
 
         let error = validate_ledger_text(&ledger, &[admission]).unwrap_err();
 
@@ -380,7 +382,7 @@ mod tests {
     #[test]
     fn rejects_unexpected_ledger_key() {
         let admission = fixture_admission("candidate-a", "target/ledger/a.slm", DTYPE_Q8_0);
-        let mut ledger = build_ledger_text(&[admission.clone()]).unwrap();
+        let mut ledger = build_ledger_text(std::slice::from_ref(&admission)).unwrap();
         ledger.push_str("entry.0.extra=yes\n");
 
         let error = validate_ledger_text(&ledger, &[admission]).unwrap_err();

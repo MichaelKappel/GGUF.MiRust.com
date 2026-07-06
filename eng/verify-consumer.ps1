@@ -1,7 +1,9 @@
 param(
     [string]$PackageSource = "",
     [string]$ModelPath = "",
-    [string]$PackageVersion = ""
+    [string]$PackageVersion = "",
+    [string]$CorePackageId = "",
+    [string]$P2PPackageId = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -26,6 +28,12 @@ if (-not $ModelPath) {
 if (-not $PackageVersion) {
     $PackageVersion = (& (Join-Path $PSScriptRoot "get-package-version.ps1")).Trim()
 }
+if (-not $CorePackageId) {
+    $CorePackageId = if ($env:TINYRUSTLM_CONSUMER_CORE_PACKAGE_ID) { $env:TINYRUSTLM_CONSUMER_CORE_PACKAGE_ID } else { "TinyRustLM.Core" }
+}
+if (-not $P2PPackageId) {
+    $P2PPackageId = if ($env:TINYRUSTLM_CONSUMER_P2P_PACKAGE_ID) { $env:TINYRUSTLM_CONSUMER_P2P_PACKAGE_ID } else { "TinyRustLM.P2P" }
+}
 
 if (-not (Test-Path -LiteralPath $ModelPath)) {
     throw "Model fixture does not exist: $ModelPath"
@@ -45,8 +53,8 @@ try {
     Invoke-DotNet -Arguments @("new", "console", "--framework", "net8.0", "--output", $ProjectDir) | Out-Null
     Push-Location $ProjectDir
     try {
-        Invoke-DotNet -Arguments @("add", "package", "TinyRustLM.Core", "--version", $PackageVersion, "--source", $PackageSource) | Out-Null
-        Invoke-DotNet -Arguments @("add", "package", "TinyRustLM.P2P", "--version", $PackageVersion, "--source", $PackageSource) | Out-Null
+        Invoke-DotNet -Arguments @("add", "package", $CorePackageId, "--version", $PackageVersion, "--source", $PackageSource) | Out-Null
+        Invoke-DotNet -Arguments @("add", "package", $P2PPackageId, "--version", $PackageVersion, "--source", $PackageSource) | Out-Null
     }
     finally {
         Pop-Location
@@ -168,6 +176,37 @@ if (announcement.Kind != "tinyrustlm.p2p_announcement.v0"
 }
 var manifestJson = File.ReadAllText(shareReport.ManifestPath);
 var manifest = p2p.InspectManifest(manifestJson);
+var invalidSignedManifestJson = JsonSerializer.Serialize(new
+{
+    kind = "tinyrustlm.p2p_signed_manifest.v0",
+    version = 1,
+    manifest = JsonSerializer.Deserialize<JsonElement>(manifestJson),
+    signature = new
+    {
+        kind = "external-signature-v0",
+        key_id = "consumer-smoke-key",
+        publisher_id = "consumer-smoke-publisher",
+        public_key_route = "keys/consumer-smoke-key.public-key.json",
+        payload_sha256 = manifest.ManifestSha256,
+        value = "ed25519-base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    }
+}, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower });
+try
+{
+    p2p.VerifySignedManifest(invalidSignedManifestJson, "{\"key_kind\":\"minimodel.public_key.v0\"}");
+    throw new InvalidOperationException("Package consumer accepted an invalid signed P2P manifest.");
+}
+catch (TinyRustLmException ex) when (ex.Code == "p2p_signed_manifest_invalid")
+{
+}
+try
+{
+    p2p.VerifySignedManifestJson(invalidSignedManifestJson, "{\"key_kind\":\"minimodel.public_key.v0\"}");
+    throw new InvalidOperationException("Package consumer accepted an invalid signed P2P manifest JSON handoff.");
+}
+catch (TinyRustLmException ex) when (ex.Code == "p2p_signed_manifest_invalid")
+{
+}
 P2PShareMetadata metadata = p2p.ExportShareMetadata(manifestJson);
 var plan = p2p.ImportFromManifest(manifestJson);
 var assembledPath = Path.Combine(outputDir, "consumer-smoke-assembled.slm");

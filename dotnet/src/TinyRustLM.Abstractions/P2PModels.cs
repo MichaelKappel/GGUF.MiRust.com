@@ -35,6 +35,50 @@ public sealed record P2PManifest(
     long CreatedUnixSeconds,
     P2PManifestBoundary Boundary);
 
+/// <summary>Detached Ed25519 signature over a canonical TinyRustLM P2P manifest payload.</summary>
+public sealed record P2PManifestSignature(
+    string Kind,
+    string KeyId,
+    string PublisherId,
+    string PublicKeyRoute,
+    string PayloadSha256,
+    string Value);
+
+/// <summary>Metadata-only signed P2P manifest envelope.</summary>
+public sealed record P2PSignedManifest(
+    string Kind,
+    int Version,
+    P2PManifest Manifest,
+    P2PManifestSignature Signature);
+
+/// <summary>Metadata-only MiniModel public key document used by the public verifier.</summary>
+public sealed record P2PPublicKeyDocument(
+    string KeyKind,
+    string KeyAlgorithm,
+    string KeyId,
+    string PublisherId,
+    string PublicKeyRoute,
+    string PublicKeyBase64,
+    string PublicKeySha256,
+    string Usage,
+    string CreatedUtc,
+    bool Revoked);
+
+/// <summary>Report returned after local signed P2P manifest verification.</summary>
+public sealed record P2PSignedManifestVerification(
+    string Kind,
+    int Version,
+    string ManifestId,
+    string ModelId,
+    string ManifestSha256,
+    string SignatureAlgorithm,
+    string KeyId,
+    string PublisherId,
+    string PublicKeyRoute,
+    string PublicKeySha256,
+    string PayloadSha256,
+    bool Valid);
+
 /// <summary>Metadata-only share kit report written by the public P2P SDK.</summary>
 public sealed record P2PShareKitReport(
     string Kind,
@@ -173,6 +217,12 @@ public interface ITinyRustLmP2PClient
 
     /// <summary>Validates and inspects a P2P manifest JSON document.</summary>
     P2PManifestInspection InspectManifest(string manifestJson);
+
+    /// <summary>Verifies a signed P2P manifest envelope with local public key JSON.</summary>
+    P2PSignedManifestVerification VerifySignedManifest(string signedManifestJson, string publicKeyJson);
+
+    /// <summary>Verifies a signed P2P manifest envelope and returns the exact native JSON.</summary>
+    string VerifySignedManifestJson(string signedManifestJson, string publicKeyJson);
 
     /// <summary>Creates a metadata-only import plan from a manifest JSON document.</summary>
     P2PImportPlan ImportFromManifest(string manifestJson);

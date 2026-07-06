@@ -1079,7 +1079,7 @@ fn write_bundle_module(
         &admission_paths,
     )?;
     let bundle_adapter_routes =
-        write_bundle_adapter_routes(&spec, &candidate_path, &models, &evidence)?;
+        write_bundle_adapter_routes(spec, &candidate_path, models, &evidence)?;
     let adapter_routes = bundle_adapter_routes
         .iter()
         .map(|route| route.route.clone())
@@ -1102,7 +1102,7 @@ fn write_bundle_module(
     adapter_family::validate_receipt_path(&adapter_family_receipt_path, &adapter_family_inputs)?;
     let assembly_receipt_path = models.join(&spec.assembly_receipt_file);
     let assembly_route = write_bundle_assembly_receipt(
-        &spec,
+        spec,
         &assembly_receipt_path,
         &report,
         &ledger_path,
@@ -1119,7 +1119,7 @@ fn write_bundle_module(
     )?;
     let module_plan_receipt_path = models.join(&spec.module_plan_receipt_file);
     let module_plan_route = write_bundle_module_plan_receipt(
-        &spec,
+        spec,
         &module_plan_receipt_path,
         &report,
         &provenance_path,
@@ -3180,9 +3180,9 @@ mod tests {
         let registry = fs::read_to_string(root.join("models").join("selector.registry")).unwrap();
         assert!(registry.contains(&format!("entry.0.candidate_id={id}")));
         assert!(registry.contains(&format!("entry.0.model_path=../models/{id}.slm")));
-        assert!(registry.contains(&format!(
-            "entry.0.adapter_label=Multi-parent weighted soup q8_0 self ADP1"
-        )));
+        assert!(registry.contains(
+            &"entry.0.adapter_label=Multi-parent weighted soup q8_0 self ADP1".to_string()
+        ));
         assert!(registry.contains(&format!(
             "entry.0.module_plan_operator_receipt_path=../evidence/{id}/soup.operator"
         )));

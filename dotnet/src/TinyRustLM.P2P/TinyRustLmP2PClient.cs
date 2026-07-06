@@ -9,6 +9,7 @@ public sealed class TinyRustLmP2PClient : ITinyRustLmP2PClient
     private const long MinPieceSize = 1024;
     private const long MaxPieceSize = 16 * 1024 * 1024;
     private const int MaxManifestJsonBytes = 1024 * 1024;
+    private const int MaxPublicKeyJsonBytes = 16 * 1024;
     private const int MaxAnnouncementJsonBytes = 256 * 1024;
     private const int MaxAnnouncementCatalogJsonBytes = 4 * 1024 * 1024;
     private const int MaxReceiptJsonBytes = 256 * 1024;
@@ -77,6 +78,55 @@ public sealed class TinyRustLmP2PClient : ITinyRustLmP2PClient
         using var manifestUtf8 = NativeJson.Utf8(manifestJson, nameof(manifestJson));
         return NativeJson.Call<P2PManifestInspection>(() =>
             NativeMethods.tinyrustlm_p2p_inspect_manifest_json(manifestUtf8.Pointer));
+    }
+
+    /// <inheritdoc />
+    public P2PSignedManifestVerification VerifySignedManifest(
+        string signedManifestJson,
+        string publicKeyJson)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(signedManifestJson);
+        ArgumentException.ThrowIfNullOrWhiteSpace(publicKeyJson);
+        ValidateJsonHandoff(
+            signedManifestJson,
+            MaxManifestJsonBytes,
+            nameof(signedManifestJson),
+            "signed P2P manifest JSON");
+        ValidateJsonHandoff(
+            publicKeyJson,
+            MaxPublicKeyJsonBytes,
+            nameof(publicKeyJson),
+            "P2P public key JSON");
+        using var signedManifestUtf8 = NativeJson.Utf8(signedManifestJson, nameof(signedManifestJson));
+        using var publicKeyUtf8 = NativeJson.Utf8(publicKeyJson, nameof(publicKeyJson));
+        return NativeJson.Call<P2PSignedManifestVerification>(() =>
+            NativeMethods.tinyrustlm_p2p_verify_signed_manifest_json(
+                signedManifestUtf8.Pointer,
+                publicKeyUtf8.Pointer));
+    }
+
+    /// <inheritdoc />
+    public string VerifySignedManifestJson(string signedManifestJson, string publicKeyJson)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(signedManifestJson);
+        ArgumentException.ThrowIfNullOrWhiteSpace(publicKeyJson);
+        ValidateJsonHandoff(
+            signedManifestJson,
+            MaxManifestJsonBytes,
+            nameof(signedManifestJson),
+            "signed P2P manifest JSON");
+        ValidateJsonHandoff(
+            publicKeyJson,
+            MaxPublicKeyJsonBytes,
+            nameof(publicKeyJson),
+            "P2P public key JSON");
+        using var signedManifestUtf8 = NativeJson.Utf8(signedManifestJson, nameof(signedManifestJson));
+        using var publicKeyUtf8 = NativeJson.Utf8(publicKeyJson, nameof(publicKeyJson));
+        var verification = NativeJson.Call<JsonElement>(() =>
+            NativeMethods.tinyrustlm_p2p_verify_signed_manifest_json(
+                signedManifestUtf8.Pointer,
+                publicKeyUtf8.Pointer));
+        return JsonSerializer.Serialize(verification, NativeJson.SerializerOptions);
     }
 
     /// <inheritdoc />

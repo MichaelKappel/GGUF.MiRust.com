@@ -16,6 +16,11 @@ pub extern "C" fn alloc(len: usize) -> *mut u8 {
 }
 
 /// Releases a buffer previously returned by [`alloc`].
+///
+/// # Safety
+///
+/// `ptr` and `len` must exactly match a live allocation returned by [`alloc`].
+/// The buffer must not be used again after this call.
 #[no_mangle]
 pub unsafe extern "C" fn dealloc(ptr: *mut u8, len: usize) {
     deallocate_bytes(ptr, len);
@@ -34,6 +39,11 @@ pub extern "C" fn init_runtime() -> u32 {
 }
 
 /// Loads a model from bytes already copied into WASM memory.
+///
+/// # Safety
+///
+/// `ptr` must point to `len` readable bytes in WASM linear memory for the
+/// duration of this call.
 #[no_mangle]
 pub unsafe extern "C" fn load_model(ptr: *const u8, len: usize) -> u32 {
     let bytes = match slice_from_raw(ptr, len) {
@@ -44,6 +54,11 @@ pub unsafe extern "C" fn load_model(ptr: *const u8, len: usize) -> u32 {
 }
 
 /// Applies an adapter-delta package from bytes already copied into WASM memory.
+///
+/// # Safety
+///
+/// `ptr` must point to `len` readable bytes in WASM linear memory for the
+/// duration of this call.
 #[no_mangle]
 pub unsafe extern "C" fn apply_adapter_delta(ptr: *const u8, len: usize) -> u32 {
     let bytes = match slice_from_raw(ptr, len) {
@@ -54,6 +69,11 @@ pub unsafe extern "C" fn apply_adapter_delta(ptr: *const u8, len: usize) -> u32 
 }
 
 /// Validates an adapter-delta package from bytes already copied into WASM memory.
+///
+/// # Safety
+///
+/// `ptr` must point to `len` readable bytes in WASM linear memory for the
+/// duration of this call.
 #[no_mangle]
 pub unsafe extern "C" fn validate_adapter_delta(ptr: *const u8, len: usize) -> u32 {
     let bytes = match slice_from_raw(ptr, len) {
@@ -64,6 +84,11 @@ pub unsafe extern "C" fn validate_adapter_delta(ptr: *const u8, len: usize) -> u
 }
 
 /// Generates text from a UTF-8 prompt copied into WASM memory.
+///
+/// # Safety
+///
+/// `ptr` must point to `len` readable UTF-8 bytes in WASM linear memory for the
+/// duration of this call.
 #[no_mangle]
 pub unsafe extern "C" fn generate(ptr: *const u8, len: usize, max_new_tokens: u32) -> u32 {
     let bytes = match slice_from_raw(ptr, len) {

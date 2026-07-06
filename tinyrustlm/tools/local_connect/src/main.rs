@@ -25,6 +25,12 @@ const BODY_READ_LIMIT: usize = 64 * 1024;
 const ACTION_TARGET_LIMIT: usize = 2048;
 const INVENTORY_EXTRA_SCAN_DEPTH: usize = 5;
 const INVENTORY_EXTRA_SCAN_ENTRY_LIMIT: usize = 768;
+const APP_INVENTORY_POLICY: &str = "bounded-name-discovery-no-paths-v1";
+const APP_INVENTORY_PATH_EXPOSURE: &str = "never";
+const APP_APPROVAL_BINDING_POLICY: &str = "app-and-category-v1";
+const ACTION_EXECUTION_CONSENT_HEADER: &str = "x-tinyrustlm-execution-consent";
+const ACTION_EXECUTION_CONSENT_VALUE: &str = "native-opener-v1";
+const ACTION_EXECUTION_POLICY: &str = "typed-action-dry-run-default-execution-consent-v1";
 
 fn main() -> ExitCode {
     match run(env::args().skip(1)) {
@@ -387,6 +393,10 @@ struct HealthResponse {
     full_local_control: bool,
     full_control_non_sensitive_machine_acknowledged: bool,
     approved_apps_count: usize,
+    app_inventory_policy: &'static str,
+    app_inventory_path_exposure: &'static str,
+    app_approval_binding_policy: &'static str,
+    action_execution_policy: &'static str,
     app_execution_endpoints: bool,
     action_endpoint_path: &'static str,
     supported_actions: Vec<&'static str>,
@@ -406,6 +416,10 @@ fn health_response(policy: &ApprovalPolicy) -> HealthResponse {
         full_control_non_sensitive_machine_acknowledged: policy
             .full_control_non_sensitive_machine_acknowledged(),
         approved_apps_count: policy.approved_apps().len(),
+        app_inventory_policy: APP_INVENTORY_POLICY,
+        app_inventory_path_exposure: APP_INVENTORY_PATH_EXPOSURE,
+        app_approval_binding_policy: APP_APPROVAL_BINDING_POLICY,
+        action_execution_policy: ACTION_EXECUTION_POLICY,
         app_execution_endpoints: true,
         action_endpoint_path: "/v0/action",
         supported_actions: vec!["open-url", "compose-email", "open-path"],
@@ -524,6 +538,10 @@ const COMMON_APP_CANDIDATES: &[AppCandidate] = &[
 struct AppsResponse {
     endpoint_kind: &'static str,
     policy_sha256: String,
+    app_inventory_policy: &'static str,
+    app_inventory_path_exposure: &'static str,
+    app_approval_binding_policy: &'static str,
+    action_execution_policy: &'static str,
     inventory_source: &'static str,
     inventory_paths_exposed: bool,
     local_inventory_observed_count: usize,
@@ -547,6 +565,8 @@ struct AppResponse {
     source_label: &'static str,
     inventory_observed: bool,
     inventory_paths_exposed: bool,
+    app_approval_binding_policy: &'static str,
+    action_execution_policy: &'static str,
     supported_actions: Vec<&'static str>,
     full_control_warning: bool,
     app_execution_performed: bool,
@@ -595,6 +615,10 @@ fn apps_response(policy: &ApprovalPolicy) -> Result<AppsResponse, CliError> {
     Ok(AppsResponse {
         endpoint_kind: ENDPOINT_KIND,
         policy_sha256: policy.policy_sha256(),
+        app_inventory_policy: APP_INVENTORY_POLICY,
+        app_inventory_path_exposure: APP_INVENTORY_PATH_EXPOSURE,
+        app_approval_binding_policy: APP_APPROVAL_BINDING_POLICY,
+        action_execution_policy: ACTION_EXECUTION_POLICY,
         inventory_source: "bounded-local-name-discovery-with-common-fallback",
         inventory_paths_exposed: false,
         local_inventory_observed_count: local_inventory.len(),
@@ -632,6 +656,8 @@ fn push_app_response(
         source_label: source_label(source),
         inventory_observed,
         inventory_paths_exposed: false,
+        app_approval_binding_policy: APP_APPROVAL_BINDING_POLICY,
+        action_execution_policy: ACTION_EXECUTION_POLICY,
         supported_actions: supported_actions_for_category(category).to_vec(),
         full_control_warning: report.full_control_warning(),
         app_execution_performed: false,
@@ -881,6 +907,7 @@ struct DecisionResponse {
     endpoint_kind: &'static str,
     policy_status: &'static str,
     policy_sha256: String,
+    app_approval_binding_policy: &'static str,
     decision: &'static str,
     reason: &'static str,
     category: &'static str,
@@ -898,6 +925,7 @@ fn decision_response(policy: &ApprovalPolicy, body: &[u8]) -> Result<DecisionRes
         endpoint_kind: ENDPOINT_KIND,
         policy_status: "validated",
         policy_sha256: policy.policy_sha256(),
+        app_approval_binding_policy: APP_APPROVAL_BINDING_POLICY,
         decision: report.decision().as_str(),
         reason: report.reason(),
         category: report.category().as_str(),
@@ -925,6 +953,8 @@ struct ActionResponse {
     policy_status: &'static str,
     policy_sha256: String,
     action_request_sha256: String,
+    app_approval_binding_policy: &'static str,
+    action_execution_policy: &'static str,
     decision: &'static str,
     reason: &'static str,
     category: &'static str,
@@ -947,6 +977,11 @@ impl ActionResponse {
             "policy.status=validated".to_string(),
             format!("policy.sha256={}", self.policy_sha256),
             format!("action.request_sha256={}", self.action_request_sha256),
+            format!(
+                "app_approval_binding_policy={}",
+                self.app_approval_binding_policy
+            ),
+            format!("action_execution_policy={}", self.action_execution_policy),
             format!("decision={}", self.decision),
             format!("reason={}", self.reason),
             format!("category={}", self.category),
@@ -990,6 +1025,8 @@ struct CanonicalActionEvidence<'a> {
     endpoint_kind: &'static str,
     endpoint_version: u64,
     policy_sha256: &'a str,
+    app_approval_binding_policy: &'static str,
+    action_execution_policy: &'static str,
     category: &'static str,
     app: &'a str,
     action: &'static str,
@@ -1010,7 +1047,7 @@ fn action_response(
     let request: ActionRequest = serde_json::from_slice(body)
         .map_err(|source| CliError::InvalidInput(format!("invalid action JSON: {source}")))?;
     require_policy_sha256(&request.policy_sha256, policy)?;
-    require_action_http_gate(&gate, policy)?;
+    require_action_http_gate(&gate, policy, request.dry_run)?;
     let category = Category::parse(&request.category)?;
     let plan = action_plan(category, &request.action, &request.target)?;
     let report = decide_approval(policy, plan.category, request.app.as_deref())?;
@@ -1037,6 +1074,8 @@ fn action_response(
             request.app.as_deref().unwrap_or_default(),
             request.dry_run,
         ),
+        app_approval_binding_policy: APP_APPROVAL_BINDING_POLICY,
+        action_execution_policy: ACTION_EXECUTION_POLICY,
         decision: report.decision().as_str(),
         reason: report.reason(),
         category: report.category().as_str(),
@@ -1065,6 +1104,8 @@ fn action_request_sha256(
         endpoint_kind: ENDPOINT_KIND,
         endpoint_version: ENDPOINT_VERSION,
         policy_sha256: &policy_sha256,
+        app_approval_binding_policy: APP_APPROVAL_BINDING_POLICY,
+        action_execution_policy: ACTION_EXECUTION_POLICY,
         category: plan.category.as_str(),
         app,
         action: plan.action,
@@ -1090,6 +1131,7 @@ fn require_policy_sha256(value: &str, policy: &ApprovalPolicy) -> Result<(), Cli
 fn require_action_http_gate(
     gate: &ActionHttpGate<'_>,
     policy: &ApprovalPolicy,
+    dry_run: bool,
 ) -> Result<(), CliError> {
     let ActionHttpGate::Http { headers, origin } = gate else {
         return Ok(());
@@ -1117,6 +1159,17 @@ fn require_action_http_gate(
         return Err(CliError::InvalidInput(
             "action header policy digest does not match loaded policy".to_string(),
         ));
+    }
+    if !dry_run {
+        let execution_consent = headers
+            .get(ACTION_EXECUTION_CONSENT_HEADER)
+            .map(String::as_str)
+            .unwrap_or_default();
+        if execution_consent != ACTION_EXECUTION_CONSENT_VALUE {
+            return Err(CliError::InvalidInput(format!(
+                "non-dry-run action requests require {ACTION_EXECUTION_CONSENT_HEADER}: {ACTION_EXECUTION_CONSENT_VALUE}"
+            )));
+        }
     }
     Ok(())
 }
@@ -1338,7 +1391,7 @@ fn write_response(
     if let Some(origin) = origin {
         write!(
             stream,
-            "access-control-allow-origin: {origin}\r\naccess-control-allow-methods: GET, POST, OPTIONS\r\naccess-control-allow-headers: content-type, x-tinyrustlm-policy-sha256\r\nvary: origin\r\n"
+            "access-control-allow-origin: {origin}\r\naccess-control-allow-methods: GET, POST, OPTIONS\r\naccess-control-allow-headers: content-type, x-tinyrustlm-policy-sha256, x-tinyrustlm-execution-consent\r\nvary: origin\r\n"
         )?;
     }
     stream.write_all(b"\r\n")?;

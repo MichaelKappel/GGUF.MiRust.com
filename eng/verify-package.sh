@@ -42,7 +42,8 @@ fi
 PACKAGE_VERSION="$("$REPO_ROOT/eng/get-package-version.sh")"
 
 cd "$REPO_ROOT"
-cargo fmt -p tinyrustlm-slm -p tinyrustlm-runtime-sdk -p tinyrustlm-p2p -p tinyrustlm-native --check
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
 cargo test -p tinyrustlm-slm -p tinyrustlm-runtime-sdk -p tinyrustlm-p2p -p tinyrustlm-native
 "$REPO_ROOT/eng/pack.sh" "$CONFIGURATION" "$PACKAGE_OUTPUT"
 "$REPO_ROOT/eng/write-package-audit.sh" "$PACKAGE_OUTPUT" "$REPORT_OUTPUT" "${REQUIRED_NATIVE_RIDS[@]}"

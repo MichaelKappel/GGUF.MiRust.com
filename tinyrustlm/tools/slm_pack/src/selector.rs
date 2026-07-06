@@ -4334,7 +4334,7 @@ mod tests {
     #[test]
     fn writes_and_validates_selector_registry_from_admission_record() {
         let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
-        let registry = build_registry_text(&[admission.clone()]).unwrap();
+        let registry = build_registry_text(std::slice::from_ref(&admission)).unwrap();
 
         validate_registry_text(&registry, &[admission]).unwrap();
         assert!(registry.contains("registry_status=admitted-records-only"));
@@ -4356,7 +4356,7 @@ mod tests {
             "converted-trained-q8",
             "tinyrustlm/models/converted-trained-q8.slm",
         );
-        let registry = build_registry_text(&[admission.clone()]).unwrap();
+        let registry = build_registry_text(std::slice::from_ref(&admission)).unwrap();
 
         assert!(registry.contains(
             "entry.0.source_manifest_path=../evidence/converted-trained-q8/converted-trained.source.manifest"
@@ -4390,10 +4390,12 @@ mod tests {
             "converted-trained-q8",
             "tinyrustlm/models/converted-trained-q8.slm",
         );
-        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
-            "entry.0.source_manifest_checksum=0x00000000000000f1",
-            "entry.0.source_manifest_checksum=0x00000000000000f2",
-        );
+        let registry = build_registry_text(std::slice::from_ref(&admission))
+            .unwrap()
+            .replace(
+                "entry.0.source_manifest_checksum=0x00000000000000f1",
+                "entry.0.source_manifest_checksum=0x00000000000000f2",
+            );
 
         let error = validate_registry_text(&registry, &[admission]).unwrap_err();
 
@@ -4406,10 +4408,12 @@ mod tests {
             "converted-trained-q8",
             "tinyrustlm/models/converted-trained-q8.slm",
         );
-        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
-            "entry.0.source_validation_checksum=0x00000000000000f5",
-            "entry.0.source_validation_checksum=0x00000000000000f6",
-        );
+        let registry = build_registry_text(std::slice::from_ref(&admission))
+            .unwrap()
+            .replace(
+                "entry.0.source_validation_checksum=0x00000000000000f5",
+                "entry.0.source_validation_checksum=0x00000000000000f6",
+            );
 
         let error = validate_registry_text(&registry, &[admission]).unwrap_err();
 
@@ -4422,7 +4426,7 @@ mod tests {
             "converted-trained-q8",
             "tinyrustlm/models/converted-trained-q8.slm",
         );
-        let registry = build_registry_text(&[admission.clone()]).unwrap();
+        let registry = build_registry_text(std::slice::from_ref(&admission)).unwrap();
 
         assert!(registry.contains("entry.0.source_review_kind=safetensors-candidate-review"));
         assert!(registry.contains(
@@ -4442,10 +4446,12 @@ mod tests {
             "converted-trained-q8",
             "tinyrustlm/models/converted-trained-q8.slm",
         );
-        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
-            "entry.0.source_review_checksum=0x00000000000000f3",
-            "entry.0.source_review_checksum=0x00000000000000f4",
-        );
+        let registry = build_registry_text(std::slice::from_ref(&admission))
+            .unwrap()
+            .replace(
+                "entry.0.source_review_checksum=0x00000000000000f3",
+                "entry.0.source_review_checksum=0x00000000000000f4",
+            );
 
         let error = validate_registry_text(&registry, &[admission]).unwrap_err();
 
@@ -4506,7 +4512,7 @@ mod tests {
             "converted-trained-q8",
             "tinyrustlm/models/converted-trained-q8.slm",
         );
-        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
+        let registry = build_registry_text(std::slice::from_ref(&admission)).unwrap().replace(
             "entry.0.admission_path=../evidence/converted-trained-q8/converted-trained.admission",
             "entry.0.admission_path=../evidence/converted-trained-f32/converted-trained.admission",
         );
@@ -4538,10 +4544,12 @@ mod tests {
             "converted-trained-q8",
             "tinyrustlm/models/converted-trained-q8.slm",
         );
-        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
-            "entry.0.source_manifest_source_id=tinyrustlm-local-source-fixture",
-            "entry.0.source_manifest_source_id=tinyrustlm-local-source-drift",
-        );
+        let registry = build_registry_text(std::slice::from_ref(&admission))
+            .unwrap()
+            .replace(
+                "entry.0.source_manifest_source_id=tinyrustlm-local-source-fixture",
+                "entry.0.source_manifest_source_id=tinyrustlm-local-source-drift",
+            );
 
         let error = validate_registry_text(&registry, &[admission]).unwrap_err();
 
@@ -4598,7 +4606,7 @@ mod tests {
             "tiny-q8-candidate",
             "tinyrustlm/models/tiny-q8.slm",
         );
-        let registry = build_registry_text(&[admission.clone()]).unwrap();
+        let registry = build_registry_text(std::slice::from_ref(&admission)).unwrap();
         let admission_fields = parse_manifest(&admission, "admission").unwrap();
         let registry_fields = parse_manifest(&registry, "selector registry").unwrap();
 
@@ -4632,7 +4640,7 @@ mod tests {
             "tinyrustlm/models/tiny-q8-federated.slm",
             "federated-local-update-average",
         );
-        let registry = build_registry_text(&[admission.clone()]).unwrap();
+        let registry = build_registry_text(std::slice::from_ref(&admission)).unwrap();
         let admission_fields = parse_manifest(&admission, "admission").unwrap();
         let registry_fields = parse_manifest(&registry, "selector registry").unwrap();
 
@@ -4666,7 +4674,7 @@ mod tests {
             "tinyrustlm/models/tiny-q8-prune.slm",
             "deterministic-magnitude-parameter-pruning",
         );
-        let registry = build_registry_text(&[admission.clone()]).unwrap();
+        let registry = build_registry_text(std::slice::from_ref(&admission)).unwrap();
         let admission_fields = parse_manifest(&admission, "admission").unwrap();
         let registry_fields = parse_manifest(&registry, "selector registry").unwrap();
 
@@ -4701,7 +4709,7 @@ mod tests {
             "tinyrustlm/models/tiny-q8-dare.slm",
             "dropout-rescaled-task-delta",
         );
-        let registry = build_registry_text(&[admission.clone()]).unwrap();
+        let registry = build_registry_text(std::slice::from_ref(&admission)).unwrap();
         let admission_fields = parse_manifest(&admission, "admission").unwrap();
         let registry_fields = parse_manifest(&registry, "selector registry").unwrap();
 
@@ -4735,10 +4743,12 @@ mod tests {
             "tinyrustlm/models/tiny-q8-federated.slm",
             "federated-local-update-average",
         );
-        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
-            "entry.0.operator_receipt_operator_kind=federated-local-update-average",
-            "entry.0.operator_receipt_operator_kind=deterministic-bounded-parameter-mutation",
-        );
+        let registry = build_registry_text(std::slice::from_ref(&admission))
+            .unwrap()
+            .replace(
+                "entry.0.operator_receipt_operator_kind=federated-local-update-average",
+                "entry.0.operator_receipt_operator_kind=deterministic-bounded-parameter-mutation",
+            );
 
         let error = validate_registry_text(&registry, &[admission]).unwrap_err();
 
@@ -4753,10 +4763,12 @@ mod tests {
             "tinyrustlm/models/tiny-q8-prune.slm",
             "deterministic-magnitude-parameter-pruning",
         );
-        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
-            "entry.0.operator_receipt_operator_kind=deterministic-magnitude-parameter-pruning",
-            "entry.0.operator_receipt_operator_kind=deterministic-bounded-parameter-mutation",
-        );
+        let registry = build_registry_text(std::slice::from_ref(&admission))
+            .unwrap()
+            .replace(
+                "entry.0.operator_receipt_operator_kind=deterministic-magnitude-parameter-pruning",
+                "entry.0.operator_receipt_operator_kind=deterministic-bounded-parameter-mutation",
+            );
 
         let error = validate_registry_text(&registry, &[admission]).unwrap_err();
 
@@ -4772,10 +4784,12 @@ mod tests {
             "tinyrustlm/models/tiny-q8-dare.slm",
             "dropout-rescaled-task-delta",
         );
-        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
-            "entry.0.operator_receipt_operator_kind=dropout-rescaled-task-delta",
-            "entry.0.operator_receipt_operator_kind=direct-parameter-task-delta",
-        );
+        let registry = build_registry_text(std::slice::from_ref(&admission))
+            .unwrap()
+            .replace(
+                "entry.0.operator_receipt_operator_kind=dropout-rescaled-task-delta",
+                "entry.0.operator_receipt_operator_kind=direct-parameter-task-delta",
+            );
 
         let error = validate_registry_text(&registry, &[admission]).unwrap_err();
 
@@ -4787,9 +4801,9 @@ mod tests {
     fn writes_and_validates_selector_registry_from_multi_parent_admission_record() {
         let admission =
             fixture_multi_parent_admission("tiny-sign-merge", "tinyrustlm/models/sign-merge.slm");
-        let registry = build_registry_text(&[admission.clone()]).unwrap();
+        let registry = build_registry_text(std::slice::from_ref(&admission)).unwrap();
         let fields = parse_manifest(&registry, "selector registry").unwrap();
-        let entries = entries_from_admissions(&[admission.clone()]).unwrap();
+        let entries = entries_from_admissions(std::slice::from_ref(&admission)).unwrap();
         let entry = &entries[0];
 
         validate_registry_text(&registry, &[admission]).unwrap();
@@ -4845,10 +4859,12 @@ mod tests {
     fn rejects_selector_registry_scheduled_operator_family_kind_drift() {
         let admission =
             fixture_multi_parent_admission("tiny-sign-merge", "tinyrustlm/models/sign-merge.slm");
-        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
-            "entry.0.scheduled_operator_family_kind=sign-aware-parent-pool-merge",
-            "entry.0.scheduled_operator_family_kind=seed-weighted-parent-pool-soup",
-        );
+        let registry = build_registry_text(std::slice::from_ref(&admission))
+            .unwrap()
+            .replace(
+                "entry.0.scheduled_operator_family_kind=sign-aware-parent-pool-merge",
+                "entry.0.scheduled_operator_family_kind=seed-weighted-parent-pool-soup",
+            );
 
         let error = validate_registry_text(&registry, &[admission]).unwrap_err();
 
@@ -4860,7 +4876,7 @@ mod tests {
     fn rejects_selector_registry_evolution_schedule_metadata_drift() {
         let admission =
             fixture_multi_parent_admission("tiny-sign-merge", "tinyrustlm/models/sign-merge.slm");
-        let registry = build_registry_text(&[admission.clone()]).unwrap();
+        let registry = build_registry_text(std::slice::from_ref(&admission)).unwrap();
         let drift_cases = [
             (
                 "evolution_recipe_status",
@@ -4916,7 +4932,8 @@ mod tests {
                 "{field} drift fixture must replace an existing selector registry line"
             );
 
-            let error = validate_registry_text(&drifted, &[admission.clone()]).unwrap_err();
+            let error =
+                validate_registry_text(&drifted, std::slice::from_ref(&admission)).unwrap_err();
 
             assert_eq!(error.kind(), io::ErrorKind::InvalidData);
             assert!(
@@ -4966,8 +4983,11 @@ mod tests {
             fixture_f32_admission("tiny-f32-candidate", "tinyrustlm/models/tiny-f32.slm");
         let route = fixture_adapter_route("tiny-f32-candidate");
 
-        let registry =
-            build_registry_text_with_adapters(&[admission.clone()], &[route.clone()]).unwrap();
+        let registry = build_registry_text_with_adapters(
+            std::slice::from_ref(&admission),
+            std::slice::from_ref(&route),
+        )
+        .unwrap();
 
         validate_registry_text(&registry, &[admission]).unwrap();
         assert!(registry.contains("entry.0.adapter_path=../models/tiny-f32-self.adp1"));
@@ -4988,8 +5008,11 @@ mod tests {
             ..fixture_adapter_route("tiny-f32-candidate")
         };
 
-        let registry =
-            build_registry_text_with_adapters(&[admission.clone()], &[route.clone()]).unwrap();
+        let registry = build_registry_text_with_adapters(
+            std::slice::from_ref(&admission),
+            std::slice::from_ref(&route),
+        )
+        .unwrap();
 
         validate_registry_text(&registry, &[admission]).unwrap();
         assert!(registry.contains("entry.0.adapter_path=../models/tiny-f32-sparse.asp1"));
@@ -5008,8 +5031,11 @@ mod tests {
             ..fixture_adapter_route("tiny-f32-candidate")
         };
 
-        let registry =
-            build_registry_text_with_adapters(&[admission.clone()], &[route.clone()]).unwrap();
+        let registry = build_registry_text_with_adapters(
+            std::slice::from_ref(&admission),
+            std::slice::from_ref(&route),
+        )
+        .unwrap();
 
         validate_registry_text(&registry, &[admission]).unwrap();
         assert!(registry.contains("entry.0.adapter_path=../models/tiny-f32-low-rank.alr1"));
@@ -5032,7 +5058,7 @@ mod tests {
         };
 
         let registry = build_registry_text_with_adapters(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first.clone(), second.clone()],
         )
         .unwrap();
@@ -5061,7 +5087,7 @@ mod tests {
         let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
 
         let registry = build_registry_text_with_adapter_families(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
         )
@@ -5100,7 +5126,7 @@ mod tests {
         };
         let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
         let registry = build_registry_text_with_adapter_families(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
         )
@@ -5131,7 +5157,7 @@ mod tests {
         };
         let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
         let registry = build_registry_text_with_adapter_families(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
         )
@@ -5162,7 +5188,7 @@ mod tests {
         };
         let family = fixture_adapter_family_route("tiny-f32-candidate", 2);
         let registry = build_registry_text_with_adapter_families(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
         )
@@ -5185,7 +5211,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
 
         let registry = build_registry_text_with_adapter_family_and_assembly_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[],
             &[],
             &[assembly],
@@ -5219,7 +5245,7 @@ mod tests {
         let tokenizer_checksum = module_plan.tokenizer_checksum.clone();
 
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -5314,7 +5340,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -5353,7 +5379,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -5388,7 +5414,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -5423,7 +5449,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -5458,7 +5484,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -5494,7 +5520,7 @@ mod tests {
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let tokenizer_checksum = module_plan.tokenizer_checksum.clone();
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -5529,7 +5555,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -5564,7 +5590,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -5599,7 +5625,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -5634,7 +5660,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -5669,7 +5695,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -5704,7 +5730,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -5739,7 +5765,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -5774,7 +5800,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -5809,7 +5835,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -5844,7 +5870,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -5880,7 +5906,7 @@ mod tests {
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let route_set_checksum = module_plan.route_set_checksum.clone();
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -5915,7 +5941,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -5956,7 +5982,7 @@ mod tests {
             admission_fields["operator_receipt_checksum"].clone();
         let operator_receipt_checksum = module_plan.operator_receipt_checksum.clone();
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -5991,7 +6017,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6026,7 +6052,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6061,7 +6087,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6093,7 +6119,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6125,7 +6151,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6160,7 +6186,7 @@ mod tests {
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let route_set_checksum = module_plan.route_set_checksum.clone();
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6195,7 +6221,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6227,7 +6253,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6264,7 +6290,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6296,7 +6322,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6331,7 +6357,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6366,7 +6392,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6399,7 +6425,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6432,7 +6458,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6465,7 +6491,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6498,7 +6524,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6531,7 +6557,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6564,7 +6590,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6597,7 +6623,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6632,7 +6658,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6675,7 +6701,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6712,7 +6738,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6749,7 +6775,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6783,7 +6809,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6818,7 +6844,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6839,9 +6865,9 @@ mod tests {
     #[test]
     fn writes_selector_registry_genome_species_novelty_population_phenotype_and_fitness_metadata() {
         let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
-        let registry = build_registry_text(&[admission.clone()]).unwrap();
+        let registry = build_registry_text(std::slice::from_ref(&admission)).unwrap();
         let fields = parse_manifest(&registry, "selector registry").unwrap();
-        let entries = entries_from_admissions(&[admission.clone()]).unwrap();
+        let entries = entries_from_admissions(std::slice::from_ref(&admission)).unwrap();
         let entry = &entries[0];
 
         validate_registry_text(&registry, &[admission]).unwrap();
@@ -6965,7 +6991,7 @@ mod tests {
         let assembly = fixture_assembly_route("tiny-f32-candidate");
         let module_plan = fixture_module_plan_route("tiny-f32-candidate", 6);
         let registry = build_registry_text_with_module_plan_routes(
-            &[admission.clone()],
+            std::slice::from_ref(&admission),
             &[first, second],
             &[family],
             &[assembly],
@@ -6977,7 +7003,7 @@ mod tests {
         let actual_family_routes = adapter_family_routes_from_registry(&fields).unwrap();
         let actual_assembly_routes = assembly_routes_from_registry(&fields).unwrap();
         let actual_module_plan_routes = module_plan_routes_from_registry(&fields).unwrap();
-        let mut entries = entries_from_admissions(&[admission.clone()]).unwrap();
+        let mut entries = entries_from_admissions(std::slice::from_ref(&admission)).unwrap();
         attach_adapter_routes(&mut entries, &actual_adapter_routes).unwrap();
         attach_adapter_family_routes(&mut entries, &actual_family_routes).unwrap();
         attach_assembly_routes(&mut entries, &actual_assembly_routes).unwrap();
@@ -7038,10 +7064,12 @@ mod tests {
     #[test]
     fn rejects_selector_registry_genome_drift() {
         let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
-        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
-            "entry.0.genome_strategy=selector-admission-genome-v1",
-            "entry.0.genome_strategy=selector-admission-genome-v2",
-        );
+        let registry = build_registry_text(std::slice::from_ref(&admission))
+            .unwrap()
+            .replace(
+                "entry.0.genome_strategy=selector-admission-genome-v1",
+                "entry.0.genome_strategy=selector-admission-genome-v2",
+            );
 
         let error = validate_registry_text(&registry, &[admission]).unwrap_err();
 
@@ -7052,10 +7080,12 @@ mod tests {
     #[test]
     fn rejects_selector_registry_species_drift() {
         let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
-        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
-            "entry.0.species_fit_status=browser-fit-bound",
-            "entry.0.species_fit_status=desktop-fit-bound",
-        );
+        let registry = build_registry_text(std::slice::from_ref(&admission))
+            .unwrap()
+            .replace(
+                "entry.0.species_fit_status=browser-fit-bound",
+                "entry.0.species_fit_status=desktop-fit-bound",
+            );
 
         let error = validate_registry_text(&registry, &[admission]).unwrap_err();
 
@@ -7066,10 +7096,12 @@ mod tests {
     #[test]
     fn rejects_selector_registry_novelty_drift() {
         let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
-        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
-            "entry.0.novelty_status=behavior-sketch-bound",
-            "entry.0.novelty_status=unreviewed",
-        );
+        let registry = build_registry_text(std::slice::from_ref(&admission))
+            .unwrap()
+            .replace(
+                "entry.0.novelty_status=behavior-sketch-bound",
+                "entry.0.novelty_status=unreviewed",
+            );
 
         let error = validate_registry_text(&registry, &[admission]).unwrap_err();
 
@@ -7080,10 +7112,12 @@ mod tests {
     #[test]
     fn rejects_selector_registry_population_drift() {
         let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
-        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
-            "entry.0.population_status=population-review-bound",
-            "entry.0.population_status=unreviewed",
-        );
+        let registry = build_registry_text(std::slice::from_ref(&admission))
+            .unwrap()
+            .replace(
+                "entry.0.population_status=population-review-bound",
+                "entry.0.population_status=unreviewed",
+            );
 
         let error = validate_registry_text(&registry, &[admission]).unwrap_err();
 
@@ -7094,10 +7128,12 @@ mod tests {
     #[test]
     fn rejects_selector_registry_mate_selection_drift() {
         let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
-        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
-            "entry.0.mate_selection_status=admission-only",
-            "entry.0.mate_selection_status=unbound",
-        );
+        let registry = build_registry_text(std::slice::from_ref(&admission))
+            .unwrap()
+            .replace(
+                "entry.0.mate_selection_status=admission-only",
+                "entry.0.mate_selection_status=unbound",
+            );
 
         let error = validate_registry_text(&registry, &[admission]).unwrap_err();
 
@@ -7108,10 +7144,12 @@ mod tests {
     #[test]
     fn rejects_selector_registry_mate_selection_parent_count_drift() {
         let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
-        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
-            "entry.0.mate_selection_parent_count=1",
-            "entry.0.mate_selection_parent_count=2",
-        );
+        let registry = build_registry_text(std::slice::from_ref(&admission))
+            .unwrap()
+            .replace(
+                "entry.0.mate_selection_parent_count=1",
+                "entry.0.mate_selection_parent_count=2",
+            );
 
         let error = validate_registry_text(&registry, &[admission]).unwrap_err();
 
@@ -7125,10 +7163,12 @@ mod tests {
             "tiny-q8-candidate",
             "tinyrustlm/models/tiny-q8.slm",
         );
-        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
-            "entry.0.operator_receipt_operator_kind=deterministic-bounded-parameter-mutation",
-            "entry.0.operator_receipt_operator_kind=unbound",
-        );
+        let registry = build_registry_text(std::slice::from_ref(&admission))
+            .unwrap()
+            .replace(
+                "entry.0.operator_receipt_operator_kind=deterministic-bounded-parameter-mutation",
+                "entry.0.operator_receipt_operator_kind=unbound",
+            );
 
         let error = validate_registry_text(&registry, &[admission]).unwrap_err();
 
@@ -7139,10 +7179,12 @@ mod tests {
     #[test]
     fn rejects_selector_registry_phenotype_evidence_drift() {
         let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
-        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
-            "entry.0.phenotype_evidence_status=runtime-eval-bound",
-            "entry.0.phenotype_evidence_status=unbound",
-        );
+        let registry = build_registry_text(std::slice::from_ref(&admission))
+            .unwrap()
+            .replace(
+                "entry.0.phenotype_evidence_status=runtime-eval-bound",
+                "entry.0.phenotype_evidence_status=unbound",
+            );
 
         let error = validate_registry_text(&registry, &[admission]).unwrap_err();
 
@@ -7153,10 +7195,12 @@ mod tests {
     #[test]
     fn rejects_selector_registry_heritable_artifact_drift() {
         let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
-        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
-            "entry.0.heritable_artifact_status=served-artifact-bound",
-            "entry.0.heritable_artifact_status=detached",
-        );
+        let registry = build_registry_text(std::slice::from_ref(&admission))
+            .unwrap()
+            .replace(
+                "entry.0.heritable_artifact_status=served-artifact-bound",
+                "entry.0.heritable_artifact_status=detached",
+            );
 
         let error = validate_registry_text(&registry, &[admission]).unwrap_err();
 
@@ -7167,10 +7211,12 @@ mod tests {
     #[test]
     fn rejects_selector_registry_fitness_drift() {
         let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
-        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
-            "entry.0.fitness_vector_status=eval-bound",
-            "entry.0.fitness_vector_status=unreviewed",
-        );
+        let registry = build_registry_text(std::slice::from_ref(&admission))
+            .unwrap()
+            .replace(
+                "entry.0.fitness_vector_status=eval-bound",
+                "entry.0.fitness_vector_status=unreviewed",
+            );
 
         let error = validate_registry_text(&registry, &[admission]).unwrap_err();
 
@@ -7190,8 +7236,11 @@ mod tests {
             ..fixture_adapter_route("tiny-f32-candidate")
         };
 
-        let registry =
-            build_registry_text_with_adapters(&[admission.clone()], &[route.clone()]).unwrap();
+        let registry = build_registry_text_with_adapters(
+            std::slice::from_ref(&admission),
+            std::slice::from_ref(&route),
+        )
+        .unwrap();
 
         validate_registry_text(&registry, &[admission]).unwrap();
         assert!(registry.contains("entry.0.quantization=q8_0"));
@@ -7305,10 +7354,12 @@ mod tests {
     #[test]
     fn rejects_registry_entry_drift() {
         let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
-        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
-            "entry.0.selector_status=admitted",
-            "entry.0.selector_status=pending",
-        );
+        let registry = build_registry_text(std::slice::from_ref(&admission))
+            .unwrap()
+            .replace(
+                "entry.0.selector_status=admitted",
+                "entry.0.selector_status=pending",
+            );
 
         let error = validate_registry_text(&registry, &[admission]).unwrap_err();
 
@@ -7319,10 +7370,12 @@ mod tests {
     #[test]
     fn rejects_selector_registry_budget_drift() {
         let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
-        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
-            "selector_model_byte_budget=33554432",
-            "selector_model_byte_budget=33554431",
-        );
+        let registry = build_registry_text(std::slice::from_ref(&admission))
+            .unwrap()
+            .replace(
+                "selector_model_byte_budget=33554432",
+                "selector_model_byte_budget=33554431",
+            );
 
         let error = validate_registry_text(&registry, &[admission]).unwrap_err();
 
@@ -7333,10 +7386,12 @@ mod tests {
     #[test]
     fn rejects_selector_registry_text_budget_drift() {
         let admission = fixture_admission("tiny-q8-candidate", "tinyrustlm/models/tiny-q8.slm");
-        let registry = build_registry_text(&[admission.clone()]).unwrap().replace(
-            "manifest_text_byte_budget=65536",
-            "manifest_text_byte_budget=65537",
-        );
+        let registry = build_registry_text(std::slice::from_ref(&admission))
+            .unwrap()
+            .replace(
+                "manifest_text_byte_budget=65536",
+                "manifest_text_byte_budget=65537",
+            );
 
         let error = validate_registry_text(&registry, &[admission]).unwrap_err();
 

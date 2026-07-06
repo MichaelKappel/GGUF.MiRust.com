@@ -18,6 +18,7 @@ const peerUrlUnsafeUiSmokeMode = smokeMode === "peer-url-unsafe-ui";
 const localConnectApprovalUiSmokeMode = smokeMode === "local-connect-approval-ui";
 const localConnectEndpointUiSmokeMode = smokeMode === "local-connect-endpoint-ui";
 const localConnectRustEndpointUiSmokeMode = smokeMode === "local-connect-rust-endpoint-ui";
+const localMemoryDeckUiSmokeMode = smokeMode === "local-memory-deck-ui";
 const hfSearchUiSmokeMode = smokeMode === "hf-search-ui";
 const hfConversionKitExecSmokeMode = smokeMode === "hf-conversion-kit-exec";
 const hfP2pImportKitExecSmokeMode = smokeMode === "hf-p2p-import-kit-exec";
@@ -2213,6 +2214,91 @@ async function runPageSourceOptionsSmoke(client) {
   return parseEvaluateValue(result);
 }
 
+async function runPageLocalMemoryDeckSmoke(client) {
+  const fixture = writeLocalMemoryDeckFixture();
+  const modelPath = path.join(__dirname, "..", "models", "tinylm16-q8.slm");
+  await client.send("Emulation.setDeviceMetricsOverride", {
+    width: 1280,
+    height: 900,
+    deviceScaleFactor: 1,
+    mobile: false
+  });
+  await setFileInputFiles(client, "#localModelFile", [modelPath]);
+  await setFileInputFiles(client, "#localMemoryPackageFiles", fixture.files);
+  const expression = `
+    (async () => {
+      const byId = (id) => document.getElementById(id);
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      for (let index = 0; index < 900; index += 1) {
+        if (byId("wasmState") && byId("wasmState").textContent !== "waiting" && byId("generateButton") && !byId("generateButton").disabled) {
+          break;
+        }
+        await sleep(100);
+      }
+      if (byId("advancedModeButton")) {
+        byId("advancedModeButton").click();
+      }
+      byId("localModelFile").dispatchEvent(new Event("change", { bubbles: true }));
+      byId("importLocalModelButton").click();
+      for (let index = 0; index < 900; index += 1) {
+        const localModelState = byId("localModelState") ? byId("localModelState").textContent : "";
+        if (localModelState.includes("loaded") && byId("runtimeStatus").textContent === "Ready" && !byId("generateButton").disabled) {
+          break;
+        }
+        if (byId("errorState").textContent !== "none" && byId("localModelState").classList.contains("error")) {
+          break;
+        }
+        await sleep(100);
+      }
+      if (byId("localMemoryPackageSetup")) {
+        byId("localMemoryPackageSetup").value = "advanced_persona_profile";
+        byId("localMemoryPackageSetup").dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      byId("localMemoryPackageFiles").dispatchEvent(new Event("change", { bubbles: true }));
+      byId("inspectLocalMemoryPackageButton").click();
+      for (let index = 0; index < 300; index += 1) {
+        const status = byId("localMemoryPackageStatus") ? byId("localMemoryPackageStatus").textContent : "";
+        if (status.includes("bound locally") || status.includes("failed")) {
+          break;
+        }
+        await sleep(50);
+      }
+      byId("maxTokens").value = "1";
+      byId("maxTokens").dispatchEvent(new Event("input", { bubbles: true }));
+      byId("maxTokens").dispatchEvent(new Event("change", { bubbles: true }));
+      byId("prompt").value = "Respond with one short token after reading memory.";
+      byId("generateButton").click();
+      for (let index = 0; index < 900; index += 1) {
+        const consoleText = byId("console") ? byId("console").textContent : "";
+        if (consoleText.includes("uaix_memory=advanced_persona_profile") || byId("errorState").textContent !== "none") {
+          break;
+        }
+        await sleep(100);
+      }
+      return JSON.stringify({
+        memoryStatus: byId("localMemoryPackageStatus") ? byId("localMemoryPackageStatus").textContent : "",
+        simpleMemoryStatus: byId("simpleLocalMemoryPackageStatus") ? byId("simpleLocalMemoryPackageStatus").textContent : "",
+        memoryStatusIsError: byId("localMemoryPackageStatus") ? byId("localMemoryPackageStatus").classList.contains("error") : false,
+        modelContextPill: byId("modelContextPill") ? byId("modelContextPill").textContent : "",
+        summary: byId("localMemoryPackageSummary") ? byId("localMemoryPackageSummary").textContent : "",
+        preview: byId("localMemoryPackageContextPreview") ? byId("localMemoryPackageContextPreview").textContent : "",
+        runtimeStatus: byId("runtimeStatus") ? byId("runtimeStatus").textContent : "",
+        errorState: byId("errorState") ? byId("errorState").textContent : "",
+        localModelState: byId("localModelState") ? byId("localModelState").textContent : "",
+        response: byId("response") ? byId("response").textContent : "",
+        console: byId("console") ? byId("console").textContent : ""
+      });
+    })()
+  `;
+  const result = await client.send("Runtime.evaluate", {
+    expression,
+    awaitPromise: true,
+    returnByValue: true,
+    timeout: 120000
+  });
+  return parseEvaluateValue(result);
+}
+
 async function runPageLocalConnectApprovalSmoke(client) {
   await client.send("Emulation.setDeviceMetricsOverride", {
     width: 1280,
@@ -2419,10 +2505,12 @@ async function runPageLocalConnectEndpointSmoke(client, endpointUrl) {
             localConnectEndpointUrl: !byId("localConnectEndpointUrl"),
             localConnectEndpointAppList: !byId("localConnectEndpointAppList"),
             saveLocalConnectPolicyFileButton: !byId("saveLocalConnectPolicyFileButton"),
-            dryRunLocalConnectActionButton: !byId("dryRunLocalConnectActionButton")
+            dryRunLocalConnectActionButton: !byId("dryRunLocalConnectActionButton"),
+            executeLocalConnectActionButton: !byId("executeLocalConnectActionButton")
           }
         });
       }
+      const executeNativeAction = ${JSON.stringify(!localConnectRustEndpointUiSmokeMode)};
       if (document.querySelector(".app-shell") && document.querySelector(".app-shell").dataset.railCollapsed === "true" && byId("diagnosticsRailToggle")) {
         byId("diagnosticsRailToggle").click();
         await sleep(100);
@@ -2465,6 +2553,13 @@ async function runPageLocalConnectEndpointSmoke(client, endpointUrl) {
       byId("dryRunLocalConnectActionButton").click();
       const actionStatus = await waitForStatus("Endpoint action dry run:");
       const actionIsError = byId("localConnectEndpointStatus").classList.contains("error");
+      let executeActionStatus = "skipped for real Rust endpoint";
+      let executeActionIsError = false;
+      if (executeNativeAction) {
+        byId("executeLocalConnectActionButton").click();
+        executeActionStatus = await waitForStatus("Endpoint action executed:");
+        executeActionIsError = byId("localConnectEndpointStatus").classList.contains("error");
+      }
       const endpointAppRows = Array.from(document.querySelectorAll(".local-connect-endpoint-app")).map((row) => row.textContent.replace(/\\s+/g, " ").trim());
       const approveWinword = document.querySelector('[data-local-connect-app-action="approve-app"][data-local-connect-app-name="winword.exe"]');
       const approvePowerShell = document.querySelector('[data-local-connect-app-action="approve-app"][data-local-connect-app-name="powershell.exe"]');
@@ -2522,6 +2617,8 @@ async function runPageLocalConnectEndpointSmoke(client, endpointUrl) {
         decisionIsError,
         actionStatus,
         actionIsError,
+        executeActionStatus,
+        executeActionIsError,
         endpointAppRows,
         endpointAppRowsAfterAppButtons,
         endpointAppRowsFullMode,
@@ -3382,6 +3479,110 @@ function writeCatalogLocalImportFixture() {
   const catalogPath = path.join(os.tmpdir(), `tinyrustlm-catalog-local-import-${process.pid}.json`);
   fs.writeFileSync(catalogPath, `${JSON.stringify(catalog, null, 2)}\n`, "utf8");
   return { catalogPath, modelPath, sha256: `sha256:${sha256}`, modelBytes: modelBytes.length };
+}
+
+function localMemoryDeckRequiredPaths() {
+  return [
+    ".uai/memory-maintenance.uai",
+    ".uai/identity.uai",
+    ".uai/world-context.uai",
+    ".uai/totem.uai",
+    ".uai/taboo.uai",
+    ".uai/talisman.uai",
+    ".uai/short-term-memory.uai",
+    ".uai/manifest.uaix.json",
+    ".uai/startup-packet.uai",
+    ".uai/system-profile.uai",
+    ".uai/receiver-brief.uai",
+    ".uai/index.uai",
+    ".uai/context.uai",
+    ".uai/constraints.uai",
+    ".uai/progress.uai",
+    ".uai/operations.uai",
+    ".uai/test-plan.uai",
+    ".uai/decisions.uai",
+    ".uai/memory.uai",
+    ".uai/agent-pickup.uai",
+    ".uai/archives/session-log.uai",
+    ".uai/exports/manifest.json",
+    ".uai/exports/manifest-overlay.json",
+    ".uai/exports/package-model.json",
+    ".uai/exports/knowledge-graph.json",
+    ".uai/exports/llms.uai",
+    ".uai/exports/llms-full.uai",
+    ".uai/readme.human",
+    ".uai/persona.uai",
+    ".uai/personality/identity.uai",
+    ".uai/personality/religion-worldview.uai",
+    ".uai/personality/political-leaning.uai",
+    ".uai/personality/sense-of-style.uai",
+    ".uai/personality/physical-appearance.uai",
+    ".uai/personality/birth-age-generation.uai",
+    ".uai/personality/romantic-orientation.uai",
+    ".uai/personality/voice.uai",
+    ".uai/personality/values.uai",
+    ".uai/personality/temperament.uai",
+    ".uai/personality/reasoning-style.uai",
+    ".uai/personality/emotional-patterns.uai",
+    ".uai/personality/relationship-style.uai",
+    ".uai/personality/behavioral-patterns.uai",
+    ".uai/personality/boundaries.uai",
+    ".uai/personality/examples-dialogue.uai",
+    ".uai/personality/adaptation-rules.uai",
+    ".uai/personality/preservation-rules.uai",
+    ".uai/evidence/source-excerpts.uai",
+    ".uai/evidence/source-platform-profile.uai",
+    ".uai/evidence/persona-fidelity-test-deck.uai",
+    ".uai/evidence/variance-report-template.uai",
+    ".uai/evidence/provenance.uai",
+    ".uai/personality/sense-of-winter.uai",
+    ".uai/personality/sense-of-spring-fall.uai",
+    ".uai/personality/super-fashion-style.uai",
+    ".uai/personality/jewelry-choices.uai"
+  ];
+}
+
+function writeLocalMemoryDeckFixture() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tinyrustlm-memory-deck-"));
+  const requiredPaths = localMemoryDeckRequiredPaths();
+  const dimensionLeafs = new Set([
+    "religion-worldview.uai",
+    "political-leaning.uai",
+    "sense-of-style.uai",
+    "physical-appearance.uai",
+    "birth-age-generation.uai",
+    "romantic-orientation.uai",
+    "sense-of-winter.uai",
+    "sense-of-spring-fall.uai",
+    "super-fashion-style.uai",
+    "jewelry-choices.uai"
+  ]);
+  for (const relativePath of requiredPaths) {
+    if (relativePath === ".uai/manifest.uaix.json") {
+      continue;
+    }
+    const fullPath = path.join(root, ...relativePath.split("/"));
+    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+    const leaf = path.basename(relativePath);
+    const text = dimensionLeafs.has(leaf)
+      ? `${relativePath}\ndepth_level_0_to_10: 7\ndisclosure_boundary: reviewed\nsource_confidence: high\nnon-inference rules: do not infer beyond reviewed source\n`
+      : `${relativePath}\nBrowser smoke UAIX memory fixture.\n`;
+    fs.writeFileSync(fullPath, text, "utf8");
+  }
+  const manifestPath = path.join(root, ".uai", "manifest.uaix.json");
+  fs.mkdirSync(path.dirname(manifestPath), { recursive: true });
+  const manifest = {
+    kind: "uaix.memory.manifest.v0",
+    setup_mode: "advanced_persona_profile",
+    files: requiredPaths.map((relativePath) => ({ path: relativePath })),
+    project_server_receives_memory_files: false,
+    persona_source_mutation_allowed: false
+  };
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  return {
+    root,
+    files: requiredPaths.map((relativePath) => path.join(root, ...relativePath.split("/")))
+  };
 }
 
 function writeAmbiguousLocalModelSelectionFixture() {
@@ -6504,6 +6705,11 @@ function localConnectEndpointSmokePolicySha256() {
   return sha256TextForSmoke(localConnectEndpointSmokePolicyText());
 }
 
+const localConnectSmokeAppInventoryPolicy = "bounded-name-discovery-no-paths-v1";
+const localConnectSmokeAppInventoryPathExposure = "never";
+const localConnectSmokeAppApprovalBindingPolicy = "app-and-category-v1";
+const localConnectSmokeActionExecutionPolicy = "typed-action-dry-run-default-execution-consent-v1";
+
 function startLocalConnectEndpointSmokeServer() {
   const requests = [];
   const categories = localConnectEndpointSmokeCategories();
@@ -6516,7 +6722,7 @@ function startLocalConnectEndpointSmokeServer() {
       "cache-control": "no-store",
       "access-control-allow-origin": "*",
       "access-control-allow-methods": "GET, POST, OPTIONS",
-      "access-control-allow-headers": "content-type, x-tinyrustlm-policy-sha256"
+      "access-control-allow-headers": "content-type, x-tinyrustlm-policy-sha256, x-tinyrustlm-execution-consent"
     });
     response.end(body);
   };
@@ -6526,7 +6732,7 @@ function startLocalConnectEndpointSmokeServer() {
       response.writeHead(204, {
         "access-control-allow-origin": "*",
         "access-control-allow-methods": "GET, POST, OPTIONS",
-        "access-control-allow-headers": "content-type, x-tinyrustlm-policy-sha256"
+        "access-control-allow-headers": "content-type, x-tinyrustlm-policy-sha256, x-tinyrustlm-execution-consent"
       });
       response.end();
       return;
@@ -6544,6 +6750,10 @@ function startLocalConnectEndpointSmokeServer() {
         full_local_control: false,
         full_control_non_sensitive_machine_acknowledged: false,
         approved_apps_count: 2,
+        app_inventory_policy: localConnectSmokeAppInventoryPolicy,
+        app_inventory_path_exposure: localConnectSmokeAppInventoryPathExposure,
+        app_approval_binding_policy: localConnectSmokeAppApprovalBindingPolicy,
+        action_execution_policy: localConnectSmokeActionExecutionPolicy,
         app_execution_endpoints: true,
         action_endpoint_path: "/v0/action",
         supported_actions: ["open-url", "compose-email", "open-path"]
@@ -6575,6 +6785,10 @@ function startLocalConnectEndpointSmokeServer() {
       writeJson(response, 200, {
         endpoint_kind: "tinyrustlm.local_connect_endpoint.v0",
         policy_sha256: policySha256,
+        app_inventory_policy: localConnectSmokeAppInventoryPolicy,
+        app_inventory_path_exposure: localConnectSmokeAppInventoryPathExposure,
+        app_approval_binding_policy: localConnectSmokeAppApprovalBindingPolicy,
+        action_execution_policy: localConnectSmokeActionExecutionPolicy,
         inventory_source: "bounded-local-name-discovery-with-common-fallback",
         inventory_paths_exposed: false,
         local_inventory_observed_count: 2,
@@ -6596,6 +6810,8 @@ function startLocalConnectEndpointSmokeServer() {
             source_label: inventoryObserved ? "Found locally" : "Common app",
             inventory_observed: inventoryObserved,
             inventory_paths_exposed: false,
+            app_approval_binding_policy: localConnectSmokeAppApprovalBindingPolicy,
+            action_execution_policy: localConnectSmokeActionExecutionPolicy,
             supported_actions: categoryId === "browser" ? ["open-url"] : categoryId === "email" ? ["compose-email"] : [],
             full_control_warning: false,
             app_execution_performed: false
@@ -6613,10 +6829,12 @@ function startLocalConnectEndpointSmokeServer() {
       });
       request.on("end", () => {
         const parsed = JSON.parse(body || "{}");
+        const dryRun = parsed.dry_run !== false;
         writeJson(response, 200, {
           endpoint_kind: "tinyrustlm.local_connect_endpoint.v0",
           policy_status: "validated",
           policy_sha256: policySha256,
+          app_approval_binding_policy: localConnectSmokeAppApprovalBindingPolicy,
           decision: parsed.category === "browser" ? "allow" : "ask",
           reason: parsed.category === "browser" ? "category-always-approved" : "not-selected",
           category: parsed.category || "",
@@ -6642,11 +6860,22 @@ function startLocalConnectEndpointSmokeServer() {
           });
           return;
         }
+        if (parsed.dry_run === false && request.headers["x-tinyrustlm-execution-consent"] !== "native-opener-v1") {
+          writeJson(response, 400, {
+            endpoint_kind: "tinyrustlm.local_connect_endpoint.v0",
+            error: "action-rejected",
+            message: "non-dry-run action requests require x-tinyrustlm-execution-consent: native-opener-v1"
+          });
+          return;
+        }
+        const dryRun = parsed.dry_run !== false;
         writeJson(response, 200, {
           endpoint_kind: "tinyrustlm.local_connect_endpoint.v0",
           policy_status: "validated",
           policy_sha256: policySha256,
           action_request_sha256: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          app_approval_binding_policy: localConnectSmokeAppApprovalBindingPolicy,
+          action_execution_policy: localConnectSmokeActionExecutionPolicy,
           decision: "allow",
           reason: "category-always-approved",
           category: parsed.category || "",
@@ -6654,11 +6883,11 @@ function startLocalConnectEndpointSmokeServer() {
           action: parsed.action || "",
           target_kind: "https-url",
           target_preview: parsed.target || "",
-          dry_run: parsed.dry_run !== false,
+          dry_run: dryRun,
           full_control_warning: false,
           app_execution_endpoints: true,
-          app_execution_performed: false,
-          execution_status: "dry-run",
+          app_execution_performed: !dryRun,
+          execution_status: dryRun ? "dry-run" : "started",
           execution_engine: "smoke-native-opener",
           safety_note: "typed-action-policy-gated"
         });
@@ -11418,6 +11647,55 @@ function assertSourceOptionsSmoke(result, networkRequests) {
   }
 }
 
+function assertLocalMemoryDeckSmoke(result, networkRequests) {
+  const failures = [];
+  if (!result || typeof result !== "object") {
+    failures.push("local memory deck result was missing");
+  } else {
+    if (!String(result.memoryStatus || "").includes("Advanced Persona Profile bound locally")) {
+      failures.push(`memory deck was not bound: ${result.memoryStatus}`);
+    }
+    if (result.memoryStatusIsError) {
+      failures.push(`memory status was marked as error: ${result.memoryStatus}`);
+    }
+    if (!String(result.simpleMemoryStatus || "").includes("Advanced Persona Profile bound locally")) {
+      failures.push(`simple memory status did not mirror bound state: ${result.simpleMemoryStatus}`);
+    }
+    if (String(result.modelContextPill || "") !== "UAIX memory active") {
+      failures.push(`model context pill was ${result.modelContextPill}`);
+    }
+    if (!String(result.localModelState || "").includes("loaded")) {
+      failures.push(`local model was not imported before memory run: ${result.localModelState}`);
+    }
+    if (!String(result.summary || "").includes("Advanced Persona Profile") || !String(result.summary || "").includes("required files checked")) {
+      failures.push(`memory summary was ${result.summary}`);
+    }
+    if (!String(result.preview || "").includes(".uai/persona.uai") || !String(result.preview || "").includes("Browser smoke UAIX memory fixture")) {
+      failures.push(`memory preview did not include persona context: ${result.preview}`);
+    }
+    if (!String(result.console || "").includes("uaix_memory=advanced_persona_profile")) {
+      failures.push(`generate console did not show active memory: ${result.console}`);
+    }
+    if (String(result.errorState || "") !== "none") {
+      failures.push(`error state was ${result.errorState}`);
+    }
+    if (!String(result.response || "").trim()) {
+      failures.push("generated response was empty after memory-bound run");
+    }
+  }
+  for (const requestUrl of networkRequests) {
+    if (requestUrl.includes("huggingface.co")) {
+      failures.push(`Hugging Face search ran during local memory deck smoke: ${requestUrl}`);
+    }
+    if (requestUrl.includes("MiniModel.org") || requestUrl.includes("minimodel.org")) {
+      failures.push(`MiniModel catalog loaded during local memory deck smoke: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
 function assertLocalConnectApprovalSmoke(result, networkRequests) {
   const failures = [];
   if (!result || typeof result !== "object") {
@@ -11563,6 +11841,12 @@ function assertLocalConnectEndpointSmoke(result, networkRequests, endpointServer
     }
     if (!String(result.actionStatus || "").includes("Endpoint action dry run: allow open-url") || !String(result.actionStatus || "").includes("request fingerprint sha256:") || !String(result.actionStatus || "").includes("no app execution performed") || result.actionIsError) {
       failures.push(`endpoint action dry-run status was ${result.actionStatus} / error=${result.actionIsError}`);
+    }
+    if (!(endpointServer && endpointServer.realRustEndpoint)
+        && (!String(result.executeActionStatus || "").includes("Endpoint action executed: allow open-url")
+          || !String(result.executeActionStatus || "").includes("native opener start")
+          || result.executeActionIsError)) {
+      failures.push(`endpoint action execution status was ${result.executeActionStatus} / error=${result.executeActionIsError}`);
     }
     if (!String(result.mismatchStatus || "").includes("policy digest does not match") || !result.mismatchIsError) {
       failures.push(`endpoint digest mismatch was not rejected: ${result.mismatchStatus} / error=${result.mismatchIsError}`);
@@ -19154,6 +19438,21 @@ async function main() {
         }
       }
       assertSourceOptionsSmoke(result, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (localMemoryDeckUiSmokeMode) {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageLocalMemoryDeckSmoke(client);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertLocalMemoryDeckSmoke(result, networkRequests);
       result.networkRequests = networkRequests;
     } else if (localConnectApprovalUiSmokeMode) {
       await client.send("Page.reload", { ignoreCache: true });

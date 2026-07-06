@@ -202,17 +202,17 @@ impl Runtime {
             let cache = self.kv_cache.as_mut().ok_or(ErrorCode::ModelNotLoaded);
             let scratch = self.scratch.as_mut().ok_or(ErrorCode::ModelNotLoaded);
             match (model, cache, scratch) {
-                (Ok(model), Ok(cache), Ok(scratch)) => run_generation(
+                (Ok(model), Ok(cache), Ok(scratch)) => run_generation(GenerationRun {
                     model,
                     cache,
                     prompt_tokens,
-                    max_new_tokens as usize,
-                    self.sampling_config,
+                    max_new_tokens: max_new_tokens as usize,
+                    sampling_config: self.sampling_config,
                     scratch,
-                    &mut self.logits,
-                    &mut self.generated_tokens,
-                    &mut self.diagnostics,
-                ),
+                    logits: &mut self.logits,
+                    generated_tokens: &mut self.generated_tokens,
+                    diagnostics: &mut self.diagnostics,
+                }),
                 (Err(error), _, _) | (_, Err(error), _) | (_, _, Err(error)) => Err(error),
             }
         };
@@ -449,17 +449,30 @@ impl ForwardScratch {
     }
 }
 
-fn run_generation(
-    model: &Model,
-    cache: &mut KvCache,
-    prompt_tokens: &[u32],
+struct GenerationRun<'a> {
+    model: &'a Model,
+    cache: &'a mut KvCache,
+    prompt_tokens: &'a [u32],
     max_new_tokens: usize,
     sampling_config: SamplingConfig,
-    scratch: &mut ForwardScratch,
-    logits: &mut [f32],
-    generated_tokens: &mut Vec<u32>,
-    diagnostics: &mut Diagnostics,
-) -> Result<(), ErrorCode> {
+    scratch: &'a mut ForwardScratch,
+    logits: &'a mut [f32],
+    generated_tokens: &'a mut Vec<u32>,
+    diagnostics: &'a mut Diagnostics,
+}
+
+fn run_generation(run: GenerationRun<'_>) -> Result<(), ErrorCode> {
+    let GenerationRun {
+        model,
+        cache,
+        prompt_tokens,
+        max_new_tokens,
+        sampling_config,
+        scratch,
+        logits,
+        generated_tokens,
+        diagnostics,
+    } = run;
     if prompt_tokens.is_empty() {
         return Err(ErrorCode::InvalidLength);
     }
@@ -476,8 +489,7 @@ fn run_generation(
         forward_token(model, cache, *token as usize, position, scratch, logits)?;
     }
 
-    let mut position = prompt_tokens.len();
-    for _ in 0..max_new_tokens {
+    for position in (prompt_tokens.len()..).take(max_new_tokens) {
         if position >= max_context {
             break;
         }
@@ -488,7 +500,6 @@ fn run_generation(
         }
         generated_tokens.push(next);
         forward_token(model, cache, next as usize, position, scratch, logits)?;
-        position += 1;
     }
 
     diagnostics.kv_cache_length = cache.len();
@@ -572,13 +583,17 @@ fn forward_token(
         cache.store_layer_at(layer, position, &scratch.k, &scratch.v)?;
         causal_attention(
             cache,
-            layer,
-            position,
-            heads,
-            head_dim,
-            &scratch.q,
-            &mut scratch.scores,
-            &mut scratch.attention,
+            AttentionShape {
+                layer,
+                position,
+                heads,
+                head_dim,
+            },
+            AttentionBuffers {
+                query: &scratch.q,
+                scores: &mut scratch.scores,
+                out: &mut scratch.attention,
+            },
         )?;
         model.matvec_by_index(
             layer_indices.wo,
@@ -647,16 +662,34 @@ fn ffn_model(
     Ok(())
 }
 
-fn causal_attention(
-    cache: &KvCache,
+#[derive(Clone, Copy)]
+struct AttentionShape {
     layer: usize,
     position: usize,
     heads: usize,
     head_dim: usize,
-    query: &[f32],
-    scores: &mut [f32],
-    out: &mut [f32],
+}
+
+struct AttentionBuffers<'a> {
+    query: &'a [f32],
+    scores: &'a mut [f32],
+    out: &'a mut [f32],
+}
+
+fn causal_attention(
+    cache: &KvCache,
+    shape: AttentionShape,
+    buffers: AttentionBuffers<'_>,
 ) -> Result<(), ErrorCode> {
+    let AttentionShape {
+        layer,
+        position,
+        heads,
+        head_dim,
+    } = shape;
+    let query = buffers.query;
+    let scores = buffers.scores;
+    let out = buffers.out;
     out.fill(0.0);
     if scores.len() <= position {
         return Err(ErrorCode::ContextExceeded);
@@ -665,15 +698,15 @@ fn causal_attention(
         let start = head * head_dim;
         let end = start + head_dim;
         let query_head = &query[start..end];
-        for past in 0..=position {
+        for (past, score) in scores.iter_mut().enumerate().take(position + 1) {
             let key_head = cache.key_head_at(layer, past, head)?;
-            scores[past] = dot(query_head, key_head)? / (head_dim as f32).sqrt();
+            *score = dot(query_head, key_head)? / (head_dim as f32).sqrt();
         }
         softmax(&mut scores[..=position])?;
-        for past in 0..=position {
+        for (past, score) in scores.iter().copied().enumerate().take(position + 1) {
             let value_head = cache.value_head_at(layer, past, head)?;
             for dim in 0..head_dim {
-                out[start + dim] += scores[past] * value_head[dim];
+                out[start + dim] += score * value_head[dim];
             }
         }
     }

@@ -155,6 +155,10 @@
           <p>Local `.slm` files stay on this device and are checked before they run.</p>
           <button id="simpleChooseLocalButton" class="secondary-action" type="button">Choose Local .slm</button>
           <button id="simpleImportLocalModelButton" class="secondary-action" type="button">Import Selected .slm</button>
+          <label for="simpleLocalMemoryPackageFiles">UAIX memory deck</label>
+          <input id="simpleLocalMemoryPackageFiles" type="file" accept=".uai,.json,text/plain,application/json" multiple>
+          <button id="simpleInspectLocalMemoryPackageButton" class="secondary-action" type="button">Use Memory Deck</button>
+          <p id="simpleLocalMemoryPackageStatus" class="inline-status">memory deck optional</p>
         </div>
         <div id="simpleHfSourcePanel" class="source-panel" data-source-panel="huggingface" hidden>
           <label for="simpleHfSearchInput">Hugging Face metadata search</label>
@@ -352,6 +356,27 @@
             <button id="importConversionRequestButton" class="secondary-action" type="button">Bind Conversion Request</button>
             <p id="conversionRequestState" class="inline-status">optional source handoff</p>
 
+            <label for="localMemoryPackageSetup">UAIX memory setup</label>
+            <select id="localMemoryPackageSetup">
+              <option value="auto" selected>Auto from manifest</option>
+              <option value="base">Base active memory</option>
+              <option value="agent_file_handoff">Agent File Handoff</option>
+              <option value="llm_wiki">LLM Wiki</option>
+              <option value="file_handoff_llm_wiki">File Handoff + LLM Wiki</option>
+              <option value="multi_agent_communication">Multi-Agent Communication</option>
+              <option value="talisman_system">Talisman System</option>
+              <option value="advanced_persona_profile">Advanced Persona Profile</option>
+            </select>
+            <label for="localMemoryPackageFiles">UAIX memory deck files</label>
+            <input id="localMemoryPackageFiles" type="file" accept=".uai,.json,text/plain,application/json" multiple>
+            <div class="memory-deck-actions">
+              <button id="inspectLocalMemoryPackageButton" class="secondary-action" type="button">Inspect Memory Deck</button>
+              <button id="clearLocalMemoryPackageButton" class="secondary-action" type="button">Clear Memory Deck</button>
+            </div>
+            <p id="localMemoryPackageStatus" class="inline-status">select an extracted `.uai` folder to bind local memory</p>
+            <div id="localMemoryPackageSummary" class="memory-deck-summary" hidden></div>
+            <pre id="localMemoryPackageContextPreview" class="memory-deck-context-preview" aria-label="UAIX memory context preview"></pre>
+
             <label for="catalogUrlInput">Catalog URL</label>
             <div class="search-row">
               <input id="catalogUrlInput" type="url" autocomplete="off" spellcheck="false">
@@ -430,6 +455,7 @@
               <button id="checkLocalConnectEndpointButton" class="secondary-action" type="button">Check Endpoint</button>
               <button id="dryRunLocalConnectDecisionButton" class="secondary-action" type="button">Dry Run Browser Decision</button>
               <button id="dryRunLocalConnectActionButton" class="secondary-action" type="button">Dry Run Open URL</button>
+              <button id="executeLocalConnectActionButton" class="secondary-action" type="button">Execute Open URL</button>
             </div>
             <p id="localConnectEndpointStatus" class="inline-status">Endpoint checks use loopback only; action tests dry-run by default.</p>
             <div id="localConnectEndpointAppList" class="local-connect-app-list" role="list" aria-label="Endpoint app approvals"></div>
@@ -619,6 +645,6 @@
       <span id="currentModelSummary" class="model-summary">No model loaded</span>
     </footer>
   </main>
-  <script src="./app.js?v=20260706-local-connect-hot-reload"></script>
+  <script src="./app.js?v=20260706-local-connect-contracts"></script>
 </body>
 </html>

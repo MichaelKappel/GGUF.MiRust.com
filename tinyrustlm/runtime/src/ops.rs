@@ -28,9 +28,9 @@ pub fn matvec_f32(
     {
         return Err(ErrorCode::ShapeMismatch);
     }
-    for row in 0..rows {
+    for (row, output) in out.iter_mut().enumerate().take(rows) {
         let start = row * cols;
-        out[row] = dot(&matrix[start..start + cols], vector)?;
+        *output = dot(&matrix[start..start + cols], vector)?;
     }
     Ok(())
 }

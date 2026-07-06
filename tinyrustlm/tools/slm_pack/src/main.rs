@@ -1,4 +1,8 @@
 //! TinyRustLM `.slm` packing utility.
+// The packer has many command/workflow helpers that intentionally keep evidence
+// paths explicit at call sites. Refactoring all of them into option structs is a
+// broader API-design pass, not a correctness lint fix.
+#![allow(clippy::too_many_arguments)]
 
 mod adapter;
 mod adapter_family;
@@ -4267,8 +4271,8 @@ fn write_q8_tensor(
     let mut row_values = vec![0.0; cols];
     let mut quantized = vec![0i8; cols];
     for row in 0..rows {
-        for col in 0..cols {
-            row_values[col] = fixture_value(tensor, row * cols + col);
+        for (col, row_value) in row_values.iter_mut().enumerate().take(cols) {
+            *row_value = fixture_value(tensor, row * cols + col);
         }
         let scale = quantize_q8_row(&row_values, &mut quantized);
         write_f32(bytes, scale_start + row * 4, scale)?;
@@ -4288,7 +4292,7 @@ fn write_q4_tensor(
     let rows = tensor.rows();
     let cols = tensor.cols_per_row();
     let block = tensor.block_size as usize;
-    if block == 0 || block % 2 != 0 || cols % block != 0 {
+    if block == 0 || !block.is_multiple_of(2) || !cols.is_multiple_of(block) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "q4 tensor columns must divide into even blocks",
@@ -4302,8 +4306,8 @@ fn write_q4_tensor(
     for row in 0..rows {
         for block_index in 0..blocks_per_row {
             let value_start = row * cols + block_index * block;
-            for col in 0..block {
-                block_values[col] = fixture_value(tensor, value_start + col);
+            for (col, block_value) in block_values.iter_mut().enumerate().take(block) {
+                *block_value = fixture_value(tensor, value_start + col);
             }
             let scale = quantize_q4_block(&block_values, &mut quantized);
             write_f32(
@@ -4326,7 +4330,7 @@ pub(crate) fn fixture_value(tensor: &TensorSpec, elem: usize) -> f32 {
         1 => 0.125,
         2 | 4 | 5 => 1.0,
         3 => output_fixture_value(tensor, elem),
-        6 | 7 | 8 | 9 => square_identity_value(tensor, elem, 0.25),
+        6..=9 => square_identity_value(tensor, elem, 0.25),
         10 | 12 => 0.0625,
         11 => 0.0625,
         13 => tied_embedding_fixture_value(tensor, elem),
@@ -4401,7 +4405,7 @@ fn write_q4_tensor_from_values(
     let rows = tensor.rows();
     let cols = tensor.cols_per_row();
     let block = tensor.block_size as usize;
-    if block == 0 || block % 2 != 0 || cols % block != 0 {
+    if block == 0 || !block.is_multiple_of(2) || !cols.is_multiple_of(block) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "q4 tensor columns must divide into even blocks",

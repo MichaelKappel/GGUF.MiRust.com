@@ -8,16 +8,20 @@ use std::os::raw::{c_char, c_double};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{LazyLock, Mutex};
+use tinyrustlm_memory::{
+    inspect_memory_manifest_text, inspect_memory_package_path_text, memory_required_files_text,
+    supported_memory_setups,
+};
 use tinyrustlm_p2p::{
     apply_received_announcement_text, assemble_from_manifest_text, export_share_metadata_text,
     import_from_manifest_text, inspect_announcement_catalog_text,
     inspect_local_import_receipt_text, inspect_p2p_manifest_text, prepare_local_share_kit,
-    validate_announcement_text, PrepareShareKitRequest,
+    validate_announcement_text, verify_signed_manifest_text, PrepareShareKitRequest,
 };
 use tinyrustlm_runtime_sdk::{runtime_capabilities, GenerationOptions, PublicRuntime, SDK_VERSION};
 use tinyrustlm_slm::{inspect_slm_path, SlmLoadPolicy};
 
-const NATIVE_ABI_VERSION: u32 = 4;
+const NATIVE_ABI_VERSION: u32 = 7;
 
 static NEXT_HANDLE: AtomicU64 = AtomicU64::new(1);
 static RUNTIMES: LazyLock<Mutex<BTreeMap<u64, PublicRuntime>>> =
@@ -42,6 +46,11 @@ pub extern "C" fn tinyrustlm_sdk_capabilities_json() -> *mut c_char {
 /// Releases strings returned by TinyRustLM native JSON functions.
 ///
 /// Passing a null pointer is allowed.
+///
+/// # Safety
+///
+/// `ptr` must be null or a pointer previously returned by a TinyRustLM native
+/// function. Each returned pointer must be freed at most once.
 #[no_mangle]
 pub unsafe extern "C" fn tinyrustlm_string_free(ptr: *mut c_char) {
     if !ptr.is_null() {
@@ -50,6 +59,11 @@ pub unsafe extern "C" fn tinyrustlm_string_free(ptr: *mut c_char) {
 }
 
 /// Inspects a `.slm` file path and returns a JSON envelope.
+///
+/// # Safety
+///
+/// `path` must be a valid, null-terminated UTF-8 C string for the duration of
+/// the call.
 #[no_mangle]
 pub unsafe extern "C" fn tinyrustlm_slm_inspect_path_json(path: *const c_char) -> *mut c_char {
     let path = match c_string(path, "path") {
@@ -91,6 +105,12 @@ pub extern "C" fn tinyrustlm_runtime_destroy(handle: u64) -> i32 {
 }
 
 /// Loads a `.slm` model into a runtime handle and returns a JSON envelope.
+///
+/// # Safety
+///
+/// `path` must be a valid, null-terminated UTF-8 C string for the duration of
+/// the call. `expected_sha256` may be null; when non-null, it must also be a
+/// valid, null-terminated UTF-8 C string.
 #[no_mangle]
 pub unsafe extern "C" fn tinyrustlm_runtime_load_model_path_json(
     handle: u64,
@@ -125,6 +145,11 @@ pub extern "C" fn tinyrustlm_runtime_unload_model_json(handle: u64) -> *mut c_ch
 }
 
 /// Generates text from a prompt and returns a JSON envelope.
+///
+/// # Safety
+///
+/// `prompt` must be a valid, null-terminated UTF-8 C string for the duration of
+/// the call.
 #[no_mangle]
 pub unsafe extern "C" fn tinyrustlm_runtime_generate_json(
     handle: u64,
@@ -170,6 +195,11 @@ pub extern "C" fn tinyrustlm_runtime_diagnostics_json(handle: u64) -> *mut c_cha
 }
 
 /// Prepares a local P2P share kit from request JSON and returns a JSON envelope.
+///
+/// # Safety
+///
+/// `request_json` must be a valid, null-terminated UTF-8 C string for the
+/// duration of the call.
 #[no_mangle]
 pub unsafe extern "C" fn tinyrustlm_p2p_prepare_share_kit_json(
     request_json: *const c_char,
@@ -189,6 +219,11 @@ pub unsafe extern "C" fn tinyrustlm_p2p_prepare_share_kit_json(
 }
 
 /// Inspects P2P manifest JSON and returns a JSON envelope.
+///
+/// # Safety
+///
+/// `manifest_json` must be a valid, null-terminated UTF-8 C string for the
+/// duration of the call.
 #[no_mangle]
 pub unsafe extern "C" fn tinyrustlm_p2p_inspect_manifest_json(
     manifest_json: *const c_char,
@@ -203,7 +238,37 @@ pub unsafe extern "C" fn tinyrustlm_p2p_inspect_manifest_json(
     }
 }
 
+/// Verifies a signed P2P manifest envelope against local public key JSON and returns a JSON envelope.
+///
+/// # Safety
+///
+/// `signed_manifest_json` and `public_key_json` must be valid,
+/// null-terminated UTF-8 C strings for the duration of the call.
+#[no_mangle]
+pub unsafe extern "C" fn tinyrustlm_p2p_verify_signed_manifest_json(
+    signed_manifest_json: *const c_char,
+    public_key_json: *const c_char,
+) -> *mut c_char {
+    let signed_manifest_json = match c_string(signed_manifest_json, "signed_manifest_json") {
+        Ok(value) => value,
+        Err(error) => return json_error("invalid_argument", &error),
+    };
+    let public_key_json = match c_string(public_key_json, "public_key_json") {
+        Ok(value) => value,
+        Err(error) => return json_error("invalid_argument", &error),
+    };
+    match verify_signed_manifest_text(&signed_manifest_json, &public_key_json) {
+        Ok(report) => json_ok(&report),
+        Err(error) => json_error("p2p_signed_manifest_invalid", &error.to_string()),
+    }
+}
+
 /// Creates a P2P import plan from manifest JSON and returns a JSON envelope.
+///
+/// # Safety
+///
+/// `manifest_json` must be a valid, null-terminated UTF-8 C string for the
+/// duration of the call.
 #[no_mangle]
 pub unsafe extern "C" fn tinyrustlm_p2p_import_from_manifest_json(
     manifest_json: *const c_char,
@@ -219,6 +284,11 @@ pub unsafe extern "C" fn tinyrustlm_p2p_import_from_manifest_json(
 }
 
 /// Assembles local P2P pieces from manifest JSON and returns a verified receipt envelope.
+///
+/// # Safety
+///
+/// `manifest_json`, `share_kit_root`, and `output_path` must be valid,
+/// null-terminated UTF-8 C strings for the duration of the call.
 #[no_mangle]
 pub unsafe extern "C" fn tinyrustlm_p2p_assemble_from_manifest_json(
     manifest_json: *const c_char,
@@ -244,6 +314,11 @@ pub unsafe extern "C" fn tinyrustlm_p2p_assemble_from_manifest_json(
 }
 
 /// Inspects a local P2P import receipt against an output `.slm` and returns a JSON envelope.
+///
+/// # Safety
+///
+/// `receipt_json` and `output_path` must be valid, null-terminated UTF-8 C
+/// strings for the duration of the call.
 #[no_mangle]
 pub unsafe extern "C" fn tinyrustlm_p2p_inspect_local_import_receipt_json(
     receipt_json: *const c_char,
@@ -264,6 +339,11 @@ pub unsafe extern "C" fn tinyrustlm_p2p_inspect_local_import_receipt_json(
 }
 
 /// Exports share metadata from manifest JSON and returns a JSON envelope.
+///
+/// # Safety
+///
+/// `manifest_json` must be a valid, null-terminated UTF-8 C string for the
+/// duration of the call.
 #[no_mangle]
 pub unsafe extern "C" fn tinyrustlm_p2p_export_share_metadata_json(
     manifest_json: *const c_char,
@@ -279,6 +359,11 @@ pub unsafe extern "C" fn tinyrustlm_p2p_export_share_metadata_json(
 }
 
 /// Validates announcement JSON and returns a JSON envelope.
+///
+/// # Safety
+///
+/// `announcement_json` must be a valid, null-terminated UTF-8 C string for the
+/// duration of the call.
 #[no_mangle]
 pub unsafe extern "C" fn tinyrustlm_p2p_validate_announcement_json(
     announcement_json: *const c_char,
@@ -294,6 +379,12 @@ pub unsafe extern "C" fn tinyrustlm_p2p_validate_announcement_json(
 }
 
 /// Applies a received announcement to a local catalog and returns a JSON envelope.
+///
+/// # Safety
+///
+/// `announcement_json` must be a valid, null-terminated UTF-8 C string for the
+/// duration of the call. `existing_catalog_json` may be null; when non-null, it
+/// must also be a valid, null-terminated UTF-8 C string.
 #[no_mangle]
 pub unsafe extern "C" fn tinyrustlm_p2p_apply_received_announcement_json(
     announcement_json: *const c_char,
@@ -315,6 +406,11 @@ pub unsafe extern "C" fn tinyrustlm_p2p_apply_received_announcement_json(
 }
 
 /// Inspects announcement catalog JSON and returns a JSON envelope.
+///
+/// # Safety
+///
+/// `catalog_json` must be a valid, null-terminated UTF-8 C string for the
+/// duration of the call.
 #[no_mangle]
 pub unsafe extern "C" fn tinyrustlm_p2p_inspect_announcement_catalog_json(
     catalog_json: *const c_char,
@@ -326,6 +422,78 @@ pub unsafe extern "C" fn tinyrustlm_p2p_inspect_announcement_catalog_json(
     match inspect_announcement_catalog_text(&catalog_json) {
         Ok(inspection) => json_ok(&inspection),
         Err(error) => json_error("p2p_catalog_invalid", &error.to_string()),
+    }
+}
+
+/// Builds a UAIX memory required-file plan and returns a JSON envelope.
+///
+/// # Safety
+///
+/// `request_json` may be null. When non-null, it must be a valid,
+/// null-terminated UTF-8 C string for the duration of the call.
+#[no_mangle]
+pub unsafe extern "C" fn tinyrustlm_memory_required_files_json(
+    request_json: *const c_char,
+) -> *mut c_char {
+    let request_json = match optional_c_string(request_json, "request_json") {
+        Ok(value) => value,
+        Err(error) => return json_error("invalid_argument", &error),
+    };
+    match memory_required_files_text(request_json.as_deref()) {
+        Ok(plan) => json_ok(&plan),
+        Err(error) => json_error("memory_plan_failed", &error.to_string()),
+    }
+}
+
+/// Returns the supported UAIX memory setup catalog as a JSON envelope.
+#[no_mangle]
+pub extern "C" fn tinyrustlm_memory_supported_setups_json() -> *mut c_char {
+    json_ok(&supported_memory_setups())
+}
+
+/// Inspects a UAIX memory package directory, `.zip`, or `.uaix` archive and returns a JSON envelope.
+///
+/// # Safety
+///
+/// `package_path` must be a valid, null-terminated UTF-8 C string for the
+/// duration of the call. `request_json` may be null; when non-null, it must
+/// also be a valid, null-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn tinyrustlm_memory_inspect_package_path_json(
+    package_path: *const c_char,
+    request_json: *const c_char,
+) -> *mut c_char {
+    let package_path = match c_string(package_path, "package_path") {
+        Ok(value) => value,
+        Err(error) => return json_error("invalid_argument", &error),
+    };
+    let request_json = match optional_c_string(request_json, "request_json") {
+        Ok(value) => value,
+        Err(error) => return json_error("invalid_argument", &error),
+    };
+    match inspect_memory_package_path_text(PathBuf::from(package_path), request_json.as_deref()) {
+        Ok(inspection) => json_ok(&inspection),
+        Err(error) => json_error("memory_package_invalid", &error.to_string()),
+    }
+}
+
+/// Inspects a UAIX memory manifest JSON document and returns a JSON envelope.
+///
+/// # Safety
+///
+/// `manifest_json` must be a valid, null-terminated UTF-8 C string for the
+/// duration of the call.
+#[no_mangle]
+pub unsafe extern "C" fn tinyrustlm_memory_inspect_manifest_json(
+    manifest_json: *const c_char,
+) -> *mut c_char {
+    let manifest_json = match c_string(manifest_json, "manifest_json") {
+        Ok(value) => value,
+        Err(error) => return json_error("invalid_argument", &error),
+    };
+    match inspect_memory_manifest_text(&manifest_json) {
+        Ok(inspection) => json_ok(&inspection),
+        Err(error) => json_error("memory_manifest_invalid", &error.to_string()),
     }
 }
 

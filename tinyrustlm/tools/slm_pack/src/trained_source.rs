@@ -151,13 +151,13 @@ pub fn write_source_template_path(output_dir: &Path, shape_name: &str) -> io::Re
 
     for (index, tensor) in tensors.iter().enumerate() {
         let tensor_name = &tensor_names[index];
-        let relative_file = format!("tensors/{}", tensor_file_name(&tensor_name));
+        let relative_file = format!("tensors/{}", tensor_file_name(tensor_name));
         let file_path = output_dir.join(&relative_file);
         let bytes = source_tensor_bytes(tensor)?;
         fs::write(&file_path, &bytes)?;
 
         let prefix = format!("tensor.{index}");
-        push_line(&mut manifest, &format!("{prefix}.name"), &tensor_name);
+        push_line(&mut manifest, &format!("{prefix}.name"), tensor_name);
         push_line(
             &mut manifest,
             &format!("{prefix}.rank"),
@@ -562,7 +562,9 @@ fn shape_from_fields(fields: &HashMap<String, String>) -> io::Result<ModelShape>
     if shape.head_count.checked_mul(shape.head_dim) != Some(shape.hidden_size) {
         return Err(invalid("source hidden_size must equal heads * head_dim"));
     }
-    if shape.kv_head_count > shape.head_count || shape.head_count % shape.kv_head_count != 0 {
+    if shape.kv_head_count > shape.head_count
+        || !shape.head_count.is_multiple_of(shape.kv_head_count)
+    {
         return Err(invalid("source kv_head_count must divide head_count"));
     }
     let shape_name = require_key(fields, "model_shape")?;
@@ -1193,7 +1195,7 @@ fn reject_extra_bpe_keys(
 }
 
 fn parse_hex_bytes(value: &str) -> io::Result<Vec<u8>> {
-    if value.len() % 2 != 0 {
+    if !value.len().is_multiple_of(2) {
         return Err(invalid("BPE token bytes_hex must have even length"));
     }
     let mut bytes = Vec::with_capacity(value.len() / 2);
