@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TinyRustLM</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="./app.css?v=20260705-local-connect-full-mode-sync">
+  <link rel="stylesheet" href="./app.css?v=20260706-local-connect-hot-reload">
 </head>
 <body>
   <svg class="icon-sprite" aria-hidden="true" focusable="false">
@@ -411,6 +411,10 @@
               <option value="full">Full local-control lab mode</option>
             </select>
             <p id="localConnectModeWarning" class="inline-status">Local Connect asks before app control.</p>
+            <label class="toggle-row local-connect-full-ack" for="localConnectFullControlAck">
+              <input id="localConnectFullControlAck" type="checkbox">
+              <span>Non-sensitive machine acknowledged</span>
+            </label>
             <div id="localConnectCategoryList" class="local-connect-category-list" role="list" aria-label="App approval categories"></div>
             <label for="localConnectApprovedApps">Always approved apps</label>
             <textarea id="localConnectApprovedApps" rows="4" spellcheck="false" placeholder="chrome.exe&#10;outlook.exe"></textarea>
@@ -615,6 +619,6 @@
       <span id="currentModelSummary" class="model-summary">No model loaded</span>
     </footer>
   </main>
-  <script src="./app.js?v=20260705-local-connect-full-mode-sync"></script>
+  <script src="./app.js?v=20260706-local-connect-hot-reload"></script>
 </body>
 </html>

@@ -1,5 +1,9 @@
 [workspace]
 members = [
+    "rust/crates/tinyrustlm-native",
+    "rust/crates/tinyrustlm-p2p",
+    "rust/crates/tinyrustlm-runtime",
+    "rust/crates/tinyrustlm-slm",
     "tinyrustlm/runtime",
     "tinyrustlm/tools/browser_harness",
     "tinyrustlm/tools/local_connect",
@@ -9,11 +13,16 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "Proprietary"
 authors = ["TinyRustLM maintainers"]
 repository = "https://TinyRustLM.com/"
+
+[workspace.dependencies]
+serde = { version = "1.0.203", features = ["derive"] }
+serde_json = "1.0.117"
+sha2 = "0.10.8"
 
 [workspace.lints.rust]
 missing_docs = "deny"

@@ -159,11 +159,11 @@ dependencies = [
 
 [[package]]
 name = "tinyrustlm-browser-harness"
-version = "0.1.0"
+version = "0.1.1"
 
 [[package]]
 name = "tinyrustlm-local-connect"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -172,15 +172,54 @@ dependencies = [
 
 [[package]]
 name = "tinyrustlm-local-server"
-version = "0.1.0"
+version = "0.1.1"
+
+[[package]]
+name = "tinyrustlm-native"
+version = "0.1.1"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tinyrustlm-p2p",
+ "tinyrustlm-runtime-sdk",
+ "tinyrustlm-slm",
+]
+
+[[package]]
+name = "tinyrustlm-p2p"
+version = "0.1.1"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+ "tinyrustlm-slm",
+]
 
 [[package]]
 name = "tinyrustlm-runtime"
-version = "0.1.0"
+version = "0.1.1"
+
+[[package]]
+name = "tinyrustlm-runtime-sdk"
+version = "0.1.1"
+dependencies = [
+ "serde",
+ "tinyrustlm-runtime",
+ "tinyrustlm-slm",
+]
+
+[[package]]
+name = "tinyrustlm-slm"
+version = "0.1.1"
+dependencies = [
+ "serde",
+ "sha2",
+ "tinyrustlm-runtime",
+]
 
 [[package]]
 name = "tinyrustlm-slm-pack"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "tinyrustlm-runtime",
 ]

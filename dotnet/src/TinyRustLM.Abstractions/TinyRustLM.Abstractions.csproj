@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>TinyRustLM.Abstractions</PackageId>
+    <Title>TinyRustLM Public SDK Abstractions</Title>
+    <Description>Stable public interfaces and DTOs for TinyRustLM .slm validation, runtime harness, and metadata-bound P2P workflows.</Description>
+    <IsPackable>true</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="..\..\..\docs\nuget\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

@@ -11,7 +11,7 @@ use sha2::{Digest, Sha256};
 pub const POLICY_KIND: &str = "tinyrustlm.local_connect_approval_policy.v0";
 
 /// The current Local Connect approval policy schema version.
-pub const POLICY_VERSION: u64 = 1;
+pub const POLICY_VERSION: u64 = 2;
 
 const MAX_APPROVED_APPS: usize = 40;
 const MAX_APPROVED_APP_CHARS: usize = 96;
@@ -203,8 +203,10 @@ const CATEGORY_SPECS: &[CategorySpec] = &[
 #[derive(Debug, Eq, PartialEq)]
 pub struct ApprovalPolicy {
     mode: ApprovalMode,
+    full_control_non_sensitive_machine_acknowledged: bool,
     category_rules: BTreeMap<Category, ApprovalLevel>,
     approved_apps: Vec<String>,
+    approved_app_bindings: Vec<ApprovedAppBinding>,
 }
 
 impl ApprovalPolicy {
@@ -218,6 +220,11 @@ impl ApprovalPolicy {
         self.mode == ApprovalMode::Full
     }
 
+    /// Reports whether the user acknowledged that full control is for a non-sensitive local machine.
+    pub fn full_control_non_sensitive_machine_acknowledged(&self) -> bool {
+        self.full_control_non_sensitive_machine_acknowledged
+    }
+
     /// Returns the category rule for a Local Connect category.
     pub fn category_level(&self, category: Category) -> ApprovalLevel {
         self.category_rules
@@ -229,6 +236,19 @@ impl ApprovalPolicy {
     /// Returns approved app display or executable names.
     pub fn approved_apps(&self) -> &[String] {
         &self.approved_apps
+    }
+
+    /// Returns category-bound approved app rules.
+    pub fn approved_app_bindings(&self) -> &[ApprovedAppBinding] {
+        &self.approved_app_bindings
+    }
+
+    /// Returns the approved category for an app, when the policy binds it explicitly.
+    pub fn approved_app_category(&self, app: &str) -> Option<Category> {
+        self.approved_app_bindings
+            .iter()
+            .find(|binding| binding.app().eq_ignore_ascii_case(app))
+            .map(ApprovedAppBinding::category)
     }
 
     /// Renders the canonical browser policy JSON used for endpoint identity checks.
@@ -256,6 +276,10 @@ impl ApprovalPolicy {
                 "full_local_control={}",
                 bool_value(self.full_local_control())
             ),
+            format!(
+                "full_control_non_sensitive_machine_acknowledged={}",
+                bool_value(self.full_control_non_sensitive_machine_acknowledged())
+            ),
             format!("approved_apps.count={}", self.approved_apps.len()),
         ];
         for spec in CATEGORY_SPECS {
@@ -268,13 +292,23 @@ impl ApprovalPolicy {
         for (index, app) in self.approved_apps.iter().enumerate() {
             lines.push(format!("approved_apps.{index}={app}"));
         }
+        for (index, binding) in self.approved_app_bindings.iter().enumerate() {
+            lines.push(format!(
+                "approved_app_bindings.{index}.app={}",
+                binding.app()
+            ));
+            lines.push(format!(
+                "approved_app_bindings.{index}.category={}",
+                binding.category().as_str()
+            ));
+        }
         lines.join("\n")
     }
 
-    fn has_approved_app(&self, app: &str) -> bool {
-        self.approved_apps
-            .iter()
-            .any(|approved| approved.eq_ignore_ascii_case(app))
+    fn has_approved_app_for_category(&self, app: &str, category: Category) -> bool {
+        self.approved_app_bindings.iter().any(|binding| {
+            binding.app().eq_ignore_ascii_case(app) && binding.category() == category
+        })
     }
 
     fn canonical_snapshot(&self) -> CanonicalPolicy<'_> {
@@ -284,6 +318,8 @@ impl ApprovalPolicy {
             approval_mode: self.mode.as_str(),
             approval_mode_label: self.mode.label(),
             full_local_control: self.full_local_control(),
+            full_control_non_sensitive_machine_acknowledged: self
+                .full_control_non_sensitive_machine_acknowledged(),
             browser_local_storage_only: true,
             project_server_receives_policy: false,
             local_endpoint_must_enforce_policy: true,
@@ -296,6 +332,11 @@ impl ApprovalPolicy {
                 secrets: self.category_level(Category::Secrets).as_str(),
             },
             approved_apps: &self.approved_apps,
+            approved_app_bindings: self
+                .approved_app_bindings
+                .iter()
+                .map(CanonicalApprovedAppBinding::from_binding)
+                .collect(),
             risk_warnings: ALL_CATEGORIES
                 .iter()
                 .map(|category| CanonicalRiskWarning {
@@ -317,12 +358,57 @@ struct CanonicalPolicy<'a> {
     approval_mode: &'static str,
     approval_mode_label: &'static str,
     full_local_control: bool,
+    full_control_non_sensitive_machine_acknowledged: bool,
     browser_local_storage_only: bool,
     project_server_receives_policy: bool,
     local_endpoint_must_enforce_policy: bool,
     category_approval: CanonicalCategoryApproval,
     approved_apps: &'a [String],
+    approved_app_bindings: Vec<CanonicalApprovedAppBinding<'a>>,
     risk_warnings: Vec<CanonicalRiskWarning>,
+}
+
+/// Category-bound approved app rule.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ApprovedAppBinding {
+    app: String,
+    category: Category,
+}
+
+impl ApprovedAppBinding {
+    /// Returns the approved app display or executable name.
+    pub fn app(&self) -> &str {
+        &self.app
+    }
+
+    /// Returns the only Local Connect category this app approval can authorize.
+    pub fn category(&self) -> Category {
+        self.category
+    }
+}
+
+#[derive(Serialize)]
+struct CanonicalApprovedAppBinding<'a> {
+    app: &'a str,
+    category: &'static str,
+    category_label: &'static str,
+    risk: &'static str,
+    warning: &'static str,
+    approval: &'static str,
+}
+
+impl<'a> CanonicalApprovedAppBinding<'a> {
+    fn from_binding(binding: &'a ApprovedAppBinding) -> Self {
+        let category = binding.category();
+        Self {
+            app: binding.app(),
+            category: category.as_str(),
+            category_label: category.label(),
+            risk: category.risk(),
+            warning: category.warning(),
+            approval: "always",
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -453,12 +539,26 @@ struct RawApprovalPolicy {
     approval_mode: String,
     approval_mode_label: String,
     full_local_control: bool,
+    #[serde(default)]
+    full_control_non_sensitive_machine_acknowledged: bool,
     browser_local_storage_only: bool,
     project_server_receives_policy: bool,
     local_endpoint_must_enforce_policy: bool,
     category_approval: BTreeMap<String, String>,
     approved_apps: Vec<String>,
+    approved_app_bindings: Vec<RawApprovedAppBinding>,
     risk_warnings: Vec<RawRiskWarning>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawApprovedAppBinding {
+    app: String,
+    category: String,
+    category_label: String,
+    risk: String,
+    warning: String,
+    approval: String,
 }
 
 #[derive(Deserialize)]
@@ -520,7 +620,7 @@ pub fn decide_approval(
     }
 
     if let Some(app_name) = app.as_deref() {
-        if policy.has_approved_app(app_name) {
+        if policy.has_approved_app_for_category(app_name, category) {
             return Ok(DecisionReport {
                 decision: Decision::Allow,
                 reason: "app-approved",
@@ -571,6 +671,18 @@ fn validate_raw_policy(raw: RawApprovalPolicy) -> Result<ApprovalPolicy, PolicyE
             "full_local_control must match approval_mode".to_string(),
         ));
     }
+    if mode == ApprovalMode::Full && !raw.full_control_non_sensitive_machine_acknowledged {
+        return Err(PolicyError::new(
+            "full_control_non_sensitive_machine_acknowledged must be true for full mode"
+                .to_string(),
+        ));
+    }
+    if mode != ApprovalMode::Full && raw.full_control_non_sensitive_machine_acknowledged {
+        return Err(PolicyError::new(
+            "full_control_non_sensitive_machine_acknowledged must be false outside full mode"
+                .to_string(),
+        ));
+    }
     if !raw.browser_local_storage_only {
         return Err(PolicyError::new(
             "browser_local_storage_only must be true".to_string(),
@@ -590,9 +702,12 @@ fn validate_raw_policy(raw: RawApprovalPolicy) -> Result<ApprovalPolicy, PolicyE
     let category_rules = validate_category_rules(&raw.category_approval)?;
     validate_risk_warnings(&raw.risk_warnings, &category_rules)?;
     let approved_apps = validate_approved_apps(raw.approved_apps)?;
+    let approved_app_bindings =
+        validate_approved_app_bindings(&approved_apps, raw.approved_app_bindings)?;
 
     if mode == ApprovalMode::Ask
         && (!approved_apps.is_empty()
+            || !approved_app_bindings.is_empty()
             || category_rules
                 .values()
                 .any(|level| *level == ApprovalLevel::Always))
@@ -604,8 +719,11 @@ fn validate_raw_policy(raw: RawApprovalPolicy) -> Result<ApprovalPolicy, PolicyE
 
     Ok(ApprovalPolicy {
         mode,
+        full_control_non_sensitive_machine_acknowledged: raw
+            .full_control_non_sensitive_machine_acknowledged,
         category_rules,
         approved_apps,
+        approved_app_bindings,
     })
 }
 
@@ -707,6 +825,70 @@ fn validate_approved_apps(raw_apps: Vec<String>) -> Result<Vec<String>, PolicyEr
     Ok(approved)
 }
 
+fn validate_approved_app_bindings(
+    approved_apps: &[String],
+    raw_bindings: Vec<RawApprovedAppBinding>,
+) -> Result<Vec<ApprovedAppBinding>, PolicyError> {
+    if raw_bindings.len() != approved_apps.len() {
+        return Err(PolicyError::new(format!(
+            "approved_app_bindings must contain one entry for each approved app; expected {} got {}",
+            approved_apps.len(),
+            raw_bindings.len()
+        )));
+    }
+
+    let mut seen = BTreeSet::new();
+    let mut bindings = Vec::with_capacity(raw_bindings.len());
+    for (index, raw) in raw_bindings.into_iter().enumerate() {
+        let app = validate_app_name(&raw.app)?;
+        if app != approved_apps[index] {
+            return Err(PolicyError::new(format!(
+                "approved_app_bindings[{index}].app must match approved_apps[{index}]"
+            )));
+        }
+        let lowered = app.to_ascii_lowercase();
+        if !seen.insert(lowered) {
+            return Err(PolicyError::new(format!(
+                "duplicate approved app binding '{app}'"
+            )));
+        }
+
+        let category = Category::parse(&raw.category)?;
+        if matches!(category, Category::Terminal | Category::Secrets) {
+            return Err(PolicyError::new(format!(
+                "approved app '{app}' cannot be always-approved for critical category '{}'",
+                category.as_str()
+            )));
+        }
+        if let Some(known_category) = known_app_category(app) {
+            if known_category != category {
+                return Err(PolicyError::new(format!(
+                    "approved app '{app}' is known as category '{}' but binding uses '{}'",
+                    known_category.as_str(),
+                    category.as_str()
+                )));
+            }
+        }
+        require_field(
+            "approved_app_bindings.category_label",
+            category.label(),
+            &raw.category_label,
+        )?;
+        require_field("approved_app_bindings.risk", category.risk(), &raw.risk)?;
+        require_field(
+            "approved_app_bindings.warning",
+            category.warning(),
+            &raw.warning,
+        )?;
+        require_field("approved_app_bindings.approval", "always", &raw.approval)?;
+        bindings.push(ApprovedAppBinding {
+            app: app.to_string(),
+            category,
+        });
+    }
+    Ok(bindings)
+}
+
 fn validate_app_name(value: &str) -> Result<&str, PolicyError> {
     if value.is_empty() {
         return Err(PolicyError::new("app name cannot be empty".to_string()));
@@ -746,6 +928,18 @@ fn validate_app_name(value: &str) -> Result<&str, PolicyError> {
         )));
     }
     Ok(value)
+}
+
+fn known_app_category(app: &str) -> Option<Category> {
+    match app.trim().to_ascii_lowercase().as_str() {
+        "chrome.exe" | "msedge.exe" | "firefox.exe" => Some(Category::Browser),
+        "outlook.exe" | "thunderbird.exe" => Some(Category::Email),
+        "winword.exe" | "excel.exe" => Some(Category::Documents),
+        "explorer.exe" => Some(Category::Files),
+        "powershell.exe" | "pwsh.exe" | "cmd.exe" => Some(Category::Terminal),
+        "bitwarden.exe" | "1password.exe" => Some(Category::Secrets),
+        _ => None,
+    }
 }
 
 fn require_field(label: &str, expected: &str, actual: &str) -> Result<(), PolicyError> {
@@ -799,11 +993,34 @@ mod tests {
             _ => panic!("test mode"),
         };
         let full = mode == "full";
+        let full_ack = mode == "full";
         let app_json = approved_apps
             .iter()
             .map(|app| format!(r#""{app}""#))
             .collect::<Vec<_>>()
             .join(",");
+        let binding_json = approved_apps
+            .iter()
+            .map(|app| {
+                let category = known_app_category(app).unwrap_or(Category::Files);
+                format!(
+                    r#"{{
+      "app": {},
+      "category": "{}",
+      "category_label": "{}",
+      "risk": "{}",
+      "warning": {},
+      "approval": "always"
+    }}"#,
+                    serde_json::to_string(app).expect("app JSON"),
+                    category.as_str(),
+                    category.label(),
+                    category.risk(),
+                    serde_json::to_string(category.warning()).expect("warning JSON")
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",\n    ");
         format!(
             r#"{{
   "policy_kind": "{POLICY_KIND}",
@@ -811,6 +1028,7 @@ mod tests {
   "approval_mode": "{mode}",
   "approval_mode_label": "{label}",
   "full_local_control": {full},
+  "full_control_non_sensitive_machine_acknowledged": {full_ack},
   "browser_local_storage_only": true,
   "project_server_receives_policy": false,
   "local_endpoint_must_enforce_policy": true,
@@ -823,6 +1041,7 @@ mod tests {
     "secrets": "ask"
   }},
   "approved_apps": [{app_json}],
+  "approved_app_bindings": [{binding_json}],
   "risk_warnings": [
     {{
       "category": "browser",
@@ -878,6 +1097,7 @@ mod tests {
         assert_eq!(policy.mode(), ApprovalMode::Ask);
         assert_eq!(policy.category_level(Category::Browser), ApprovalLevel::Ask);
         assert!(!policy.full_local_control());
+        assert!(!policy.full_control_non_sensitive_machine_acknowledged());
         assert!(policy.approved_apps().is_empty());
     }
 
@@ -894,6 +1114,9 @@ mod tests {
             "\"category_approval\": {\n    \"browser\": \"always\",\n    \"email\": \"ask\","
         ));
         assert!(canonical.contains("\"approved_apps\": [\n    \"Chrome.exe\"\n  ]"));
+        assert!(canonical.contains(
+            "\"approved_app_bindings\": [\n    {\n      \"app\": \"Chrome.exe\",\n      \"category\": \"browser\","
+        ));
         assert!(digest.starts_with("sha256:"));
         assert_eq!(digest.len(), "sha256:".len() + 64);
         assert_eq!(digest, sha256_text(&canonical));
@@ -918,14 +1141,43 @@ mod tests {
     }
 
     #[test]
-    fn approved_app_allows_matching_app_case_insensitively() {
+    fn approved_app_allows_matching_category_case_insensitively() {
+        let policy = validate_policy_json(&valid_policy("selected", "ask", &["Chrome.exe"]))
+            .expect("policy");
+
+        let report =
+            decide_approval(&policy, Category::Browser, Some("chrome.exe")).expect("decision");
+
+        assert_eq!(report.decision(), Decision::Allow);
+    }
+
+    #[test]
+    fn approved_app_does_not_cross_category_boundaries() {
         let policy = validate_policy_json(&valid_policy("selected", "ask", &["Chrome.exe"]))
             .expect("policy");
 
         let report =
             decide_approval(&policy, Category::Email, Some("chrome.exe")).expect("decision");
 
-        assert_eq!(report.decision(), Decision::Allow);
+        assert_eq!(report.decision(), Decision::Ask);
+        assert_eq!(report.reason(), "not-selected");
+    }
+
+    #[test]
+    fn manual_unknown_approved_app_is_bound_to_files_by_default() {
+        let policy = validate_policy_json(&valid_policy("selected", "ask", &["AcmeEditor.exe"]))
+            .expect("policy");
+
+        let file_report =
+            decide_approval(&policy, Category::Files, Some("AcmeEditor.exe")).expect("decision");
+        let document_report = decide_approval(&policy, Category::Documents, Some("AcmeEditor.exe"))
+            .expect("decision");
+        let email_report =
+            decide_approval(&policy, Category::Email, Some("AcmeEditor.exe")).expect("decision");
+
+        assert_eq!(file_report.decision(), Decision::Allow);
+        assert_eq!(document_report.decision(), Decision::Ask);
+        assert_eq!(email_report.decision(), Decision::Ask);
     }
 
     #[test]
@@ -939,6 +1191,20 @@ mod tests {
         assert!(report
             .render_key_values()
             .contains("full_control_warning=true"));
+    }
+
+    #[test]
+    fn rejects_full_mode_without_non_sensitive_machine_acknowledgement() {
+        let policy = valid_policy("full", "ask", &[]).replace(
+            r#""full_control_non_sensitive_machine_acknowledged": true"#,
+            r#""full_control_non_sensitive_machine_acknowledged": false"#,
+        );
+
+        let error = validate_policy_json(&policy).expect_err("full mode ack should be required");
+
+        assert!(error
+            .to_string()
+            .contains("full_control_non_sensitive_machine_acknowledged"));
     }
 
     #[test]
@@ -1005,5 +1271,26 @@ mod tests {
         .expect_err("duplicate app should fail");
 
         assert!(error.to_string().contains("duplicate approved app"));
+    }
+
+    #[test]
+    fn rejects_approved_app_binding_category_drift() {
+        let policy = valid_policy("selected", "ask", &["Chrome.exe"]).replacen(
+            r#""category": "browser""#,
+            r#""category": "email""#,
+            1,
+        );
+
+        let error = validate_policy_json(&policy).expect_err("drifted binding should fail");
+
+        assert!(error.to_string().contains("known as category 'browser'"));
+    }
+
+    #[test]
+    fn rejects_critical_category_approved_app_binding() {
+        let error = validate_policy_json(&valid_policy("selected", "ask", &["powershell.exe"]))
+            .expect_err("critical app binding should fail");
+
+        assert!(error.to_string().contains("critical category 'terminal'"));
     }
 }

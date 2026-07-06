@@ -425,6 +425,27 @@ fn run() -> io::Result<()> {
             quantization.as_deref(),
         );
     }
+    if output == "inspect-huggingface-conversion-request" {
+        let Some(request_json) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "inspect-huggingface-conversion-request requires a conversion request JSON path",
+            ));
+        };
+        let output_report = args.next();
+        if args.next().is_some() {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "inspect-huggingface-conversion-request received too many arguments",
+            ));
+        }
+        return safetensors::inspect_huggingface_conversion_request_path(
+            Path::new(&request_json),
+            output_report.as_deref().map(Path::new),
+        );
+    }
     if output == "inspect-huggingface-conversion-receipt" {
         let Some(receipt) = args.next() else {
             print_usage();
@@ -549,6 +570,222 @@ fn run() -> io::Result<()> {
             ));
         }
         return gguf::write_source_fixture_path(Path::new(&output_path), &shape_name);
+    }
+    if output == "write-gguf-q8-source-fixture" {
+        let Some(output_path) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "write-gguf-q8-source-fixture requires an output .gguf path",
+            ));
+        };
+        let shape_name = args.next().unwrap_or_else(|| "tiny-fixture".to_string());
+        if args.next().is_some() {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "write-gguf-q8-source-fixture received too many arguments",
+            ));
+        }
+        return gguf::write_q8_source_fixture_path(Path::new(&output_path), &shape_name);
+    }
+    if output == "write-gguf-q8-1-source-fixture" {
+        let Some(output_path) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "write-gguf-q8-1-source-fixture requires an output .gguf path",
+            ));
+        };
+        let shape_name = args.next().unwrap_or_else(|| "tiny-fixture".to_string());
+        if args.next().is_some() {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "write-gguf-q8-1-source-fixture received too many arguments",
+            ));
+        }
+        return gguf::write_q8_1_source_fixture_path(Path::new(&output_path), &shape_name);
+    }
+    if output == "write-gguf-q8-k-source-fixture" {
+        let Some(output_path) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "write-gguf-q8-k-source-fixture requires an output .gguf path",
+            ));
+        };
+        let shape_name = args.next().unwrap_or_else(|| "tiny-fixture".to_string());
+        if args.next().is_some() {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "write-gguf-q8-k-source-fixture received too many arguments",
+            ));
+        }
+        return gguf::write_q8_k_source_fixture_path(Path::new(&output_path), &shape_name);
+    }
+    if output == "write-gguf-q2-k-source-fixture" {
+        let Some(output_path) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "write-gguf-q2-k-source-fixture requires an output .gguf path",
+            ));
+        };
+        let shape_name = args.next().unwrap_or_else(|| "tiny-fixture".to_string());
+        if args.next().is_some() {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "write-gguf-q2-k-source-fixture received too many arguments",
+            ));
+        }
+        return gguf::write_q2_k_source_fixture_path(Path::new(&output_path), &shape_name);
+    }
+    if output == "write-gguf-q3-k-source-fixture" {
+        let Some(output_path) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "write-gguf-q3-k-source-fixture requires an output .gguf path",
+            ));
+        };
+        let shape_name = args.next().unwrap_or_else(|| "tiny-fixture".to_string());
+        if args.next().is_some() {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "write-gguf-q3-k-source-fixture received too many arguments",
+            ));
+        }
+        return gguf::write_q3_k_source_fixture_path(Path::new(&output_path), &shape_name);
+    }
+    if output == "write-gguf-q6-k-source-fixture" {
+        let Some(output_path) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "write-gguf-q6-k-source-fixture requires an output .gguf path",
+            ));
+        };
+        let shape_name = args.next().unwrap_or_else(|| "tiny-fixture".to_string());
+        if args.next().is_some() {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "write-gguf-q6-k-source-fixture received too many arguments",
+            ));
+        }
+        return gguf::write_q6_k_source_fixture_path(Path::new(&output_path), &shape_name);
+    }
+    if output == "write-gguf-q4-k-source-fixture" {
+        let Some(output_path) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "write-gguf-q4-k-source-fixture requires an output .gguf path",
+            ));
+        };
+        let shape_name = args.next().unwrap_or_else(|| "tiny-fixture".to_string());
+        if args.next().is_some() {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "write-gguf-q4-k-source-fixture received too many arguments",
+            ));
+        }
+        return gguf::write_q4_k_source_fixture_path(Path::new(&output_path), &shape_name);
+    }
+    if output == "write-gguf-q4-source-fixture" {
+        let Some(output_path) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "write-gguf-q4-source-fixture requires an output .gguf path",
+            ));
+        };
+        let shape_name = args.next().unwrap_or_else(|| "tiny-fixture".to_string());
+        if args.next().is_some() {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "write-gguf-q4-source-fixture received too many arguments",
+            ));
+        }
+        return gguf::write_q4_source_fixture_path(Path::new(&output_path), &shape_name);
+    }
+    if output == "write-gguf-q4-1-source-fixture" {
+        let Some(output_path) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "write-gguf-q4-1-source-fixture requires an output .gguf path",
+            ));
+        };
+        let shape_name = args.next().unwrap_or_else(|| "tiny-fixture".to_string());
+        if args.next().is_some() {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "write-gguf-q4-1-source-fixture received too many arguments",
+            ));
+        }
+        return gguf::write_q4_1_source_fixture_path(Path::new(&output_path), &shape_name);
+    }
+    if output == "write-gguf-q5-source-fixture" {
+        let Some(output_path) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "write-gguf-q5-source-fixture requires an output .gguf path",
+            ));
+        };
+        let shape_name = args.next().unwrap_or_else(|| "tiny-fixture".to_string());
+        if args.next().is_some() {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "write-gguf-q5-source-fixture received too many arguments",
+            ));
+        }
+        return gguf::write_q5_source_fixture_path(Path::new(&output_path), &shape_name);
+    }
+    if output == "write-gguf-q5-1-source-fixture" {
+        let Some(output_path) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "write-gguf-q5-1-source-fixture requires an output .gguf path",
+            ));
+        };
+        let shape_name = args.next().unwrap_or_else(|| "tiny-fixture".to_string());
+        if args.next().is_some() {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "write-gguf-q5-1-source-fixture received too many arguments",
+            ));
+        }
+        return gguf::write_q5_1_source_fixture_path(Path::new(&output_path), &shape_name);
+    }
+    if output == "write-gguf-q5-k-source-fixture" {
+        let Some(output_path) = args.next() else {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "write-gguf-q5-k-source-fixture requires an output .gguf path",
+            ));
+        };
+        let shape_name = args.next().unwrap_or_else(|| "tiny-fixture".to_string());
+        if args.next().is_some() {
+            print_usage();
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "write-gguf-q5-k-source-fixture received too many arguments",
+            ));
+        }
+        return gguf::write_q5_k_source_fixture_path(Path::new(&output_path), &shape_name);
     }
     if output == "browser-multi-parent-bundle" {
         let Some(root) = args.next() else {
@@ -3695,7 +3932,7 @@ fn print_usage() {
         "       review-safetensors-candidate optional route tail: [source-config-route] [source-tokenizer-route]"
     );
     eprintln!(
-        "       standard-model intake tail: inspect-safetensors ... | inspect-gguf ... | plan-gguf-source ... | extract-gguf-source ... | convert-gguf-trained ... [f32|q8_0|q4_0] | write-gguf-fixture ... | write-gguf-source-fixture ... | extract-safetensors-source ... [candidate-review] | convert-safetensors-trained ... [f32|q8_0|q4_0] [candidate-review] | convert-huggingface-request ... [source-shape] [f32|q8_0|q4_0] | inspect-huggingface-conversion-receipt ... | write-safetensors-fixture ... [local|huggingface] | write-safetensors-fixture-shards ... [local|huggingface] | browser-safetensors-trained-bundle ... [f32|q8_0|q4_0|all] [eval-cases.txt|candidate.review] [candidate-review]"
+        "       standard-model intake tail: inspect-safetensors ... | inspect-gguf ... | plan-gguf-source ... | extract-gguf-source ... | convert-gguf-trained ... [f32|q8_0|q4_0] | write-gguf-fixture ... | write-gguf-source-fixture ... | write-gguf-q8-source-fixture ... | write-gguf-q8-1-source-fixture ... | write-gguf-q8-k-source-fixture ... | write-gguf-q2-k-source-fixture ... | write-gguf-q3-k-source-fixture ... | write-gguf-q6-k-source-fixture ... | write-gguf-q4-k-source-fixture ... | write-gguf-q4-source-fixture ... | write-gguf-q4-1-source-fixture ... | write-gguf-q5-source-fixture ... | write-gguf-q5-1-source-fixture ... | write-gguf-q5-k-source-fixture ... | extract-safetensors-source ... [candidate-review] | convert-safetensors-trained ... [f32|q8_0|q4_0] [candidate-review] | inspect-huggingface-conversion-request ... | convert-huggingface-request ... [source-shape] [f32|q8_0|q4_0] | inspect-huggingface-conversion-receipt ... | write-safetensors-fixture ... [local|huggingface] | write-safetensors-fixture-shards ... [local|huggingface] | browser-safetensors-trained-bundle ... [f32|q8_0|q4_0|all] [eval-cases.txt|candidate.review] [candidate-review]"
     );
     eprintln!(
         "       review-bound browser bundles use eval_cases_route when a lone candidate-review path is supplied; explicit eval-cases must match that reviewed route"
@@ -3752,7 +3989,35 @@ fn print_usage() {
 
 /// Returns the primary CLI usage text without writing to stderr.
 fn primary_usage_text() -> &'static str {
+    concat!(
     "usage: tinyrustlm-slm-pack <output.slm> [tiny-fixture|tiny-fixture-tied|tiny-fixture-q8|tiny-fixture-q4|tiny-fixture-bpe|tinylm16-f32|tinylm16-q8|tinylm16-q4]\n       tinyrustlm-slm-pack validate <input.slm>\n       tinyrustlm-slm-pack inspect-safetensors <input.safetensors> [output.report]\n       tinyrustlm-slm-pack inspect-gguf <input.gguf> [output.report]\n       tinyrustlm-slm-pack plan-safetensors-source <input.safetensors> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> [output.plan]\n       tinyrustlm-slm-pack plan-gguf-source <input.gguf> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> [output.plan]\n       tinyrustlm-slm-pack review-safetensors-candidate <input.safetensors> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> <f32|q8_0|q4_0> <source-model-id> <source-model-sha> <source-config-checksum> <source-tokenizer-checksum> <source-license-route> <output.review> [reference-prompt-route] [reference-output-checksum] [eval-cases-route] [source-config-route] [source-tokenizer-route]\n       tinyrustlm-slm-pack extract-safetensors-source <input.safetensors> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> <output-source-dir> [candidate-review]\n       tinyrustlm-slm-pack extract-gguf-source <input.gguf> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> <output-source-dir>\n       tinyrustlm-slm-pack convert-safetensors-trained <input.safetensors> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> <output-source-dir> <output.slm> [f32|q8_0|q4_0] [candidate-review]\n       tinyrustlm-slm-pack convert-gguf-trained <input.gguf> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> <output-source-dir> <output.slm> [f32|q8_0|q4_0]\n       tinyrustlm-slm-pack convert-huggingface-request <request.json> <input.safetensors-or-directory> <output-dir> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe] [f32|q8_0|q4_0]\n       tinyrustlm-slm-pack inspect-huggingface-conversion-receipt <receipt> <request.json> <preflight> <output.slm> <output.manifest>\n       tinyrustlm-slm-pack write-safetensors-fixture <output.safetensors> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe] [local|huggingface]\n       tinyrustlm-slm-pack write-safetensors-fixture-shards <output-dir> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe] [local|huggingface]\n       tinyrustlm-slm-pack write-gguf-fixture <output.gguf>\n       tinyrustlm-slm-pack write-gguf-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]\n       tinyrustlm-slm-pack browser-safetensors-trained-bundle <output-tinyrustlm-root> <input.safetensors> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> <output-source-dir> [f32|q8_0|q4_0|all] [eval-cases.txt|candidate.review] [candidate-review]\n       tinyrustlm-slm-pack browser-multi-parent-bundle <output-tinyrustlm-root> [f32|q8_0|q4_0|all] [sign-merge|soup|mixed]\n       tinyrustlm-slm-pack browser-converted-trained-bundle <output-tinyrustlm-root> <input-source-dir> [f32|q8_0|q4_0|all] [eval-cases.txt]\n       tinyrustlm-slm-pack runtime-wasm-manifest <input.wasm> <output.wasm.manifest>\n       tinyrustlm-slm-pack compatibility <left-parent.slm> <right-parent.slm> [output.compat]\n       tinyrustlm-slm-pack lineage-template <input.compat> <output.lineage> <candidate-id> <operator-id> [resource-budget]\n       tinyrustlm-slm-pack validate-lineage <input.compat> <input.lineage>\n       tinyrustlm-slm-pack blend-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <output.slm> <output.operator> [parent0-weight-ppm]\n       tinyrustlm-slm-pack validate-blend-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack crossover-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <output.slm> <output.operator> [crossover-seed] [parent0-keep-ppm]\n       tinyrustlm-slm-pack validate-crossover-candidate <input.compat> <input.lineage> <left-parent.slm> <right-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm]\n       tinyrustlm-slm-pack validate-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack sparse-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.slm> <output.operator> [delta-weight-ppm] [keep-ppm]\n       tinyrustlm-slm-pack validate-sparse-delta-candidate <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.adapter> <output.adapter.manifest>\n       tinyrustlm-slm-pack validate-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest>\n       tinyrustlm-slm-pack sparse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <output.adapter> <output.adapter.manifest> [delta-weight-ppm] [keep-ppm]\n       tinyrustlm-slm-pack validate-sparse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest>\n       tinyrustlm-slm-pack fuse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest> <output.slm> <output.operator>\n       tinyrustlm-slm-pack validate-fuse-adapter-delta <input.compat> <input.lineage> <base-parent.slm> <target-parent.slm> <input.adapter> <input.adapter.manifest> <candidate.slm> <input.operator>\n       tinyrustlm-slm-pack candidate-manifest <input.compat> <input.lineage> <candidate.slm> <output.candidate>\n       tinyrustlm-slm-pack validate-candidate <input.compat> <input.lineage> <candidate.slm> <input.candidate>\n       tinyrustlm-slm-pack promotion-template <input.compat> <input.lineage> <candidate.slm> <input.candidate> <output.promotion> [promoter-id] [promotion-scope]\n       tinyrustlm-slm-pack validate-promotion <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion>\n       tinyrustlm-slm-pack admission-record <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion> <input.manifest> <input.runtime> <input.eval> <output.admission> [selector-id]\n       tinyrustlm-slm-pack validate-admission <input.compat> <input.lineage> <candidate.slm> <input.candidate> <input.promotion> <input.manifest> <input.runtime> <input.eval> <input.admission>\n       tinyrustlm-slm-pack promotion-ledger <output.ledger> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-promotion-ledger <input.ledger> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack selector-registry <output.registry> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack validate-selector-registry <input.registry> <input.admission> [...input.admission]\n       tinyrustlm-slm-pack manifest <input.slm> <output.manifest> [deterministic-smoke|converted-trained]\n       tinyrustlm-slm-pack validate-manifest <input.slm> <input.manifest>\n       tinyrustlm-slm-pack runtime-smoke <input.slm> <input.manifest> <output.runtime>\n       tinyrustlm-slm-pack validate-runtime-smoke <input.slm> <input.manifest> <input.runtime>\n       tinyrustlm-slm-pack eval-template <input.slm> <input.manifest> <output.eval> [assistant-quality]\n       tinyrustlm-slm-pack quality-gate <input.slm> <input.manifest> <runtime-smoke|assistant-quality> [input.eval]\n       tinyrustlm-slm-pack source-template <output-source-dir> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]\n       tinyrustlm-slm-pack validate-source <input-source-dir>\n       tinyrustlm-slm-pack convert-trained <input-source-dir> <output.slm> [f32|q8_0|q4_0]"
+        ,
+        "\n       tinyrustlm-slm-pack inspect-huggingface-conversion-request <request.json> [output.report]"
+        ,
+        "\n       tinyrustlm-slm-pack write-gguf-q8-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
+        ,
+        "\n       tinyrustlm-slm-pack write-gguf-q8-1-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
+        ,
+        "\n       tinyrustlm-slm-pack write-gguf-q8-k-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
+        ,
+        "\n       tinyrustlm-slm-pack write-gguf-q2-k-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
+        ,
+        "\n       tinyrustlm-slm-pack write-gguf-q3-k-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
+        ,
+        "\n       tinyrustlm-slm-pack write-gguf-q6-k-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
+        ,
+        "\n       tinyrustlm-slm-pack write-gguf-q4-k-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
+        ,
+        "\n       tinyrustlm-slm-pack write-gguf-q4-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
+        ,
+        "\n       tinyrustlm-slm-pack write-gguf-q4-1-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
+        ,
+        "\n       tinyrustlm-slm-pack write-gguf-q5-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
+        ,
+        "\n       tinyrustlm-slm-pack write-gguf-q5-1-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
+        ,
+        "\n       tinyrustlm-slm-pack write-gguf-q5-k-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
+    )
 }
 
 pub(crate) fn build_model_file(
@@ -4288,6 +4553,9 @@ mod tests {
         assert!(usage.contains(
             "convert-huggingface-request <request.json> <input.safetensors-or-directory> <output-dir> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe] [f32|q8_0|q4_0]"
         ));
+        assert!(
+            usage.contains("inspect-huggingface-conversion-request <request.json> [output.report]")
+        );
         assert!(usage.contains(
             "inspect-huggingface-conversion-receipt <receipt> <request.json> <preflight> <output.slm> <output.manifest>"
         ));
@@ -4300,6 +4568,42 @@ mod tests {
         assert!(usage.contains("write-gguf-fixture <output.gguf>"));
         assert!(usage.contains(
             "write-gguf-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
+        ));
+        assert!(usage.contains(
+            "write-gguf-q8-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
+        ));
+        assert!(usage.contains(
+            "write-gguf-q8-1-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
+        ));
+        assert!(usage.contains(
+            "write-gguf-q8-k-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
+        ));
+        assert!(usage.contains(
+            "write-gguf-q2-k-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
+        ));
+        assert!(usage.contains(
+            "write-gguf-q3-k-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
+        ));
+        assert!(usage.contains(
+            "write-gguf-q6-k-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
+        ));
+        assert!(usage.contains(
+            "write-gguf-q4-k-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
+        ));
+        assert!(usage.contains(
+            "write-gguf-q4-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
+        ));
+        assert!(usage.contains(
+            "write-gguf-q4-1-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
+        ));
+        assert!(usage.contains(
+            "write-gguf-q5-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
+        ));
+        assert!(usage.contains(
+            "write-gguf-q5-1-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
+        ));
+        assert!(usage.contains(
+            "write-gguf-q5-k-source-fixture <output.gguf> [tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe]"
         ));
         assert!(usage.contains(
             "browser-safetensors-trained-bundle <output-tinyrustlm-root> <input.safetensors> <tiny-fixture|tiny-fixture-tied|tiny-fixture-bpe|tinylm16|tinylm16-tied|tinylm16-bpe> <output-source-dir> [f32|q8_0|q4_0|all] [eval-cases.txt|candidate.review] [candidate-review]"

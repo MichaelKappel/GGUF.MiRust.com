@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>TinyRustLM.P2P</PackageId>
+    <Title>TinyRustLM Public P2P SDK</Title>
+    <Description>Metadata-bound TinyRustLM P2P share/import workflows for public .slm adoption.</Description>
+    <IsPackable>true</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\TinyRustLM.Abstractions\TinyRustLM.Abstractions.csproj" />
+    <ProjectReference Include="..\TinyRustLM.Core\TinyRustLM.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\docs\nuget\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\..\docs\nuget\P2P_SHARE_FLOW.md" Pack="true" PackagePath="docs\" />
+    <None Include="..\..\..\docs\nuget\API_BOUNDARY.md" Pack="true" PackagePath="docs\" />
+  </ItemGroup>
+</Project>

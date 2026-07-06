@@ -24,17 +24,23 @@ const hfP2pImportKitExecSmokeMode = smokeMode === "hf-p2p-import-kit-exec";
 const hfP2pImportReceiptRejectSmokeMode = smokeMode === "hf-p2p-import-receipt-reject";
 const hfLocalCatalogSmokeMode = smokeMode === "hf-local-catalog-ui";
 const hfPeerAnnouncementSmokeMode = smokeMode === "hf-peer-announcement-ui";
+const hfPeerAnnouncementRejectSmokeMode = smokeMode === "hf-peer-announcement-reject-ui";
+const hfPeerAnnouncementBudgetSmokeMode = smokeMode === "hf-peer-announcement-budget-ui";
 const hfPeerContactCardSmokeMode = smokeMode === "hf-peer-contact-card-ui";
 const hfPeerContactCardRejectSmokeMode = smokeMode === "hf-peer-contact-card-reject-ui";
 const hfPeerContactBookSmokeMode = smokeMode === "hf-peer-contact-book-ui";
 const hfPeerContactBookRejectSmokeMode = smokeMode === "hf-peer-contact-book-reject-ui";
+const hfPeerCompanionInventorySmokeMode = smokeMode === "hf-peer-companion-inventory-ui";
 const hfCatalogAnnouncementRouteSmokeMode = smokeMode === "hf-catalog-announcement-route-ui";
 const hfEmptyCatalogAnnouncementRouteSmokeMode = smokeMode === "hf-empty-catalog-announcement-route-ui";
+const hfCatalogAnnouncementRouteBudgetSmokeMode = smokeMode === "hf-catalog-announcement-route-budget-ui";
 const hfTinySourceFixtureSha256 = "e90abc2f35e60239a0efb0dd7f446d7ff464ca5ac3513b2ca87b4b922b184e9a";
 const hfTinySourceFixtureByteCount = 68204618;
 const hfHugeSourceShardOneSha256 = "2222222222222222222222222222222222222222222222222222222222222222";
 const hfHugeSourceShardTwoSha256 = "3333333333333333333333333333333333333333333333333333333333333333";
 const hfHugeSourceShardByteCount = 5368709120;
+const hfGgufSourceSha256 = "4444444444444444444444444444444444444444444444444444444444444444";
+const hfGgufSourceByteCount = 268435456;
 const smokePeerBindAddr = "127.0.0.1:8123";
 const smokePeerBaseUrl = `http://${smokePeerBindAddr}/peer-pieces/`;
 const smokeBackupPeerBaseUrl = "http://127.0.0.1:8124/peer-pieces/";
@@ -1700,6 +1706,13 @@ function hfPeerSourceAnnouncementFeed(options = {}) {
   };
 }
 
+function hfOversizedPeerSourceAnnouncementFeed() {
+  return {
+    ...hfPeerSourceAnnouncementFeed({ empty: true }),
+    budget_probe_padding: "x".repeat((256 * 1024) + 1)
+  };
+}
+
 function hfCatalogAnnouncementRouteSnapshot(options = {}) {
   const catalog = hfProofReadyCatalogSnapshot("browser-smoke-catalog-announcement-route");
   const feed = hfPeerSourceAnnouncementFeed(options);
@@ -1779,6 +1792,23 @@ function installHfSearchUiInterceptor(client) {
               { rfilename: "pytorch_model.bin", size: 4096 },
               { rfilename: "README.md" }
             ]
+          },
+          {
+            modelId: "example-org/unquantized-gguf-model",
+            downloads: 9,
+            likes: 1,
+            siblings: [
+              { rfilename: "config.json" },
+              {
+                rfilename: "model-f16.gguf",
+                size: hfGgufSourceByteCount,
+                lfs: {
+                  oid: hfGgufSourceSha256,
+                  size: hfGgufSourceByteCount
+                }
+              },
+              { rfilename: "tokenizer.json" }
+            ]
           }
         ]);
         return;
@@ -1787,14 +1817,20 @@ function installHfSearchUiInterceptor(client) {
         await fulfillJsonRequest(
           client,
           params.requestId,
-          hfCatalogAnnouncementRouteSmokeMode || hfEmptyCatalogAnnouncementRouteSmokeMode
+          hfCatalogAnnouncementRouteSmokeMode || hfEmptyCatalogAnnouncementRouteSmokeMode || hfCatalogAnnouncementRouteBudgetSmokeMode
             ? hfCatalogAnnouncementRouteSnapshot({ empty: hfEmptyCatalogAnnouncementRouteSmokeMode })
             : hfReadyCatalogSnapshot("browser-smoke-default-catalog")
         );
         return;
       }
       if (/^https?:\/\/minimodel\.org\/catalog\/peer-source-announcements\.v0\.json\b/i.test(requestUrl)) {
-        await fulfillJsonRequest(client, params.requestId, hfPeerSourceAnnouncementFeed({ empty: hfEmptyCatalogAnnouncementRouteSmokeMode }));
+        await fulfillJsonRequest(
+          client,
+          params.requestId,
+          hfCatalogAnnouncementRouteBudgetSmokeMode
+            ? hfOversizedPeerSourceAnnouncementFeed()
+            : hfPeerSourceAnnouncementFeed({ empty: hfEmptyCatalogAnnouncementRouteSmokeMode })
+        );
         return;
       }
       await continuePausedRequest(client, params.requestId);
@@ -2253,6 +2289,12 @@ async function runPageLocalConnectApprovalSmoke(client) {
       const selectedSimpleStatus = byId("simpleLocalConnectStatus").textContent;
       setSelect(byId("localConnectApprovalMode"), "full");
       await sleep(80);
+      const fullNeedsAckPolicy = parsePolicy();
+      const fullNeedsAckStatus = byId("localConnectPolicyStatus").textContent;
+      const fullAckVisible = visible(byId("localConnectFullControlAck"));
+      const fullAckDisabledBeforeClick = byId("localConnectFullControlAck").disabled;
+      byId("localConnectFullControlAck").click();
+      await sleep(80);
       const fullPolicy = parsePolicy();
       const fullWarning = byId("localConnectModeWarning").textContent;
       const fullWarningIsError = byId("localConnectModeWarning").classList.contains("error");
@@ -2275,6 +2317,10 @@ async function runPageLocalConnectApprovalSmoke(client) {
         selectedPolicy,
         selectedStatus,
         selectedSimpleStatus,
+        fullNeedsAckPolicy,
+        fullNeedsAckStatus,
+        fullAckVisible,
+        fullAckDisabledBeforeClick,
         fullPolicy,
         fullWarning,
         fullWarningIsError,
@@ -2420,9 +2466,11 @@ async function runPageLocalConnectEndpointSmoke(client, endpointUrl) {
       const actionStatus = await waitForStatus("Endpoint action dry run:");
       const actionIsError = byId("localConnectEndpointStatus").classList.contains("error");
       const endpointAppRows = Array.from(document.querySelectorAll(".local-connect-endpoint-app")).map((row) => row.textContent.replace(/\\s+/g, " ").trim());
+      const approveWinword = document.querySelector('[data-local-connect-app-action="approve-app"][data-local-connect-app-name="winword.exe"]');
       const approvePowerShell = document.querySelector('[data-local-connect-app-action="approve-app"][data-local-connect-app-name="powershell.exe"]');
-      if (approvePowerShell) {
-        approvePowerShell.click();
+      const terminalAppApprovalDisabled = approvePowerShell ? approvePowerShell.disabled : false;
+      if (approveWinword) {
+        approveWinword.click();
         await sleep(80);
       }
       const blockSecrets = document.querySelector('[data-local-connect-app-action="block-category"][data-local-connect-category="secrets"]');
@@ -2440,6 +2488,10 @@ async function runPageLocalConnectEndpointSmoke(client, endpointUrl) {
       const endpointAppRowsAfterAppButtons = Array.from(document.querySelectorAll(".local-connect-endpoint-app")).map((row) => row.textContent.replace(/\\s+/g, " ").trim());
       setSelect(byId("localConnectApprovalMode"), "full");
       await sleep(80);
+      if (byId("localConnectFullControlAck") && !byId("localConnectFullControlAck").checked) {
+        byId("localConnectFullControlAck").click();
+        await sleep(80);
+      }
       let fullPolicyAfterEndpointRows = null;
       try {
         fullPolicyAfterEndpointRows = JSON.parse(byId("localConnectPolicyPreview").textContent || "null");
@@ -2473,6 +2525,7 @@ async function runPageLocalConnectEndpointSmoke(client, endpointUrl) {
         endpointAppRows,
         endpointAppRowsAfterAppButtons,
         endpointAppRowsFullMode,
+        terminalAppApprovalDisabled,
         appButtonStatus,
         policyAfterAppButtons,
         fullPolicyAfterEndpointRows,
@@ -2706,6 +2759,10 @@ async function runPageHfSearchUiSmoke(client) {
         .filter((node) => node.textContent.includes("Source file listed: model.safetensors")).length;
       const advancedSourceHintCountAfterSearch = Array.from(document.querySelectorAll("#hfResults .model-result-meta"))
         .filter((node) => node.textContent.includes("Source file listed: model.safetensors")).length;
+      const simpleGgufHintCountAfterSearch = Array.from(document.querySelectorAll("#simpleHfResults .model-result-meta"))
+        .filter((node) => node.textContent.includes("GGUF file listed: model-f16.gguf")).length;
+      const advancedGgufHintCountAfterSearch = Array.from(document.querySelectorAll("#hfResults .model-result-meta"))
+        .filter((node) => node.textContent.includes("GGUF file listed: model-f16.gguf")).length;
       const p2pWarningCount = document.querySelectorAll("#simpleHfP2pWarning").length;
       const peerUrlStatusBeforeImport = byId("simplePeerUrlStatus") ? byId("simplePeerUrlStatus").textContent : "";
       const p2pImportButton = Array.from(document.querySelectorAll("#simpleHfResults .primary-result-action"))
@@ -2750,10 +2807,12 @@ async function runPageHfSearchUiSmoke(client) {
       const requestDownload = conversionRequestIndex >= 0 ? conversionDownloads[conversionRequestIndex] : { text: "", type: "" };
       const scriptDownload = conversionScriptIndex >= 0 ? conversionDownloads[conversionScriptIndex] : { text: "", type: "" };
       const readmeDownload = conversionReadmeIndex >= 0 ? conversionDownloads[conversionReadmeIndex] : { text: "", type: "" };
+      const statusAfterStartConversion = byId("simpleDiscoveryStatus") ? byId("simpleDiscoveryStatus").textContent : "";
+      const hfStatusAfterStartConversion = byId("hfStatus") ? byId("hfStatus").textContent : "";
       window.__tinyrustlmDownloads = [];
       window.__tinyrustlmDownloadNames = [];
       const reviewConversionButton = Array.from(document.querySelectorAll("#simpleHfResults .primary-result-action"))
-        .find((button) => button.textContent.includes("Review Conversion"));
+        .find((button) => button.textContent.includes("Review Conversion") && button.closest("li") && button.closest("li").textContent.includes("example-org/huge-source-model"));
       if (reviewConversionButton) {
         reviewConversionButton.click();
         for (let index = 0; index < 120; index += 1) {
@@ -2771,6 +2830,27 @@ async function runPageHfSearchUiSmoke(client) {
       const reviewRequestDownload = reviewConversionRequestIndex >= 0 ? reviewConversionDownloads[reviewConversionRequestIndex] : { text: "", type: "" };
       const reviewScriptDownload = reviewConversionScriptIndex >= 0 ? reviewConversionDownloads[reviewConversionScriptIndex] : { text: "", type: "" };
       const reviewReadmeDownload = reviewConversionReadmeIndex >= 0 ? reviewConversionDownloads[reviewConversionReadmeIndex] : { text: "", type: "" };
+      window.__tinyrustlmDownloads = [];
+      window.__tinyrustlmDownloadNames = [];
+      const ggufReviewConversionButton = Array.from(document.querySelectorAll("#simpleHfResults .primary-result-action"))
+        .find((button) => button.textContent.includes("Review Conversion") && button.closest("li") && button.closest("li").textContent.includes("example-org/unquantized-gguf-model"));
+      if (ggufReviewConversionButton) {
+        ggufReviewConversionButton.click();
+        for (let index = 0; index < 120; index += 1) {
+          if (window.__tinyrustlmDownloads.length >= 3 && window.__tinyrustlmDownloads.every((item) => item.text)) {
+            break;
+          }
+          await sleep(50);
+        }
+      }
+      const ggufConversionDownloadNames = window.__tinyrustlmDownloadNames.slice();
+      const ggufConversionDownloads = window.__tinyrustlmDownloads.slice();
+      const ggufConversionRequestIndex = ggufConversionDownloadNames.findIndex((name) => name.endsWith(".minimodel-conversion-request.json"));
+      const ggufConversionScriptIndex = ggufConversionDownloadNames.findIndex((name) => name.endsWith(".tinyrustlm-convert.ps1"));
+      const ggufConversionReadmeIndex = ggufConversionDownloadNames.findIndex((name) => name.endsWith(".tinyrustlm-conversion.README.txt"));
+      const ggufRequestDownload = ggufConversionRequestIndex >= 0 ? ggufConversionDownloads[ggufConversionRequestIndex] : { text: "", type: "" };
+      const ggufScriptDownload = ggufConversionScriptIndex >= 0 ? ggufConversionDownloads[ggufConversionScriptIndex] : { text: "", type: "" };
+      const ggufReadmeDownload = ggufConversionReadmeIndex >= 0 ? ggufConversionDownloads[ggufConversionReadmeIndex] : { text: "", type: "" };
       window.__tinyrustlmDownloads = [];
       window.__tinyrustlmDownloadNames = [];
       if (byId("simpleHfP2pToggle")) {
@@ -2809,6 +2889,8 @@ async function runPageHfSearchUiSmoke(client) {
         primaryActionTextsAfterSearch,
         simpleSourceHintCountAfterSearch,
         advancedSourceHintCountAfterSearch,
+        simpleGgufHintCountAfterSearch,
+        advancedGgufHintCountAfterSearch,
         p2pWarningCount,
         peerImportDownloadNames,
         peerImportRequestText: peerImportDownloads[0] ? peerImportDownloads[0].text : "",
@@ -2846,6 +2928,8 @@ async function runPageHfSearchUiSmoke(client) {
         conversionReadmeName: conversionReadmeIndex >= 0 ? conversionDownloadNames[conversionReadmeIndex] : "",
         conversionReadmeText: readmeDownload.text || "",
         conversionReadmeType: readmeDownload.type || "",
+        statusAfterStartConversion,
+        hfStatusAfterStartConversion,
         reviewConversionDownloadNames,
         reviewConversionRequestName: reviewConversionRequestIndex >= 0 ? reviewConversionDownloadNames[reviewConversionRequestIndex] : "",
         reviewConversionRequestText: reviewRequestDownload.text || "",
@@ -2856,6 +2940,16 @@ async function runPageHfSearchUiSmoke(client) {
         reviewConversionReadmeName: reviewConversionReadmeIndex >= 0 ? reviewConversionDownloadNames[reviewConversionReadmeIndex] : "",
         reviewConversionReadmeText: reviewReadmeDownload.text || "",
         reviewConversionReadmeType: reviewReadmeDownload.type || "",
+        ggufConversionDownloadNames,
+        ggufConversionRequestName: ggufConversionRequestIndex >= 0 ? ggufConversionDownloadNames[ggufConversionRequestIndex] : "",
+        ggufConversionRequestText: ggufRequestDownload.text || "",
+        ggufConversionRequestType: ggufRequestDownload.type || "",
+        ggufConversionScriptName: ggufConversionScriptIndex >= 0 ? ggufConversionDownloadNames[ggufConversionScriptIndex] : "",
+        ggufConversionScriptText: ggufScriptDownload.text || "",
+        ggufConversionScriptType: ggufScriptDownload.type || "",
+        ggufConversionReadmeName: ggufConversionReadmeIndex >= 0 ? ggufConversionDownloadNames[ggufConversionReadmeIndex] : "",
+        ggufConversionReadmeText: ggufReadmeDownload.text || "",
+        ggufConversionReadmeType: ggufReadmeDownload.type || "",
         bodyText: document.body ? document.body.textContent.replace(/\\s+/g, " ").trim() : ""
       });
     })()
@@ -2876,6 +2970,12 @@ async function runPageHfLocalCatalogSmoke(client, options = {}) {
       ? writeHfRejectedPeerContactCardFixture()
       : options.peerContactBookReject
       ? writeHfRejectedPeerContactBookFixture()
+      : options.peerCompanionInventory
+      ? writeHfPeerCompanionInventoryFixture()
+      : options.peerAnnouncementBudget
+      ? writeHfOversizedPeerAnnouncementFixture()
+      : options.peerAnnouncementReject
+      ? writeHfRejectedPeerAnnouncementFixture()
       : options.peerContactBook
       ? writeHfPeerContactBookFixture()
       : options.peerContactCard
@@ -2909,6 +3009,9 @@ async function runPageHfLocalCatalogSmoke(client, options = {}) {
             byId("simpleApplyPeerContactCardButton") &&
             byId("simplePeerContactBookFile") &&
             byId("simpleApplyPeerContactBookButton") &&
+            byId("simplePeerCompanionInventoryFile") &&
+            byId("simplePeerCompanionInventoryButton") &&
+            byId("simplePeerCompanionInventoryStatus") &&
             byId("simpleHfSearchButton")
           ) {
             return true;
@@ -2936,6 +3039,9 @@ async function runPageHfLocalCatalogSmoke(client, options = {}) {
     if (fixture && fixture.bookPath) {
       await setFileInputFiles(client, "#simplePeerContactBookFile", [fixture.bookPath]);
     }
+    if (fixture && fixture.inventoryPath) {
+      await setFileInputFiles(client, "#simplePeerCompanionInventoryFile", [fixture.inventoryPath]);
+    }
     const expression = `
       (async () => {
         const byId = (id) => document.getElementById(id);
@@ -2943,10 +3049,12 @@ async function runPageHfLocalCatalogSmoke(client, options = {}) {
         const textList = (selector) => Array.from(document.querySelectorAll(selector)).map((node) => node.textContent.replace(/\\s+/g, " ").trim());
         const remoteCatalogUrl = ${JSON.stringify(options.catalogUrl || "")};
         const shouldApplyAnnouncement = ${fixture && fixture.announcementPath ? "true" : "false"};
+        const shouldRejectAnnouncement = ${options.peerAnnouncementReject || options.peerAnnouncementBudget ? "true" : "false"};
         const shouldApplyPeerCard = ${fixture && fixture.cardPath ? "true" : "false"};
         const shouldRejectPeerCard = ${options.peerContactCardReject ? "true" : "false"};
         const shouldApplyPeerBook = ${fixture && fixture.bookPath ? "true" : "false"};
         const shouldRejectPeerBook = ${options.peerContactBookReject ? "true" : "false"};
+        const shouldApplyPeerInventory = ${fixture && fixture.inventoryPath ? "true" : "false"};
         const visible = (node) => {
           if (!node || node.closest("[hidden]")) {
             return false;
@@ -3006,7 +3114,13 @@ async function runPageHfLocalCatalogSmoke(client, options = {}) {
           byId("applyPeerAnnouncementButton").click();
           for (let index = 0; index < 120; index += 1) {
             const status = byId("catalogStatus").textContent || "";
-            if (status.includes("peer-source announcement") && status.includes("applied")) {
+            if ((!shouldRejectAnnouncement && status.includes("peer-source announcement") && status.includes("applied"))
+                || (shouldRejectAnnouncement && (status.includes("duplicated model id and peer URL")
+                  || status.includes("must declare")
+                  || status.includes("did not match")
+                  || status.includes("checksum")
+                  || status.includes("exceeded browser metadata budget")
+                  || status.includes("unsupported")))) {
               break;
             }
             await sleep(50);
@@ -3071,6 +3185,25 @@ async function runPageHfLocalCatalogSmoke(client, options = {}) {
             }
           }
         }
+        let peerInventoryStatus = "";
+        let peerInventorySummary = "";
+        if (shouldApplyPeerInventory) {
+          byId("modelEditButton").click();
+          await sleep(50);
+          byId("simpleP2pSourceButton").click();
+          await sleep(50);
+          byId("simplePeerCompanionInventoryFile").dispatchEvent(new Event("change", { bubbles: true }));
+          byId("simplePeerCompanionInventoryButton").click();
+          for (let index = 0; index < 120; index += 1) {
+            const status = byId("simplePeerUrlStatus") ? byId("simplePeerUrlStatus").textContent : "";
+            if (status.includes("Peer companion inventory loaded") && status.includes("known peer set")) {
+              break;
+            }
+            await sleep(50);
+          }
+          peerInventoryStatus = byId("simplePeerUrlStatus") ? byId("simplePeerUrlStatus").textContent : "";
+          peerInventorySummary = byId("simplePeerCompanionInventoryStatus") ? byId("simplePeerCompanionInventoryStatus").textContent : "";
+        }
         byId("modelEditButton").click();
         await sleep(50);
         byId("simpleHfSourceButton").click();
@@ -3113,6 +3246,10 @@ async function runPageHfLocalCatalogSmoke(client, options = {}) {
           peerBookStatus,
           peerBookRows,
           peerBookRowsAfterSelection,
+          peerInventoryStatus,
+          peerInventorySummary,
+          simplePeerBaseUrlValue: byId("simplePeerBaseUrlInput") ? byId("simplePeerBaseUrlInput").value : "",
+          storedPeerBaseUrl: window.localStorage.getItem("slmcomposer.ui.peerBaseUrl") || "",
           catalogResults,
           catalogResultsAfterAnnouncement,
           statusAfterSearch,
@@ -3296,6 +3433,48 @@ function writeHfPeerAnnouncementFixture() {
       project_server_proxies_model_bytes: false,
       announcements: [
         hfPeerSourceAnnouncement()
+      ]
+    }, null, 2)}\n`,
+    "utf8"
+  );
+  return { catalogDir, catalogPath, announcementPath };
+}
+
+function writeHfOversizedPeerAnnouncementFixture() {
+  const catalogDir = fs.mkdtempSync(path.join(os.tmpdir(), "tinyrustlm-hf-peer-announcement-budget-"));
+  const catalogPath = path.join(catalogDir, "models.v0.json");
+  const announcementPath = path.join(catalogDir, "peer-source-announcements.v0.json");
+  fs.writeFileSync(
+    catalogPath,
+    `${JSON.stringify(hfProofReadyCatalogSnapshot("browser-smoke-proof-ready-local-models-v0"), null, 2)}\n`,
+    "utf8"
+  );
+  fs.writeFileSync(announcementPath, Buffer.alloc((256 * 1024) + 1, 0x20));
+  return { catalogDir, catalogPath, announcementPath };
+}
+
+function writeHfRejectedPeerAnnouncementFixture() {
+  const catalogDir = fs.mkdtempSync(path.join(os.tmpdir(), "tinyrustlm-hf-peer-announcement-reject-"));
+  const catalogPath = path.join(catalogDir, "models.v0.json");
+  const announcementPath = path.join(catalogDir, "peer-source-announcements.v0.json");
+  fs.writeFileSync(
+    catalogPath,
+    `${JSON.stringify(hfProofReadyCatalogSnapshot("browser-smoke-proof-ready-local-models-v0"), null, 2)}\n`,
+    "utf8"
+  );
+  const announcement = hfPeerSourceAnnouncement();
+  fs.writeFileSync(
+    announcementPath,
+    `${JSON.stringify({
+      announcement_catalog_version: 0,
+      announcement_catalog_kind: "minimodel.peer_source_announcement_catalog",
+      announcement_catalog_id: "browser-smoke-rejected-peer-source-announcements",
+      project_server_serves_model_bytes: false,
+      project_server_runs_model_bytes: false,
+      project_server_proxies_model_bytes: false,
+      announcements: [
+        announcement,
+        announcement
       ]
     }, null, 2)}\n`,
     "utf8"
@@ -3705,6 +3884,7 @@ function peerCompanionInventoryFixtureBody() {
     piece_store: {
       directory_path: "tiny-test-model-q8.peer-pieces",
       piece_store_byte_count: 8832,
+      piece_store_sha256: "sha256:8888888888888888888888888888888888888888888888888888888888888888",
       piece_store_quota_bytes: 16384,
       quota_status: "within-quota",
       piece_store_user_controlled: true
@@ -3780,6 +3960,21 @@ function writePeerCompanionInventoryFixture() {
   fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`, "utf8");
   fs.writeFileSync(driftPath, `${JSON.stringify(drifted, null, 2)}\n`, "utf8");
   return { inventoryDir, inventoryPath, driftPath };
+}
+
+function writeHfPeerCompanionInventoryFixture() {
+  const fixture = writeHfPeerContactCardFixture();
+  const inventoryPath = path.join(fixture.catalogDir, "known-peer.inventory.json");
+  fs.writeFileSync(
+    inventoryPath,
+    `${JSON.stringify(peerCompanionInventoryFixtureBody(), null, 2)}\n`,
+    "utf8"
+  );
+  return {
+    ...fixture,
+    cardPath: "",
+    inventoryPath
+  };
 }
 
 function inspectShareMetadataDownloadsWithMiniModel(result) {
@@ -4503,6 +4698,9 @@ async function runPagePeerCompanionInventorySmoke(client) {
           simpleInventoryStatus: byId("simplePeerCompanionInventoryStatus").textContent,
           advancedInventoryStatus: byId("peerCompanionInventoryStatus").textContent,
           simpleDiscoveryStatus: byId("simpleDiscoveryStatus").textContent,
+          simplePeerUrlStatus: byId("simplePeerUrlStatus").textContent,
+          simplePeerBaseUrlValue: byId("simplePeerBaseUrlInput").value,
+          storedPeerBaseUrl: window.localStorage.getItem("slmcomposer.ui.peerBaseUrl"),
           panelOpen: visible(byId("simpleDiscoveryPanel")),
           p2pPanelHidden: byId("simpleP2pSourcePanel").hidden,
           bodyText: document.body.textContent.replace(/\\s+/g, " ").slice(0, 12000)
@@ -6260,17 +6458,34 @@ function localConnectEndpointSmokeCategories() {
 }
 
 function localConnectEndpointSmokePolicyText() {
+  const approvedApps = ["chrome.exe", "outlook.exe"];
+  const bindingByApp = {
+    "chrome.exe": ["browser", "Browsers", "medium", "Can read pages, submit forms, download files, and act inside signed-in browser sessions."],
+    "outlook.exe": ["email", "Email apps", "high", "Can read, send, delete, or forward messages and attachments."]
+  };
   return `${JSON.stringify({
     policy_kind: "tinyrustlm.local_connect_approval_policy.v0",
-    policy_version: 1,
+    policy_version: 2,
     approval_mode: "selected",
     approval_mode_label: "Always approve selected",
     full_local_control: false,
+    full_control_non_sensitive_machine_acknowledged: false,
     browser_local_storage_only: true,
     project_server_receives_policy: false,
     local_endpoint_must_enforce_policy: true,
     category_approval: Object.fromEntries(localConnectEndpointSmokeCategories().map(([category, , , , approval]) => [category, approval])),
-    approved_apps: ["chrome.exe", "outlook.exe"],
+    approved_apps: approvedApps,
+    approved_app_bindings: approvedApps.map((app) => {
+      const [category, categoryLabel, risk, warning] = bindingByApp[app];
+      return {
+        app,
+        category,
+        category_label: categoryLabel,
+        risk,
+        warning,
+        approval: "always"
+      };
+    }),
     risk_warnings: localConnectEndpointSmokeCategories().map(([category, label, risk, warning, approval]) => ({
       category,
       label,
@@ -6323,10 +6538,11 @@ function startLocalConnectEndpointSmokeServer() {
         status: "ready",
         bind_host: "127.0.0.1",
         policy_kind: "tinyrustlm.local_connect_approval_policy.v0",
-        policy_version: 1,
+        policy_version: 2,
         policy_sha256: policySha256,
         approval_mode: "selected",
         full_local_control: false,
+        full_control_non_sensitive_machine_acknowledged: false,
         approved_apps_count: 2,
         app_execution_endpoints: true,
         action_endpoint_path: "/v0/action",
@@ -6352,6 +6568,7 @@ function startLocalConnectEndpointSmokeServer() {
       const appRows = [
         ["chrome.exe", "browser", "approved-app", "allow", "category-always-approved"],
         ["outlook.exe", "email", "approved-app", "allow", "category-always-approved"],
+        ["winword.exe", "documents", "common-document", "ask", "not-selected"],
         ["powershell.exe", "terminal", "common-terminal", "ask", "not-selected"],
         ["bitwarden.exe", "secrets", "common-secrets", "ask", "not-selected"]
       ];
@@ -6429,6 +6646,7 @@ function startLocalConnectEndpointSmokeServer() {
           endpoint_kind: "tinyrustlm.local_connect_endpoint.v0",
           policy_status: "validated",
           policy_sha256: policySha256,
+          action_request_sha256: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
           decision: "allow",
           reason: "category-always-approved",
           category: parsed.category || "",
@@ -11233,7 +11451,7 @@ function assertLocalConnectApprovalSmoke(result, networkRequests) {
       failures.push(`terminal category did not carry critical-risk styling: ${JSON.stringify(rows)}`);
     }
     const initial = result.initialPolicy || {};
-    if (initial.policy_kind !== "tinyrustlm.local_connect_approval_policy.v0" || initial.approval_mode !== "ask" || initial.full_local_control !== false) {
+    if (initial.policy_kind !== "tinyrustlm.local_connect_approval_policy.v0" || initial.approval_mode !== "ask" || initial.full_local_control !== false || initial.full_control_non_sensitive_machine_acknowledged !== false) {
       failures.push(`initial approval policy was ${JSON.stringify(initial)}`);
     }
     if (!initial.category_approval || Object.values(initial.category_approval).some((value) => value !== "ask")) {
@@ -11242,6 +11460,9 @@ function assertLocalConnectApprovalSmoke(result, networkRequests) {
     if (Array.isArray(initial.approved_apps) && initial.approved_apps.length !== 0) {
       failures.push(`initial approved apps were not empty: ${JSON.stringify(initial.approved_apps)}`);
     }
+    if (Array.isArray(initial.approved_app_bindings) && initial.approved_app_bindings.length !== 0) {
+      failures.push(`initial approved app bindings were not empty: ${JSON.stringify(initial.approved_app_bindings)}`);
+    }
     const preset = result.presetPolicy || {};
     if (preset.approval_mode !== "selected" || !preset.category_approval || preset.category_approval.browser !== "always" || preset.category_approval.email !== "always") {
       failures.push(`browser/email trust preset did not set category approvals: ${JSON.stringify(preset)}`);
@@ -11249,12 +11470,15 @@ function assertLocalConnectApprovalSmoke(result, networkRequests) {
     if (result.browserSelectValueAfterPreset !== "always" || result.emailSelectValueAfterPreset !== "always") {
       failures.push(`browser/email dropdowns did not reflect preset: ${result.browserSelectValueAfterPreset} / ${result.emailSelectValueAfterPreset}`);
     }
-    if (!String(result.presetStatus || "").includes("Browsers and email apps") || !String(result.presetEndpointStatus || "").includes("restart Local Connect")) {
+    if (!String(result.presetStatus || "").includes("Browsers and email apps") || !String(result.presetEndpointStatus || "").includes("watched policy file")) {
       failures.push(`browser/email trust preset status was ${result.presetStatus} / ${result.presetEndpointStatus}`);
     }
     const selected = result.selectedPolicy || {};
     if (selected.approval_mode !== "selected") {
       failures.push(`selected approval mode was ${selected.approval_mode}`);
+    }
+    if (selected.full_control_non_sensitive_machine_acknowledged !== false) {
+      failures.push(`selected policy unexpectedly carried full-control acknowledgement: ${JSON.stringify(selected)}`);
     }
     if (!selected.category_approval || selected.category_approval.browser !== "always" || selected.category_approval.email !== "always") {
       failures.push(`browser/email preset approvals were not saved: ${JSON.stringify(selected.category_approval)}`);
@@ -11262,22 +11486,40 @@ function assertLocalConnectApprovalSmoke(result, networkRequests) {
     if (!Array.isArray(selected.approved_apps) || selected.approved_apps.length !== 2 || !selected.approved_apps.includes("chrome.exe") || !selected.approved_apps.includes("outlook.exe")) {
       failures.push(`approved apps were not normalized and deduped: ${JSON.stringify(selected.approved_apps)}`);
     }
+    if (!Array.isArray(selected.approved_app_bindings)
+        || !selected.approved_app_bindings.some((binding) => binding.app === "chrome.exe" && binding.category === "browser" && binding.risk === "medium")
+        || !selected.approved_app_bindings.some((binding) => binding.app === "outlook.exe" && binding.category === "email" && binding.risk === "high")) {
+      failures.push(`approved app bindings were not category-bound: ${JSON.stringify(selected.approved_app_bindings)}`);
+    }
     if (!String(result.selectedStatus || "").includes("Always approve selected") || !String(result.selectedSimpleStatus || "").includes("Always approve selected")) {
       failures.push(`selected status text was ${result.selectedStatus} / ${result.selectedSimpleStatus}`);
     }
+    const fullNeedsAck = result.fullNeedsAckPolicy || {};
+    if (fullNeedsAck.approval_mode !== "full" || fullNeedsAck.full_control_non_sensitive_machine_acknowledged !== false) {
+      failures.push(`full-control policy did not start unacknowledged: ${JSON.stringify(fullNeedsAck)}`);
+    }
+    if (!result.fullAckVisible || result.fullAckDisabledBeforeClick) {
+      failures.push(`full-control acknowledgement checkbox state was visible=${result.fullAckVisible} disabled=${result.fullAckDisabledBeforeClick}`);
+    }
+    if (!String(result.fullNeedsAckStatus || "").includes("needs non-sensitive machine acknowledgement")) {
+      failures.push(`full-control unacknowledged status was ${result.fullNeedsAckStatus}`);
+    }
     const full = result.fullPolicy || {};
-    if (full.approval_mode !== "full" || full.full_local_control !== true) {
+    if (full.approval_mode !== "full" || full.full_local_control !== true || full.full_control_non_sensitive_machine_acknowledged !== true) {
       failures.push(`full-control policy was ${JSON.stringify(full)}`);
     }
     if (!String(result.fullWarning || "").includes("High risk") || !String(result.fullStatus || "").includes("non-sensitive computer") || !result.fullWarningIsError) {
       failures.push(`full-control warning/status was ${result.fullWarning} / ${result.fullStatus} / ${result.fullWarningIsError}`);
     }
     const reset = result.resetPolicy || {};
-    if (reset.approval_mode !== "ask" || reset.full_local_control !== false || !reset.category_approval || Object.values(reset.category_approval).some((value) => value !== "ask")) {
+    if (reset.approval_mode !== "ask" || reset.full_local_control !== false || reset.full_control_non_sensitive_machine_acknowledged !== false || !reset.category_approval || Object.values(reset.category_approval).some((value) => value !== "ask")) {
       failures.push(`reset policy did not return to ask-only: ${JSON.stringify(reset)}`);
     }
     if (!Array.isArray(reset.approved_apps) || reset.approved_apps.length !== 0 || !String(result.resetStatus || "").includes("Reset to ask")) {
       failures.push(`reset status/apps were ${result.resetStatus} / ${JSON.stringify(reset.approved_apps)}`);
+    }
+    if (!Array.isArray(reset.approved_app_bindings) || reset.approved_app_bindings.length !== 0) {
+      failures.push(`reset approved app bindings were ${JSON.stringify(reset.approved_app_bindings)}`);
     }
     if (!Array.isArray(selected.risk_warnings) || !selected.risk_warnings.some((warning) => warning.category === "email" && warning.risk === "high") || !selected.risk_warnings.some((warning) => warning.category === "secrets" && warning.risk === "critical")) {
       failures.push(`risk warnings were incomplete: ${JSON.stringify(selected.risk_warnings)}`);
@@ -11319,7 +11561,7 @@ function assertLocalConnectEndpointSmoke(result, networkRequests, endpointServer
     if (!String(result.decisionStatus || "").includes("Endpoint decision: allow") || !String(result.decisionStatus || "").includes("policy digest matched") || !String(result.decisionStatus || "").includes("no app execution performed") || result.decisionIsError) {
       failures.push(`endpoint decision status was ${result.decisionStatus} / error=${result.decisionIsError}`);
     }
-    if (!String(result.actionStatus || "").includes("Endpoint action dry run: allow open-url") || !String(result.actionStatus || "").includes("no app execution performed") || result.actionIsError) {
+    if (!String(result.actionStatus || "").includes("Endpoint action dry run: allow open-url") || !String(result.actionStatus || "").includes("request fingerprint sha256:") || !String(result.actionStatus || "").includes("no app execution performed") || result.actionIsError) {
       failures.push(`endpoint action dry-run status was ${result.actionStatus} / error=${result.actionIsError}`);
     }
     if (!String(result.mismatchStatus || "").includes("policy digest does not match") || !result.mismatchIsError) {
@@ -11338,6 +11580,9 @@ function assertLocalConnectEndpointSmoke(result, networkRequests, endpointServer
     if (!appRows.some((row) => row.includes("powershell.exe") && row.includes("Terminal and scripts") && row.includes("critical risk") && row.includes("ask"))) {
       failures.push(`endpoint app rows did not render terminal risk/decision: ${JSON.stringify(appRows)}`);
     }
+    if (!appRows.some((row) => row.includes("powershell.exe") && row.includes("Category risk only"))) {
+      failures.push(`terminal app row did not disable app-level approval: ${JSON.stringify(appRows)}`);
+    }
     if (!appRows.some((row) => row.includes("Found locally") || row.includes("found locally") || row.includes("Approved app") || row.includes("Common app"))) {
       failures.push(`endpoint app rows did not render inventory source labels: ${JSON.stringify(appRows)}`);
     }
@@ -11348,15 +11593,24 @@ function assertLocalConnectEndpointSmoke(result, networkRequests, endpointServer
       failures.push(`endpoint app rows did not render visible risk warnings: ${JSON.stringify(appRows)}`);
     }
     const policyAfterAppButtons = result.policyAfterAppButtons || {};
-    if (!Array.isArray(policyAfterAppButtons.approved_apps) || !policyAfterAppButtons.approved_apps.includes("powershell.exe")) {
-      failures.push(`app-list approve button did not add powershell.exe: ${JSON.stringify(policyAfterAppButtons.approved_apps)}`);
+    if (!Array.isArray(policyAfterAppButtons.approved_apps) || !policyAfterAppButtons.approved_apps.includes("winword.exe") || policyAfterAppButtons.approved_apps.includes("powershell.exe")) {
+      failures.push(`app-list approve button did not add only winword.exe: ${JSON.stringify(policyAfterAppButtons.approved_apps)}`);
+    }
+    if (!Array.isArray(policyAfterAppButtons.approved_app_bindings) || !policyAfterAppButtons.approved_app_bindings.some((binding) => binding.app === "winword.exe" && binding.category === "documents")) {
+      failures.push(`app-list approve button did not write document binding: ${JSON.stringify(policyAfterAppButtons.approved_app_bindings)}`);
+    }
+    if (result.terminalAppApprovalDisabled !== true) {
+      failures.push("terminal app-level approval button was not disabled");
     }
     if (!policyAfterAppButtons.category_approval || policyAfterAppButtons.category_approval.secrets !== "deny") {
       failures.push(`app-list block button did not deny secrets: ${JSON.stringify(policyAfterAppButtons.category_approval)}`);
     }
     const appRowsAfterButtons = Array.isArray(result.endpointAppRowsAfterAppButtons) ? result.endpointAppRowsAfterAppButtons : [];
-    if (!appRowsAfterButtons.some((row) => row.includes("powershell.exe") && row.includes("App approved") && row.includes("allow"))) {
+    if (!appRowsAfterButtons.some((row) => row.includes("winword.exe") && row.includes("App approved") && row.includes("allow"))) {
       failures.push(`approved app row did not update locally: ${JSON.stringify(appRowsAfterButtons)}`);
+    }
+    if (!appRowsAfterButtons.some((row) => row.includes("powershell.exe") && row.includes("Category risk only") && row.includes("ask"))) {
+      failures.push(`terminal row did not remain category-governed: ${JSON.stringify(appRowsAfterButtons)}`);
     }
     if (!appRowsAfterButtons.some((row) => row.includes("bitwarden.exe") && row.includes("Category blocked") && row.includes("deny"))) {
       failures.push(`blocked category row did not update locally: ${JSON.stringify(appRowsAfterButtons)}`);
@@ -11365,7 +11619,7 @@ function assertLocalConnectEndpointSmoke(result, networkRequests, endpointServer
       failures.push(`app-list button status was ${result.appButtonStatus}`);
     }
     const fullPolicyAfterEndpointRows = result.fullPolicyAfterEndpointRows || {};
-    if (fullPolicyAfterEndpointRows.approval_mode !== "full" || fullPolicyAfterEndpointRows.full_local_control !== true) {
+    if (fullPolicyAfterEndpointRows.approval_mode !== "full" || fullPolicyAfterEndpointRows.full_local_control !== true || fullPolicyAfterEndpointRows.full_control_non_sensitive_machine_acknowledged !== true) {
       failures.push(`endpoint-row full-control policy was ${JSON.stringify(fullPolicyAfterEndpointRows)}`);
     }
     if (!String(result.fullStatusAfterEndpointRows || "").includes("non-sensitive computer") || !String(result.fullWarningAfterEndpointRows || "").includes("High risk")) {
@@ -11388,21 +11642,29 @@ function assertLocalConnectEndpointSmoke(result, networkRequests, endpointServer
     if (policyDownloadSha256 !== localConnectEndpointSmokePolicySha256()) {
       failures.push(`endpoint policy download digest was ${policyDownloadSha256}`);
     }
-    if (!String(result.policyStatusAfterDownload || "").includes("Endpoint policy JSON saved") || !String(result.endpointStatusAfterDownload || "").includes("Endpoint policy JSON saved")) {
+    if (!String(result.policyStatusAfterDownload || "").includes("Endpoint policy JSON saved")
+        || !String(result.endpointStatusAfterDownload || "").includes("Endpoint policy JSON saved")
+        || !String(result.endpointStatusAfterDownload || "").includes("watched policy file")) {
       failures.push(`endpoint policy save statuses were ${result.policyStatusAfterDownload} / ${result.endpointStatusAfterDownload}`);
     }
     const policy = result.policyDownloadJson || {};
-    if (policy.policy_kind !== "tinyrustlm.local_connect_approval_policy.v0" || policy.policy_version !== 1) {
+    if (policy.policy_kind !== "tinyrustlm.local_connect_approval_policy.v0" || policy.policy_version !== 2) {
       failures.push(`endpoint policy JSON kind/version was ${JSON.stringify(policy)}`);
     }
-    if (policy.approval_mode !== "selected" || policy.full_local_control !== false) {
-      failures.push(`endpoint policy mode was ${JSON.stringify({ approval_mode: policy.approval_mode, full_local_control: policy.full_local_control })}`);
+    if (policy.approval_mode !== "selected" || policy.full_local_control !== false || policy.full_control_non_sensitive_machine_acknowledged !== false) {
+      failures.push(`endpoint policy mode was ${JSON.stringify({ approval_mode: policy.approval_mode, full_local_control: policy.full_local_control, full_control_non_sensitive_machine_acknowledged: policy.full_control_non_sensitive_machine_acknowledged })}`);
     }
     if (!policy.category_approval || policy.category_approval.browser !== "always" || policy.category_approval.email !== "always" || policy.category_approval.terminal !== "ask") {
       failures.push(`endpoint policy category approvals were ${JSON.stringify(policy.category_approval)}`);
     }
     if (!Array.isArray(policy.approved_apps) || policy.approved_apps.join(",") !== "chrome.exe,outlook.exe") {
       failures.push(`endpoint policy approved apps were ${JSON.stringify(policy.approved_apps)}`);
+    }
+    if (!Array.isArray(policy.approved_app_bindings)
+        || policy.approved_app_bindings.length !== 2
+        || !policy.approved_app_bindings.some((binding) => binding.app === "chrome.exe" && binding.category === "browser" && binding.approval === "always")
+        || !policy.approved_app_bindings.some((binding) => binding.app === "outlook.exe" && binding.category === "email" && binding.approval === "always")) {
+      failures.push(`endpoint policy approved app bindings were ${JSON.stringify(policy.approved_app_bindings)}`);
     }
     if (policy.browser_local_storage_only !== true || policy.project_server_receives_policy !== false || policy.local_endpoint_must_enforce_policy !== true) {
       failures.push(`endpoint policy boundary flags were ${JSON.stringify(policy)}`);
@@ -11547,7 +11809,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     if (!result.hfVisible || result.localVisible || result.p2pVisible) {
       failures.push(`Hugging Face source panel state after handoff was ${JSON.stringify(result)}`);
     }
-    if (result.resultCount !== 4 || result.advancedResultCount !== 4) {
+    if (result.resultCount !== 5 || result.advancedResultCount !== 5) {
       failures.push(`Hugging Face result counts were ${result.resultCount}/${result.advancedResultCount}`);
     }
     const resultText = [
@@ -11567,7 +11829,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     if (!resultText.includes("not runnable yet; Rust preflight and conversion required")) {
       failures.push(`unmatched Hugging Face result did not make conversion state plain: ${resultText}`);
     }
-    if (!resultText.includes("No supported source listed") || !resultText.includes("no .safetensors source listed")) {
+    if (!resultText.includes("No supported source listed") || !resultText.includes("no .safetensors or reviewable .gguf source listed")) {
       failures.push(`unsupported Hugging Face result did not block fake conversion path: ${resultText}`);
     }
     if (!resultText.includes("Large source; P2P preferred") || !resultText.includes("Large source warning: 10.0 GiB across 2 source files") || !resultText.includes("Review Conversion")) {
@@ -11600,10 +11862,16 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     if (!resultText.includes("Source file listed: model.safetensors")) {
       failures.push(`unmatched Hugging Face result did not surface the safetensors source file: ${resultText}`);
     }
+    if (!resultText.includes("GGUF file listed: model-f16.gguf") || !resultText.includes("conversion only accepts F32/F16/BF16/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K tensors")) {
+      failures.push(`GGUF Hugging Face result did not surface the review boundary: ${resultText}`);
+    }
     if (result.simpleSourceHintCountAfterSearch < 1 || result.advancedSourceHintCountAfterSearch < 1) {
       failures.push(`source-file hint drifted between simple and advanced Hugging Face rows: simple=${result.simpleSourceHintCountAfterSearch}, advanced=${result.advancedSourceHintCountAfterSearch}`);
     }
-    if (primaryActionsAfterSearch.length !== 3 || !primaryActionsAfterSearch.includes("Start Conversion") || !primaryActionsAfterSearch.includes("P2P Import") || !primaryActionsAfterSearch.includes("Review Conversion")) {
+    if (result.simpleGgufHintCountAfterSearch < 1 || result.advancedGgufHintCountAfterSearch < 1) {
+      failures.push(`GGUF source hint drifted between simple and advanced Hugging Face rows: simple=${result.simpleGgufHintCountAfterSearch}, advanced=${result.advancedGgufHintCountAfterSearch}`);
+    }
+    if (primaryActionsAfterSearch.length < 4 || !primaryActionsAfterSearch.includes("Start Conversion") || !primaryActionsAfterSearch.includes("P2P Import") || !primaryActionsAfterSearch.includes("Review Conversion")) {
       failures.push(`simple Hugging Face primary actions with P2P on were ${JSON.stringify(primaryActionsAfterSearch)}`);
     }
     if (!Array.isArray(result.peerImportDownloadNames) || !result.peerImportDownloadNames.some((name) => String(name).endsWith(".minimodel-peer-import-request.json")) || !result.peerImportDownloadNames.some((name) => String(name).endsWith(".minimodel-peer-import.ps1"))) {
@@ -11784,7 +12052,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     if (!simpleActionTextAfterP2pDisable.includes("Start Conversion")) {
       failures.push(`Start Conversion was not available after disabling P2P: ${simpleActionTextAfterP2pDisable}`);
     }
-    if (primaryActionsAfterP2pDisable.length !== 2 || !primaryActionsAfterP2pDisable.includes("Start Conversion") || !primaryActionsAfterP2pDisable.includes("Review Conversion")) {
+    if (primaryActionsAfterP2pDisable.length < 3 || !primaryActionsAfterP2pDisable.includes("Start Conversion") || !primaryActionsAfterP2pDisable.includes("Review Conversion")) {
       failures.push(`simple Hugging Face primary actions with P2P off were ${JSON.stringify(primaryActionsAfterP2pDisable)}`);
     }
     for (const removedSimpleAction of ["Choose converted .slm", "Save Conversion Request", "Save Rust Conversion Script"]) {
@@ -11798,16 +12066,16 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     if (resultText.includes("Download tiny-ready.slm") || resultText.includes("/resolve/")) {
       failures.push(`Hugging Face result exposed a direct model-byte download affordance: ${resultText}`);
     }
-    if (!String(result.statusAfterSearch || "").includes("4 external records") || !String(result.hfStatusAfterSearch || "").includes("4 external records")) {
+    if (!String(result.statusAfterSearch || "").includes("5 external records") || !String(result.hfStatusAfterSearch || "").includes("5 external records")) {
       failures.push(`Hugging Face status after search was ${result.statusAfterSearch}/${result.hfStatusAfterSearch}`);
     }
-    for (const summaryText of ["1 P2P-ready match", "1 model needs Rust conversion", "1 model needs explicit large-source conversion review", "1 model has no supported source listed"]) {
+    for (const summaryText of ["1 P2P-ready match", "1 model needs Rust conversion", "1 model needs explicit large-source conversion review", "1 model needs source-size review", "1 model has no supported source listed"]) {
       if (!String(result.statusAfterSearch || "").includes(summaryText) || !String(result.hfStatusAfterSearch || "").includes(summaryText)) {
         failures.push(`Hugging Face availability summary missed ${summaryText}: ${result.statusAfterSearch}/${result.hfStatusAfterSearch}`);
       }
     }
-    if (!String(result.status || "").includes("Rust conversion kit saved") || !String(result.hfStatus || "").includes("Rust conversion kit saved") || !String(result.status || "").includes("opt into direct Hugging Face download")) {
-      failures.push(`Hugging Face status after Start Conversion was ${result.status}/${result.hfStatus}`);
+    if (!String(result.statusAfterStartConversion || "").includes("Rust conversion kit saved") || !String(result.hfStatusAfterStartConversion || "").includes("Rust conversion kit saved") || !String(result.statusAfterStartConversion || "").includes("opt into direct Hugging Face download")) {
+      failures.push(`Hugging Face status after Start Conversion was ${result.statusAfterStartConversion}/${result.hfStatusAfterStartConversion}`);
     }
     if (!Array.isArray(result.conversionDownloadNames) || result.conversionDownloadNames.length < 3) {
       failures.push(`Start Conversion did not save request, script, and README: ${JSON.stringify(result.conversionDownloadNames)}`);
@@ -11866,6 +12134,9 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       if (!String(conversionRequest.local_conversion.command_shape || "").includes("input.safetensors-or-directory")) {
         failures.push(`conversion request command shape did not allow a shard directory: ${conversionRequest.local_conversion.command_shape}`);
       }
+      if (!String(conversionRequest.local_conversion.request_inspect_shape || "").includes("inspect-huggingface-conversion-request")) {
+        failures.push(`conversion request inspection shape did not use inspect-huggingface-conversion-request: ${conversionRequest.local_conversion.request_inspect_shape}`);
+      }
       if (!String(conversionRequest.local_conversion.peer_source_shape || "").includes("add-peer-source")) {
         failures.push(`conversion request peer source shape did not use add-peer-source: ${conversionRequest.local_conversion.peer_source_shape}`);
       }
@@ -11902,6 +12173,12 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       if (!String(conversionRequest.local_conversion.peer_contact_book_shape || "").includes("write-peer-contact-book")) {
         failures.push(`conversion request peer contact book shape did not use write-peer-contact-book: ${conversionRequest.local_conversion.peer_contact_book_shape}`);
       }
+      if (!String(conversionRequest.local_conversion.peer_companion_inventory_shape || "").includes("write-peer-companion-inventory")) {
+        failures.push(`conversion request peer companion inventory shape did not use write-peer-companion-inventory: ${conversionRequest.local_conversion.peer_companion_inventory_shape}`);
+      }
+      if (!String(conversionRequest.local_conversion.peer_companion_inventory_inspect_shape || "").includes("inspect-peer-companion-inventory")) {
+        failures.push(`conversion request peer companion inventory inspect shape did not use inspect-peer-companion-inventory: ${conversionRequest.local_conversion.peer_companion_inventory_inspect_shape}`);
+      }
       if (conversionRequest.local_conversion.known_peer_base_url !== smokePeerBaseUrl) {
         failures.push(`conversion request did not carry the list-level known peer URL: ${conversionRequest.local_conversion.known_peer_base_url}`);
       }
@@ -11913,6 +12190,12 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       }
       if (!JSON.stringify(conversionRequest.conversion_gates || []).includes("inspect-peer-companion-state")) {
         failures.push(`conversion gates did not include inspect-peer-companion-state: ${JSON.stringify(conversionRequest.conversion_gates)}`);
+      }
+      if (!JSON.stringify(conversionRequest.conversion_gates || []).includes("write-peer-companion-inventory")) {
+        failures.push(`conversion gates did not include write-peer-companion-inventory: ${JSON.stringify(conversionRequest.conversion_gates)}`);
+      }
+      if (!JSON.stringify(conversionRequest.conversion_gates || []).includes("inspect-peer-companion-inventory")) {
+        failures.push(`conversion gates did not include inspect-peer-companion-inventory: ${JSON.stringify(conversionRequest.conversion_gates)}`);
       }
       if (!JSON.stringify(conversionRequest.conversion_gates || []).includes("inspect-peer-source-announcement-feed")) {
         failures.push(`conversion gates did not include inspect-peer-source-announcement-feed: ${JSON.stringify(conversionRequest.conversion_gates)}`);
@@ -11982,8 +12265,23 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       if (!String(reviewLocal.command_shape || "").includes("input.safetensors-or-directory")) {
         failures.push(`review conversion request command shape did not allow a shard directory: ${reviewLocal.command_shape}`);
       }
+      if (!String(reviewLocal.request_inspect_shape || "").includes("inspect-huggingface-conversion-request")) {
+        failures.push(`review conversion request inspection shape did not use inspect-huggingface-conversion-request: ${reviewLocal.request_inspect_shape}`);
+      }
       if (reviewLocal.known_peer_base_url !== smokePeerBaseUrl) {
         failures.push(`review conversion request did not carry the list-level known peer URL: ${reviewLocal.known_peer_base_url}`);
+      }
+      if (!String(reviewLocal.peer_companion_inventory_shape || "").includes("write-peer-companion-inventory")) {
+        failures.push(`review conversion request missed peer companion inventory shape: ${reviewLocal.peer_companion_inventory_shape}`);
+      }
+      if (!String(reviewLocal.peer_companion_inventory_inspect_shape || "").includes("inspect-peer-companion-inventory")) {
+        failures.push(`review conversion request missed peer companion inventory inspect shape: ${reviewLocal.peer_companion_inventory_inspect_shape}`);
+      }
+      if (!JSON.stringify(reviewConversionRequest.conversion_gates || []).includes("write-peer-companion-inventory")) {
+        failures.push(`review conversion gates did not include write-peer-companion-inventory: ${JSON.stringify(reviewConversionRequest.conversion_gates)}`);
+      }
+      if (!JSON.stringify(reviewConversionRequest.conversion_gates || []).includes("inspect-peer-companion-inventory")) {
+        failures.push(`review conversion gates did not include inspect-peer-companion-inventory: ${JSON.stringify(reviewConversionRequest.conversion_gates)}`);
       }
       if (!reviewConversionRequest.boundary || reviewConversionRequest.boundary.project_server_serves_model_bytes !== false || reviewConversionRequest.boundary.local_script_huggingface_download_requires_explicit_opt_in !== true) {
         failures.push(`review conversion request boundary was ${JSON.stringify(reviewConversionRequest.boundary)}`);
@@ -12004,6 +12302,9 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "reviewed file or shard directory",
       "Expected source byte count from metadata: 5368709120",
       `Known peer URL: ${smokePeerBaseUrl}`,
+      "local import receipt ledger",
+      "peer companion inventory",
+      "tinyrustlm-slm-pack inspect-huggingface-conversion-request",
       "Browser Hugging Face search results are metadata only"
     ]) {
       if (!reviewReadmeText.includes(required)) {
@@ -12022,13 +12323,21 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "Invoke-WebRequest -UseBasicParsing -Uri $Source.Url",
       "Assert-DownloadedSourceEvidence",
       `$KnownPeerBaseUrl = "${smokePeerBaseUrl}"`,
+      "inspect-huggingface-conversion-request",
+      "tinyrustlm-conversion.request.inspect",
       "convert-huggingface-request",
       "inspect-huggingface-conversion-receipt",
       "write-peer-companion-state",
       "inspect-peer-companion-state",
       "write-peer-contact-card",
       "write-peer-contact-book",
-      "inspect-peer-contact-book"
+      "inspect-peer-contact-book",
+      "write-import-receipt",
+      "inspect-import-receipt",
+      "write-import-receipt-ledger",
+      "inspect-import-receipt-ledger",
+      "write-peer-companion-inventory",
+      "inspect-peer-companion-inventory"
     ]) {
       if (!reviewScriptText.includes(required)) {
         failures.push(`review conversion script missing ${required}: ${reviewScriptText}`);
@@ -12036,6 +12345,161 @@ function assertHfSearchUiSmoke(result, networkRequests) {
     }
     if (reviewScriptText.includes("Download tiny-ready.slm") || reviewScriptText.includes("project servers serve model bytes")) {
       failures.push(`review conversion script contained unsafe model-byte wording: ${reviewScriptText}`);
+    }
+    if (!Array.isArray(result.ggufConversionDownloadNames) || result.ggufConversionDownloadNames.length < 3) {
+      failures.push(`GGUF Review Conversion did not save request, script, and README: ${JSON.stringify(result.ggufConversionDownloadNames)}`);
+    }
+    if (!String(result.ggufConversionRequestName || "").endsWith(".minimodel-conversion-request.json")) {
+      failures.push(`GGUF conversion request download name was ${result.ggufConversionRequestName}`);
+    }
+    let ggufConversionRequest = null;
+    try {
+      ggufConversionRequest = JSON.parse(String(result.ggufConversionRequestText || ""));
+    } catch (error) {
+      failures.push(`GGUF conversion request JSON was invalid: ${error.message} / ${result.ggufConversionRequestText}`);
+    }
+    if (ggufConversionRequest) {
+      const ggufLocal = ggufConversionRequest.local_conversion || {};
+      const ggufFiles = Array.isArray(ggufLocal.suggested_source_gguf_files)
+        ? ggufLocal.suggested_source_gguf_files
+        : [];
+      if (ggufConversionRequest.request_kind !== "minimodel.huggingface_conversion_request.v0") {
+        failures.push(`GGUF conversion request kind was ${ggufConversionRequest.request_kind}`);
+      }
+      if (!ggufConversionRequest.source || ggufConversionRequest.source.model_id !== "example-org/unquantized-gguf-model") {
+        failures.push(`GGUF conversion request source model was ${JSON.stringify(ggufConversionRequest.source)}`);
+      }
+      if (ggufLocal.source_format !== "gguf" || ggufLocal.source_input_mode !== "single-gguf-file") {
+        failures.push(`GGUF conversion request did not identify GGUF input: ${JSON.stringify(ggufLocal)}`);
+      }
+      if (!String(ggufLocal.required_local_input || "").includes("reviewed local GGUF file") || !String(ggufLocal.required_local_input || "").includes("F32/F16/BF16/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K") || !String(ggufLocal.required_local_input || "").includes("GGUF conversion still requires supported tensor names/shapes")) {
+        failures.push(`GGUF conversion request did not state the local review boundary: ${JSON.stringify(ggufLocal)}`);
+      }
+      if (ggufLocal.suggested_source_gguf_file !== "model-f16.gguf") {
+        failures.push(`GGUF conversion request file was ${ggufLocal.suggested_source_gguf_file}`);
+      }
+      if (ggufLocal.suggested_source_gguf_sha256 !== `sha256:${hfGgufSourceSha256}`) {
+        failures.push(`GGUF conversion request SHA-256 was ${ggufLocal.suggested_source_gguf_sha256}`);
+      }
+      if (ggufLocal.suggested_source_gguf_byte_count !== hfGgufSourceByteCount) {
+        failures.push(`GGUF conversion request byte count was ${ggufLocal.suggested_source_gguf_byte_count}`);
+      }
+      if (!String(ggufLocal.suggested_source_gguf_url || "").includes("https://huggingface.co/example-org/unquantized-gguf-model/resolve/main/model-f16.gguf")) {
+        failures.push(`GGUF conversion request URL was ${ggufLocal.suggested_source_gguf_url}`);
+      }
+      if (ggufLocal.suggested_source_safetensors_file !== null || ggufLocal.suggested_source_safetensors_sha256 !== null || ggufLocal.suggested_source_safetensors_byte_count !== null) {
+        failures.push(`GGUF conversion request kept safetensors suggestion fields populated: ${JSON.stringify(ggufLocal)}`);
+      }
+      if (ggufFiles.length !== 1 || ggufFiles[0].file_name !== "model-f16.gguf" || ggufFiles[0].sha256 !== `sha256:${hfGgufSourceSha256}` || ggufFiles[0].byte_count !== hfGgufSourceByteCount) {
+        failures.push(`GGUF conversion request did not carry the GGUF file row: ${JSON.stringify(ggufFiles)}`);
+      }
+      if (!Array.isArray(ggufConversionRequest.source.discovered_gguf_files) || ggufConversionRequest.source.discovered_gguf_files.length !== 1) {
+        failures.push(`GGUF conversion source did not preserve discovered GGUF list: ${JSON.stringify(ggufConversionRequest.source)}`);
+      }
+      if (!String(ggufLocal.command_shape || "").includes("convert-gguf-trained")) {
+        failures.push(`GGUF conversion request command shape did not use convert-gguf-trained: ${ggufLocal.command_shape}`);
+      }
+      if (!String(ggufLocal.request_inspect_shape || "").includes("inspect-huggingface-conversion-request")) {
+        failures.push(`GGUF conversion request inspection shape did not use inspect-huggingface-conversion-request: ${ggufLocal.request_inspect_shape}`);
+      }
+      if (!String(ggufLocal.compatibility_rule || "").includes("F32/F16/BF16/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K")) {
+        failures.push(`GGUF conversion request compatibility rule missed tensor type boundary: ${ggufLocal.compatibility_rule}`);
+      }
+      if (ggufLocal.known_peer_base_url !== smokePeerBaseUrl) {
+        failures.push(`GGUF conversion request did not carry the list-level known peer URL: ${ggufLocal.known_peer_base_url}`);
+      }
+      if (!String(ggufLocal.peer_companion_inventory_shape || "").includes("write-peer-companion-inventory")) {
+        failures.push(`GGUF conversion request missed peer companion inventory shape: ${ggufLocal.peer_companion_inventory_shape}`);
+      }
+      if (!String(ggufLocal.peer_companion_inventory_inspect_shape || "").includes("inspect-peer-companion-inventory")) {
+        failures.push(`GGUF conversion request missed peer companion inventory inspect shape: ${ggufLocal.peer_companion_inventory_inspect_shape}`);
+      }
+      if (!JSON.stringify(ggufConversionRequest.conversion_gates || []).includes("GGUF metadata and tensor-directory inspection")) {
+        failures.push(`GGUF conversion gates did not include GGUF inspection: ${JSON.stringify(ggufConversionRequest.conversion_gates)}`);
+      }
+      if (!JSON.stringify(ggufConversionRequest.conversion_gates || []).includes("write-peer-companion-inventory")) {
+        failures.push(`GGUF conversion gates did not include write-peer-companion-inventory: ${JSON.stringify(ggufConversionRequest.conversion_gates)}`);
+      }
+      if (!JSON.stringify(ggufConversionRequest.conversion_gates || []).includes("inspect-peer-companion-inventory")) {
+        failures.push(`GGUF conversion gates did not include inspect-peer-companion-inventory: ${JSON.stringify(ggufConversionRequest.conversion_gates)}`);
+      }
+      if (!ggufConversionRequest.boundary || ggufConversionRequest.boundary.project_server_serves_model_bytes !== false || ggufConversionRequest.boundary.local_script_huggingface_download_requires_explicit_opt_in !== true) {
+        failures.push(`GGUF conversion request boundary was ${JSON.stringify(ggufConversionRequest.boundary)}`);
+      }
+    }
+    const ggufScriptText = String(result.ggufConversionScriptText || "");
+    const ggufReadmeText = String(result.ggufConversionReadmeText || "");
+    if (!String(result.ggufConversionScriptName || "").endsWith(".tinyrustlm-convert.ps1")) {
+      failures.push(`GGUF conversion script download name was ${result.ggufConversionScriptName}`);
+    }
+    if (!String(result.ggufConversionReadmeName || "").endsWith(".tinyrustlm-conversion.README.txt")) {
+      failures.push(`GGUF conversion README download name was ${result.ggufConversionReadmeName}`);
+    }
+    for (const required of [
+      "TinyRustLM Hugging Face GGUF conversion kit",
+      "Source model: example-org/unquantized-gguf-model",
+      "model-f16.gguf",
+      "TINYRUSTLM_SOURCE_GGUF",
+      "TINYRUSTLM_ALLOW_HF_DOWNLOAD",
+      "inspect-gguf",
+      "plan-gguf-source",
+      "convert-gguf-trained",
+      "F32/F16/BF16/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K",
+      "GGUF conversion still requires supported tensor names/shapes, tokenizer token-count compatibility, BPE token/merge import when declared, and Rust validation before .slm import",
+      "MiniModel prepare-peer-share",
+      `Known peer URL: ${smokePeerBaseUrl}`,
+      "local import receipt ledger",
+      "peer companion inventory",
+      "tinyrustlm-slm-pack inspect-huggingface-conversion-request",
+      `Expected source SHA-256 from metadata: sha256:${hfGgufSourceSha256}`,
+      `Expected source byte count from metadata: ${hfGgufSourceByteCount}`,
+      "source .gguf files",
+      "Never upload to project servers"
+    ]) {
+      if (!ggufReadmeText.includes(required)) {
+        failures.push(`GGUF conversion README missing ${required}: ${ggufReadmeText}`);
+      }
+    }
+    for (const required of [
+      "TinyRustLM Hugging Face GGUF to .slm conversion script",
+      "Source model: example-org/unquantized-gguf-model",
+      "model-f16.gguf",
+      "TINYRUSTLM_SOURCE_GGUF",
+      "TINYRUSTLM_ALLOW_HF_DOWNLOAD",
+      "Resolve-SourceGgufInput",
+      "inspect-huggingface-conversion-request",
+      "tinyrustlm-conversion.request.inspect",
+      "inspect-gguf",
+      "plan-gguf-source",
+      "convert-gguf-trained",
+      "F32/F16/BF16/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K",
+      "GGUF conversion still requires supported tensor names/shapes, tokenizer token-count compatibility, BPE token/merge import when declared, and Rust validation before .slm import",
+      "prepare-peer-share",
+      "write-catalog-snapshot",
+      "inspect-catalog-snapshot",
+      "write-peer-source-announcement",
+      "write-peer-source-announcement-feed",
+      "inspect-peer-source-announcement-feed",
+      "write-peer-companion-state",
+      "inspect-peer-companion-state",
+      "write-peer-contact-card",
+      "write-peer-contact-book",
+      "inspect-peer-contact-book",
+      "write-import-receipt",
+      "inspect-import-receipt",
+      "write-import-receipt-ledger",
+      "inspect-import-receipt-ledger",
+      "write-peer-companion-inventory",
+      "inspect-peer-companion-inventory",
+      "converted-gguf-p2p-publish.README.txt",
+      `$KnownPeerBaseUrl = "${smokePeerBaseUrl}"`
+    ]) {
+      if (!ggufScriptText.includes(required)) {
+        failures.push(`GGUF conversion script missing ${required}: ${ggufScriptText}`);
+      }
+    }
+    if (ggufScriptText.includes("convert-huggingface-request") || ggufScriptText.includes("TINYRUSTLM_SOURCE_SAFETENSORS")) {
+      failures.push(`GGUF conversion script leaked safetensors conversion path: ${ggufScriptText}`);
     }
     const scriptText = String(result.conversionScriptText || "");
     if (!String(result.conversionScriptName || "").endsWith(".tinyrustlm-convert.ps1")) {
@@ -12054,12 +12518,15 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "model.safetensors",
       "TINYRUSTLM_SOURCE_SAFETENSORS",
       "TINYRUSTLM_ALLOW_HF_DOWNLOAD",
+      "tinyrustlm-slm-pack inspect-huggingface-conversion-request",
       "tinyrustlm-conversion.preflight",
       "tinyrustlm-slm-pack convert-huggingface-request",
       "tinyrustlm-slm-pack inspect-huggingface-conversion-receipt",
       "MiniModel prepare-peer-share",
       "models.v0.json",
       `Known peer URL: ${smokePeerBaseUrl}`,
+      "local import receipt ledger",
+      "peer companion inventory",
       "Suggested direct Hugging Face source URL: https://huggingface.co/example-org/tiny-source-model/resolve/main/model.safetensors",
       `Expected source SHA-256 from metadata: sha256:${hfTinySourceFixtureSha256}`,
       `Expected source byte count from metadata: ${hfTinySourceFixtureByteCount}`,
@@ -12092,6 +12559,8 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "write-peer-source-announcement-feed",
       "inspect-peer-source-announcement-feed",
       "inspect-catalog-snapshot",
+      "inspect-huggingface-conversion-request",
+      "tinyrustlm-conversion.request.inspect",
       "apply-peer-source-announcements",
       "write-catalog-snapshot-with-announcements",
       "write-catalog-snapshot-with-announcement-feed",
@@ -12153,6 +12622,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "MiniModelPeerSourceAnnouncement",
       "MiniModelPeerSourceAnnouncementFeed",
       "MiniModelPeerCompanionState",
+      "MiniModelPeerCompanionInventory",
       "MiniModelPeerContactBook",
       "MiniModelCatalogSnapshotWithFeed",
       "MiniModelCatalogSnapshot",
@@ -12162,6 +12632,12 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "write-peer-contact-card",
       "write-peer-contact-book",
       "inspect-peer-contact-book",
+      "write-import-receipt",
+      "inspect-import-receipt",
+      "write-import-receipt-ledger",
+      "inspect-import-receipt-ledger",
+      "write-peer-companion-inventory",
+      "inspect-peer-companion-inventory",
       "models.v0.json",
       "converted-once-p2p-publish.README.txt",
       "MiniModel manifest:",
@@ -12171,6 +12647,7 @@ function assertHfSearchUiSmoke(result, networkRequests) {
       "MiniModel peer companion state:",
       "MiniModel peer contact card:",
       "MiniModel peer contact book:",
+      "MiniModel peer companion inventory:",
       "MiniModel serve script:",
       "Converted-once publication notes:",
       "Do not send .slm files or *.peer-pieces directories to project servers",
@@ -12324,6 +12801,50 @@ function assertMetadataOnlyText(text, label) {
   assertTextNotContains(text, "minimodel.org/models", label);
 }
 
+function assertLocalImportReceiptLedger(text, label, expectedReceiptPath, expectedArtifactPath) {
+  const ledger = JSON.parse(text);
+  const expectedReceiptSha256 = fileSha256Hex(expectedReceiptPath);
+  const expectedArtifactSha256 = fileSha256Hex(expectedArtifactPath);
+  smokeAssert(ledger.ledger_kind === "minimodel.import_receipt_ledger.v0", `${label} kind was ${ledger.ledger_kind}`);
+  smokeAssert(ledger.entry_count === 1, `${label} entry count was ${ledger.entry_count}`);
+  smokeAssert(ledger.peer_import_count === 0, `${label} peer import count was ${ledger.peer_import_count}`);
+  smokeAssert(ledger.model_count === 1, `${label} model count was ${ledger.model_count}`);
+  smokeAssert(ledger.boundary && ledger.boundary.metadata_only === true, `${label} boundary was ${JSON.stringify(ledger.boundary)}`);
+  smokeAssert(ledger.boundary && ledger.boundary.contains_model_bytes === false, `${label} contained model bytes: ${JSON.stringify(ledger.boundary)}`);
+  smokeAssert(ledger.boundary && ledger.boundary.contains_peer_piece_bytes === false, `${label} contained peer piece bytes: ${JSON.stringify(ledger.boundary)}`);
+  smokeAssert(Array.isArray(ledger.entries) && ledger.entries.length === 1, `${label} entries were ${JSON.stringify(ledger.entries)}`);
+  const entry = ledger.entries[0];
+  smokeAssert(path.normalize(String(entry.receipt_path || "")).toLowerCase() === path.normalize(expectedReceiptPath).toLowerCase(), `${label} receipt path was ${entry.receipt_path}`);
+  smokeAssert(entry.receipt_sha256 === `sha256:${expectedReceiptSha256}`, `${label} receipt SHA-256 was ${entry.receipt_sha256}`);
+  smokeAssert(entry.artifact_sha256 === `sha256:${expectedArtifactSha256}`, `${label} artifact SHA-256 was ${entry.artifact_sha256}`);
+  smokeAssert(entry.peer_import === false, `${label} peer_import was ${entry.peer_import}`);
+  smokeAssert(entry.peer_piece_bytes_fetched === false, `${label} peer_piece_bytes_fetched was ${entry.peer_piece_bytes_fetched}`);
+  smokeAssert(entry.artifact_assembled_from_peer_pieces === false, `${label} artifact_assembled_from_peer_pieces was ${entry.artifact_assembled_from_peer_pieces}`);
+  return ledger;
+}
+
+function assertPeerCompanionInventory(text, label, expectedModelId, expectedPeerBaseUrl, expectedArtifactBytes) {
+  assertMetadataOnlyText(text, label);
+  const inventory = JSON.parse(text);
+  smokeAssert(inventory.inventory_kind === "minimodel.peer_companion_inventory.v0", `${label} kind was ${inventory.inventory_kind}`);
+  smokeAssert(inventory.model_id === expectedModelId, `${label} model_id was ${inventory.model_id}`);
+  smokeAssert(inventory.peer_base_url === expectedPeerBaseUrl, `${label} peer URL was ${inventory.peer_base_url}`);
+  smokeAssert(inventory.share_state && inventory.share_state.piece_count >= 1, `${label} share state was ${JSON.stringify(inventory.share_state)}`);
+  smokeAssert(inventory.piece_store && inventory.piece_store.piece_store_byte_count === expectedArtifactBytes, `${label} piece store was ${JSON.stringify(inventory.piece_store)}`);
+  smokeAssert(inventory.piece_store && /^sha256:[0-9a-f]{64}$/i.test(String(inventory.piece_store.piece_store_sha256 || "")), `${label} piece store SHA-256 was ${JSON.stringify(inventory.piece_store)}`);
+  smokeAssert(inventory.piece_store && inventory.piece_store.piece_store_quota_bytes >= expectedArtifactBytes, `${label} quota was ${JSON.stringify(inventory.piece_store)}`);
+  smokeAssert(inventory.receipt_ledger && inventory.receipt_ledger.entry_count === 1, `${label} receipt ledger was ${JSON.stringify(inventory.receipt_ledger)}`);
+  smokeAssert(inventory.receipt_ledger && inventory.receipt_ledger.peer_import_count === 0, `${label} peer import count was ${JSON.stringify(inventory.receipt_ledger)}`);
+  smokeAssert(inventory.contact_card_count === 1, `${label} contact card count was ${inventory.contact_card_count}`);
+  smokeAssert(inventory.serve_plan && inventory.serve_plan.status === "ready-after-rust-reverify", `${label} serve plan was ${JSON.stringify(inventory.serve_plan)}`);
+  smokeAssert(inventory.serve_plan && inventory.serve_plan.peer_status_route === "minimodel.peer_status.v0.json", `${label} serve status route was ${JSON.stringify(inventory.serve_plan)}`);
+  smokeAssert(inventory.serve_plan && inventory.serve_plan.rust_reverify_required_before_serving === true, `${label} serve reverify was ${JSON.stringify(inventory.serve_plan)}`);
+  smokeAssert(inventory.boundary && inventory.boundary.metadata_only === true, `${label} boundary was ${JSON.stringify(inventory.boundary)}`);
+  smokeAssert(inventory.boundary && inventory.boundary.inventory_contains_model_bytes === false, `${label} embedded model bytes: ${JSON.stringify(inventory.boundary)}`);
+  smokeAssert(inventory.boundary && inventory.boundary.inventory_contains_peer_piece_bytes === false, `${label} embedded peer bytes: ${JSON.stringify(inventory.boundary)}`);
+  return inventory;
+}
+
 function reconcileReviewConversionRequestForLocalShards(requestText, sourceDir) {
   const request = JSON.parse(requestText);
   const files = request &&
@@ -12411,13 +12932,22 @@ function executeBrowserGeneratedConversionKit(result) {
   const shareDir = path.join(conversionDir, "minimodel-peer-share");
   smokeAssert(fs.existsSync(conversionDir), `conversion directory was missing: ${conversionDir}`);
   smokeAssert(fs.existsSync(shareDir), `MiniModel share directory was missing: ${shareDir}`);
+  assertTextContains(scriptOutput, "Hugging Face conversion request inspection: PASS", "conversion kit script output");
   assertTextContains(scriptOutput, "MiniModel peer source announcement feed validation: PASS", "conversion kit script output");
   assertTextContains(scriptOutput, "MiniModel catalog snapshot validation: PASS", "conversion kit script output");
   assertTextContains(scriptOutput, "MiniModel peer companion state inspection: PASS", "conversion kit script output");
   assertTextContains(scriptOutput, "MiniModel peer contact book validation: PASS", "conversion kit script output");
   assertTextContains(scriptOutput, "MiniModel peer contact book:", "conversion kit script output");
+  assertTextContains(scriptOutput, "MiniModel import receipt written:", "conversion kit script output");
+  assertTextContains(scriptOutput, "MiniModel import receipt validation: PASS", "conversion kit script output");
+  assertTextContains(scriptOutput, "MiniModel import receipt ledger written:", "conversion kit script output");
+  assertTextContains(scriptOutput, "MiniModel import receipt ledger validation: PASS", "conversion kit script output");
+  assertTextContains(scriptOutput, "MiniModel peer companion inventory written:", "conversion kit script output");
+  assertTextContains(scriptOutput, "MiniModel peer companion inventory validation: PASS", "conversion kit script output");
+  assertTextContains(scriptOutput, "MiniModel peer companion inventory:", "conversion kit script output");
 
   const convertedSlm = findOneFile(conversionDir, (entry) => entry.endsWith(".slm"), "converted .slm");
+  const conversionRequestInspect = path.join(conversionDir, "tinyrustlm-conversion.request.inspect");
   const conversionPreflight = path.join(conversionDir, "tinyrustlm-conversion.preflight");
   const conversionReceipt = path.join(conversionDir, "tinyrustlm-conversion.receipt");
   const catalogSnapshot = path.join(conversionDir, "models.v0.json");
@@ -12432,11 +12962,15 @@ function executeBrowserGeneratedConversionKit(result) {
   const peerCompanionState = findOneFile(shareDir, (entry) => entry.endsWith(".peer-companion-state.v0.json"), "peer companion state");
   const peerContactCard = findOneFile(shareDir, (entry) => entry.endsWith(".peer-contact-card.v0.json"), "peer contact card");
   const peerContactBook = findOneFile(shareDir, (entry) => entry.endsWith(".peer-contact-book.v0.json"), "peer contact book");
+  const peerCompanionInventory = findOneFile(shareDir, (entry) => entry.endsWith(".peer-companion-inventory.v0.json"), "peer companion inventory");
+  const localImportReceipt = findOneFile(shareDir, (entry) => entry.endsWith(".local.minimodel-receipt"), "conversion local import receipt");
+  const localImportReceiptLedger = path.join(shareDir, "import-receipts.v0.json");
   const announcementFeed = path.join(shareDir, "peer-source-announcements.v0.json");
   const publishReadme = path.join(shareDir, "converted-once-p2p-publish.README.txt");
 
   for (const requiredFile of [
     convertedSlm,
+    conversionRequestInspect,
     conversionPreflight,
     conversionReceipt,
     catalogSnapshot,
@@ -12450,6 +12984,9 @@ function executeBrowserGeneratedConversionKit(result) {
     peerCompanionState,
     peerContactCard,
     peerContactBook,
+    peerCompanionInventory,
+    localImportReceipt,
+    localImportReceiptLedger,
     announcementFeed,
     publishReadme,
     path.join(peerPieceDir, "minimodel.peer_piece_set.v0")
@@ -12470,6 +13007,14 @@ function executeBrowserGeneratedConversionKit(result) {
   assertTextContains(receiptText, "project_server_runs_model_bytes=false", "conversion receipt");
   assertTextContains(receiptText, "project_server_proxies_huggingface_bytes=false", "conversion receipt");
   assertTextContains(receiptText, "converted_once_publication_rule=publish-catalog-json-and-peer-source-announcement-json-only", "conversion receipt");
+
+  const requestInspectText = readUtf8(conversionRequestInspect);
+  assertTextContains(requestInspectText, "tinyrustlm_huggingface_conversion_request_inspection_version=1", "conversion request inspection");
+  assertTextContains(requestInspectText, "source_format=safetensors", "conversion request inspection");
+  assertTextContains(requestInspectText, "source_input_mode=single-safetensors-file", "conversion request inspection");
+  assertTextContains(requestInspectText, "safetensors_expected_file_count=1", "conversion request inspection");
+  assertTextContains(requestInspectText, "required_next_gate=convert-huggingface-request", "conversion request inspection");
+  assertTextContains(requestInspectText, "project_server_serves_model_bytes=false", "conversion request inspection");
 
   const preflightText = readUtf8(conversionPreflight);
   assertTextContains(preflightText, "tinyrustlm_huggingface_conversion_preflight_version=1", "conversion preflight");
@@ -12496,6 +13041,20 @@ function executeBrowserGeneratedConversionKit(result) {
   const peerCompanionStateText = readUtf8(peerCompanionState);
   const peerContactCardText = readUtf8(peerContactCard);
   const peerContactBookText = readUtf8(peerContactBook);
+  const peerCompanionInventoryText = readUtf8(peerCompanionInventory);
+  const localImportReceiptText = readUtf8(localImportReceipt);
+  const localImportReceiptLedgerText = readUtf8(localImportReceiptLedger);
+  assertTextContains(localImportReceiptText, "receipt.kind=minimodel.import_receipt", "conversion local import receipt");
+  assertTextContains(localImportReceiptText, "slm.validation_status=passed", "conversion local import receipt");
+  assertTextContains(localImportReceiptText, `artifact.sha256=sha256:${fileSha256Hex(convertedSlm)}`, "conversion local import receipt");
+  assertLocalImportReceiptLedger(localImportReceiptLedgerText, "conversion local import receipt ledger", localImportReceipt, convertedSlm);
+  assertPeerCompanionInventory(
+    peerCompanionInventoryText,
+    "conversion peer companion inventory",
+    "example-org/tiny-source-model",
+    smokePeerBaseUrl,
+    fs.statSync(convertedSlm).size
+  );
   for (const [text, label] of [
     [catalogText, "catalog snapshot"],
     [withPeerText, "with-peer catalog entry"],
@@ -12504,7 +13063,8 @@ function executeBrowserGeneratedConversionKit(result) {
     [feedText, "peer-source announcement feed"],
     [peerCompanionStateText, "peer companion state"],
     [peerContactCardText, "peer contact card"],
-    [peerContactBookText, "peer contact book"]
+    [peerContactBookText, "peer contact book"],
+    [peerCompanionInventoryText, "peer companion inventory"]
   ]) {
     assertMetadataOnlyText(text, label);
   }
@@ -12537,6 +13097,8 @@ function executeBrowserGeneratedConversionKit(result) {
   assertTextContains(publishReadmeText, "Peer companion state:", "publish README");
   assertTextContains(publishReadmeText, "Peer contact card:", "publish README");
   assertTextContains(publishReadmeText, "Peer contact book:", "publish README");
+  assertTextContains(publishReadmeText, "Import receipt ledger:", "publish README");
+  assertTextContains(publishReadmeText, "Peer companion inventory:", "publish README");
   assertTextContains(publishReadmeText, "Do not send .slm files or *.peer-pieces directories to project servers.", "publish README");
 
   const serveScriptText = readUtf8(serveScript);
@@ -12558,6 +13120,7 @@ function executeBrowserGeneratedConversionKit(result) {
     feedBoundSnapshotPath: feedBoundSnapshot,
     announcementFeedPath: announcementFeed,
     peerCompanionStatePath: peerCompanionState,
+    peerCompanionInventoryPath: peerCompanionInventory,
     convertedSlm: path.basename(convertedSlm),
     manifest: path.basename(manifestPath),
     catalogSnapshot: path.basename(catalogSnapshot),
@@ -12565,6 +13128,7 @@ function executeBrowserGeneratedConversionKit(result) {
     peerCompanionState: path.basename(peerCompanionState),
     peerContactCard: path.basename(peerContactCard),
     peerContactBook: path.basename(peerContactBook),
+    peerCompanionInventory: path.basename(peerCompanionInventory),
     scriptOutputBytes: Buffer.byteLength(scriptOutput, "utf8")
   };
 }
@@ -12634,14 +13198,22 @@ function executeBrowserGeneratedReviewConversionKit(result) {
   const shareDir = path.join(conversionDir, "minimodel-peer-share");
   smokeAssert(fs.existsSync(conversionDir), `review conversion directory was missing: ${conversionDir}`);
   smokeAssert(fs.existsSync(shareDir), `review MiniModel share directory was missing: ${shareDir}`);
+  assertTextContains(scriptOutput, "Hugging Face conversion request inspection: PASS", "review conversion kit script output");
   assertTextContains(scriptOutput, "Hugging Face conversion receipt inspection: PASS", "review conversion kit script output");
   assertTextContains(scriptOutput, "Conversion receipt inspection passed:", "review conversion kit script output");
   assertTextContains(scriptOutput, "MiniModel peer source announcement feed validation: PASS", "review conversion kit script output");
   assertTextContains(scriptOutput, "MiniModel catalog snapshot validation: PASS", "review conversion kit script output");
   assertTextContains(scriptOutput, "MiniModel peer companion state inspection: PASS", "review conversion kit script output");
   assertTextContains(scriptOutput, "MiniModel peer contact book validation: PASS", "review conversion kit script output");
+  assertTextContains(scriptOutput, "MiniModel import receipt written:", "review conversion kit script output");
+  assertTextContains(scriptOutput, "MiniModel import receipt validation: PASS", "review conversion kit script output");
+  assertTextContains(scriptOutput, "MiniModel import receipt ledger written:", "review conversion kit script output");
+  assertTextContains(scriptOutput, "MiniModel import receipt ledger validation: PASS", "review conversion kit script output");
+  assertTextContains(scriptOutput, "MiniModel peer companion inventory written:", "review conversion kit script output");
+  assertTextContains(scriptOutput, "MiniModel peer companion inventory validation: PASS", "review conversion kit script output");
 
   const convertedSlm = findOneFile(conversionDir, (entry) => entry.endsWith(".slm"), "review converted .slm");
+  const conversionRequestInspect = path.join(conversionDir, "tinyrustlm-conversion.request.inspect");
   const conversionPreflight = path.join(conversionDir, "tinyrustlm-conversion.preflight");
   const conversionReceipt = path.join(conversionDir, "tinyrustlm-conversion.receipt");
   const sourceInspect = path.join(conversionDir, "source.inspect");
@@ -12657,11 +13229,15 @@ function executeBrowserGeneratedReviewConversionKit(result) {
   const peerCompanionState = findOneFile(shareDir, (entry) => entry.endsWith(".peer-companion-state.v0.json"), "review peer companion state");
   const peerContactCard = findOneFile(shareDir, (entry) => entry.endsWith(".peer-contact-card.v0.json"), "review peer contact card");
   const peerContactBook = findOneFile(shareDir, (entry) => entry.endsWith(".peer-contact-book.v0.json"), "review peer contact book");
+  const peerCompanionInventory = findOneFile(shareDir, (entry) => entry.endsWith(".peer-companion-inventory.v0.json"), "review peer companion inventory");
+  const localImportReceipt = findOneFile(shareDir, (entry) => entry.endsWith(".local.minimodel-receipt"), "review local import receipt");
+  const localImportReceiptLedger = path.join(shareDir, "import-receipts.v0.json");
   const announcementFeed = path.join(shareDir, "peer-source-announcements.v0.json");
   const publishReadme = path.join(shareDir, "converted-once-p2p-publish.README.txt");
 
   for (const requiredFile of [
     convertedSlm,
+    conversionRequestInspect,
     conversionPreflight,
     conversionReceipt,
     sourceInspect,
@@ -12676,6 +13252,9 @@ function executeBrowserGeneratedReviewConversionKit(result) {
     peerCompanionState,
     peerContactCard,
     peerContactBook,
+    peerCompanionInventory,
+    localImportReceipt,
+    localImportReceiptLedger,
     announcementFeed,
     publishReadme,
     path.join(peerPieceDir, "minimodel.peer_piece_set.v0")
@@ -12695,6 +13274,13 @@ function executeBrowserGeneratedReviewConversionKit(result) {
   assertTextContains(receiptText, "project_server_serves_model_bytes=false", "review conversion receipt");
   assertTextContains(receiptText, "project_server_runs_model_bytes=false", "review conversion receipt");
   assertTextContains(receiptText, "project_server_proxies_huggingface_bytes=false", "review conversion receipt");
+
+  const requestInspectText = readUtf8(conversionRequestInspect);
+  assertTextContains(requestInspectText, "source_format=safetensors", "review conversion request inspection");
+  assertTextContains(requestInspectText, "source_input_mode=safetensors-shard-directory", "review conversion request inspection");
+  assertTextContains(requestInspectText, "safetensors_expected_file_count=2", "review conversion request inspection");
+  assertTextContains(requestInspectText, `safetensors_expected_total_bytes=${expectedTotalBytes}`, "review conversion request inspection");
+  assertTextContains(requestInspectText, "required_next_gate=convert-huggingface-request", "review conversion request inspection");
 
   const preflightText = readUtf8(conversionPreflight);
   assertTextContains(preflightText, "preflight_status=pass", "review conversion preflight");
@@ -12718,6 +13304,21 @@ function executeBrowserGeneratedReviewConversionKit(result) {
   assertTextContains(manifestText, "source.huggingface_model_id=example-org/huge-source-model", "review MiniModel manifest");
   assertTextContains(manifestText, "chunks.mode=fixed-size-merkle-v0", "review MiniModel manifest");
 
+  const peerCompanionInventoryText = readUtf8(peerCompanionInventory);
+  const localImportReceiptText = readUtf8(localImportReceipt);
+  const localImportReceiptLedgerText = readUtf8(localImportReceiptLedger);
+  assertTextContains(localImportReceiptText, "receipt.kind=minimodel.import_receipt", "review local import receipt");
+  assertTextContains(localImportReceiptText, "slm.validation_status=passed", "review local import receipt");
+  assertTextContains(localImportReceiptText, `artifact.sha256=sha256:${fileSha256Hex(convertedSlm)}`, "review local import receipt");
+  assertLocalImportReceiptLedger(localImportReceiptLedgerText, "review local import receipt ledger", localImportReceipt, convertedSlm);
+  assertPeerCompanionInventory(
+    peerCompanionInventoryText,
+    "review peer companion inventory",
+    "example-org/huge-source-model",
+    smokePeerBaseUrl,
+    fs.statSync(convertedSlm).size
+  );
+
   for (const [text, label] of [
     [readUtf8(catalogSnapshot), "review catalog snapshot"],
     [readUtf8(withPeerEntry), "review with-peer catalog entry"],
@@ -12726,7 +13327,8 @@ function executeBrowserGeneratedReviewConversionKit(result) {
     [readUtf8(announcementFeed), "review peer-source announcement feed"],
     [readUtf8(peerCompanionState), "review peer companion state"],
     [readUtf8(peerContactCard), "review peer contact card"],
-    [readUtf8(peerContactBook), "review peer contact book"]
+    [readUtf8(peerContactBook), "review peer contact book"],
+    [peerCompanionInventoryText, "review peer companion inventory"]
   ]) {
     assertMetadataOnlyText(text, label);
   }
@@ -12741,6 +13343,8 @@ function executeBrowserGeneratedReviewConversionKit(result) {
   assertTextContains(reviewServeScriptText, "serve-peer-companion", "review serve helper");
   assertTextContains(reviewServeScriptText, "inspect-peer-companion-state", "review serve helper");
   assertTextContains(reviewServeScriptText, "Inspecting peer companion state before serving.", "review serve helper");
+  assertTextContains(readUtf8(publishReadme), "Import receipt ledger:", "review publish README");
+  assertTextContains(readUtf8(publishReadme), "Peer companion inventory:", "review publish README");
   assertTextContains(readUtf8(publishReadme), "Do not send .slm files or *.peer-pieces directories to project servers.", "review publish README");
 
   return {
@@ -12750,8 +13354,10 @@ function executeBrowserGeneratedReviewConversionKit(result) {
     convertedSlmPath: convertedSlm,
     manifestPath,
     peerPieceDir,
+    peerCompanionInventoryPath: peerCompanionInventory,
     convertedSlm: path.basename(convertedSlm),
     manifest: path.basename(manifestPath),
+    peerCompanionInventory: path.basename(peerCompanionInventory),
     sourceFiles: expectedFiles.map((file) => ({
       fileName: file.file_name,
       byteCount: file.byte_count,
@@ -12811,10 +13417,12 @@ function executeBrowserGeneratedReviewConversionKitFailClosed(result) {
   ], { env: executionEnv, timeout: 600000 });
 
   const conversionDir = path.join(outputRoot, "example-org__huge-source-model-tinyrustlm-conversion");
+  const conversionRequestInspect = path.join(conversionDir, "tinyrustlm-conversion.request.inspect");
   const conversionPreflight = path.join(conversionDir, "tinyrustlm-conversion.preflight");
   const conversionReceipt = path.join(conversionDir, "tinyrustlm-conversion.receipt");
   const sourceInspect = path.join(conversionDir, "source.inspect");
   const sourcePlan = path.join(conversionDir, "source.plan");
+  smokeAssert(fs.existsSync(conversionRequestInspect), `mismatch review conversion request inspection was missing: ${conversionRequestInspect}`);
   smokeAssert(fs.existsSync(conversionPreflight), `mismatch review conversion preflight was missing: ${conversionPreflight}`);
   smokeAssert(fs.existsSync(sourceInspect), `mismatch review source inspect was missing: ${sourceInspect}`);
   smokeAssert(fs.existsSync(sourcePlan), `mismatch review source plan was missing: ${sourcePlan}`);
@@ -12831,7 +13439,13 @@ function executeBrowserGeneratedReviewConversionKitFailClosed(result) {
   const actualTotalBytes = fs.statSync(sourceOne).size + fs.statSync(sourceTwo).size;
   const expectedMetadataBytes = hfHugeSourceShardByteCount * 2;
   assertTextContains(scriptOutput, "Rust conversion failed with exit code", "mismatch review conversion script output");
+  assertTextContains(scriptOutput, "Hugging Face conversion request inspection: PASS", "mismatch review conversion script output");
   assertTextContains(scriptOutput, "Hugging Face source byte count mismatch", "mismatch review conversion script output");
+  const requestInspectText = readUtf8(conversionRequestInspect);
+  assertTextContains(requestInspectText, "inspection_status=pass", "mismatch review conversion request inspection");
+  assertTextContains(requestInspectText, "source_format=safetensors", "mismatch review conversion request inspection");
+  assertTextContains(requestInspectText, "safetensors_expected_file_count=2", "mismatch review conversion request inspection");
+  assertTextContains(requestInspectText, `safetensors_expected_total_bytes=${expectedMetadataBytes}`, "mismatch review conversion request inspection");
   assertTextContains(preflightText, "preflight_status=fail", "mismatch review conversion preflight");
   assertTextContains(preflightText, "source_contract_status=fail", "mismatch review conversion preflight");
   assertTextContains(preflightText, "source_expected_file_count=2", "mismatch review conversion preflight");
@@ -12853,6 +13467,250 @@ function executeBrowserGeneratedReviewConversionKitFailClosed(result) {
     preflight: path.basename(conversionPreflight),
     expectedMetadataBytes,
     actualTotalBytes,
+    scriptOutputBytes: Buffer.byteLength(scriptOutput, "utf8")
+  };
+}
+
+function executeBrowserGeneratedGgufReviewConversionKit(result) {
+  const slmWorkspace = path.resolve(__dirname, "..", "..");
+  const minimodelWorkspace = path.resolve(process.env.MINIMODEL_WORKSPACE || path.join(slmWorkspace, "..", "MiniModel.org"));
+  smokeAssert(fs.existsSync(path.join(slmWorkspace, "Cargo.toml")), `missing TinyRustLM workspace: ${slmWorkspace}`);
+  smokeAssert(fs.existsSync(path.join(minimodelWorkspace, "Cargo.toml")), `missing MiniModel workspace: ${minimodelWorkspace}`);
+  smokeAssert(result.ggufConversionRequestName && result.ggufConversionRequestText, "missing captured GGUF conversion request");
+  smokeAssert(result.ggufConversionScriptName && result.ggufConversionScriptText, "missing captured GGUF conversion script");
+  smokeAssert(result.ggufConversionReadmeName && result.ggufConversionReadmeText, "missing captured GGUF conversion README");
+
+  const outputRoot = path.resolve(
+    process.env.TINYRUSTLM_BROWSER_GGUF_CONVERSION_KIT_SMOKE_DIR ||
+      path.join(slmWorkspace, "target", "browser-generated-gguf-conversion-kit-smoke")
+  );
+  fs.rmSync(outputRoot, { recursive: true, force: true });
+  fs.mkdirSync(outputRoot, { recursive: true });
+
+  const sourceDir = path.join(outputRoot, "source");
+  const sourceGguf = path.join(sourceDir, "model-f16.gguf");
+  runSmokeCommand(slmWorkspace, "cargo", [
+    "run",
+    "--quiet",
+    "-p",
+    "tinyrustlm-slm-pack",
+    "--",
+    "write-gguf-q3-k-source-fixture",
+    sourceGguf,
+    "tinylm16-bpe"
+  ]);
+
+  fs.writeFileSync(path.join(outputRoot, result.ggufConversionRequestName), result.ggufConversionRequestText, "utf8");
+  fs.writeFileSync(path.join(outputRoot, result.ggufConversionScriptName), result.ggufConversionScriptText, "utf8");
+  fs.writeFileSync(path.join(outputRoot, result.ggufConversionReadmeName), result.ggufConversionReadmeText, "utf8");
+
+  const sourceGgufSha256 = fileSha256Hex(sourceGguf);
+  const sourceGgufBytes = fs.statSync(sourceGguf).size;
+  const scriptPath = path.join(outputRoot, result.ggufConversionScriptName);
+  const executionEnv = {
+    ...process.env,
+    TINYRUSTLM_WORKSPACE: slmWorkspace,
+    MINIMODEL_WORKSPACE: minimodelWorkspace,
+    TINYRUSTLM_SOURCE_GGUF: sourceGguf
+  };
+  const scriptOutput = runSmokeCommand(outputRoot, "powershell", [
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    scriptPath
+  ], { env: executionEnv, timeout: 600000 });
+
+  const conversionDir = path.join(outputRoot, "example-org__unquantized-gguf-model-tinyrustlm-gguf-conversion");
+  const shareDir = path.join(conversionDir, "minimodel-peer-share");
+  smokeAssert(fs.existsSync(conversionDir), `GGUF conversion directory was missing: ${conversionDir}`);
+  smokeAssert(fs.existsSync(shareDir), `GGUF MiniModel share directory was missing: ${shareDir}`);
+  assertTextContains(scriptOutput, "Hugging Face conversion request inspection: PASS", "GGUF conversion kit script output");
+  assertTextContains(scriptOutput, "GGUF inspection: PASS", "GGUF conversion kit script output");
+  assertTextContains(scriptOutput, "GGUF source plan: PASS", "GGUF conversion kit script output");
+  assertTextContains(scriptOutput, "GGUF source extraction: PASS", "GGUF conversion kit script output");
+  assertTextContains(scriptOutput, "GGUF trained conversion: PASS", "GGUF conversion kit script output");
+  assertTextContains(scriptOutput, "SLM validation: PASS", "GGUF conversion kit script output");
+  assertTextContains(scriptOutput, "SLM manifest validation: PASS", "GGUF conversion kit script output");
+  assertTextContains(scriptOutput, "MiniModel peer source announcement feed validation: PASS", "GGUF conversion kit script output");
+  assertTextContains(scriptOutput, "MiniModel catalog snapshot validation: PASS", "GGUF conversion kit script output");
+  assertTextContains(scriptOutput, "MiniModel peer companion state inspection: PASS", "GGUF conversion kit script output");
+  assertTextContains(scriptOutput, "MiniModel peer contact book validation: PASS", "GGUF conversion kit script output");
+  assertTextContains(scriptOutput, "MiniModel import receipt written:", "GGUF conversion kit script output");
+  assertTextContains(scriptOutput, "MiniModel import receipt validation: PASS", "GGUF conversion kit script output");
+  assertTextContains(scriptOutput, "MiniModel import receipt ledger written:", "GGUF conversion kit script output");
+  assertTextContains(scriptOutput, "MiniModel import receipt ledger validation: PASS", "GGUF conversion kit script output");
+  assertTextContains(scriptOutput, "MiniModel peer companion inventory written:", "GGUF conversion kit script output");
+  assertTextContains(scriptOutput, "MiniModel peer companion inventory validation: PASS", "GGUF conversion kit script output");
+
+  const convertedSlm = findOneFile(conversionDir, (entry) => entry.endsWith(".slm"), "GGUF converted .slm");
+  const conversionRequestInspect = path.join(conversionDir, "tinyrustlm-conversion.request.inspect");
+  const sourceInspect = path.join(conversionDir, "source.gguf.inspect");
+  const sourcePlan = path.join(conversionDir, "source.gguf.plan");
+  const outputSourceDir = path.join(conversionDir, "gguf-raw-source");
+  const sourceManifest = path.join(outputSourceDir, "source.manifest");
+  const outputSlmManifest = `${convertedSlm}.manifest`;
+  const catalogSnapshot = path.join(conversionDir, "models.v0.json");
+  const feedBoundSnapshot = path.join(conversionDir, "models.with-announcement-feed.v0.json");
+  const serveScript = path.join(conversionDir, "example-org__unquantized-gguf-model.minimodel-serve-peer-pieces.ps1");
+  const manifestPath = findOneFile(shareDir, (entry) => entry.endsWith(".minimodel.manifest.v0"), "GGUF MiniModel manifest");
+  const peerOfferPath = findOneFile(shareDir, (entry) => entry.endsWith(".minimodel-peer-offer"), "GGUF MiniModel peer offer");
+  const catalogEntry = findOneFile(shareDir, (entry) => entry.endsWith(".catalog-entry.v0.json"), "GGUF catalog entry");
+  const withPeerEntry = findOneFile(shareDir, (entry) => entry.endsWith(".catalog-entry.with-peer.v0.json"), "GGUF with-peer catalog entry");
+  const announcement = findOneFile(shareDir, (entry) => entry.endsWith(".peer-source-announcement.v0.json"), "GGUF peer-source announcement");
+  const peerPieceDir = findOneFile(shareDir, (entry) => entry.endsWith(".peer-pieces"), "GGUF peer pieces directory");
+  const peerCompanionState = findOneFile(shareDir, (entry) => entry.endsWith(".peer-companion-state.v0.json"), "GGUF peer companion state");
+  const peerContactCard = findOneFile(shareDir, (entry) => entry.endsWith(".peer-contact-card.v0.json"), "GGUF peer contact card");
+  const peerContactBook = findOneFile(shareDir, (entry) => entry.endsWith(".peer-contact-book.v0.json"), "GGUF peer contact book");
+  const peerCompanionInventory = findOneFile(shareDir, (entry) => entry.endsWith(".peer-companion-inventory.v0.json"), "GGUF peer companion inventory");
+  const localImportReceipt = findOneFile(shareDir, (entry) => entry.endsWith(".local.minimodel-receipt"), "GGUF local import receipt");
+  const localImportReceiptLedger = path.join(shareDir, "import-receipts.v0.json");
+  const announcementFeed = path.join(shareDir, "peer-source-announcements.v0.json");
+  const publishReadme = path.join(shareDir, "converted-gguf-p2p-publish.README.txt");
+
+  for (const requiredFile of [
+    convertedSlm,
+    conversionRequestInspect,
+    sourceInspect,
+    sourcePlan,
+    sourceManifest,
+    outputSlmManifest,
+    catalogSnapshot,
+    feedBoundSnapshot,
+    serveScript,
+    manifestPath,
+    peerOfferPath,
+    catalogEntry,
+    withPeerEntry,
+    announcement,
+    peerCompanionState,
+    peerContactCard,
+    peerContactBook,
+    peerCompanionInventory,
+    localImportReceipt,
+    localImportReceiptLedger,
+    announcementFeed,
+    publishReadme,
+    path.join(peerPieceDir, "minimodel.peer_piece_set.v0")
+  ]) {
+    smokeAssert(fs.existsSync(requiredFile), `expected GGUF conversion output was missing: ${requiredFile}`);
+  }
+
+  const inspectText = readUtf8(sourceInspect);
+  const requestInspectText = readUtf8(conversionRequestInspect);
+  const planText = readUtf8(sourcePlan);
+  const sourceManifestText = readUtf8(sourceManifest);
+  const outputSlmManifestText = readUtf8(outputSlmManifest);
+  assertTextContains(requestInspectText, "source_format=gguf", "GGUF request inspection");
+  assertTextContains(requestInspectText, "source_input_mode=single-gguf-file", "GGUF request inspection");
+  assertTextContains(requestInspectText, "gguf_expected_file_count=1", "GGUF request inspection");
+  assertTextContains(requestInspectText, "suggested_source_gguf_file=model-f16.gguf", "GGUF request inspection");
+  assertTextContains(requestInspectText, "required_next_gate=inspect-gguf-and-plan-gguf-source", "GGUF request inspection");
+  assertTextContains(inspectText, "tinyrustlm_gguf_inspection_version=1", "GGUF source inspect");
+  assertTextContains(inspectText, "source_layout=gguf-v3", "GGUF source inspect");
+  assertTextContains(inspectText, "tensor_count=39", "GGUF source inspect");
+  assertTextContains(inspectText, "type.0.name=Q3_K", "GGUF source inspect");
+  assertTextContains(planText, "tinyrustlm_gguf_source_plan_version=1", "GGUF source plan");
+  assertTextContains(planText, "target_model_shape=tinylm16-bpe", "GGUF source plan");
+  assertTextContains(planText, "matched_tensor_count=39", "GGUF source plan");
+  assertTextContains(planText, "conversion_status=decode-required", "GGUF source plan");
+  assertTextContains(planText, "tensor.0.gguf_name=token_embd.weight", "GGUF source plan");
+  assertTextContains(planText, "tensor.0.gguf_type=Q3_K", "GGUF source plan");
+  assertTextContains(planText, "tensor.0.conversion_action=dequant-q3_k", "GGUF source plan");
+  assertTextContains(sourceManifestText, "source_kind=trained-export", "GGUF raw source manifest");
+  assertTextContains(sourceManifestText, "source_license=local-gguf-source-review", "GGUF raw source manifest");
+  assertTextContains(sourceManifestText, "tensor_count=39", "GGUF raw source manifest");
+  assertTextContains(outputSlmManifestText, "source_kind=converted-trained", "GGUF .slm manifest");
+
+  const manifestText = readUtf8(manifestPath);
+  assertTextContains(manifestText, "artifact.acquisition=user-external-download", "GGUF MiniModel manifest");
+  assertTextContains(manifestText, "source.huggingface_model_id=example-org/unquantized-gguf-model", "GGUF MiniModel manifest");
+  assertTextContains(manifestText, "chunks.mode=fixed-size-merkle-v0", "GGUF MiniModel manifest");
+
+  const catalogText = readUtf8(catalogSnapshot);
+  const withPeerText = readUtf8(withPeerEntry);
+  const feedSnapshotText = readUtf8(feedBoundSnapshot);
+  const announcementText = readUtf8(announcement);
+  const feedText = readUtf8(announcementFeed);
+  const peerCompanionStateText = readUtf8(peerCompanionState);
+  const peerContactCardText = readUtf8(peerContactCard);
+  const peerContactBookText = readUtf8(peerContactBook);
+  const peerCompanionInventoryText = readUtf8(peerCompanionInventory);
+  const localImportReceiptText = readUtf8(localImportReceipt);
+  const localImportReceiptLedgerText = readUtf8(localImportReceiptLedger);
+  assertTextContains(localImportReceiptText, "receipt.kind=minimodel.import_receipt", "GGUF local import receipt");
+  assertTextContains(localImportReceiptText, "slm.validation_status=passed", "GGUF local import receipt");
+  assertTextContains(localImportReceiptText, `artifact.sha256=sha256:${fileSha256Hex(convertedSlm)}`, "GGUF local import receipt");
+  assertLocalImportReceiptLedger(localImportReceiptLedgerText, "GGUF local import receipt ledger", localImportReceipt, convertedSlm);
+  assertPeerCompanionInventory(
+    peerCompanionInventoryText,
+    "GGUF peer companion inventory",
+    "example-org/unquantized-gguf-model",
+    smokePeerBaseUrl,
+    fs.statSync(convertedSlm).size
+  );
+  for (const [text, label] of [
+    [catalogText, "GGUF catalog snapshot"],
+    [withPeerText, "GGUF with-peer catalog entry"],
+    [feedSnapshotText, "GGUF feed-bound catalog snapshot"],
+    [announcementText, "GGUF peer-source announcement"],
+    [feedText, "GGUF peer-source announcement feed"],
+    [peerCompanionStateText, "GGUF peer companion state"],
+    [peerContactCardText, "GGUF peer contact card"],
+    [peerContactBookText, "GGUF peer contact book"],
+    [peerCompanionInventoryText, "GGUF peer companion inventory"]
+  ]) {
+    assertMetadataOnlyText(text, label);
+  }
+  assertTextContains(catalogText, '"peer_source_count": 1', "GGUF catalog snapshot");
+  assertTextContains(withPeerText, `"peer_base_url": "${smokePeerBaseUrl}"`, "GGUF with-peer catalog entry");
+  assertTextContains(feedSnapshotText, '"route": "peer-source-announcements.v0.json"', "GGUF feed-bound catalog snapshot");
+  assertTextContains(feedText, '"announcement_catalog_kind": "minimodel.peer_source_announcement_catalog"', "GGUF peer-source announcement feed");
+  assertTextContains(peerCompanionStateText, '"state_kind": "minimodel.peer_companion_state"', "GGUF peer companion state");
+  assertTextContains(peerCompanionStateText, '"peer_piece_bytes_in_state": false', "GGUF peer companion state");
+  assertTextContains(peerCompanionStateText, `"peer_base_url": "${smokePeerBaseUrl}"`, "GGUF peer companion state");
+  assertTextNotContains(peerCompanionStateText, convertedSlm, "GGUF peer companion state");
+  assertTextContains(peerContactCardText, '"card_kind": "minimodel.peer_contact_card"', "GGUF peer contact card");
+  assertTextContains(peerContactCardText, `"peer_base_url": "${smokePeerBaseUrl}"`, "GGUF peer contact card");
+  assertTextContains(peerContactCardText, '"metadata_only": true', "GGUF peer contact card");
+  assertTextContains(peerContactBookText, '"book_kind": "minimodel.peer_contact_book.v0"', "GGUF peer contact book");
+  assertTextContains(peerContactBookText, '"contact_card_count": 1', "GGUF peer contact book");
+  assertTextContains(peerContactBookText, `"peer_base_url": "${smokePeerBaseUrl}"`, "GGUF peer contact book");
+  assertTextContains(peerContactBookText, '"peer_contact_book_embeds_model_bytes": false', "GGUF peer contact book");
+  assertTextContains(peerContactBookText, '"requires_rust_reverify_before_browser_import": true', "GGUF peer contact book");
+
+  const publishReadmeText = readUtf8(publishReadme);
+  assertTextContains(publishReadmeText, "Converted GGUF P2P publication package", "GGUF publish README");
+  assertTextContains(publishReadmeText, "Safe metadata files for catalog maintainers:", "GGUF publish README");
+  assertTextContains(publishReadmeText, "Local companion handoff files:", "GGUF publish README");
+  assertTextContains(publishReadmeText, "Import receipt ledger:", "GGUF publish README");
+  assertTextContains(publishReadmeText, "Peer companion inventory:", "GGUF publish README");
+  assertTextContains(publishReadmeText, "Do not send .slm files, *.peer-pieces directories, or source GGUF files to project servers.", "GGUF publish README");
+  assertTextContains(publishReadmeText, "F32/F16/BF16/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K GGUF tensors can convert", "GGUF publish README");
+  assertTextContains(publishReadmeText, "GGUF conversion still requires supported tensor names/shapes, tokenizer token-count compatibility, BPE token/merge import when declared, and Rust validation before .slm import", "GGUF publish README");
+
+  const serveScriptText = readUtf8(serveScript);
+  assertTextContains(serveScriptText, "serve-peer-companion", "GGUF serve helper");
+  assertTextContains(serveScriptText, "inspect-peer-companion-state", "GGUF serve helper");
+  assertTextContains(serveScriptText, "minimodel.peer_companion_state.v0.json", "GGUF serve helper");
+
+  return {
+    outputRoot,
+    conversionDir,
+    shareDir,
+    convertedSlmPath: convertedSlm,
+    sourceGguf,
+    sourceGgufBytes,
+    sourceGgufSha256: `sha256:${sourceGgufSha256}`,
+    convertedSlm: path.basename(convertedSlm),
+    sourceInspect: path.basename(sourceInspect),
+    sourcePlan: path.basename(sourcePlan),
+    manifest: path.basename(manifestPath),
+    announcementFeed: path.basename(announcementFeed),
+    peerCompanionState: path.basename(peerCompanionState),
+    peerContactCard: path.basename(peerContactCard),
+    peerContactBook: path.basename(peerContactBook),
+    peerCompanionInventory: path.basename(peerCompanionInventory),
     scriptOutputBytes: Buffer.byteLength(scriptOutput, "utf8")
   };
 }
@@ -13047,6 +13905,7 @@ async function executeBrowserGeneratedShareKit(result) {
   smokeAssert(peerCompanionInventory.peer_base_url === smokePeerBaseUrl, `share kit peer companion inventory peer URL was ${peerCompanionInventory.peer_base_url}`);
   smokeAssert(peerCompanionInventory.share_state && peerCompanionInventory.share_state.piece_count === 1, `share kit peer companion inventory share state was ${JSON.stringify(peerCompanionInventory.share_state)}`);
   smokeAssert(peerCompanionInventory.piece_store && peerCompanionInventory.piece_store.piece_store_byte_count === fs.statSync(modelPath).size, `share kit peer companion inventory piece store was ${JSON.stringify(peerCompanionInventory.piece_store)}`);
+  smokeAssert(peerCompanionInventory.piece_store && /^sha256:[0-9a-f]{64}$/i.test(String(peerCompanionInventory.piece_store.piece_store_sha256 || "")), `share kit peer companion inventory piece store SHA-256 was ${JSON.stringify(peerCompanionInventory.piece_store)}`);
   smokeAssert(peerCompanionInventory.piece_store && peerCompanionInventory.piece_store.piece_store_quota_bytes >= peerCompanionInventory.piece_store.piece_store_byte_count, `share kit peer companion inventory quota was ${JSON.stringify(peerCompanionInventory.piece_store)}`);
   smokeAssert(peerCompanionInventory.receipt_ledger && peerCompanionInventory.receipt_ledger.entry_count === 1, `share kit peer companion inventory receipt ledger was ${JSON.stringify(peerCompanionInventory.receipt_ledger)}`);
   smokeAssert(peerCompanionInventory.receipt_ledger && peerCompanionInventory.receipt_ledger.peer_import_count === 0, `share kit peer companion inventory peer import count was ${JSON.stringify(peerCompanionInventory.receipt_ledger)}`);
@@ -14031,6 +14890,85 @@ function assertHfEmptyCatalogAnnouncementRouteSmoke(result, networkRequests) {
   }
 }
 
+function assertHfCatalogAnnouncementRouteBudgetSmoke(result, networkRequests) {
+  const failures = [];
+  if (!result || typeof result !== "object") {
+    failures.push("catalog announcement route budget result was missing");
+  }
+  const requests = networkRequests.filter((requestUrl) => requestUrl.startsWith("http://") || requestUrl.startsWith("https://"));
+  if (!requests.some((requestUrl) => requestUrl.includes("huggingface.co/api/models"))) {
+    failures.push(`Hugging Face API metadata request was not observed: ${JSON.stringify(requests)}`);
+  }
+  if (!requests.some((requestUrl) => requestUrl.toLowerCase().includes("minimodel.org/catalog/models.v0.json"))) {
+    failures.push(`MiniModel catalog metadata request was not observed: ${JSON.stringify(requests)}`);
+  }
+  if (!requests.some((requestUrl) => requestUrl.toLowerCase().includes("minimodel.org/catalog/peer-source-announcements.v0.json"))) {
+    failures.push(`catalog-declared oversized peer-source announcement feed was not requested: ${JSON.stringify(requests)}`);
+  }
+  for (const requestUrl of requests) {
+    if (requestUrl.includes("/resolve/")) {
+      failures.push(`Hugging Face model bytes were requested: ${requestUrl}`);
+    }
+    if (requestUrl.toLowerCase().includes("minimodel.org/models/") || requestUrl.toLowerCase().includes("minimodel.org/catalog/models/")) {
+      failures.push(`MiniModel model-byte route was requested: ${requestUrl}`);
+    }
+  }
+  if (result && typeof result === "object") {
+    const primaryActionsAfterSearch = Array.isArray(result.primaryActionTextsAfterSearch)
+      ? result.primaryActionTextsAfterSearch
+      : [];
+    const peerImportDownloads = Array.isArray(result.peerImportDownloadNames)
+      ? result.peerImportDownloadNames
+      : [];
+    const feedStatusText = [
+      result.statusAfterSearch,
+      result.hfStatusAfterSearch,
+      result.catalogStatusAfterSearch
+    ].filter(Boolean).join(" / ");
+    const searchResultText = Array.isArray(result.actionTextsAfterSearch)
+      ? result.actionTextsAfterSearch.join(" ")
+      : "";
+    if (!feedStatusText.includes("Peer-source announcement metadata exceeded browser budget")) {
+      failures.push(`catalog route budget error was not shown: ${feedStatusText}`);
+    }
+    if (feedStatusText.includes("peer-source announcement applied")) {
+      failures.push(`oversized catalog route was accepted: ${feedStatusText}`);
+    }
+    if (primaryActionsAfterSearch.includes("P2P Import")) {
+      failures.push(`oversized catalog route promoted proof-ready row to P2P Import: ${JSON.stringify(primaryActionsAfterSearch)}`);
+    }
+    if (!primaryActionsAfterSearch.includes("Set Peer URL")) {
+      failures.push(`oversized catalog route did not leave proof-ready row at Set Peer URL: ${JSON.stringify(primaryActionsAfterSearch)}`);
+    }
+    if (!primaryActionsAfterSearch.includes("Start Conversion")) {
+      failures.push(`unmatched Hugging Face result did not keep Start Conversion: ${JSON.stringify(primaryActionsAfterSearch)}`);
+    }
+    if (peerImportDownloads.length) {
+      failures.push(`oversized catalog route produced peer import downloads: ${JSON.stringify(peerImportDownloads)}`);
+    }
+    if (String(result.peerImportRequestText || "").trim()) {
+      failures.push(`oversized catalog route produced a peer import request: ${result.peerImportRequestText}`);
+    }
+    if (String(result.peerImportScriptText || "").trim()) {
+      failures.push(`oversized catalog route produced a peer import script: ${result.peerImportScriptText}`);
+    }
+    if (!String(result.statusAfterSearch || "").includes("1 proof-ready match needs peer URL")
+        || !String(result.hfStatusAfterSearch || "").includes("1 proof-ready match needs peer URL")) {
+      failures.push(`oversized catalog route did not keep peer URL needed status: ${result.statusAfterSearch}/${result.hfStatusAfterSearch}`);
+    }
+    if (!String(result.statusAfterSearch || "").includes("1 model needs Rust conversion")
+        || !String(result.hfStatusAfterSearch || "").includes("1 model needs Rust conversion")) {
+      failures.push(`oversized catalog route did not keep conversion-needed summary: ${result.statusAfterSearch}/${result.hfStatusAfterSearch}`);
+    }
+    if (searchResultText.includes("P2P source listed") || searchResultText.includes("P2P available")) {
+      failures.push(`oversized catalog route exposed peer availability copy before peer URL entry: ${searchResultText}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
 function assertHfLocalCatalogSmoke(result, networkRequests, expectedPeerBaseUrl = smokePeerBaseUrl) {
   const failures = [];
   if (!result || typeof result !== "object") {
@@ -14082,6 +15020,16 @@ function assertHfLocalCatalogSmoke(result, networkRequests, expectedPeerBaseUrl 
     const bodyText = String(result.bodyText || "");
     if (bodyText.includes("Choose converted .slm") || bodyText.includes("Download tiny-ready.slm")) {
       failures.push(`local catalog path exposed stale/fake wording: ${bodyText}`);
+    }
+    const resultText = [
+      ...(Array.isArray(result.simpleTexts) ? result.simpleTexts : []),
+      ...(Array.isArray(result.actionTexts) ? result.actionTexts : [])
+    ].join(" ");
+    if (resultText.includes("only F32/F16/BF16 tensor payloads")) {
+      failures.push(`local catalog path exposed stale GGUF conversion copy: ${resultText}`);
+    }
+    if (!resultText.includes("F32/F16/BF16/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K")) {
+      failures.push(`local catalog path did not render current GGUF tensor coverage: ${resultText}`);
     }
   }
   const requests = networkRequests.filter((requestUrl) => requestUrl.startsWith("http://") || requestUrl.startsWith("https://"));
@@ -14167,6 +15115,83 @@ function assertHfPeerContactBookSmoke(result, networkRequests) {
   const bodyText = String(result && result.bodyText || "");
   if (!bodyText.includes("Peer contact book JSON") || !bodyText.includes("Use Peer Book")) {
     failures.push("peer contact book controls were missing from the rendered UI");
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertHfPeerCompanionInventorySmoke(result, networkRequests) {
+  const failures = [];
+  try {
+    assertHfLocalCatalogSmoke(result, networkRequests, smokePeerBaseUrl);
+  } catch (error) {
+    failures.push(error.message || String(error));
+  }
+  const inventoryStatus = String(result && result.peerInventoryStatus || "");
+  const inventorySummary = String(result && result.peerInventorySummary || "");
+  if (!inventoryStatus.includes("Peer companion inventory loaded")
+      || !inventoryStatus.includes(smokePeerBaseUrl)
+      || !inventoryStatus.includes("Rust reverify required")) {
+    failures.push(`peer companion inventory did not set the known peer URL: ${inventoryStatus}`);
+  }
+  if (!inventorySummary.includes("Peer companion inventory loaded")
+      || !inventorySummary.includes("tinyrustlm/tiny-test-model-q8")
+      || !inventorySummary.includes(smokePeerBaseUrl)
+      || !inventorySummary.includes("status route minimodel.peer_status.v0.json")
+      || !inventorySummary.includes("Rust reverify required")) {
+    failures.push(`peer companion inventory summary was missing route/reverify proof: ${inventorySummary}`);
+  }
+  if (String(result && result.simplePeerBaseUrlValue || "") !== smokePeerBaseUrl) {
+    failures.push(`peer companion inventory did not populate the known peer input: ${result && result.simplePeerBaseUrlValue}`);
+  }
+  if (String(result && result.storedPeerBaseUrl || "") !== smokePeerBaseUrl) {
+    failures.push(`peer companion inventory did not persist the known peer URL: ${result && result.storedPeerBaseUrl}`);
+  }
+  const downloadNames = Array.isArray(result && result.peerImportDownloadNames) ? result.peerImportDownloadNames : [];
+  if (!downloadNames.some((name) => String(name).endsWith(".minimodel-peer-import-request.json"))
+      || !downloadNames.some((name) => String(name).endsWith(".minimodel-peer-import.ps1"))) {
+    failures.push(`peer companion inventory handoff did not download request and script: ${JSON.stringify(downloadNames)}`);
+  }
+  let peerRequest = null;
+  try {
+    peerRequest = result && result.peerImportRequestText ? JSON.parse(result.peerImportRequestText) : null;
+  } catch (error) {
+    failures.push(`peer companion inventory request was not valid JSON: ${error.message || error}`);
+  }
+  if (!peerRequest) {
+    failures.push("peer companion inventory handoff did not produce a P2P import request");
+  } else {
+    const contract = peerRequest.local_peer_piece_contract || {};
+    const routes = contract.metadata_routes || {};
+    if (peerRequest.request_kind !== "minimodel.peer_import_request.v0") {
+      failures.push(`peer companion inventory request kind was ${peerRequest.request_kind}`);
+    }
+    if (contract.expected_peer_base_url !== smokePeerBaseUrl) {
+      failures.push(`peer companion inventory request did not use inventory URL: ${JSON.stringify(contract)}`);
+    }
+    if (routes.peer_status !== "minimodel.peer_status.v0.json"
+        || routes.peer_piece_set !== "minimodel.peer_piece_set.v0"
+        || routes.peer_companion_state !== "minimodel.peer_companion_state.v0.json") {
+      failures.push(`peer companion inventory request metadata routes were ${JSON.stringify(routes)}`);
+    }
+  }
+  const peerScript = String(result && result.peerImportScriptText || "");
+  for (const required of [
+    smokePeerBaseUrl,
+    "check-peer-status",
+    "preflight-peer-import-request",
+    "import-peer-request",
+    "minimodel.peer_status.v0.json metadata",
+    "serve-peer-companion"
+  ]) {
+    if (!peerScript.includes(required)) {
+      failures.push(`peer companion inventory import script missing ${required}: ${peerScript}`);
+    }
+  }
+  const bodyText = String(result && result.bodyText || "");
+  if (!bodyText.includes("Peer companion inventory JSON") || !bodyText.includes("Load Companion Inventory")) {
+    failures.push("peer companion inventory controls were missing from the rendered UI");
   }
   if (failures.length > 0) {
     throw new Error(failures.join("; "));
@@ -14334,6 +15359,154 @@ function assertHfPeerAnnouncementSmoke(result, networkRequests) {
     const bodyText = String(result.bodyText || "");
     if (!bodyText.includes("Peer-source announcement/feed JSON") || !bodyText.includes("Apply Peer Feed")) {
       failures.push("peer announcement/feed controls were not present in the UI");
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertHfPeerAnnouncementRejectSmoke(result, networkRequests) {
+  const failures = [];
+  if (!result || typeof result !== "object") {
+    failures.push("peer announcement rejection result was missing");
+  } else {
+    if (!String(result.localCatalogStatus || "").includes("local MiniModel metadata entries from models.v0.json")) {
+      failures.push(`local catalog status was ${result.localCatalogStatus}`);
+    }
+    const announcementStatus = String(result.announcementStatus || "");
+    if (!announcementStatus.includes("duplicated model id and peer URL")) {
+      failures.push(`rejected peer announcement status did not name duplicate model/peer: ${announcementStatus}`);
+    }
+    if (announcementStatus.includes("peer-source announcement applied")) {
+      failures.push(`duplicate peer announcement feed was accepted: ${announcementStatus}`);
+    }
+    const beforeText = Array.isArray(result.catalogResults) ? result.catalogResults.join(" | ") : "";
+    if (beforeText.includes("catalog peer listed")) {
+      failures.push(`proof-ready catalog already listed a peer source before rejected feed: ${beforeText}`);
+    }
+    const afterText = Array.isArray(result.catalogResultsAfterAnnouncement)
+      ? result.catalogResultsAfterAnnouncement.join(" | ")
+      : "";
+    if (afterText.includes("catalog peer listed")) {
+      failures.push(`rejected peer announcement updated catalog peer source copy: ${afterText}`);
+    }
+    const primaryActions = Array.isArray(result.primaryActionTexts) ? result.primaryActionTexts : [];
+    if (primaryActions.includes("P2P Import")) {
+      failures.push(`rejected peer announcement promoted proof-ready row to P2P Import: ${JSON.stringify(primaryActions)}`);
+    }
+    if (!primaryActions.includes("Set Peer URL")) {
+      failures.push(`rejected peer announcement did not leave proof-ready row at Set Peer URL: ${JSON.stringify(primaryActions)}`);
+    }
+    if (Array.isArray(result.peerImportDownloadNames) && result.peerImportDownloadNames.length) {
+      failures.push(`rejected peer announcement produced peer import downloads: ${JSON.stringify(result.peerImportDownloadNames)}`);
+    }
+    if (String(result.peerImportRequestText || "").trim()) {
+      failures.push(`rejected peer announcement produced a peer import request: ${result.peerImportRequestText}`);
+    }
+    if (!String(result.statusAfterSearch || "").includes("1 proof-ready match needs peer URL")
+        || !String(result.hfStatusAfterSearch || "").includes("1 proof-ready match needs peer URL")) {
+      failures.push(`rejected peer announcement did not keep peer URL needed status: ${result.statusAfterSearch}/${result.hfStatusAfterSearch}`);
+    }
+    const bodyText = String(result.bodyText || "");
+    if (!bodyText.includes("Peer-source announcement/feed JSON") || !bodyText.includes("Apply Peer Feed")) {
+      failures.push("peer announcement/feed controls were not present in the UI");
+    }
+    const resultText = [
+      ...(Array.isArray(result.simpleTexts) ? result.simpleTexts : []),
+      ...(Array.isArray(result.actionTexts) ? result.actionTexts : [])
+    ].join(" ");
+    if (resultText.includes("P2P source listed") || resultText.includes("P2P available")) {
+      failures.push(`rejected peer announcement exposed peer availability copy: ${resultText}`);
+    }
+  }
+  const requests = networkRequests.filter((requestUrl) => requestUrl.startsWith("http://") || requestUrl.startsWith("https://"));
+  if (!requests.some((requestUrl) => requestUrl.includes("huggingface.co/api/models"))) {
+    failures.push(`Hugging Face API metadata request was not observed: ${JSON.stringify(requests)}`);
+  }
+  for (const requestUrl of requests) {
+    if (requestUrl.toLowerCase().includes("minimodel.org/catalog/models.v0.json")) {
+      failures.push(`default MiniModel catalog was fetched despite local models.v0.json: ${requestUrl}`);
+    }
+    if (requestUrl.includes("/resolve/")) {
+      failures.push(`Hugging Face model bytes were requested: ${requestUrl}`);
+    }
+    if (requestUrl.toLowerCase().includes("minimodel.org/models/") || requestUrl.toLowerCase().includes("minimodel.org/catalog/models/")) {
+      failures.push(`MiniModel model-byte route was requested: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertHfPeerAnnouncementBudgetSmoke(result, networkRequests) {
+  const failures = [];
+  if (!result || typeof result !== "object") {
+    failures.push("peer announcement budget result was missing");
+  } else {
+    if (!String(result.localCatalogStatus || "").includes("local MiniModel metadata entries from models.v0.json")) {
+      failures.push(`local catalog status was ${result.localCatalogStatus}`);
+    }
+    const announcementStatus = String(result.announcementStatus || "");
+    if (!announcementStatus.includes("Peer-source announcement/feed exceeded browser metadata budget")) {
+      failures.push(`oversized peer announcement status did not name the browser budget: ${announcementStatus}`);
+    }
+    if (announcementStatus.includes("peer-source announcement applied")) {
+      failures.push(`oversized peer announcement feed was accepted: ${announcementStatus}`);
+    }
+    const beforeText = Array.isArray(result.catalogResults) ? result.catalogResults.join(" | ") : "";
+    if (beforeText.includes("catalog peer listed")) {
+      failures.push(`proof-ready catalog already listed a peer source before oversized feed: ${beforeText}`);
+    }
+    const afterText = Array.isArray(result.catalogResultsAfterAnnouncement)
+      ? result.catalogResultsAfterAnnouncement.join(" | ")
+      : "";
+    if (afterText.includes("catalog peer listed")) {
+      failures.push(`oversized peer announcement updated catalog peer source copy: ${afterText}`);
+    }
+    const primaryActions = Array.isArray(result.primaryActionTexts) ? result.primaryActionTexts : [];
+    if (primaryActions.includes("P2P Import")) {
+      failures.push(`oversized peer announcement promoted proof-ready row to P2P Import: ${JSON.stringify(primaryActions)}`);
+    }
+    if (!primaryActions.includes("Set Peer URL")) {
+      failures.push(`oversized peer announcement did not leave proof-ready row at Set Peer URL: ${JSON.stringify(primaryActions)}`);
+    }
+    if (Array.isArray(result.peerImportDownloadNames) && result.peerImportDownloadNames.length) {
+      failures.push(`oversized peer announcement produced peer import downloads: ${JSON.stringify(result.peerImportDownloadNames)}`);
+    }
+    if (String(result.peerImportRequestText || "").trim()) {
+      failures.push(`oversized peer announcement produced a peer import request: ${result.peerImportRequestText}`);
+    }
+    if (!String(result.statusAfterSearch || "").includes("1 proof-ready match needs peer URL")
+        || !String(result.hfStatusAfterSearch || "").includes("1 proof-ready match needs peer URL")) {
+      failures.push(`oversized peer announcement did not keep peer URL needed status: ${result.statusAfterSearch}/${result.hfStatusAfterSearch}`);
+    }
+    const bodyText = String(result.bodyText || "");
+    if (!bodyText.includes("Peer-source announcement/feed JSON") || !bodyText.includes("Apply Peer Feed")) {
+      failures.push("peer announcement/feed controls were not present in the UI");
+    }
+    const resultText = [
+      ...(Array.isArray(result.simpleTexts) ? result.simpleTexts : []),
+      ...(Array.isArray(result.actionTexts) ? result.actionTexts : [])
+    ].join(" ");
+    if (resultText.includes("P2P source listed") || resultText.includes("P2P available")) {
+      failures.push(`oversized peer announcement exposed peer availability copy: ${resultText}`);
+    }
+  }
+  const requests = networkRequests.filter((requestUrl) => requestUrl.startsWith("http://") || requestUrl.startsWith("https://"));
+  if (!requests.some((requestUrl) => requestUrl.includes("huggingface.co/api/models"))) {
+    failures.push(`Hugging Face API metadata request was not observed: ${JSON.stringify(requests)}`);
+  }
+  for (const requestUrl of requests) {
+    if (requestUrl.toLowerCase().includes("minimodel.org/catalog/models.v0.json")) {
+      failures.push(`default MiniModel catalog was fetched despite local models.v0.json: ${requestUrl}`);
+    }
+    if (requestUrl.includes("/resolve/")) {
+      failures.push(`Hugging Face model bytes were requested: ${requestUrl}`);
+    }
+    if (requestUrl.toLowerCase().includes("minimodel.org/models/") || requestUrl.toLowerCase().includes("minimodel.org/catalog/models/")) {
+      failures.push(`MiniModel model-byte route was requested: ${requestUrl}`);
     }
   }
   if (failures.length > 0) {
@@ -14549,6 +15722,9 @@ function assertPeerCompanionInventorySmoke(result, networkRequests) {
     const simpleStatus = String(result.simpleInventoryStatus || "");
     const advancedStatus = String(result.advancedInventoryStatus || "");
     const simpleDiscoveryStatus = String(result.simpleDiscoveryStatus || "");
+    const simplePeerUrlStatus = String(result.simplePeerUrlStatus || "");
+    const simplePeerBaseUrlValue = String(result.simplePeerBaseUrlValue || "");
+    const storedPeerBaseUrl = String(result.storedPeerBaseUrl || "");
     if (!rejectionStatus.includes("inventory_contains_model_bytes") || !rejectionStatus.includes("false")) {
       failures.push(`drifted peer companion inventory was not rejected: ${rejectionStatus}`);
     }
@@ -14563,6 +15739,7 @@ function assertPeerCompanionInventorySmoke(result, networkRequests) {
           || !status.includes("1 piece")
           || !status.includes("8.6 KiB store")
           || !status.includes("16.0 KiB quota")
+          || !status.includes(smokePeerBaseUrl)
           || !status.includes("1 receipt")
           || !status.includes("1 contact card")
           || !status.includes("serve plan ready-after-rust-reverify")
@@ -14571,6 +15748,17 @@ function assertPeerCompanionInventorySmoke(result, networkRequests) {
           || !status.includes("Rust reverify required")) {
         failures.push(`${label} was ${status}`);
       }
+    }
+    if (!simplePeerUrlStatus.includes("Peer companion inventory loaded")
+        || !simplePeerUrlStatus.includes(smokePeerBaseUrl)
+        || !simplePeerUrlStatus.includes("Rust reverify required")) {
+      failures.push(`inventory did not update Known peer status: ${simplePeerUrlStatus}`);
+    }
+    if (simplePeerBaseUrlValue !== smokePeerBaseUrl) {
+      failures.push(`inventory did not populate Known peer input: ${simplePeerBaseUrlValue}`);
+    }
+    if (storedPeerBaseUrl !== smokePeerBaseUrl) {
+      failures.push(`inventory did not persist Known peer URL: ${storedPeerBaseUrl}`);
     }
     if (!result.panelOpen || result.p2pPanelHidden) {
       failures.push(`P2P source panel was not open: ${JSON.stringify({ panelOpen: result.panelOpen, p2pPanelHidden: result.p2pPanelHidden })}`);
@@ -17773,7 +18961,7 @@ async function main() {
         ]
       });
     }
-    if (hfSearchUiSmokeMode || hfConversionKitExecSmokeMode || hfP2pImportKitExecSmokeMode || hfP2pImportReceiptRejectSmokeMode || hfLocalCatalogSmokeMode || hfPeerAnnouncementSmokeMode || hfPeerContactCardSmokeMode || hfPeerContactCardRejectSmokeMode || hfPeerContactBookSmokeMode || hfPeerContactBookRejectSmokeMode || hfCatalogAnnouncementRouteSmokeMode || hfEmptyCatalogAnnouncementRouteSmokeMode) {
+    if (hfSearchUiSmokeMode || hfConversionKitExecSmokeMode || hfP2pImportKitExecSmokeMode || hfP2pImportReceiptRejectSmokeMode || hfLocalCatalogSmokeMode || hfPeerAnnouncementSmokeMode || hfPeerAnnouncementRejectSmokeMode || hfPeerAnnouncementBudgetSmokeMode || hfPeerContactCardSmokeMode || hfPeerContactCardRejectSmokeMode || hfPeerContactBookSmokeMode || hfPeerContactBookRejectSmokeMode || hfPeerCompanionInventorySmokeMode || hfCatalogAnnouncementRouteSmokeMode || hfEmptyCatalogAnnouncementRouteSmokeMode || hfCatalogAnnouncementRouteBudgetSmokeMode) {
       installHfSearchUiInterceptor(client);
       await client.send("Fetch.enable", {
         patterns: [
@@ -18048,6 +19236,7 @@ async function main() {
       result.conversionKitExecution = executeBrowserGeneratedConversionKit(result);
       result.reviewConversionKitExecution = executeBrowserGeneratedReviewConversionKit(result);
       result.reviewConversionKitFailure = executeBrowserGeneratedReviewConversionKitFailClosed(result);
+      result.ggufConversionKitExecution = executeBrowserGeneratedGgufReviewConversionKit(result);
       result.networkRequests = networkRequests;
     } else if (hfP2pImportKitExecSmokeMode || hfP2pImportReceiptRejectSmokeMode) {
       await client.send("Page.reload", { ignoreCache: true });
@@ -18159,6 +19348,21 @@ async function main() {
       }
       assertHfCatalogAnnouncementRouteSmoke(result, networkRequests);
       result.networkRequests = networkRequests;
+    } else if (hfCatalogAnnouncementRouteBudgetSmokeMode) {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageHfSearchUiSmoke(client);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertHfCatalogAnnouncementRouteBudgetSmoke(result, networkRequests);
+      result.networkRequests = networkRequests;
     } else if (hfEmptyCatalogAnnouncementRouteSmokeMode) {
       await client.send("Page.reload", { ignoreCache: true });
       for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -18203,6 +19407,36 @@ async function main() {
         }
       }
       assertHfPeerAnnouncementSmoke(result, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (hfPeerAnnouncementRejectSmokeMode) {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageHfLocalCatalogSmoke(client, { peerAnnouncementReject: true });
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertHfPeerAnnouncementRejectSmoke(result, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (hfPeerAnnouncementBudgetSmokeMode) {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageHfLocalCatalogSmoke(client, { peerAnnouncementBudget: true });
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertHfPeerAnnouncementBudgetSmoke(result, networkRequests);
       result.networkRequests = networkRequests;
     } else if (hfPeerContactCardSmokeMode) {
       await client.send("Page.reload", { ignoreCache: true });
@@ -18263,6 +19497,21 @@ async function main() {
         }
       }
       assertHfPeerContactBookRejectSmoke(result, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (hfPeerCompanionInventorySmokeMode) {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPageHfLocalCatalogSmoke(client, { peerCompanionInventory: true });
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertHfPeerCompanionInventorySmoke(result, networkRequests);
       result.networkRequests = networkRequests;
     } else if (shareMetadataImportSmokeMode) {
       await client.send("Page.reload", { ignoreCache: true });

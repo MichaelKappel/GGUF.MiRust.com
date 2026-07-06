@@ -1,4 +1,4 @@
-//! Safetensors metadata intake for future real trained-source conversion.
+//! Safetensors metadata intake and fail-closed trained-source conversion.
 
 use std::collections::{BTreeMap, HashMap};
 use std::fs::{self, File};
@@ -123,9 +123,13 @@ struct HuggingFaceConversionRequest {
     supported_source_shapes: Vec<String>,
     default_source_shape: String,
     default_quantization: String,
+    source_format: String,
+    source_input_mode: Option<String>,
     suggested_source_file: Option<String>,
+    suggested_gguf_source_file: Option<String>,
     known_peer_base_url: Option<String>,
     expected_source_files: Vec<HuggingFaceExpectedSourceFile>,
+    expected_gguf_source_files: Vec<HuggingFaceExpectedSourceFile>,
 }
 
 struct HuggingFaceExpectedSourceFile {
@@ -473,6 +477,11 @@ pub fn convert_huggingface_request_path(
 ) -> io::Result<()> {
     let request_text = fs::read_to_string(request_json)?;
     let request = parse_huggingface_conversion_request(&request_text)?;
+    if request.source_format != "safetensors" {
+        return Err(invalid(
+            "Hugging Face conversion request source_format=gguf must use inspect-gguf, plan-gguf-source, and convert-gguf-trained",
+        ));
+    }
     let shape_name = override_shape_name.unwrap_or(&request.default_source_shape);
     let output_quantization = override_quantization.unwrap_or(&request.default_quantization);
     trained_source::validate_output_quantization(output_quantization)?;
@@ -607,6 +616,36 @@ pub fn convert_huggingface_request_path(
     println!("output_quantization: {output_quantization}");
     println!("output_slm: {}", output_slm.display());
     println!("conversion_receipt: {}", receipt_path.display());
+    Ok(())
+}
+
+/// Validates a browser-saved Hugging Face conversion request before touching model bytes.
+pub fn inspect_huggingface_conversion_request_path(
+    request_json: &Path,
+    output_report: Option<&Path>,
+) -> io::Result<()> {
+    let request_bytes = fs::read(request_json)?;
+    let request_text = std::str::from_utf8(&request_bytes)
+        .map_err(|_| invalid("Hugging Face conversion request JSON must be UTF-8"))?;
+    let request = parse_huggingface_conversion_request(request_text)?;
+    let report =
+        render_huggingface_conversion_request_inspection(&request, &request_bytes, request_json);
+    if let Some(output) = output_report {
+        if let Some(parent) = output.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(output, &report)?;
+    }
+
+    println!("Hugging Face conversion request inspection: PASS");
+    println!("request_json: {}", request_json.display());
+    println!("source_model_id: {}", request.source_model_id);
+    println!("source_format: {}", request.source_format);
+    println!("default_source_shape: {}", request.default_source_shape);
+    println!("default_quantization: {}", request.default_quantization);
+    if let Some(output) = output_report {
+        println!("inspection_report: {}", output.display());
+    }
     Ok(())
 }
 
@@ -4180,6 +4219,12 @@ fn parse_huggingface_conversion_request(text: &str) -> io::Result<HuggingFaceCon
     trained_source::validate_output_quantization(&default_quantization)?;
 
     let local_conversion = optional_object_field(&root, "local_conversion");
+    let source_format = parse_huggingface_conversion_source_format(local_conversion)?;
+    let source_input_mode = local_conversion
+        .and_then(|local_conversion| optional_string_field(local_conversion, "source_input_mode"))
+        .filter(|value| !value.trim().is_empty())
+        .map(validate_safe_conversion_token)
+        .transpose()?;
     let suggested_source_file = local_conversion
         .and_then(|local_conversion| {
             optional_string_field(local_conversion, "suggested_source_safetensors_file")
@@ -4194,10 +4239,26 @@ fn parse_huggingface_conversion_request(text: &str) -> io::Result<HuggingFaceCon
         .filter(|value| !value.trim().is_empty())
         .map(validate_conversion_known_peer_base_url)
         .transpose()?;
+    let suggested_gguf_source_file = local_conversion
+        .and_then(|local_conversion| {
+            optional_string_field(local_conversion, "suggested_source_gguf_file")
+        })
+        .filter(|value| !value.trim().is_empty())
+        .map(|value| value.to_string());
+    if let Some(file_name) = suggested_gguf_source_file.as_deref() {
+        validate_safe_gguf_file_name(file_name)?;
+    }
     let expected_source_files = match local_conversion {
         Some(local_conversion) => parse_huggingface_expected_source_files(
             local_conversion,
             suggested_source_file.as_deref(),
+        )?,
+        None => Vec::new(),
+    };
+    let expected_gguf_source_files = match local_conversion {
+        Some(local_conversion) => parse_huggingface_expected_gguf_source_files(
+            local_conversion,
+            suggested_gguf_source_file.as_deref(),
         )?,
         None => Vec::new(),
     };
@@ -4207,10 +4268,171 @@ fn parse_huggingface_conversion_request(text: &str) -> io::Result<HuggingFaceCon
         supported_source_shapes,
         default_source_shape,
         default_quantization,
+        source_format,
+        source_input_mode,
         suggested_source_file,
+        suggested_gguf_source_file,
         known_peer_base_url,
         expected_source_files,
+        expected_gguf_source_files,
     })
+}
+
+fn render_huggingface_conversion_request_inspection(
+    request: &HuggingFaceConversionRequest,
+    request_bytes: &[u8],
+    request_json: &Path,
+) -> String {
+    let mut text = String::new();
+    push_receipt_line(
+        &mut text,
+        "tinyrustlm_huggingface_conversion_request_inspection_version",
+        "1",
+    );
+    push_receipt_line(
+        &mut text,
+        "request_kind",
+        "minimodel.huggingface_conversion_request.v0",
+    );
+    push_receipt_line(&mut text, "inspection_status", "pass");
+    push_receipt_line(&mut text, "source_kind", "huggingface_model");
+    push_receipt_line(&mut text, "source_model_id", &request.source_model_id);
+    push_receipt_line(&mut text, "source_format", &request.source_format);
+    push_receipt_line(
+        &mut text,
+        "source_input_mode",
+        request
+            .source_input_mode
+            .as_deref()
+            .unwrap_or("not-provided"),
+    );
+    push_receipt_line(&mut text, "request_json", &one_line_path(request_json));
+    push_receipt_line(
+        &mut text,
+        "request_text_checksum",
+        &hex64(provenance::text_checksum(request_bytes)),
+    );
+    push_receipt_line(
+        &mut text,
+        "request_sha256",
+        &peer_offer::sha256_prefixed(request_bytes),
+    );
+    push_receipt_line(
+        &mut text,
+        "supported_source_shapes",
+        &request.supported_source_shapes.join(","),
+    );
+    push_receipt_line(
+        &mut text,
+        "default_source_shape",
+        &request.default_source_shape,
+    );
+    push_receipt_line(
+        &mut text,
+        "default_quantization",
+        &request.default_quantization,
+    );
+    push_receipt_line(
+        &mut text,
+        "suggested_source_safetensors_file",
+        request
+            .suggested_source_file
+            .as_deref()
+            .unwrap_or("not-provided"),
+    );
+    push_receipt_line(
+        &mut text,
+        "suggested_source_gguf_file",
+        request
+            .suggested_gguf_source_file
+            .as_deref()
+            .unwrap_or("not-provided"),
+    );
+    push_receipt_line(
+        &mut text,
+        "known_peer_base_url",
+        request
+            .known_peer_base_url
+            .as_deref()
+            .unwrap_or("not-provided"),
+    );
+    push_receipt_line(
+        &mut text,
+        "safetensors_expected_file_count",
+        &request.expected_source_files.len().to_string(),
+    );
+    push_receipt_line(
+        &mut text,
+        "safetensors_expected_total_bytes",
+        &expected_source_total_bytes(request)
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| "unavailable".to_string()),
+    );
+    for (index, file) in request.expected_source_files.iter().enumerate() {
+        push_expected_source_file_lines(&mut text, "safetensors_expected", index, file);
+    }
+    push_receipt_line(
+        &mut text,
+        "gguf_expected_file_count",
+        &request.expected_gguf_source_files.len().to_string(),
+    );
+    push_receipt_line(
+        &mut text,
+        "gguf_expected_total_bytes",
+        &expected_source_file_total_bytes(&request.expected_gguf_source_files)
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| "unavailable".to_string()),
+    );
+    for (index, file) in request.expected_gguf_source_files.iter().enumerate() {
+        push_expected_source_file_lines(&mut text, "gguf_expected", index, file);
+    }
+    push_receipt_line(&mut text, "project_server_runs_model_bytes", "false");
+    push_receipt_line(&mut text, "project_server_serves_model_bytes", "false");
+    push_receipt_line(
+        &mut text,
+        "project_server_proxies_huggingface_bytes",
+        "false",
+    );
+    push_receipt_line(
+        &mut text,
+        "local_script_huggingface_download_requires_explicit_opt_in",
+        "true",
+    );
+    push_receipt_line(
+        &mut text,
+        "required_next_gate",
+        match request.source_format.as_str() {
+            "gguf" => "inspect-gguf-and-plan-gguf-source",
+            _ => "convert-huggingface-request",
+        },
+    );
+    text
+}
+
+fn push_expected_source_file_lines(
+    text: &mut String,
+    prefix: &str,
+    index: usize,
+    file: &HuggingFaceExpectedSourceFile,
+) {
+    push_receipt_line(
+        text,
+        &format!("{prefix}.{index}.file_name"),
+        &file.file_name,
+    );
+    push_receipt_line(
+        text,
+        &format!("{prefix}.{index}.sha256"),
+        file.sha256.as_deref().unwrap_or("not-provided"),
+    );
+    push_receipt_line(
+        text,
+        &format!("{prefix}.{index}.byte_count"),
+        &file
+            .byte_count
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| "not-provided".to_string()),
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -4701,6 +4923,31 @@ fn selected_shape_supported(request: &HuggingFaceConversionRequest, shape_name: 
         .any(|supported| supported == shape_name)
 }
 
+fn parse_huggingface_conversion_source_format(
+    local_conversion: Option<&[(String, JsonValue)]>,
+) -> io::Result<String> {
+    let inferred_from_gguf = local_conversion
+        .map(|local_conversion| {
+            find_object_field(local_conversion, "suggested_source_gguf_file").is_some()
+                || find_object_field(local_conversion, "suggested_source_gguf_files").is_some()
+        })
+        .unwrap_or(false);
+    let source_format = local_conversion
+        .and_then(|local_conversion| optional_string_field(local_conversion, "source_format"))
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or(if inferred_from_gguf {
+            "gguf"
+        } else {
+            "safetensors"
+        });
+    if !matches!(source_format, "safetensors" | "gguf") {
+        return Err(invalid(
+            "Hugging Face conversion request local_conversion.source_format must be safetensors or gguf",
+        ));
+    }
+    Ok(source_format.to_string())
+}
+
 fn parse_huggingface_expected_source_files(
     local_conversion: &[(String, JsonValue)],
     suggested_source_file: Option<&str>,
@@ -4757,6 +5004,74 @@ fn parse_huggingface_expected_source_files(
                 local_conversion,
                 "suggested_source_safetensors_byte_count",
                 "Hugging Face conversion request suggested_source_safetensors_byte_count",
+            )?;
+            if sha256.is_some() || byte_count.is_some() {
+                files.push(HuggingFaceExpectedSourceFile {
+                    file_name: file_name.to_string(),
+                    sha256,
+                    byte_count,
+                });
+            }
+        }
+    }
+    Ok(files)
+}
+
+fn parse_huggingface_expected_gguf_source_files(
+    local_conversion: &[(String, JsonValue)],
+    suggested_source_file: Option<&str>,
+) -> io::Result<Vec<HuggingFaceExpectedSourceFile>> {
+    let mut files = Vec::new();
+    if let Some(items) = conversion_optional_array_field(
+        local_conversion,
+        "suggested_source_gguf_files",
+        "Hugging Face conversion request local_conversion.suggested_source_gguf_files",
+    )? {
+        for item in items {
+            let object = match item {
+                JsonValue::Object(value) => value,
+                _ => {
+                    return Err(invalid(
+                        "Hugging Face conversion request suggested_source_gguf_files entries must be objects",
+                    ))
+                }
+            };
+            let file_name = conversion_string_field(object, "file_name")?.to_string();
+            validate_safe_gguf_file_name(&file_name)?;
+            if files
+                .iter()
+                .any(|existing: &HuggingFaceExpectedSourceFile| existing.file_name == file_name)
+            {
+                return Err(invalid(
+                    "Hugging Face conversion request lists the same .gguf source file twice",
+                ));
+            }
+            let sha256 = optional_string_field(object, "sha256")
+                .filter(|value| !value.trim().is_empty())
+                .map(|value| normalize_conversion_sha256(value, "suggested GGUF source sha256"))
+                .transpose()?;
+            let byte_count = conversion_optional_u64_field(
+                object,
+                "byte_count",
+                "Hugging Face conversion request suggested GGUF source byte_count",
+            )?;
+            files.push(HuggingFaceExpectedSourceFile {
+                file_name,
+                sha256,
+                byte_count,
+            });
+        }
+    }
+    if files.is_empty() {
+        if let Some(file_name) = suggested_source_file {
+            let sha256 = optional_string_field(local_conversion, "suggested_source_gguf_sha256")
+                .filter(|value| !value.trim().is_empty())
+                .map(|value| normalize_conversion_sha256(value, "suggested GGUF source sha256"))
+                .transpose()?;
+            let byte_count = conversion_optional_u64_field(
+                local_conversion,
+                "suggested_source_gguf_byte_count",
+                "Hugging Face conversion request suggested_source_gguf_byte_count",
             )?;
             if sha256.is_some() || byte_count.is_some() {
                 files.push(HuggingFaceExpectedSourceFile {
@@ -4860,8 +5175,12 @@ fn file_sha256_prefixed(path: &Path) -> io::Result<String> {
 }
 
 fn expected_source_total_bytes(request: &HuggingFaceConversionRequest) -> Option<u64> {
+    expected_source_file_total_bytes(&request.expected_source_files)
+}
+
+fn expected_source_file_total_bytes(files: &[HuggingFaceExpectedSourceFile]) -> Option<u64> {
     let mut total = 0u64;
-    for file in &request.expected_source_files {
+    for file in files {
         let bytes = file.byte_count?;
         total = total.saturating_add(bytes);
     }
@@ -5004,6 +5323,46 @@ fn validate_safe_safetensors_file_name(file_name: &str) -> io::Result<()> {
         ));
     }
     Ok(())
+}
+
+fn validate_safe_gguf_file_name(file_name: &str) -> io::Result<()> {
+    if file_name.is_empty()
+        || file_name != file_name.trim()
+        || !file_name.ends_with(".gguf")
+        || file_name.contains('/')
+        || file_name.contains('\\')
+        || file_name.contains("://")
+        || file_name == "."
+        || file_name == ".."
+        || file_name
+            .chars()
+            .any(|ch| ch.is_control() || ch.is_whitespace())
+        || !file_name
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
+    {
+        return Err(invalid(
+            "Hugging Face conversion request suggested GGUF source file must be a safe .gguf file name",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_safe_conversion_token(value: &str) -> io::Result<String> {
+    if value.is_empty()
+        || value != value.trim()
+        || value
+            .chars()
+            .any(|ch| ch.is_control() || ch.is_whitespace())
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+    {
+        return Err(invalid(
+            "Hugging Face conversion request local_conversion.source_input_mode must be a safe token",
+        ));
+    }
+    Ok(value.to_string())
 }
 
 fn validate_conversion_known_peer_base_url(value: &str) -> io::Result<String> {

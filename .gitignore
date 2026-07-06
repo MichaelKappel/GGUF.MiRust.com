@@ -1,6 +1,8 @@
 .vs/
 .vscode/
 target/
+**/bin/
+**/obj/
 x64/
 *.vcxproj.user
 *.suo
@@ -11,3 +13,9 @@ x64/
 *.log
 *.tmp
 *.bak
+artifacts/native/**
+artifacts/packages/**
+artifacts/reports/**
+!artifacts/native/.gitkeep
+!artifacts/packages/.gitkeep
+!artifacts/reports/.gitkeep

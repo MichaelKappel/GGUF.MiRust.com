@@ -11,6 +11,7 @@ use std::process::{Command, ExitCode};
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use tinyrustlm_local_connect::{
     decide_approval, validate_policy_json, ApprovalPolicy, Category, PolicyError, ALL_CATEGORIES,
     POLICY_KIND, POLICY_VERSION,
@@ -72,8 +73,7 @@ where
             )?;
             let port = parse_optional_port(args.next())?;
             reject_extra(args)?;
-            let policy = read_policy(Path::new(&path))?;
-            serve_endpoint(policy, port)?;
+            serve_endpoint(PathBuf::from(path), port)?;
             Ok("endpoint stopped".to_string())
         }
         "execute-action" => {
@@ -130,18 +130,51 @@ fn parse_optional_port(port: Option<String>) -> Result<u16, CliError> {
     }
 }
 
-fn serve_endpoint(policy: ApprovalPolicy, port: u16) -> Result<(), CliError> {
+struct PolicyStore {
+    path: PathBuf,
+    policy: ApprovalPolicy,
+}
+
+impl PolicyStore {
+    fn load(path: PathBuf) -> Result<Self, CliError> {
+        let policy = read_policy(&path)?;
+        Ok(Self { path, policy })
+    }
+
+    fn policy(&self) -> &ApprovalPolicy {
+        &self.policy
+    }
+
+    fn refresh(&mut self) -> Result<&ApprovalPolicy, CliError> {
+        let previous_sha256 = self.policy.policy_sha256();
+        let policy = read_policy(&self.path)?;
+        let current_sha256 = policy.policy_sha256();
+        if current_sha256 != previous_sha256 {
+            println!(
+                "Reloaded {POLICY_KIND} v{POLICY_VERSION} {current_sha256} from {}.",
+                self.path.display()
+            );
+        }
+        self.policy = policy;
+        Ok(&self.policy)
+    }
+}
+
+fn serve_endpoint(policy_path: PathBuf, port: u16) -> Result<(), CliError> {
+    let mut policy_store = PolicyStore::load(policy_path)?;
     let listener = TcpListener::bind(("127.0.0.1", port))?;
     println!("TinyRustLM Local Connect endpoint listening at http://127.0.0.1:{port}/");
     println!(
-        "Loaded {POLICY_KIND} v{POLICY_VERSION} {}; gated app action endpoint is exposed.",
-        policy.policy_sha256()
+        "Loaded {POLICY_KIND} v{POLICY_VERSION} {} from {}; gated app action endpoint is exposed.",
+        policy_store.policy().policy_sha256(),
+        policy_store.path.display()
     );
+    println!("Policy file is revalidated before each request; invalid updates fail closed.");
 
     for stream in listener.incoming() {
         match stream {
             Ok(mut stream) => {
-                if let Err(error) = handle_endpoint_stream(&policy, &mut stream) {
+                if let Err(error) = handle_endpoint_stream(&mut policy_store, &mut stream) {
                     eprintln!("Local Connect request failed: {error}");
                 }
             }
@@ -151,7 +184,10 @@ fn serve_endpoint(policy: ApprovalPolicy, port: u16) -> Result<(), CliError> {
     Ok(())
 }
 
-fn handle_endpoint_stream(policy: &ApprovalPolicy, stream: &mut TcpStream) -> Result<(), CliError> {
+fn handle_endpoint_stream(
+    policy_store: &mut PolicyStore,
+    stream: &mut TcpStream,
+) -> Result<(), CliError> {
     stream.set_read_timeout(Some(Duration::from_secs(5)))?;
     stream.set_write_timeout(Some(Duration::from_secs(5)))?;
     let request = match read_http_request(stream) {
@@ -167,6 +203,21 @@ fn handle_endpoint_stream(policy: &ApprovalPolicy, stream: &mut TcpStream) -> Re
         write_empty_response(stream, 204, origin.as_deref())?;
         return Ok(());
     }
+
+    let policy = match policy_store.refresh() {
+        Ok(policy) => policy,
+        Err(error) => {
+            eprintln!("Local Connect policy reload failed: {error}");
+            write_error(
+                stream,
+                500,
+                origin.as_deref(),
+                "policy-reload-failed",
+                error.to_string(),
+            )?;
+            return Ok(());
+        }
+    };
 
     match (request.method.as_str(), request.path.as_str()) {
         ("GET", "/v0/health") => {
@@ -334,6 +385,7 @@ struct HealthResponse {
     policy_sha256: String,
     approval_mode: &'static str,
     full_local_control: bool,
+    full_control_non_sensitive_machine_acknowledged: bool,
     approved_apps_count: usize,
     app_execution_endpoints: bool,
     action_endpoint_path: &'static str,
@@ -351,6 +403,8 @@ fn health_response(policy: &ApprovalPolicy) -> HealthResponse {
         policy_sha256: policy.policy_sha256(),
         approval_mode: policy.mode().as_str(),
         full_local_control: policy.full_local_control(),
+        full_control_non_sensitive_machine_acknowledged: policy
+            .full_control_non_sensitive_machine_acknowledged(),
         approved_apps_count: policy.approved_apps().len(),
         app_execution_endpoints: true,
         action_endpoint_path: "/v0/action",
@@ -503,7 +557,7 @@ fn apps_response(policy: &ApprovalPolicy) -> Result<AppsResponse, CliError> {
     let mut seen = BTreeSet::new();
     let mut rows = Vec::new();
     for app in policy.approved_apps() {
-        let category = category_for_app_name(app).unwrap_or(Category::Files);
+        let category = policy.approved_app_category(app).unwrap_or(Category::Files);
         let source = if category_for_app_name(app).is_some() {
             "approved-app"
         } else {
@@ -870,6 +924,7 @@ struct ActionResponse {
     endpoint_kind: &'static str,
     policy_status: &'static str,
     policy_sha256: String,
+    action_request_sha256: String,
     decision: &'static str,
     reason: &'static str,
     category: &'static str,
@@ -891,6 +946,7 @@ impl ActionResponse {
         [
             "policy.status=validated".to_string(),
             format!("policy.sha256={}", self.policy_sha256),
+            format!("action.request_sha256={}", self.action_request_sha256),
             format!("decision={}", self.decision),
             format!("reason={}", self.reason),
             format!("category={}", self.category),
@@ -929,6 +985,19 @@ struct ActionPlan {
     target: String,
 }
 
+#[derive(Serialize)]
+struct CanonicalActionEvidence<'a> {
+    endpoint_kind: &'static str,
+    endpoint_version: u64,
+    policy_sha256: &'a str,
+    category: &'static str,
+    app: &'a str,
+    action: &'static str,
+    target_kind: &'static str,
+    target: &'a str,
+    dry_run: bool,
+}
+
 fn default_action_dry_run() -> bool {
     true
 }
@@ -962,6 +1031,12 @@ fn action_response(
         endpoint_kind: ENDPOINT_KIND,
         policy_status: "validated",
         policy_sha256: policy.policy_sha256(),
+        action_request_sha256: action_request_sha256(
+            policy,
+            &plan,
+            request.app.as_deref().unwrap_or_default(),
+            request.dry_run,
+        ),
         decision: report.decision().as_str(),
         reason: report.reason(),
         category: report.category().as_str(),
@@ -977,6 +1052,29 @@ fn action_response(
         execution_engine: native_opener_engine(),
         safety_note: "typed-action-policy-gated",
     })
+}
+
+fn action_request_sha256(
+    policy: &ApprovalPolicy,
+    plan: &ActionPlan,
+    app: &str,
+    dry_run: bool,
+) -> String {
+    let policy_sha256 = policy.policy_sha256();
+    let evidence = CanonicalActionEvidence {
+        endpoint_kind: ENDPOINT_KIND,
+        endpoint_version: ENDPOINT_VERSION,
+        policy_sha256: &policy_sha256,
+        category: plan.category.as_str(),
+        app,
+        action: plan.action,
+        target_kind: plan.target_kind,
+        target: &plan.target,
+        dry_run,
+    };
+    let text =
+        serde_json::to_string(&evidence).expect("action evidence serialization should not fail");
+    sha256_text(&text)
 }
 
 fn require_policy_sha256(value: &str, policy: &ApprovalPolicy) -> Result<(), CliError> {
@@ -1160,6 +1258,17 @@ fn bool_value(value: bool) -> &'static str {
     } else {
         "false"
     }
+}
+
+fn sha256_text(text: &str) -> String {
+    let digest = Sha256::digest(text.as_bytes());
+    let mut value = String::with_capacity("sha256:".len() + digest.len() * 2);
+    value.push_str("sha256:");
+    for byte in digest {
+        use std::fmt::Write as _;
+        let _ = write!(&mut value, "{byte:02x}");
+    }
+    value
 }
 
 #[derive(Serialize)]

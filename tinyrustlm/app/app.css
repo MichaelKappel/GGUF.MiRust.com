@@ -1713,6 +1713,34 @@ pre {
   color: var(--text-secondary);
 }
 
+.local-connect-full-ack {
+  width: max-content;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(8, 19, 34, .42);
+}
+
+.local-connect-full-ack.active {
+  border-color: rgba(248, 113, 113, .42);
+}
+
+.local-connect-full-ack.error {
+  color: #fca5a5;
+  background: rgba(248, 113, 113, .08);
+}
+
+.local-connect-full-ack input {
+  flex: 0 0 auto;
+}
+
+.local-connect-full-ack span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .local-connect-category-list {
   display: grid;
   gap: 8px;

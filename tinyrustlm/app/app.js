@@ -364,6 +364,7 @@
     peerContactBookPeers: [],
     peerContactBookSourceName: "",
     localConnectApprovalMode: "ask",
+    localConnectFullControlAcknowledged: false,
     localConnectCategoryRules: null,
     localConnectApprovedApps: [],
     localConnectEndpointUrl: `${"http:"}//127.0.0.1:8711`,
@@ -496,6 +497,7 @@
     saveShareKitButton: document.getElementById("saveShareKitButton"),
     shareMetadataState: document.getElementById("shareMetadataState"),
     localConnectApprovalMode: document.getElementById("localConnectApprovalMode"),
+    localConnectFullControlAck: document.getElementById("localConnectFullControlAck"),
     localConnectModeWarning: document.getElementById("localConnectModeWarning"),
     localConnectCategoryList: document.getElementById("localConnectCategoryList"),
     localConnectApprovedApps: document.getElementById("localConnectApprovedApps"),
@@ -614,6 +616,7 @@
     p2pEnabled: "slmcomposer.ui.p2pEnabled",
     peerBaseUrl: "slmcomposer.ui.peerBaseUrl",
     localConnectApprovalMode: "slmcomposer.ui.localConnectApprovalMode",
+    localConnectFullControlAcknowledged: "slmcomposer.ui.localConnectFullControlAcknowledged",
     localConnectCategoryRules: "slmcomposer.ui.localConnectCategoryRules",
     localConnectApprovedApps: "slmcomposer.ui.localConnectApprovedApps",
     localConnectEndpointUrl: "slmcomposer.ui.localConnectEndpointUrl",
@@ -674,7 +677,7 @@
   };
 
   const localConnectPolicyKind = "tinyrustlm.local_connect_approval_policy.v0";
-  const localConnectPolicyVersion = 1;
+  const localConnectPolicyVersion = 2;
   const localConnectApprovalModes = {
     ask: {
       label: "Ask every time",
@@ -686,7 +689,7 @@
     },
     full: {
       label: "Full local-control lab mode",
-      warning: "High risk: the local endpoint can operate approved apps and critical app categories on this computer."
+      warning: "High risk: requires a non-sensitive local machine acknowledgement before endpoint use."
     }
   };
   const localConnectApprovalLevels = {
@@ -732,6 +735,21 @@
       warning: "Can affect credentials, accounts, money movement, and security settings."
     }
   ]);
+  const localConnectKnownAppCategories = Object.freeze(new Map([
+    ["chrome.exe", "browser"],
+    ["msedge.exe", "browser"],
+    ["firefox.exe", "browser"],
+    ["outlook.exe", "email"],
+    ["thunderbird.exe", "email"],
+    ["winword.exe", "documents"],
+    ["excel.exe", "documents"],
+    ["explorer.exe", "files"],
+    ["powershell.exe", "terminal"],
+    ["pwsh.exe", "terminal"],
+    ["cmd.exe", "terminal"],
+    ["bitwarden.exe", "secrets"],
+    ["1password.exe", "secrets"]
+  ]));
 
   function storageGet(key, fallback) {
     try {
@@ -767,6 +785,7 @@
     storageRemove(uiStorageKeys.simpleSourceOption);
     storageRemove(uiStorageKeys.sidebarCollapsed);
     storageRemove(uiStorageKeys.localConnectApprovalMode);
+    storageRemove(uiStorageKeys.localConnectFullControlAcknowledged);
     storageRemove(uiStorageKeys.localConnectCategoryRules);
     storageRemove(uiStorageKeys.localConnectApprovedApps);
     storageRemove(uiStorageKeys.localConnectEndpointUrl);
@@ -1118,6 +1137,52 @@
     return localConnectAppCategories.find((category) => category.id === categoryId) || null;
   }
 
+  function localConnectKnownCategoryForApp(appName) {
+    return localConnectKnownAppCategories.get(String(appName || "").trim().toLowerCase()) || "";
+  }
+
+  function localConnectAppLevelApprovalAllowed(category) {
+    return Boolean(category && category.id !== "terminal" && category.id !== "secrets");
+  }
+
+  function localConnectApprovedAppBindings(approvedApps) {
+    return approvedApps
+      .map((app) => {
+        const categoryId = localConnectKnownCategoryForApp(app) || "files";
+        const category = findLocalConnectCategory(categoryId);
+        if (!localConnectAppLevelApprovalAllowed(category)) {
+          return null;
+        }
+        return {
+          app,
+          category: category.id,
+          category_label: category.label,
+          risk: category.risk,
+          warning: category.warning,
+          approval: "always"
+        };
+      })
+      .filter(Boolean);
+  }
+
+  function localConnectApprovedAppBindingFor(snapshot, appName) {
+    const normalizedName = String(appName || "").trim().toLowerCase();
+    if (!normalizedName || !snapshot || !Array.isArray(snapshot.approved_app_bindings)) {
+      return null;
+    }
+    return snapshot.approved_app_bindings.find(
+      (binding) => String(binding.app || "").trim().toLowerCase() === normalizedName
+    ) || null;
+  }
+
+  function localConnectAppApprovedForCategory(snapshot, appName, category) {
+    if (!category) {
+      return false;
+    }
+    const binding = localConnectApprovedAppBindingFor(snapshot, appName);
+    return Boolean(binding && binding.category === category.id);
+  }
+
   function parseLocalConnectCategoryRules(raw) {
     const rules = defaultLocalConnectCategoryRules();
     if (!raw) {
@@ -1148,6 +1213,10 @@
         .trim()
         .slice(0, 96);
       if (!app || seen.has(app.toLowerCase())) {
+        continue;
+      }
+      const knownCategory = localConnectKnownCategoryForApp(app);
+      if (knownCategory === "terminal" || knownCategory === "secrets") {
         continue;
       }
       seen.add(app.toLowerCase());
@@ -1201,6 +1270,16 @@
     }
   }
 
+  function localConnectFullControlReady(snapshot) {
+    return Boolean(snapshot && snapshot.full_local_control && snapshot.full_control_non_sensitive_machine_acknowledged);
+  }
+
+  function assertLocalConnectPolicyReadyForEndpoint(snapshot) {
+    if (snapshot && snapshot.full_local_control && !snapshot.full_control_non_sensitive_machine_acknowledged) {
+      throw new Error("Full local-control lab mode requires non-sensitive machine acknowledgement.");
+    }
+  }
+
   function validateLocalConnectHealth(health, snapshot, expectedPolicySha256) {
     if (!health || health.endpoint_kind !== "tinyrustlm.local_connect_endpoint.v0") {
       throw new Error("Local Connect endpoint health response was not recognized.");
@@ -1213,6 +1292,12 @@
     }
     if (health.approval_mode !== snapshot.approval_mode) {
       throw new Error("Local Connect endpoint policy mode differs from the browser preview.");
+    }
+    if (health.full_local_control !== snapshot.full_local_control) {
+      throw new Error("Local Connect endpoint full-control flag differs from the browser preview.");
+    }
+    if (health.full_control_non_sensitive_machine_acknowledged !== snapshot.full_control_non_sensitive_machine_acknowledged) {
+      throw new Error("Local Connect endpoint full-control acknowledgement differs from the browser preview.");
     }
     validateLocalConnectPolicySha256(health.policy_sha256, expectedPolicySha256, "health");
     if (health.app_execution_endpoints !== true || health.action_endpoint_path !== "/v0/action") {
@@ -1254,6 +1339,12 @@
       throw new Error("Local Connect endpoint app list did not advertise the gated action endpoint.");
     }
     const approvedAppNames = new Set(snapshot.approved_apps.map((app) => app.toLowerCase()));
+    const approvedBindings = new Map(
+      snapshot.approved_app_bindings.map((binding) => [
+        String(binding.app || "").trim().toLowerCase(),
+        binding
+      ])
+    );
     const listedApprovedApps = new Set();
     for (const app of apps.apps) {
       if (!app || typeof app !== "object") {
@@ -1288,6 +1379,10 @@
       if (approvedAppNames.has(appName.toLowerCase())) {
         listedApprovedApps.add(appName.toLowerCase());
       }
+      const approvedBinding = approvedBindings.get(appName.toLowerCase());
+      if (approvedBinding && approvedBinding.category !== app.category) {
+        throw new Error("Local Connect endpoint approved app category drift.");
+      }
     }
     for (const approvedApp of approvedAppNames) {
       if (!listedApprovedApps.has(approvedApp)) {
@@ -1315,17 +1410,20 @@
     }
     validateLocalConnectPolicySha256(action.policy_sha256, expectedPolicySha256, "action");
     const allowedReasons = new Set(["category-always-approved", "app-approved"]);
-    if (snapshot && snapshot.full_local_control) {
+    if (localConnectFullControlReady(snapshot)) {
       allowedReasons.add("full-local-control");
     }
     if (action.decision !== "allow" || !allowedReasons.has(action.reason)) {
       throw new Error("Local Connect endpoint action was not allowed by the browser approval policy.");
     }
-    if (snapshot && snapshot.full_local_control && action.full_control_warning !== true) {
+    if (localConnectFullControlReady(snapshot) && action.full_control_warning !== true) {
       throw new Error("Local Connect endpoint did not echo the full-control warning.");
     }
     if (action.action !== "open-url" || action.target_kind !== "https-url") {
       throw new Error("Local Connect endpoint action response did not bind the requested open-url action.");
+    }
+    if (!isCatalogSha256(action.action_request_sha256)) {
+      throw new Error("Local Connect endpoint action response did not include a valid request fingerprint.");
     }
     if (action.dry_run !== true || action.app_execution_performed !== false || action.execution_status !== "dry-run") {
       throw new Error("Local Connect endpoint action dry run performed app execution.");
@@ -1334,12 +1432,12 @@
 
   function localConnectEndpointDisplayDecision(app, snapshot, category) {
     const appName = String(app && app.app || "").trim();
-    const appApproved = snapshot.approved_apps.some((approved) => approved.toLowerCase() === appName.toLowerCase());
+    const appApproved = localConnectAppApprovedForCategory(snapshot, appName, category);
     const categoryApproval = category ? snapshot.category_approval[category.id] : "ask";
     if (categoryApproval === "deny") {
       return { decision: "deny", reason: "category-denied" };
     }
-    if (snapshot.full_local_control) {
+    if (localConnectFullControlReady(snapshot)) {
       return { decision: "allow", reason: "full-local-control" };
     }
     if (categoryApproval === "always") {
@@ -1354,7 +1452,12 @@
     return { decision: "ask", reason: "not-selected" };
   }
 
-  function approveLocalConnectEndpointApp(appName) {
+  function approveLocalConnectEndpointApp(appName, categoryId) {
+    const category = findLocalConnectCategory(categoryId);
+    if (!localConnectAppLevelApprovalAllowed(category)) {
+      setLocalConnectEndpointStatus("Critical categories cannot be app-level always approved. Use ask/block or full local-control lab mode on a non-sensitive machine.", true);
+      return;
+    }
     const normalized = normalizeLocalConnectApprovedApps([
       ...(state.localConnectApprovedApps || []),
       String(appName || "").trim()
@@ -1369,7 +1472,7 @@
     persistLocalConnectPolicy("Approved app saved. Re-check endpoint before relying on the updated policy.", {
       preserveEndpointApps: true
     });
-    setLocalConnectEndpointStatus("Approved app saved locally. Save the endpoint policy JSON and restart Local Connect to enforce it.", false);
+    setLocalConnectEndpointStatus("Approved app saved locally. Save the endpoint policy JSON over the watched policy file to enforce it.", false);
   }
 
   function setLocalConnectEndpointCategoryApproval(categoryId, approvalLevel) {
@@ -1388,7 +1491,7 @@
     persistLocalConnectPolicy(`${category.label} ${label}. Re-check endpoint before relying on the updated policy.`, {
       preserveEndpointApps: true
     });
-    setLocalConnectEndpointStatus(`${category.label} ${label} locally. Save the endpoint policy JSON and restart Local Connect to enforce it.`, false);
+    setLocalConnectEndpointStatus(`${category.label} ${label} locally. Save the endpoint policy JSON over the watched policy file to enforce it.`, false);
   }
 
   function renderLocalConnectEndpointApps(apps) {
@@ -1404,7 +1507,8 @@
       const categorySpec = findLocalConnectCategory(app.category);
       const displayDecision = localConnectEndpointDisplayDecision(app, snapshot, categorySpec);
       const categoryApproval = categorySpec ? snapshot.category_approval[categorySpec.id] : app.approval;
-      const appApproved = snapshot.approved_apps.some((approved) => approved.toLowerCase() === appName.toLowerCase());
+      const appApproved = localConnectAppApprovedForCategory(snapshot, appName, categorySpec);
+      const appApprovalAllowed = localConnectAppLevelApprovalAllowed(categorySpec);
       const row = document.createElement("div");
       row.className = `local-connect-endpoint-app risk-${safeLocalConnectCssToken(app.risk)}`;
       row.setAttribute("role", "listitem");
@@ -1433,10 +1537,12 @@
       approveAppButton.type = "button";
       approveAppButton.dataset.localConnectAppAction = "approve-app";
       approveAppButton.dataset.localConnectAppName = appName;
-      approveAppButton.textContent = snapshot.full_local_control ? "Full mode active" : appApproved ? "App approved" : "Always approve app";
-      approveAppButton.disabled = snapshot.full_local_control || appApproved || !appName;
+      approveAppButton.textContent = snapshot.full_local_control
+        ? localConnectFullControlReady(snapshot) ? "Full mode active" : "Needs acknowledgement"
+        : !appApprovalAllowed ? "Category risk only" : appApproved ? "App approved" : "Always approve app";
+      approveAppButton.disabled = snapshot.full_local_control || appApproved || !appName || !appApprovalAllowed;
       approveAppButton.addEventListener("click", () => {
-        approveLocalConnectEndpointApp(appName);
+        approveLocalConnectEndpointApp(appName, app.category);
       });
       const approveCategoryButton = document.createElement("button");
       approveCategoryButton.className = "secondary-action local-connect-app-action";
@@ -1507,6 +1613,7 @@
     }
     setLocalConnectEndpointStatus("Checking Local Connect endpoint...", false);
     const snapshot = localConnectPolicySnapshot();
+    assertLocalConnectPolicyReadyForEndpoint(snapshot);
     const expectedPolicySha256 = await localConnectPolicySha256(snapshot);
     const health = await fetchLocalConnectJson(`${endpoint}/v0/health`);
     validateLocalConnectHealth(health, snapshot, expectedPolicySha256);
@@ -1546,6 +1653,7 @@
     }
     setLocalConnectEndpointStatus("Dry-running Local Connect open-url action...", false);
     const snapshot = localConnectPolicySnapshot();
+    assertLocalConnectPolicyReadyForEndpoint(snapshot);
     const expectedPolicySha256 = await localConnectPolicySha256(snapshot);
     const action = await fetchLocalConnectJson(`${endpoint}/v0/action`, {
       method: "POST",
@@ -1564,7 +1672,7 @@
     });
     validateLocalConnectAction(action, expectedPolicySha256, snapshot);
     setLocalConnectEndpointStatus(
-      `Endpoint action dry run: ${action.decision} ${action.action} for browser/chrome.exe; no app execution performed.`,
+      `Endpoint action dry run: ${action.decision} ${action.action} for browser/chrome.exe; request fingerprint ${action.action_request_sha256}; no app execution performed.`,
       false
     );
   }
@@ -1572,9 +1680,10 @@
   function saveLocalConnectEndpointPolicyJson() {
     persistLocalConnectPolicy();
     const snapshot = localConnectPolicySnapshot();
+    assertLocalConnectPolicyReadyForEndpoint(snapshot);
     downloadTextFile("tinyrustlm-local-connect-policy.v0.json", `${JSON.stringify(snapshot, null, 2)}\n`);
     updateLocalConnectPolicyUi("Endpoint policy JSON saved.");
-    setLocalConnectEndpointStatus("Endpoint policy JSON saved for the local endpoint.", false);
+    setLocalConnectEndpointStatus("Endpoint policy JSON saved. Replace the endpoint's watched policy file to apply it live.", false);
   }
 
   function localConnectPolicySnapshot() {
@@ -1585,18 +1694,22 @@
       );
     }
     const approvedApps = normalizeLocalConnectApprovedApps(state.localConnectApprovedApps || []);
+    const approvedAppBindings = localConnectApprovedAppBindings(approvedApps);
     const mode = sanitizeLocalConnectApprovalMode(state.localConnectApprovalMode);
+    const fullControlAcknowledged = mode === "full" && Boolean(state.localConnectFullControlAcknowledged);
     return {
       policy_kind: localConnectPolicyKind,
       policy_version: localConnectPolicyVersion,
       approval_mode: mode,
       approval_mode_label: localConnectApprovalModes[mode].label,
       full_local_control: mode === "full",
+      full_control_non_sensitive_machine_acknowledged: fullControlAcknowledged,
       browser_local_storage_only: true,
       project_server_receives_policy: false,
       local_endpoint_must_enforce_policy: true,
       category_approval: categoryRules,
       approved_apps: approvedApps,
+      approved_app_bindings: approvedAppBindings,
       risk_warnings: localConnectAppCategories.map((category) => ({
         category: category.id,
         label: category.label,
@@ -1609,7 +1722,9 @@
 
   function localConnectPolicyStatusText(snapshot) {
     if (snapshot.full_local_control) {
-      return "Full local-control lab mode active. Use only on a non-sensitive computer.";
+      return snapshot.full_control_non_sensitive_machine_acknowledged
+        ? "Full local-control lab mode active for this non-sensitive computer."
+        : "Full local-control lab mode needs non-sensitive machine acknowledgement.";
     }
     const alwaysCategories = localConnectAppCategories
       .filter((category) => snapshot.category_approval[category.id] === "always")
@@ -1683,8 +1798,18 @@
     const policyStatus = localConnectPolicyStatusText(snapshot);
     const statusText = statusOverride ? `${statusOverride} ${policyStatus}` : policyStatus;
     const isFullControl = snapshot.full_local_control;
+    const fullControlNeedsAck = isFullControl && !snapshot.full_control_non_sensitive_machine_acknowledged;
     if (el.localConnectApprovalMode) {
       el.localConnectApprovalMode.value = snapshot.approval_mode;
+    }
+    if (el.localConnectFullControlAck) {
+      el.localConnectFullControlAck.checked = snapshot.full_control_non_sensitive_machine_acknowledged;
+      el.localConnectFullControlAck.disabled = !isFullControl;
+      const row = el.localConnectFullControlAck.closest(".local-connect-full-ack");
+      if (row) {
+        row.classList.toggle("active", isFullControl);
+        row.classList.toggle("error", fullControlNeedsAck);
+      }
     }
     if (el.localConnectModeWarning) {
       el.localConnectModeWarning.textContent = modeWarning;
@@ -1713,6 +1838,12 @@
 
   function persistLocalConnectPolicy(statusOverride, options = {}) {
     state.localConnectApprovalMode = sanitizeLocalConnectApprovalMode(state.localConnectApprovalMode);
+    if (el.localConnectFullControlAck) {
+      state.localConnectFullControlAcknowledged = Boolean(el.localConnectFullControlAck.checked);
+    }
+    if (state.localConnectApprovalMode !== "full") {
+      state.localConnectFullControlAcknowledged = false;
+    }
     if (!state.localConnectCategoryRules) {
       state.localConnectCategoryRules = defaultLocalConnectCategoryRules();
     }
@@ -1726,6 +1857,7 @@
       state.localConnectApprovalMode = "selected";
     }
     storageSet(uiStorageKeys.localConnectApprovalMode, state.localConnectApprovalMode);
+    storageSet(uiStorageKeys.localConnectFullControlAcknowledged, String(Boolean(state.localConnectFullControlAcknowledged)));
     storageSet(uiStorageKeys.localConnectCategoryRules, JSON.stringify(state.localConnectCategoryRules));
     storageSet(uiStorageKeys.localConnectApprovedApps, JSON.stringify(state.localConnectApprovedApps));
     if (!options.preserveEndpointApps) {
@@ -1742,6 +1874,8 @@
     state.localConnectApprovalMode = sanitizeLocalConnectApprovalMode(
       storageGet(uiStorageKeys.localConnectApprovalMode, "ask")
     );
+    state.localConnectFullControlAcknowledged = state.localConnectApprovalMode === "full"
+      && storageGet(uiStorageKeys.localConnectFullControlAcknowledged, "false") === "true";
     state.localConnectCategoryRules = parseLocalConnectCategoryRules(
       storageGet(uiStorageKeys.localConnectCategoryRules, "")
     );
@@ -1764,6 +1898,7 @@
 
   function resetLocalConnectPolicy() {
     state.localConnectApprovalMode = "ask";
+    state.localConnectFullControlAcknowledged = false;
     state.localConnectCategoryRules = defaultLocalConnectCategoryRules();
     state.localConnectApprovedApps = [];
     if (el.localConnectApprovedApps) {
@@ -1780,10 +1915,10 @@
     state.localConnectCategoryRules.browser = "always";
     state.localConnectCategoryRules.email = "always";
     persistLocalConnectPolicy(
-      "Browsers and email apps always approved locally. Save the endpoint policy JSON and restart Local Connect before relying on it.",
+      "Browsers and email apps always approved locally. Save the endpoint policy JSON over the watched policy file before relying on it.",
       { preserveEndpointApps: true }
     );
-    setLocalConnectEndpointStatus("Browsers and email apps approved in the local preview. Save the endpoint policy JSON and restart Local Connect to enforce it.", false);
+    setLocalConnectEndpointStatus("Browsers and email apps approved in the local preview. Save the endpoint policy JSON over the watched policy file to enforce it.", false);
   }
 
   function openLocalConnectApprovals() {
@@ -2715,7 +2850,16 @@
     if (el.localConnectApprovalMode) {
       el.localConnectApprovalMode.addEventListener("change", () => {
         state.localConnectApprovalMode = sanitizeLocalConnectApprovalMode(el.localConnectApprovalMode.value);
+        if (state.localConnectApprovalMode !== "full") {
+          state.localConnectFullControlAcknowledged = false;
+        }
         persistLocalConnectPolicy("Approval mode saved.", { preserveEndpointApps: true });
+      });
+    }
+    if (el.localConnectFullControlAck) {
+      el.localConnectFullControlAck.addEventListener("change", () => {
+        state.localConnectFullControlAcknowledged = Boolean(el.localConnectFullControlAck.checked);
+        persistLocalConnectPolicy("Full-control acknowledgement saved.", { preserveEndpointApps: true });
       });
     }
     if (el.localConnectApprovedApps) {
@@ -2739,7 +2883,12 @@
     }
     if (el.saveLocalConnectPolicyFileButton) {
       el.saveLocalConnectPolicyFileButton.addEventListener("click", () => {
-        saveLocalConnectEndpointPolicyJson();
+        try {
+          saveLocalConnectEndpointPolicyJson();
+        } catch (error) {
+          setLocalConnectEndpointStatus(errorMessage(error), true);
+          updateLocalConnectPolicyUi();
+        }
       });
     }
     if (el.resetLocalConnectPolicyButton) {
@@ -5324,11 +5473,12 @@
     if (byteCount > quotaBytes) {
       throw new Error(`${label}.piece_store_byte_count exceeds quota`);
     }
+    const pieceStoreSha256 = requireImportLedgerSha(object.piece_store_sha256, `${label}.piece_store_sha256`);
     if (requireImportLedgerString(object.quota_status, `${label}.quota_status`, 64) !== "within-quota") {
       throw new Error(`${label}.quota_status was not within-quota`);
     }
     requireImportLedgerBool(object.piece_store_user_controlled, `${label}.piece_store_user_controlled`, true);
-    return { byteCount, quotaBytes };
+    return { byteCount, quotaBytes, pieceStoreSha256 };
   }
 
   function validatePeerCompanionInventoryReceiptLedger(receiptLedger, label) {
@@ -5493,6 +5643,7 @@
       servePlanPeerPieceSetRoute: servePlan.peerPieceSetRoute,
       pieceCount: shareState.pieceCount,
       pieceStoreByteCount: pieceStore.byteCount,
+      pieceStoreSha256: pieceStore.pieceStoreSha256,
       pieceStoreQuotaBytes: pieceStore.quotaBytes,
       receiptEntryCount: receiptLedger.entryCount,
       receiptPeerImportCount: receiptLedger.peerImportCount,
@@ -5507,7 +5658,7 @@
     const pieceText = `${inventory.pieceCount} piece${inventory.pieceCount === 1 ? "" : "s"}`;
     const receiptText = `${inventory.receiptEntryCount} receipt${inventory.receiptEntryCount === 1 ? "" : "s"}`;
     const contactText = `${inventory.contactCardCount} contact card${inventory.contactCardCount === 1 ? "" : "s"}`;
-    return `Peer companion inventory loaded: ${inventory.sourceLabel} / ${inventory.modelId} / ${pieceText} / ${formatByteCount(inventory.pieceStoreByteCount)} store of ${formatByteCount(inventory.pieceStoreQuotaBytes)} quota / ${receiptText} / ${contactText} / serve plan ${inventory.servePlanStatus} / status route ${inventory.servePlanPeerStatusRoute} / ${inventory.inventorySha256} / Rust reverify required`;
+    return `Peer companion inventory loaded: ${inventory.sourceLabel} / ${inventory.modelId} / ${pieceText} / ${formatByteCount(inventory.pieceStoreByteCount)} store of ${formatByteCount(inventory.pieceStoreQuotaBytes)} quota / store ${inventory.pieceStoreSha256} / peer ${inventory.peerBaseUrl} / ${receiptText} / ${contactText} / serve plan ${inventory.servePlanStatus} / status route ${inventory.servePlanPeerStatusRoute} / ${inventory.inventorySha256} / Rust reverify required`;
   }
 
   async function importPeerCompanionInventoryFile(preferredInput) {
@@ -5530,6 +5681,8 @@
     const body = JSON.parse(text);
     const inventory = validatePeerCompanionInventoryBody(body, await sha256Text(text), fileName);
     state.peerCompanionInventory = inventory;
+    setPeerBaseUrl(inventory.peerBaseUrl, { keepPeerContactBook: true });
+    updatePeerUrlStatus(`Peer companion inventory loaded: known peer set to ${inventory.peerBaseUrl}; Rust reverify required`, false);
     setPeerCompanionInventoryStatus(peerCompanionInventoryStatusText(inventory), false);
     return inventory;
   }
@@ -6756,6 +6909,29 @@
     return files;
   }
 
+  function hfGgufSiblings(result) {
+    const siblings = result && Array.isArray(result.siblings) ? result.siblings : [];
+    const seen = new Set();
+    const files = [];
+    for (const sibling of siblings) {
+      const fileName = hfSiblingFileName(sibling);
+      if (!/\.gguf$/i.test(fileName) || seen.has(fileName.toLowerCase())) {
+        continue;
+      }
+      seen.add(fileName.toLowerCase());
+      files.push({
+        file_name: fileName,
+        byte_count: hfSiblingByteCount(sibling),
+        sha256: hfSiblingSha256(sibling),
+        download_url: hfResolveUrl(result && result.modelId || result && result.id || result && result.name, fileName)
+      });
+      if (files.length >= 8) {
+        break;
+      }
+    }
+    return files;
+  }
+
   function normalizeModelIdentity(value) {
     return String(value || "")
       .trim()
@@ -7141,7 +7317,12 @@
     downloadTextFile(`${stem}.minimodel-conversion-request.json`, `${JSON.stringify(request, null, 2)}\n`);
     downloadTextFile(`${stem}.tinyrustlm-convert.ps1`, hfConversionScript(entry, matches), "text/plain");
     downloadTextFile(`${stem}.tinyrustlm-conversion.README.txt`, hfConversionReadme(entry, matches), "text/plain");
-    setHfStatus("Rust conversion kit saved: use a reviewed local .safetensors file or shard directory, or opt into direct Hugging Face download, then run it to create .slm plus MiniModel P2P metadata", false);
+    setHfStatus(
+      request.local_conversion.source_format === "gguf"
+        ? "Rust GGUF conversion kit saved: use a reviewed local .gguf file with F32/F16/BF16/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K tensors, or opt into direct Hugging Face download, then run it to create .slm plus MiniModel P2P metadata"
+        : "Rust conversion kit saved: use a reviewed local .safetensors file or shard directory, or opt into direct Hugging Face download, then run it to create .slm plus MiniModel P2P metadata",
+      false
+    );
     holdModelPopoverOpen(2500);
   }
 
@@ -7158,11 +7339,13 @@
     const matches = hfP2pMatches(entry.modelId);
     const slmFiles = hfSlmSiblings(entry.result);
     const safetensorsFiles = hfSafetensorsSiblings(entry.result);
+    const ggufFiles = hfGgufSiblings(entry.result);
     return {
       entry,
       matches,
       slmFiles,
       safetensorsFiles,
+      ggufFiles,
       hasPeerOffer: matches.some((match) => Boolean(match.peerOfferRoute)),
       peerOfferMatch: firstPeerOfferMatch(matches),
       p2pMatch: hfP2pImportMatch(matches),
@@ -7172,7 +7355,30 @@
   }
 
   function hfCanStartConversion(view) {
-    return Boolean(view && view.safetensorsFiles && view.safetensorsFiles.length);
+    return Boolean(
+      view &&
+      (
+        (view.safetensorsFiles && view.safetensorsFiles.length) ||
+        (view.ggufFiles && view.ggufFiles.length)
+      )
+    );
+  }
+
+  function hfPreferredSourceFormat(view) {
+    if (view && Array.isArray(view.safetensorsFiles) && view.safetensorsFiles.length) {
+      return "safetensors";
+    }
+    if (view && Array.isArray(view.ggufFiles) && view.ggufFiles.length) {
+      return "gguf";
+    }
+    return "none";
+  }
+
+  function hfPreferredSourceFiles(view) {
+    if (hfPreferredSourceFormat(view) === "gguf") {
+      return Array.isArray(view.ggufFiles) ? view.ggufFiles : [];
+    }
+    return view && Array.isArray(view.safetensorsFiles) ? view.safetensorsFiles : [];
   }
 
   function hfPrimarySafetensorsFile(view) {
@@ -7181,8 +7387,14 @@
       : null;
   }
 
+  function hfPrimaryGgufFile(view) {
+    return view && Array.isArray(view.ggufFiles) && view.ggufFiles.length
+      ? view.ggufFiles[0]
+      : null;
+  }
+
   function hfSourceByteSummary(view) {
-    const files = view && Array.isArray(view.safetensorsFiles) ? view.safetensorsFiles : [];
+    const files = hfPreferredSourceFiles(view);
     if (!files.length) {
       return { risk: "none", bytes: null, fileCount: 0 };
     }
@@ -7215,6 +7427,9 @@
   }
 
   function hfConversionActionLabel(view) {
+    if (hfPreferredSourceFormat(view) === "gguf") {
+      return "Review Conversion";
+    }
     return hfSourceByteRisk(view) === "normal" ? "Start Conversion" : "Review Conversion";
   }
 
@@ -7255,12 +7470,14 @@
           ? "MiniModel metadata has a peer-offer proof; enter a consenting peer URL before Rust fetches, assembles, and reverifies"
         : "MiniModel metadata only; choose the matching local .slm before running"
       : hfCanStartConversion(view)
-        ? hfSourceByteRisk(view) === "large"
-          ? "model card only; large source listed, so P2P reuse is preferred before local conversion"
-          : hfSourceByteRisk(view) === "unknown"
-            ? "model card only; source size unknown, so review before local conversion"
-            : "model card only; not runnable here until Rust conversion and local .slm verification"
-        : "model card only; no .safetensors source listed for the Rust converter";
+        ? hfPreferredSourceFormat(view) === "gguf"
+          ? "model card only; GGUF source listed, Rust can convert F32/F16/BF16/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K tensors after local review"
+          : hfSourceByteRisk(view) === "large"
+            ? "model card only; large source listed, so P2P reuse is preferred before local conversion"
+            : hfSourceByteRisk(view) === "unknown"
+              ? "model card only; source size unknown, so review before local conversion"
+              : "model card only; not runnable here until Rust conversion and local .slm verification"
+        : "model card only; no .safetensors or reviewable .gguf source listed for the Rust converter";
     return `${view.downloads} / ${view.likes} / ${sourceState}`;
   }
 
@@ -7275,7 +7492,10 @@
       return `Hugging Face model card / ${view.downloads} / ${view.hasPeerOffer ? "P2P proof ready; consenting peer URL required" : "MiniModel metadata found; local .slm needed"}`;
     }
     if (!hfCanStartConversion(view)) {
-      return `Hugging Face model card / ${view.downloads} / no supported .safetensors source listed`;
+      return `Hugging Face model card / ${view.downloads} / no supported .safetensors or reviewable .gguf source listed`;
+    }
+    if (hfPreferredSourceFormat(view) === "gguf") {
+      return `Hugging Face model card / ${view.downloads} / GGUF source listed; Rust tensor review required`;
     }
     if (hfSourceByteRisk(view) === "large") {
       return `Hugging Face model card / ${view.downloads} / large source listed; P2P preferred before local conversion`;
@@ -7324,7 +7544,10 @@
       return "MiniModel has a peer-offer proof. Enter one consenting peer URL in P2P Exchange to import without repeating source conversion.";
     }
     if (!hfCanStartConversion(view)) {
-      return "No converted peer or .safetensors source is listed yet. Review the model card; Rust conversion needs a reviewed .safetensors source before it can create .slm metadata for P2P reuse.";
+      return "No converted peer, .safetensors source, or reviewable .gguf source is listed yet. Review the model card before choosing a local conversion path.";
+    }
+    if (hfPreferredSourceFormat(view) === "gguf") {
+      return "No converted peer is listed yet. Review Conversion saves a Rust script that inspects the local GGUF first and converts F32/F16/BF16/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K tensor payloads into a verified .slm before MiniModel sharing.";
     }
     if (hfSourceByteRisk(view) === "large") {
       const size = hfSourceByteSummaryText(view);
@@ -7374,6 +7597,29 @@
     }
   }
 
+  function appendHfGgufFileNotes(actions, ggufFiles) {
+    if (!ggufFiles.length) {
+      return;
+    }
+    for (const file of ggufFiles.slice(0, 2)) {
+      const size = Number.isFinite(file.byte_count) && file.byte_count > 0
+        ? ` / ${formatByteCount(file.byte_count)}`
+        : "";
+      actions.append(elementWithText(
+        "span",
+        "model-result-meta",
+        `GGUF file listed: ${safeLocalModelName(file.file_name)}${size}. Rust can inspect any GGUF metadata, but conversion only accepts F32/F16/BF16/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K tensors.`
+      ));
+    }
+    if (ggufFiles.length > 2) {
+      actions.append(elementWithText(
+        "span",
+        "model-result-meta",
+        `${ggufFiles.length - 2} more .gguf files listed; Rust review decides whether any tensor layout is compatible.`
+      ));
+    }
+  }
+
   function appendHfSourceRiskNote(actions, view) {
     const risk = hfSourceByteRisk(view);
     if (risk === "large") {
@@ -7401,7 +7647,13 @@
     if (noSlmText) {
       actions.append(elementWithText("span", "model-result-meta", noSlmText));
     }
-    appendHfSafetensorsFileNotes(actions, view.safetensorsFiles);
+    if (view.safetensorsFiles.length) {
+      appendHfSafetensorsFileNotes(actions, view.safetensorsFiles);
+    } else if (view.ggufFiles.length) {
+      appendHfGgufFileNotes(actions, view.ggufFiles);
+    } else {
+      appendHfSafetensorsFileNotes(actions, view.safetensorsFiles);
+    }
     appendHfSourceRiskNote(actions, view);
   }
 
@@ -7429,7 +7681,7 @@
     if (hfCanStartConversion(view)) {
       actions.append(actionButton("Save Rust Conversion Script", () => saveHfConversionScript(entry, view.matches)));
     } else {
-      actions.append(elementWithText("span", "model-result-meta", "Rust script unavailable until metadata lists a .safetensors source."));
+      actions.append(elementWithText("span", "model-result-meta", "Rust script unavailable until metadata lists a .safetensors source or reviewable .gguf source."));
     }
   }
 
@@ -7474,8 +7726,10 @@
         try {
           const routeResult = await applyCatalogAnnouncementRoutes(announcementRoutes);
           setCatalogStatus(`${state.catalogEntries.length} metadata entries; ${catalogAnnouncementRouteStatusText(routeResult)}`, false);
-        } catch (_error) {
+        } catch (error) {
           // Keep the base proof-ready metadata, but fail closed on optional peer sources.
+          const message = error && error.message ? error.message : "peer-source announcement metadata unavailable";
+          setCatalogStatus(`${state.catalogEntries.length} metadata entries; peer-source announcement feed ignored: ${message}`, true);
         }
       } else {
         setCatalogStatus(`${state.catalogEntries.length} metadata entries`, false);
@@ -7488,9 +7742,14 @@
   function hfConversionRequest(entry, matches) {
     const slmFiles = hfSlmSiblings(entry.result);
     const safetensorsFiles = hfSafetensorsSiblings(entry.result);
-    const suggestedSourceFile = safetensorsFiles.length ? safetensorsFiles[0].file_name : null;
-    const suggestedSource = safetensorsFiles.length ? safetensorsFiles[0] : null;
-    const sourceInputMode = safetensorsFiles.length > 1
+    const ggufFiles = hfGgufSiblings(entry.result);
+    const sourceFormat = safetensorsFiles.length ? "safetensors" : ggufFiles.length ? "gguf" : "safetensors";
+    const preferredFiles = sourceFormat === "gguf" ? ggufFiles : safetensorsFiles;
+    const suggestedSourceFile = preferredFiles.length ? preferredFiles[0].file_name : null;
+    const suggestedSource = preferredFiles.length ? preferredFiles[0] : null;
+    const sourceInputMode = sourceFormat === "gguf"
+      ? "single-gguf-file"
+      : safetensorsFiles.length > 1
       ? "safetensors-shard-directory"
       : suggestedSourceFile
         ? "single-safetensors-file"
@@ -7508,7 +7767,8 @@
         downloads: Number.isFinite(entry.result.downloads) ? entry.result.downloads : null,
         likes: Number.isFinite(entry.result.likes) ? entry.result.likes : null,
         discovered_slm_files: slmFiles,
-        discovered_safetensors_files: safetensorsFiles
+        discovered_safetensors_files: safetensorsFiles,
+        discovered_gguf_files: ggufFiles
       },
       requested_artifact: {
         kind: "slm",
@@ -7521,24 +7781,40 @@
       },
       local_conversion: {
         converter: "tinyrustlm-slm-pack",
+        source_format: sourceFormat,
         source_input_mode: sourceInputMode,
-        required_local_input: safetensorsFiles.length > 1
+        required_local_input: sourceFormat === "gguf"
+          ? `A reviewed local GGUF file matching ${suggestedSourceFile || "the selected source"} with F32/F16/BF16/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K tensors, or an explicit local-script Hugging Face download with TINYRUSTLM_ALLOW_HF_DOWNLOAD=1. GGUF conversion still requires supported tensor names/shapes.`
+          : safetensorsFiles.length > 1
           ? `A reviewed local source directory containing all ${safetensorsFiles.length} listed .safetensors shards, or an explicit local-script Hugging Face download with TINYRUSTLM_ALLOW_HF_DOWNLOAD=1.`
           : suggestedSourceFile
             ? `A reviewed local copy of ${suggestedSourceFile}, or an explicit local-script Hugging Face download with TINYRUSTLM_ALLOW_HF_DOWNLOAD=1.`
             : "A user-selected .safetensors file or shard directory already present on this machine.",
-        suggested_source_safetensors_file: suggestedSourceFile,
+        suggested_source_safetensors_file: sourceFormat === "safetensors" ? suggestedSourceFile : null,
         suggested_source_safetensors_files: safetensorsFiles.map((file) => ({
           file_name: file.file_name,
           download_url: file.download_url || null,
           sha256: file.sha256 || null,
           byte_count: Number.isFinite(file.byte_count) ? file.byte_count : null
         })),
-        suggested_source_safetensors_url: suggestedSource ? suggestedSource.download_url : null,
-        suggested_source_safetensors_sha256: suggestedSource ? suggestedSource.sha256 : null,
-        suggested_source_safetensors_byte_count: suggestedSource ? suggestedSource.byte_count : null,
+        suggested_source_safetensors_url: sourceFormat === "safetensors" && suggestedSource ? suggestedSource.download_url : null,
+        suggested_source_safetensors_sha256: sourceFormat === "safetensors" && suggestedSource ? suggestedSource.sha256 : null,
+        suggested_source_safetensors_byte_count: sourceFormat === "safetensors" && suggestedSource ? suggestedSource.byte_count : null,
+        suggested_source_gguf_file: sourceFormat === "gguf" ? suggestedSourceFile : null,
+        suggested_source_gguf_files: ggufFiles.map((file) => ({
+          file_name: file.file_name,
+          download_url: file.download_url || null,
+          sha256: file.sha256 || null,
+          byte_count: Number.isFinite(file.byte_count) ? file.byte_count : null
+        })),
+        suggested_source_gguf_url: sourceFormat === "gguf" && suggestedSource ? suggestedSource.download_url : null,
+        suggested_source_gguf_sha256: sourceFormat === "gguf" && suggestedSource ? suggestedSource.sha256 : null,
+        suggested_source_gguf_byte_count: sourceFormat === "gguf" && suggestedSource ? suggestedSource.byte_count : null,
         source_acquisition_rule: "Browser search is metadata-only. The generated local PowerShell kit uses an existing reviewed local file by default, or downloads directly from Hugging Face only when the user explicitly sets TINYRUSTLM_ALLOW_HF_DOWNLOAD=1.",
-        command_shape: `cargo run -p tinyrustlm-slm-pack -- convert-huggingface-request <request.json> <input.safetensors-or-directory> <output-dir> ${defaultShape} ${defaultQuantization}`,
+        command_shape: sourceFormat === "gguf"
+          ? `cargo run -p tinyrustlm-slm-pack -- convert-gguf-trained <input.gguf> ${defaultShape} <output-source-dir> <output.slm> ${defaultQuantization}`
+          : `cargo run -p tinyrustlm-slm-pack -- convert-huggingface-request <request.json> <input.safetensors-or-directory> <output-dir> ${defaultShape} ${defaultQuantization}`,
+        request_inspect_shape: "cargo run -p tinyrustlm-slm-pack -- inspect-huggingface-conversion-request <request.json> [output.report]",
         peer_share_shape: "cargo run -p minimodel -- prepare-peer-share <output.slm> <share-dir> <minimodel-model-id> [source-huggingface-model-id] [known-peer-base-url]",
         peer_source_shape: "cargo run -p minimodel -- add-peer-source <catalog-entry-json> <output-json> <known-peer-base-url>",
         peer_source_announcement_shape: "cargo run -p minimodel -- write-peer-source-announcement <catalog-entry-json> <announcement-json> <known-peer-base-url>",
@@ -7551,16 +7827,20 @@
       peer_companion_state_inspect_shape: "cargo run -p minimodel -- inspect-peer-companion-state <state-json> <manifest> <piece-dir>",
       peer_contact_card_shape: "cargo run -p minimodel -- write-peer-contact-card <peer-card-json> <known-peer-base-url> [peer-label]",
       peer_contact_book_shape: "cargo run -p minimodel -- write-peer-contact-book <peer-book-json> <peer-card-json>...",
+      peer_companion_inventory_shape: "cargo run -p minimodel -- write-peer-companion-inventory <inventory-json> <state-json> <manifest> <piece-dir> <receipt-ledger-json> <piece-store-quota-bytes> [contact-card-json...]",
+      peer_companion_inventory_inspect_shape: "cargo run -p minimodel -- inspect-peer-companion-inventory <inventory-json>",
       catalog_snapshot_shape: "cargo run -p minimodel -- write-catalog-snapshot <models.v0.json> <catalog-entry-json>...",
       catalog_snapshot_inspect_shape: "cargo run -p minimodel -- inspect-catalog-snapshot <models.v0.json>",
         known_peer_base_url: knownPeerBaseUrl || null,
         known_peer_rule: "When P2P is enabled and a consenting Known peer URL is set in TinyRustLM, the generated conversion script uses it to write peer-source announcement/feed metadata and peer-companion-state handoff metadata after local Rust conversion.",
-        compatibility_rule: "The Rust planner/converter must accept the safetensors tensor names and exact TinyRustLM shape before a .slm is usable. MiniModel prepare-peer-share then writes the manifest, peer-offer proof, local peer pieces, and catalog entry from the verified .slm."
+        compatibility_rule: sourceFormat === "gguf"
+          ? "The Rust GGUF planner/converter must accept F32/F16/BF16/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K tensors, common Llama/TinyRustLM tensor names, and the exact TinyRustLM shape before a .slm is usable. MiniModel prepare-peer-share then writes the manifest, peer-offer proof, local peer pieces, and catalog entry from the verified .slm."
+          : "The Rust planner/converter must accept the safetensors tensor names and exact TinyRustLM shape before a .slm is usable. MiniModel prepare-peer-share then writes the manifest, peer-offer proof, local peer pieces, and catalog entry from the verified .slm."
       },
       conversion_gates: [
         "source license and model-card review",
         "config/tokenizer checksum capture",
-        "safetensors/source artifact checksum capture",
+        sourceFormat === "gguf" ? "GGUF metadata and tensor-directory inspection" : "safetensors/source artifact checksum capture",
         "local conversion to .slm",
         "tinyrustlm-slm-pack validate",
         "MiniModel prepare-peer-share",
@@ -7570,6 +7850,8 @@
         "MiniModel inspect-peer-source-announcement-feed before feed-bound catalog publication",
         "MiniModel write-peer-companion-state for local companion handoff metadata",
         "MiniModel inspect-peer-companion-state before publishing or serving companion handoff metadata",
+        "MiniModel write-peer-companion-inventory for local companion handoff metadata",
+        "MiniModel inspect-peer-companion-inventory before trusting companion inventory metadata",
         "MiniModel apply-peer-source-announcements before shared metadata snapshots",
         "MiniModel write-catalog-snapshot-with-announcements for batch maintainer publication",
         "MiniModel write-catalog-snapshot-with-announcement-feed for checksum-bound feed publication",
@@ -7635,6 +7917,279 @@
     return cleaned || "huggingface/model";
   }
 
+  function hfGgufConversionScript(entry, request, requestBase64, serveScriptBase64) {
+    const stem = conversionFileStem(entry.modelId);
+    const sourceShape = request.requested_artifact.default_source_shape;
+    const quantization = request.requested_artifact.default_quantization;
+    const knownPeerBaseUrl = request.local_conversion.known_peer_base_url || "";
+    const modelUrl = hfModelUrl(entry.modelId);
+    const minimodelModelId = minimodelModelIdForHf(entry.modelId);
+    const ggufFiles = Array.isArray(request.source.discovered_gguf_files)
+      ? request.source.discovered_gguf_files
+      : [];
+    const suggestedSourceFile = request.local_conversion.suggested_source_gguf_file || "model.gguf";
+    const suggestedSourceUrl = request.local_conversion.suggested_source_gguf_url || "";
+    const suggestedSourceSha256 = request.local_conversion.suggested_source_gguf_sha256 || "";
+    const suggestedSourceByteCount = Number.isFinite(request.local_conversion.suggested_source_gguf_byte_count)
+      ? String(request.local_conversion.suggested_source_gguf_byte_count)
+      : "";
+    const suggestedSourceEntries = ggufFiles.length
+      ? ggufFiles
+      : [{
+        file_name: suggestedSourceFile,
+        download_url: suggestedSourceUrl,
+        sha256: suggestedSourceSha256,
+        byte_count: Number.isFinite(Number(suggestedSourceByteCount)) ? Number(suggestedSourceByteCount) : null
+      }];
+    const suggestedSourceEntryLines = suggestedSourceEntries
+      .filter((file) => file && file.file_name)
+      .map((file) => {
+        const byteCount = Number.isFinite(file.byte_count) ? String(file.byte_count) : "";
+        return `  @{ Name = ${powerShellSingleQuote(file.file_name)}; Url = ${powerShellDoubleQuote(file.download_url || "")}; Sha256 = ${powerShellDoubleQuote(file.sha256 || "")}; ByteCount = ${powerShellDoubleQuote(byteCount)} }`;
+      });
+    const sourceCandidateLines = ggufFiles.length
+      ? ggufFiles.map((file) => {
+        const size = Number.isFinite(file.byte_count) && file.byte_count > 0
+          ? ` / ${formatByteCount(file.byte_count)}`
+          : "";
+        const hash = file.sha256 ? ` / ${file.sha256}` : "";
+        return `#   - ${file.file_name}${size}${hash}`;
+      })
+      : ["#   - no .gguf sibling listed by metadata; inspect the model card before choosing a local GGUF file."];
+    const lines = [
+      "# TinyRustLM Hugging Face GGUF to .slm conversion script",
+      `# Source model: ${entry.modelId}`,
+      `# Model card: ${modelUrl}`,
+      "#",
+      "# Hugging Face metadata GGUF candidates:",
+      ...sourceCandidateLines,
+      "#",
+      "# This script first runs inspect-gguf and plan-gguf-source.",
+      "# Conversion supports F32/F16/BF16/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K GGUF tensors that match a TinyRustLM source shape.",
+      "# GGUF conversion still requires supported tensor names/shapes, tokenizer token-count compatibility, BPE token/merge import when declared, and Rust validation before .slm import.",
+      "# To let this script download the suggested source directly from Hugging Face to this machine,",
+      "# set TINYRUSTLM_ALLOW_HF_DOWNLOAD=1 before running it. That download never uses TinyRustLM,",
+      "# MiniModel, or project servers as a proxy/cache/host.",
+      "",
+      "$ErrorActionPreference = \"Stop\"",
+      "",
+      "function Resolve-ExistingPath {",
+      "  param([string[]] $Candidates, [string] $Label, [string] $Help)",
+      "  foreach ($Candidate in $Candidates) {",
+      "    if ([string]::IsNullOrWhiteSpace($Candidate)) { continue }",
+      "    if ($Candidate -like \"EDIT_ME*\") { continue }",
+      "    if (Test-Path -LiteralPath $Candidate) { return (Resolve-Path -LiteralPath $Candidate).Path }",
+      "  }",
+      "  throw \"$Label not found. $Help\"",
+      "}",
+      "",
+      "function Resolve-SourceGgufInput {",
+      "  param([string[]] $Candidates)",
+      "  foreach ($Candidate in $Candidates) {",
+      "    if ([string]::IsNullOrWhiteSpace($Candidate)) { continue }",
+      "    if ($Candidate -like \"EDIT_ME*\") { continue }",
+      "    if (Test-Path -LiteralPath $Candidate -PathType Leaf) { return (Resolve-Path -LiteralPath $Candidate).Path }",
+      "  }",
+      "  return \"\"",
+      "}",
+      "",
+      "function Assert-DownloadedSourceEvidence {",
+      "  param([string] $Path, [string] $ExpectedSha256, [string] $ExpectedByteCount)",
+      "  if (![string]::IsNullOrWhiteSpace($ExpectedByteCount)) {",
+      "    $ActualByteCount = (Get-Item -LiteralPath $Path).Length",
+      "    if ($ActualByteCount -ne [Int64]$ExpectedByteCount) { throw \"Downloaded source byte count mismatch: expected $ExpectedByteCount, got $ActualByteCount\" }",
+      "  }",
+      "  if (![string]::IsNullOrWhiteSpace($ExpectedSha256)) {",
+      "    $Expected = $ExpectedSha256 -replace '^sha256:', ''",
+      "    $Actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()",
+      "    if ($Actual -ne $Expected.ToLowerInvariant()) { throw \"Downloaded source SHA-256 mismatch: expected $Expected, got $Actual\" }",
+      "  }",
+      "}",
+      "",
+      "function Resolve-GeneratedFile {",
+      "  param([string] $Directory, [string] $Filter, [string] $Label)",
+      "  $Matches = @(Get-ChildItem -LiteralPath $Directory -File -Filter $Filter | Sort-Object LastWriteTimeUtc -Descending)",
+      "  if ($Matches.Count -lt 1) { throw \"$Label was not produced in $Directory\" }",
+      "  return $Matches[0].FullName",
+      "}",
+      "",
+      "function Resolve-GeneratedDirectory {",
+      "  param([string] $Directory, [string] $Filter, [string] $Label)",
+      "  $Matches = @(Get-ChildItem -LiteralPath $Directory -Directory -Filter $Filter | Sort-Object LastWriteTimeUtc -Descending)",
+      "  if ($Matches.Count -lt 1) { throw \"$Label was not produced in $Directory\" }",
+      "  return $Matches[0].FullName",
+      "}",
+      "",
+      "# Optional overrides:",
+      "#   $env:TINYRUSTLM_WORKSPACE = full path to SLMComposer.com / TinyRustLM Rust workspace",
+      "#   $env:MINIMODEL_WORKSPACE = full path to MiniModel.org Rust workspace",
+      "#   $env:TINYRUSTLM_SOURCE_GGUF = full path to your reviewed local GGUF file",
+      "#   $env:TINYRUSTLM_ALLOW_HF_DOWNLOAD = 1 to download the suggested GGUF directly from Hugging Face",
+      "$CandidateTinyRustLMWorkspaces = @(",
+      "  $env:TINYRUSTLM_WORKSPACE,",
+      "  $env:SLMCOMPOSER_WORKSPACE,",
+      "  \"E:/Source/Rust/SLMComposer.com\",",
+      "  (Join-Path $PSScriptRoot \"SLMComposer.com\"),",
+      "  (Join-Path $PSScriptRoot \"..\\SLMComposer.com\"),",
+      "  (Join-Path $PSScriptRoot \"..\\..\\SLMComposer.com\")",
+      ")",
+      "$CandidateMiniModelWorkspaces = @(",
+      "  $env:MINIMODEL_WORKSPACE,",
+      "  \"E:/Source/Rust/MiniModel.org\",",
+      "  (Join-Path $PSScriptRoot \"MiniModel.org\"),",
+      "  (Join-Path $PSScriptRoot \"..\\MiniModel.org\"),",
+      "  (Join-Path $PSScriptRoot \"..\\..\\MiniModel.org\")",
+      ")",
+      `$SuggestedSourceGgufFileName = ${powerShellSingleQuote(suggestedSourceFile)}`,
+      "$SuggestedSourceGgufFiles = @(",
+      ...(suggestedSourceEntryLines.length ? suggestedSourceEntryLines : []),
+      ")",
+      `$ConversionRequest = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${stem}.minimodel-conversion-request.json`)}`,
+      `$EmbeddedConversionRequestBase64 = ${powerShellSingleQuote(requestBase64)}`,
+      `$EmbeddedServePeerPiecesScriptBase64 = ${powerShellSingleQuote(serveScriptBase64)}`,
+      "$SourceGgufCandidates = @(",
+      "  $env:TINYRUSTLM_SOURCE_GGUF,",
+      "  (Join-Path $PSScriptRoot $SuggestedSourceGgufFileName),",
+      "  (Join-Path $PSScriptRoot (Join-Path \"source\" $SuggestedSourceGgufFileName))",
+      ")",
+      "$TinyRustLMWorkspace = Resolve-ExistingPath $CandidateTinyRustLMWorkspaces \"TinyRustLM Rust workspace\" \"Set TINYRUSTLM_WORKSPACE or edit `$CandidateTinyRustLMWorkspaces.\"",
+      "$MiniModelWorkspace = Resolve-ExistingPath $CandidateMiniModelWorkspaces \"MiniModel Rust workspace\" \"Set MINIMODEL_WORKSPACE or edit `$CandidateMiniModelWorkspaces.\"",
+      "$SourceGguf = Resolve-SourceGgufInput $SourceGgufCandidates",
+      "if ([string]::IsNullOrWhiteSpace($SourceGguf) -and $env:TINYRUSTLM_ALLOW_HF_DOWNLOAD -eq \"1\" -and $SuggestedSourceGgufFiles.Count -gt 0) {",
+      "  $Source = $SuggestedSourceGgufFiles[0]",
+      "  if ([string]::IsNullOrWhiteSpace($Source.Name) -or [string]::IsNullOrWhiteSpace($Source.Url)) { throw \"Hugging Face metadata did not include a download URL for the listed GGUF source.\" }",
+      "  $DownloadDir = Join-Path $PSScriptRoot \"source\"",
+      "  New-Item -ItemType Directory -Force -Path $DownloadDir | Out-Null",
+      "  $DownloadTarget = Join-Path $DownloadDir $Source.Name",
+      "  Write-Host \"Downloading Hugging Face GGUF source directly to this machine:\" $Source.Url",
+      "  Invoke-WebRequest -UseBasicParsing -Uri $Source.Url -OutFile $DownloadTarget",
+      "  Assert-DownloadedSourceEvidence $DownloadTarget $Source.Sha256 $Source.ByteCount",
+      "  $SourceGguf = Resolve-SourceGgufInput @($DownloadTarget)",
+      "}",
+      "if ([string]::IsNullOrWhiteSpace($SourceGguf)) {",
+      "  throw \"Reviewed source GGUF input not found. Put the file beside this script, put it under ./source/, set TINYRUSTLM_SOURCE_GGUF, or set TINYRUSTLM_ALLOW_HF_DOWNLOAD=1 to download the suggested GGUF directly to this machine.\"",
+      "}",
+      `$SourceShape = ${powerShellSingleQuote(sourceShape)}`,
+      `$Quantization = ${powerShellSingleQuote(quantization)}`,
+      `$ModelId = ${powerShellSingleQuote(entry.modelId)}`,
+      `$MiniModelModelId = ${powerShellSingleQuote(minimodelModelId)}`,
+      `$KnownPeerBaseUrl = ${powerShellDoubleQuote(knownPeerBaseUrl)} # Optional, for example ${peerExampleUrl}`,
+      `$WorkDir = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${stem}-tinyrustlm-gguf-conversion`)}`,
+      "$ConversionRequestInspect = Join-Path $WorkDir \"tinyrustlm-conversion.request.inspect\"",
+      "$GgufSourceDir = Join-Path $WorkDir \"gguf-raw-source\"",
+      "$GgufInspect = Join-Path $WorkDir \"source.gguf.inspect\"",
+      "$GgufPlan = Join-Path $WorkDir \"source.gguf.plan\"",
+      `$OutputSlm = Join-Path $WorkDir ${powerShellSingleQuote(`${stem}-gguf-converted-${quantization}.slm`)}`,
+      "$MiniModelShareDir = Join-Path $WorkDir \"minimodel-peer-share\"",
+      "$MiniModelCatalogSnapshot = Join-Path $WorkDir \"models.v0.json\"",
+      `$MiniModelServeScript = Join-Path $WorkDir ${powerShellSingleQuote(`${stem}.minimodel-serve-peer-pieces.ps1`)}`,
+      "",
+      "if (!(Test-Path -LiteralPath $ConversionRequest)) {",
+      "  $EmbeddedConversionRequestJson = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($EmbeddedConversionRequestBase64))",
+      "  [System.IO.File]::WriteAllText($ConversionRequest, $EmbeddedConversionRequestJson, [System.Text.Encoding]::UTF8)",
+      "  Write-Host \"Wrote embedded conversion request:\" $ConversionRequest",
+      "}",
+      "New-Item -ItemType Directory -Force -Path $WorkDir | Out-Null",
+      "$EmbeddedServeScriptText = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($EmbeddedServePeerPiecesScriptBase64))",
+      "[System.IO.File]::WriteAllText($MiniModelServeScript, $EmbeddedServeScriptText, [System.Text.Encoding]::UTF8)",
+      "Write-Host \"TinyRustLM workspace:\" $TinyRustLMWorkspace",
+      "Write-Host \"MiniModel workspace:\" $MiniModelWorkspace",
+      "Write-Host \"Conversion request:\" $ConversionRequest",
+      "Write-Host \"Source GGUF:\" $SourceGguf",
+      "Write-Host \"Output directory:\" $WorkDir",
+      "Set-Location $TinyRustLMWorkspace",
+      "& cargo run -p tinyrustlm-slm-pack -- inspect-huggingface-conversion-request $ConversionRequest $ConversionRequestInspect",
+      "$ConversionRequestInspectExitCode = $LASTEXITCODE",
+      "if ($ConversionRequestInspectExitCode -ne 0) { throw \"Hugging Face conversion request inspection failed with exit code $ConversionRequestInspectExitCode. Check the request JSON before inspecting or converting local source bytes.\" }",
+      "Write-Host \"Conversion request inspection:\" $ConversionRequestInspect",
+      "& cargo run -p tinyrustlm-slm-pack -- inspect-gguf $SourceGguf $GgufInspect",
+      "& cargo run -p tinyrustlm-slm-pack -- plan-gguf-source $SourceGguf $SourceShape $GgufPlan",
+      "& cargo run -p tinyrustlm-slm-pack -- convert-gguf-trained $SourceGguf $SourceShape $GgufSourceDir $OutputSlm $Quantization",
+      "$ConversionExitCode = $LASTEXITCODE",
+      "if ($ConversionExitCode -ne 0) { throw \"GGUF conversion failed with exit code $ConversionExitCode. check $GgufInspect and $GgufPlan for tensor-name, shape, tokenizer, or validation mismatch.\" }",
+      "$OutputManifest = \"$OutputSlm.manifest\"",
+      "& cargo run -p tinyrustlm-slm-pack -- validate $OutputSlm",
+      "& cargo run -p tinyrustlm-slm-pack -- validate-manifest $OutputSlm $OutputManifest",
+      "",
+      "Set-Location $MiniModelWorkspace",
+      "$PrepareArgs = @(\"run\", \"-p\", \"minimodel\", \"--\", \"prepare-peer-share\", $OutputSlm, $MiniModelShareDir, $MiniModelModelId, $ModelId)",
+      "& cargo @PrepareArgs",
+      "$MiniModelCatalogEntry = Resolve-GeneratedFile $MiniModelShareDir \"*.catalog-entry.v0.json\" \"MiniModel catalog entry\"",
+      "$MiniModelManifest = Resolve-GeneratedFile $MiniModelShareDir \"*.minimodel.manifest.v0\" \"MiniModel manifest\"",
+      "$MiniModelPieceDir = Resolve-GeneratedDirectory $MiniModelShareDir \"*.peer-pieces\" \"MiniModel peer pieces\"",
+      "$CatalogStem = ([System.IO.Path]::GetFileNameWithoutExtension($MiniModelCatalogEntry)) -replace \"\\.catalog-entry\\.v0$\", \"\"",
+      "$MiniModelCatalogEntryWithPeer = Join-Path $MiniModelShareDir \"$CatalogStem.catalog-entry.with-peer.v0.json\"",
+      "$MiniModelPeerSourceAnnouncement = Join-Path $MiniModelShareDir \"$CatalogStem.peer-source-announcement.v0.json\"",
+      "$MiniModelPeerSourceAnnouncementFeed = Join-Path $MiniModelShareDir \"peer-source-announcements.v0.json\"",
+      "$MiniModelPeerCompanionState = Join-Path $MiniModelShareDir \"$CatalogStem.peer-companion-state.v0.json\"",
+      "$MiniModelPeerContactCard = Join-Path $MiniModelShareDir \"$CatalogStem.peer-contact-card.v0.json\"",
+      "$MiniModelPeerContactBook = Join-Path $MiniModelShareDir \"$CatalogStem.peer-contact-book.v0.json\"",
+      "$MiniModelPeerCompanionInventory = Join-Path $MiniModelShareDir \"$CatalogStem.peer-companion-inventory.v0.json\"",
+      "$MiniModelLocalImportReceipt = Join-Path $MiniModelShareDir \"$CatalogStem.local.minimodel-receipt\"",
+      "$MiniModelImportReceiptLedger = Join-Path $MiniModelShareDir \"import-receipts.v0.json\"",
+      "$MiniModelCatalogSnapshotWithFeed = Join-Path $WorkDir \"models.with-announcement-feed.v0.json\"",
+      "$MiniModelPublishReadme = Join-Path $MiniModelShareDir \"converted-gguf-p2p-publish.README.txt\"",
+      "$OutputSlmByteCount = (Get-Item -LiteralPath $OutputSlm).Length",
+      "cargo run -p minimodel -- write-import-receipt $MiniModelManifest $OutputSlm $MiniModelLocalImportReceipt",
+      "cargo run -p minimodel -- inspect-import-receipt $MiniModelLocalImportReceipt $MiniModelManifest $OutputSlm",
+      "cargo run -p minimodel -- write-import-receipt-ledger $MiniModelImportReceiptLedger $MiniModelLocalImportReceipt $MiniModelManifest $OutputSlm",
+      "cargo run -p minimodel -- inspect-import-receipt-ledger $MiniModelImportReceiptLedger",
+      "$MiniModelCatalogEntryForSnapshot = $MiniModelCatalogEntry",
+      "if ($KnownPeerBaseUrl.Trim().Length -gt 0) {",
+      "  cargo run -p minimodel -- add-peer-source $MiniModelCatalogEntry $MiniModelCatalogEntryWithPeer $KnownPeerBaseUrl",
+      "  cargo run -p minimodel -- write-peer-source-announcement $MiniModelCatalogEntry $MiniModelPeerSourceAnnouncement $KnownPeerBaseUrl",
+      "  cargo run -p minimodel -- write-peer-source-announcement-feed $MiniModelPeerSourceAnnouncementFeed $MiniModelPeerSourceAnnouncement",
+      "  cargo run -p minimodel -- inspect-peer-source-announcement-feed $MiniModelPeerSourceAnnouncementFeed",
+      "  cargo run -p minimodel -- write-catalog-snapshot-with-announcement-feed $MiniModelCatalogSnapshotWithFeed \"peer-source-announcements.v0.json\" $MiniModelPeerSourceAnnouncementFeed $MiniModelCatalogEntry",
+      "  cargo run -p minimodel -- inspect-catalog-snapshot $MiniModelCatalogSnapshotWithFeed",
+      "  cargo run -p minimodel -- write-peer-companion-state $MiniModelManifest $MiniModelPieceDir $MiniModelPeerCompanionState $KnownPeerBaseUrl",
+      "  cargo run -p minimodel -- inspect-peer-companion-state $MiniModelPeerCompanionState $MiniModelManifest $MiniModelPieceDir",
+      "  cargo run -p minimodel -- write-peer-contact-card $MiniModelPeerContactCard $KnownPeerBaseUrl",
+      "  cargo run -p minimodel -- write-peer-contact-book $MiniModelPeerContactBook $MiniModelPeerContactCard",
+      "  cargo run -p minimodel -- inspect-peer-contact-book $MiniModelPeerContactBook",
+      "  cargo run -p minimodel -- write-peer-companion-inventory $MiniModelPeerCompanionInventory $MiniModelPeerCompanionState $MiniModelManifest $MiniModelPieceDir $MiniModelImportReceiptLedger $OutputSlmByteCount $MiniModelPeerContactCard",
+      "  cargo run -p minimodel -- inspect-peer-companion-inventory $MiniModelPeerCompanionInventory",
+      "  $MiniModelCatalogEntryForSnapshot = $MiniModelCatalogEntryWithPeer",
+      "}",
+      "cargo run -p minimodel -- write-catalog-snapshot $MiniModelCatalogSnapshot $MiniModelCatalogEntryForSnapshot",
+      "cargo run -p minimodel -- inspect-catalog-snapshot $MiniModelCatalogSnapshot",
+      "$PublishReadmeLines = @(",
+      "  \"Converted GGUF P2P publication package\"",
+      "  \"\"",
+      "  \"Safe metadata files for catalog maintainers:\"",
+      "  \"- Catalog entry: $MiniModelCatalogEntry\"",
+      "  \"- Catalog snapshot: $MiniModelCatalogSnapshot\"",
+      "  \"- Peer-source announcement/feed JSON when KnownPeerBaseUrl is set\"",
+      "  \"- Peer contact card/book JSON when KnownPeerBaseUrl is set\"",
+      "  \"\"",
+      "  \"Local companion handoff files:\"",
+      "  \"- Peer companion state: $MiniModelPeerCompanionState (created when KnownPeerBaseUrl is set; metadata only, no model bytes)\"",
+      "  \"- Import receipt ledger: $MiniModelImportReceiptLedger (metadata only, no model bytes)\"",
+      "  \"- Peer companion inventory: $MiniModelPeerCompanionInventory (created when KnownPeerBaseUrl is set; metadata only, no model bytes or peer pieces)\"",
+      "  \"\"",
+      "  \"Do not send .slm files, *.peer-pieces directories, or source GGUF files to project servers.\"",
+      "  \"F32/F16/BF16/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K GGUF tensors can convert; GGUF conversion still requires supported tensor names/shapes, tokenizer token-count compatibility, BPE token/merge import when declared, and Rust validation before .slm import.\"",
+      ")",
+      "[System.IO.File]::WriteAllLines($MiniModelPublishReadme, $PublishReadmeLines, [System.Text.Encoding]::UTF8)",
+      "Write-Host \"Converted .slm:\" $OutputSlm",
+      "Write-Host \"GGUF inspection:\" $GgufInspect",
+      "Write-Host \"GGUF source plan:\" $GgufPlan",
+      "Write-Host \"MiniModel manifest:\" $MiniModelManifest",
+      "Write-Host \"MiniModel peer pieces:\" $MiniModelPieceDir",
+      "Write-Host \"MiniModel local import receipt:\" $MiniModelLocalImportReceipt",
+      "Write-Host \"MiniModel import receipt ledger:\" $MiniModelImportReceiptLedger",
+      "Write-Host \"MiniModel catalog snapshot:\" $MiniModelCatalogSnapshot",
+      "Write-Host \"MiniModel peer companion inventory:\" $MiniModelPeerCompanionInventory",
+      "Write-Host \"MiniModel serve script:\" $MiniModelServeScript",
+      "Write-Host \"Converted GGUF publication notes:\" $MiniModelPublishReadme",
+      "Write-Host \"If you consent to serve pieces from this machine, run:\"",
+      "Write-Host \"powershell -ExecutionPolicy Bypass -File '$MiniModelServeScript'\"",
+      "Write-Host \"Next: open TinyRustLM.com, choose Your Local Files, and import the converted .slm.\"",
+      ""
+    ];
+    return lines.join("\n");
+  }
+
   function hfConversionScript(entry, matches) {
     const request = hfConversionRequest(entry, matches);
     const requestJson = `${JSON.stringify(request, null, 2)}\n`;
@@ -7650,6 +8205,9 @@
       modelId: minimodelModelId,
       shareDirRelativePath: "minimodel-peer-share"
     }));
+    if (request.local_conversion.source_format === "gguf") {
+      return hfGgufConversionScript(entry, request, requestBase64, serveScriptBase64);
+    }
     const safetensorsFiles = Array.isArray(request.source.discovered_safetensors_files)
       ? request.source.discovered_safetensors_files
       : [];
@@ -7884,6 +8442,7 @@
       `$MiniModelModelId = ${powerShellSingleQuote(minimodelModelId)}`,
       `$KnownPeerBaseUrl = ${powerShellDoubleQuote(knownPeerBaseUrl)} # Optional, for example ${peerExampleUrl}`,
       `$WorkDir = Join-Path $PSScriptRoot ${powerShellSingleQuote(`${stem}-tinyrustlm-conversion`)}`,
+      "$ConversionRequestInspect = Join-Path $WorkDir \"tinyrustlm-conversion.request.inspect\"",
       "$ConversionPreflight = Join-Path $WorkDir \"tinyrustlm-conversion.preflight\"",
       "$MiniModelShareDir = Join-Path $WorkDir \"minimodel-peer-share\"",
       "$MiniModelCatalogSnapshot = Join-Path $WorkDir \"models.v0.json\"",
@@ -7907,7 +8466,13 @@
       "Set-Location $TinyRustLMWorkspace",
       "",
       "# The script writes the embedded request JSON beside itself when it is missing.",
-      "# Rust performs inspect, plan, convert, validate, manifest validation, and receipt writing.",
+      "# Rust inspects the request before source-byte work, then performs inspect, plan, convert, validate, manifest validation, and receipt writing.",
+      "& cargo run -p tinyrustlm-slm-pack -- inspect-huggingface-conversion-request $ConversionRequest $ConversionRequestInspect",
+      "$ConversionRequestInspectExitCode = $LASTEXITCODE",
+      "if ($ConversionRequestInspectExitCode -ne 0) {",
+      "  throw \"Hugging Face conversion request inspection failed with exit code $ConversionRequestInspectExitCode. Check the request JSON before inspecting or converting local source bytes.\"",
+      "}",
+      "Write-Host \"Conversion request inspection:\" $ConversionRequestInspect",
       "& cargo run -p tinyrustlm-slm-pack -- convert-huggingface-request $ConversionRequest $SourceSafetensors $WorkDir $SourceShape $Quantization",
       "$ConversionExitCode = $LASTEXITCODE",
       "if ($ConversionExitCode -ne 0) {",
@@ -7942,8 +8507,16 @@
       "$MiniModelPeerCompanionState = Join-Path $MiniModelShareDir \"$CatalogStem.peer-companion-state.v0.json\"",
       "$MiniModelPeerContactCard = Join-Path $MiniModelShareDir \"$CatalogStem.peer-contact-card.v0.json\"",
       "$MiniModelPeerContactBook = Join-Path $MiniModelShareDir \"$CatalogStem.peer-contact-book.v0.json\"",
+      "$MiniModelPeerCompanionInventory = Join-Path $MiniModelShareDir \"$CatalogStem.peer-companion-inventory.v0.json\"",
+      "$MiniModelLocalImportReceipt = Join-Path $MiniModelShareDir \"$CatalogStem.local.minimodel-receipt\"",
+      "$MiniModelImportReceiptLedger = Join-Path $MiniModelShareDir \"import-receipts.v0.json\"",
       "$MiniModelCatalogSnapshotWithFeed = Join-Path $WorkDir \"models.with-announcement-feed.v0.json\"",
       "$MiniModelPublishReadme = Join-Path $MiniModelShareDir \"converted-once-p2p-publish.README.txt\"",
+      "$OutputSlmByteCount = (Get-Item -LiteralPath $OutputSlm).Length",
+      "cargo run -p minimodel -- write-import-receipt $MiniModelManifest $OutputSlm $MiniModelLocalImportReceipt",
+      "cargo run -p minimodel -- inspect-import-receipt $MiniModelLocalImportReceipt $MiniModelManifest $OutputSlm",
+      "cargo run -p minimodel -- write-import-receipt-ledger $MiniModelImportReceiptLedger $MiniModelLocalImportReceipt $MiniModelManifest $OutputSlm",
+      "cargo run -p minimodel -- inspect-import-receipt-ledger $MiniModelImportReceiptLedger",
       "$MiniModelCatalogEntryForSnapshot = $MiniModelCatalogEntry",
       "if ($KnownPeerBaseUrl.Trim().Length -gt 0) {",
       "  cargo run -p minimodel -- add-peer-source $MiniModelCatalogEntry $MiniModelCatalogEntryWithPeer $KnownPeerBaseUrl",
@@ -7957,6 +8530,8 @@
       "  cargo run -p minimodel -- write-peer-contact-card $MiniModelPeerContactCard $KnownPeerBaseUrl",
       "  cargo run -p minimodel -- write-peer-contact-book $MiniModelPeerContactBook $MiniModelPeerContactCard",
       "  cargo run -p minimodel -- inspect-peer-contact-book $MiniModelPeerContactBook",
+      "  cargo run -p minimodel -- write-peer-companion-inventory $MiniModelPeerCompanionInventory $MiniModelPeerCompanionState $MiniModelManifest $MiniModelPieceDir $MiniModelImportReceiptLedger $OutputSlmByteCount $MiniModelPeerContactCard",
+      "  cargo run -p minimodel -- inspect-peer-companion-inventory $MiniModelPeerCompanionInventory",
       "  $MiniModelCatalogEntryForSnapshot = $MiniModelCatalogEntryWithPeer",
       "}",
       "",
@@ -7978,6 +8553,8 @@
       "  \"\"",
       "  \"Local companion handoff files:\"",
       "  \"- Peer companion state: $MiniModelPeerCompanionState (created when KnownPeerBaseUrl is set; metadata only, no model bytes)\"",
+      "  \"- Import receipt ledger: $MiniModelImportReceiptLedger (metadata only, no model bytes)\"",
+      "  \"- Peer companion inventory: $MiniModelPeerCompanionInventory (created when KnownPeerBaseUrl is set; metadata only, no model bytes or peer pieces)\"",
       "  \"\"",
       "  \"Do not send .slm files or *.peer-pieces directories to project servers.\"",
       "  \"Project servers may publish only metadata JSON, schemas, docs, public keys, and contact/takedown routes.\"",
@@ -7989,6 +8566,8 @@
       "Write-Host \"Conversion receipt:\" $ConversionReceipt",
       "Write-Host \"MiniModel manifest:\" $MiniModelManifest",
       "Write-Host \"MiniModel peer pieces:\" $MiniModelPieceDir",
+      "Write-Host \"MiniModel local import receipt:\" $MiniModelLocalImportReceipt",
+      "Write-Host \"MiniModel import receipt ledger:\" $MiniModelImportReceiptLedger",
       "Write-Host \"MiniModel share directory:\" $MiniModelShareDir",
       "Write-Host \"MiniModel catalog snapshot:\" $MiniModelCatalogSnapshot",
       "Write-Host \"MiniModel peer-source announcement feed:\" $MiniModelPeerSourceAnnouncementFeed",
@@ -7996,6 +8575,7 @@
       "Write-Host \"MiniModel peer companion state:\" $MiniModelPeerCompanionState",
       "Write-Host \"MiniModel peer contact card:\" $MiniModelPeerContactCard",
       "Write-Host \"MiniModel peer contact book:\" $MiniModelPeerContactBook",
+      "Write-Host \"MiniModel peer companion inventory:\" $MiniModelPeerCompanionInventory",
       "Write-Host \"MiniModel serve script:\" $MiniModelServeScript",
       "Write-Host \"Converted-once publication notes:\" $MiniModelPublishReadme",
       "if ($KnownPeerBaseUrl.Trim().Length -eq 0) {",
@@ -8007,6 +8587,8 @@
       `  Write-Host "cargo run -p minimodel -- write-peer-contact-card '$MiniModelPeerContactCard' ${peerExampleUrl}"`,
       "  Write-Host \"cargo run -p minimodel -- write-peer-contact-book '$MiniModelPeerContactBook' '$MiniModelPeerContactCard'\"",
       "  Write-Host \"cargo run -p minimodel -- inspect-peer-contact-book '$MiniModelPeerContactBook'\"",
+      "  Write-Host \"cargo run -p minimodel -- write-peer-companion-inventory '$MiniModelPeerCompanionInventory' '$MiniModelPeerCompanionState' '$MiniModelManifest' '$MiniModelPieceDir' '$MiniModelImportReceiptLedger' $OutputSlmByteCount '$MiniModelPeerContactCard'\"",
+      "  Write-Host \"cargo run -p minimodel -- inspect-peer-companion-inventory '$MiniModelPeerCompanionInventory'\"",
       "  Write-Host \"cargo run -p minimodel -- write-peer-source-announcement-feed '$MiniModelPeerSourceAnnouncementFeed' '$MiniModelPeerSourceAnnouncement'\"",
       "  Write-Host \"cargo run -p minimodel -- inspect-peer-source-announcement-feed '$MiniModelPeerSourceAnnouncementFeed'\"",
       "  Write-Host \"cargo run -p minimodel -- write-catalog-snapshot-with-announcement-feed '$MiniModelCatalogSnapshotWithFeed' peer-source-announcements.v0.json '$MiniModelPeerSourceAnnouncementFeed' '$MiniModelCatalogEntry'\"",
@@ -8032,6 +8614,68 @@
     const scriptName = `${stem}.tinyrustlm-convert.ps1`;
     const requestName = `${stem}.minimodel-conversion-request.json`;
     const readmeName = `${stem}.tinyrustlm-conversion.README.txt`;
+    const sourceFormat = request.local_conversion.source_format || "safetensors";
+    if (sourceFormat === "gguf") {
+      const sourceFile = request.local_conversion.suggested_source_gguf_file || "<reviewed-source>.gguf";
+      const suggestedSourceUrl = request.local_conversion.suggested_source_gguf_url || "";
+      const suggestedSourceSha256 = request.local_conversion.suggested_source_gguf_sha256 || "";
+      const suggestedSourceByteCount = Number.isFinite(request.local_conversion.suggested_source_gguf_byte_count)
+        ? String(request.local_conversion.suggested_source_gguf_byte_count)
+        : "";
+      const knownPeerBaseUrl = request.local_conversion.known_peer_base_url || "";
+      const lines = [
+        "TinyRustLM Hugging Face GGUF conversion kit",
+        "",
+        `Source model: ${entry.modelId}`,
+        `Model card: ${hfModelUrl(entry.modelId)}`,
+        "",
+        "Files saved by TinyRustLM:",
+        `- ${requestName}`,
+        `- ${scriptName}`,
+        `- ${readmeName}`,
+        "",
+        "What to do:",
+        `1. Review the model card and license for ${entry.modelId}.`,
+        `2. Put a reviewed GGUF file with F32/F16/BF16/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K tensors at ${sourceFile}, set TINYRUSTLM_SOURCE_GGUF, or opt into direct local Hugging Face download with: $env:TINYRUSTLM_ALLOW_HF_DOWNLOAD=\"1\"`,
+        `3. Run from PowerShell in this folder: powershell -ExecutionPolicy Bypass -File .\\${scriptName}`,
+        "4. If conversion passes, import the verified .slm through TinyRustLM's local file picker.",
+        "",
+        "What the script does:",
+        "- Recreates the conversion request if the JSON sidecar is missing.",
+        "- Uses a reviewed local GGUF file by default, or downloads the suggested GGUF directly to this machine only after TINYRUSTLM_ALLOW_HF_DOWNLOAD=1.",
+        `- Listed GGUF file: ${sourceFile}`,
+        suggestedSourceUrl ? `- Suggested direct Hugging Face GGUF URL: ${suggestedSourceUrl}` : "- No direct Hugging Face GGUF URL was available from metadata.",
+        suggestedSourceSha256 ? `- Expected source SHA-256 from metadata: ${suggestedSourceSha256}` : "- Expected source SHA-256 from metadata: unavailable.",
+        suggestedSourceByteCount ? `- Expected source byte count from metadata: ${suggestedSourceByteCount}` : "- Expected source byte count from metadata: unavailable.",
+        "- Runs tinyrustlm-slm-pack inspect-huggingface-conversion-request before local GGUF inspection.",
+        "- Runs tinyrustlm-slm-pack inspect-gguf and plan-gguf-source before conversion.",
+        "- Runs tinyrustlm-slm-pack convert-gguf-trained for F32/F16/BF16/Q2_K/Q3_K/Q4_0/Q4_1/Q4_K/Q5_0/Q5_1/Q5_K/Q6_K/Q8_0/Q8_1/Q8_K tensor payloads.",
+        "- Runs tinyrustlm-slm-pack validate and validate-manifest before MiniModel sharing.",
+        "- Runs MiniModel prepare-peer-share locally after Rust verifies the .slm.",
+        "- Writes a metadata-only models.v0.json catalog snapshot.",
+        "- Writes a local import receipt ledger for sender-side audit/companion handoff.",
+        knownPeerBaseUrl
+          ? `- Known peer URL: ${knownPeerBaseUrl}. The script writes peer-source announcement/feed metadata plus peer companion state, contact book, and peer companion inventory for this consenting peer.`
+          : "- Known peer URL: not set. Peer-source announcement/feed metadata can be added later after a consenting peer URL is known.",
+        "",
+        "Safe to publish:",
+        "- models.v0.json",
+        "- catalog-entry JSON",
+        "- peer-source announcement/feed JSON when present",
+        "- docs, schemas, public keys, contact routes, and takedown routes",
+        "",
+        "Never upload to project servers:",
+        "- .slm files",
+        "- *.peer-pieces directories",
+        "- source .gguf files",
+        "",
+        "Boundary:",
+        "- GGUF conversion still requires supported tensor names/shapes, tokenizer token-count compatibility, BPE token/merge import when declared, and Rust validation before .slm import.",
+        "- TinyRustLM.com and MiniModel.org do not serve, proxy, cache, run, or fetch user model bytes.",
+        "- Model bytes stay local or move only from a consenting peer through Rust verification."
+      ];
+      return `${lines.join("\n")}\n`;
+    }
     const sourceFile = request.local_conversion.suggested_source_safetensors_file || "<reviewed-source>.safetensors";
     const sourceFiles = Array.isArray(request.local_conversion.suggested_source_safetensors_files)
       ? request.local_conversion.suggested_source_safetensors_files
@@ -8069,13 +8713,15 @@
       suggestedSourceUrl ? `- Suggested direct Hugging Face source URL: ${suggestedSourceUrl}` : "- No direct Hugging Face source URL was available from metadata.",
       suggestedSourceSha256 ? `- Expected source SHA-256 from metadata: ${suggestedSourceSha256}` : "- Expected source SHA-256 from metadata: unavailable.",
       suggestedSourceByteCount ? `- Expected source byte count from metadata: ${suggestedSourceByteCount}` : "- Expected source byte count from metadata: unavailable.",
+      "- Runs tinyrustlm-slm-pack inspect-huggingface-conversion-request before local source-byte inspection.",
       "- Runs tinyrustlm-slm-pack convert-huggingface-request locally against the reviewed source file or shard directory.",
       "- Writes tinyrustlm-conversion.preflight before extraction so incompatible source inputs have a durable Rust explanation.",
       "- Runs tinyrustlm-slm-pack inspect-huggingface-conversion-receipt to bind the request, preflight, .slm, and manifest before MiniModel sharing.",
-      "- Runs MiniModel prepare-peer-share locally after Rust verifies the .slm.",
-      "- Writes a metadata-only models.v0.json catalog snapshot.",
-      knownPeerBaseUrl
-        ? `- Known peer URL: ${knownPeerBaseUrl}. The script writes peer-source announcement/feed metadata for this consenting peer.`
+        "- Runs MiniModel prepare-peer-share locally after Rust verifies the .slm.",
+        "- Writes a metadata-only models.v0.json catalog snapshot.",
+        "- Writes a local import receipt ledger for sender-side audit/companion handoff.",
+        knownPeerBaseUrl
+        ? `- Known peer URL: ${knownPeerBaseUrl}. The script writes peer-source announcement/feed metadata plus peer companion state, contact book, and peer companion inventory for this consenting peer.`
         : "- Known peer URL: not set. Peer-source announcement/feed metadata can be added later after a consenting peer URL is known.",
       "",
       "Safe to publish:",
@@ -8115,7 +8761,12 @@
     downloadTextFile(`${stem}.minimodel-conversion-request.json`, `${JSON.stringify(request, null, 2)}\n`);
     downloadTextFile(`${stem}.tinyrustlm-convert.ps1`, hfConversionScript(entry, matches), "text/plain");
     downloadTextFile(`${stem}.tinyrustlm-conversion.README.txt`, hfConversionReadme(entry, matches), "text/plain");
-    setHfStatus("conversion request, script, and README saved locally", false);
+    setHfStatus(
+      request.local_conversion.source_format === "gguf"
+        ? "GGUF conversion request, script, and README saved locally"
+        : "conversion request, script, and README saved locally",
+      false
+    );
     holdModelPopoverOpen(2500);
   }
 
@@ -8164,6 +8815,8 @@
         summary.externalSlmListed += 1;
       } else if (!hfCanStartConversion(view)) {
         summary.noSupportedSource += 1;
+      } else if (hfPreferredSourceFormat(view) === "gguf") {
+        summary.unknownSourceReview += 1;
       } else if (hfSourceByteRisk(view) === "large") {
         summary.largeSourceReview += 1;
       } else if (hfSourceByteRisk(view) === "unknown") {

@@ -1,0 +1,27 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <RepositoryUrl>https://TinyRustLM.com/</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Authors>TinyRustLM maintainers</Authors>
+    <Company>TinyRustLM</Company>
+    <Copyright>Copyright TinyRustLM maintainers</Copyright>
+    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+    <PackageProjectUrl>https://TinyRustLM.com/</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+    <PackageTags>TinyRustLM;SLM;AI;P2P;Rust;runtime;model-sharing;protected-sdk</PackageTags>
+    <PackageReleaseNotes>Protected public SDK surface for .slm validation, runtime harness operations with SDK/ABI version query, managed/native generation-option validation, embedded-NUL string-boundary validation, empty-string native bridge preservation, managed share-kit request validation, managed P2P JSON byte-budget preflight, declared package-file audit gates, package documentation hash parity audit, exact package-set audit, package identity audit, public dependency graph audit, dependency metadata policy audit, native asset placement audit, native asset filename audit, package entry allow-list audit, public API surface audit, and typed metadata-bound P2P workflows with direct announcement URL validation, local piece verification, local assembly, typed share-kit and share-metadata records, announcement JSON handoff helpers, catalog inspection with byte-budget enforcement, raw JSON audit handoff, and receipt-sidecar inspection. Private conversion, authoring, training, routing, telemetry, and licensing internals are intentionally excluded.</PackageReleaseNotes>
+    <VersionPrefix>0.1.1</VersionPrefix>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)..\docs\nuget\LICENSE.txt" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

@@ -78,6 +78,178 @@ fn write_huggingface_shard_fixture(dir: &Path) {
 }
 
 #[test]
+fn inspect_huggingface_conversion_request_cli_writes_report_without_source_bytes() {
+    let dir = unique_dir("hf-conversion-request-inspect-cli");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("create test directory");
+
+    let request_path = dir.join("example-org__tiny-source-model.minimodel-conversion-request.json");
+    let report_path = dir.join("request.inspect");
+    std::fs::write(
+        &request_path,
+        r#"{
+  "request_kind": "minimodel.huggingface_conversion_request.v0",
+  "source": {
+    "kind": "huggingface_model",
+    "model_id": "example-org/tiny-source-model"
+  },
+  "requested_artifact": {
+    "kind": "slm",
+    "supported_source_shapes": ["tiny-fixture", "tinylm16"],
+    "default_source_shape": "tiny-fixture",
+    "default_quantization": "q8_0"
+  },
+  "local_conversion": {
+    "source_format": "safetensors",
+    "source_input_mode": "single-safetensors-file",
+    "suggested_source_safetensors_file": "tiny-hf-source.safetensors",
+    "suggested_source_safetensors_files": [
+      {
+        "file_name": "tiny-hf-source.safetensors",
+        "sha256": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "byte_count": 4096
+      }
+    ],
+    "known_peer_base_url": "http://127.0.0.1:8123/peer-pieces"
+  }
+}
+"#,
+    )
+    .expect("write conversion request");
+
+    let request_path_text = request_path.to_string_lossy().to_string();
+    let report_path_text = report_path.to_string_lossy().to_string();
+    let output = Command::new(pack_bin())
+        .args([
+            "inspect-huggingface-conversion-request",
+            &request_path_text,
+            &report_path_text,
+        ])
+        .output()
+        .expect("run inspect-huggingface-conversion-request");
+    assert!(output.status.success(), "{}", output_text(&output));
+    let cli_text = output_text(&output);
+    assert!(cli_text.contains("Hugging Face conversion request inspection: PASS"));
+    assert!(cli_text.contains("source_model_id: example-org/tiny-source-model"));
+    assert!(cli_text.contains("source_format: safetensors"));
+
+    let report = std::fs::read_to_string(&report_path).expect("read request inspection report");
+    assert!(report.contains("tinyrustlm_huggingface_conversion_request_inspection_version=1"));
+    assert!(report.contains("inspection_status=pass"));
+    assert!(report.contains("source_model_id=example-org/tiny-source-model"));
+    assert!(report.contains("source_format=safetensors"));
+    assert!(report.contains("source_input_mode=single-safetensors-file"));
+    assert!(report.contains("request_sha256=sha256:"));
+    assert!(report.contains("supported_source_shapes=tiny-fixture,tinylm16"));
+    assert!(report.contains("default_source_shape=tiny-fixture"));
+    assert!(report.contains("default_quantization=q8_0"));
+    assert!(report.contains("suggested_source_safetensors_file=tiny-hf-source.safetensors"));
+    assert!(report.contains("known_peer_base_url=http://127.0.0.1:8123/peer-pieces/"));
+    assert!(report.contains("safetensors_expected_file_count=1"));
+    assert!(report.contains("safetensors_expected_total_bytes=4096"));
+    assert!(report.contains("safetensors_expected.0.file_name=tiny-hf-source.safetensors"));
+    assert!(report.contains(
+        "safetensors_expected.0.sha256=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ));
+    assert!(report.contains("gguf_expected_file_count=0"));
+    assert!(report.contains("project_server_serves_model_bytes=false"));
+    assert!(report.contains("local_script_huggingface_download_requires_explicit_opt_in=true"));
+    assert!(report.contains("required_next_gate=convert-huggingface-request"));
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn inspect_huggingface_conversion_request_cli_accepts_gguf_and_blocks_safetensors_converter() {
+    let dir = unique_dir("hf-gguf-conversion-request-inspect-cli");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("create test directory");
+
+    let request_path = dir.join("example-org__gguf-source.minimodel-conversion-request.json");
+    let report_path = dir.join("gguf-request.inspect");
+    let output_dir = dir.join("conversion-output");
+    std::fs::write(
+        &request_path,
+        r#"{
+  "request_kind": "minimodel.huggingface_conversion_request.v0",
+  "source": {
+    "kind": "huggingface_model",
+    "model_id": "example-org/gguf-source"
+  },
+  "requested_artifact": {
+    "kind": "slm",
+    "supported_source_shapes": ["tiny-fixture"],
+    "default_source_shape": "tiny-fixture",
+    "default_quantization": "q8_0"
+  },
+  "local_conversion": {
+    "source_format": "gguf",
+    "source_input_mode": "single-gguf-file",
+    "suggested_source_safetensors_file": null,
+    "suggested_source_gguf_file": "model-f16.gguf",
+    "suggested_source_gguf_files": [
+      {
+        "file_name": "model-f16.gguf",
+        "sha256": "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+        "byte_count": 8192
+      }
+    ]
+  }
+}
+"#,
+    )
+    .expect("write GGUF conversion request");
+
+    let request_path_text = request_path.to_string_lossy().to_string();
+    let report_path_text = report_path.to_string_lossy().to_string();
+    let inspect_output = Command::new(pack_bin())
+        .args([
+            "inspect-huggingface-conversion-request",
+            &request_path_text,
+            &report_path_text,
+        ])
+        .output()
+        .expect("run inspect-huggingface-conversion-request on GGUF request");
+    assert!(
+        inspect_output.status.success(),
+        "{}",
+        output_text(&inspect_output)
+    );
+    let report = std::fs::read_to_string(&report_path).expect("read GGUF request inspection");
+    assert!(report.contains("source_format=gguf"));
+    assert!(report.contains("source_input_mode=single-gguf-file"));
+    assert!(report.contains("suggested_source_gguf_file=model-f16.gguf"));
+    assert!(report.contains("gguf_expected_file_count=1"));
+    assert!(report.contains("gguf_expected_total_bytes=8192"));
+    assert!(report.contains("gguf_expected.0.file_name=model-f16.gguf"));
+    assert!(report.contains(
+        "gguf_expected.0.sha256=sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+    ));
+    assert!(report.contains("required_next_gate=inspect-gguf-and-plan-gguf-source"));
+
+    let missing_input = dir.join("model-f16.gguf").to_string_lossy().to_string();
+    let output_dir_text = output_dir.to_string_lossy().to_string();
+    let convert_output = Command::new(pack_bin())
+        .args([
+            "convert-huggingface-request",
+            &request_path_text,
+            &missing_input,
+            &output_dir_text,
+        ])
+        .output()
+        .expect("run convert-huggingface-request against GGUF request");
+    let convert_text = output_text(&convert_output);
+    assert!(!convert_output.status.success(), "{convert_text}");
+    assert!(convert_text.contains("source_format=gguf must use inspect-gguf"));
+    assert!(
+        !output_dir.exists(),
+        "GGUF request should be rejected before creating a safetensors conversion directory"
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn convert_huggingface_request_cli_writes_verified_slm_preflight_and_receipt() {
     let dir = unique_dir("hf-conversion-cli");
     let _ = std::fs::remove_dir_all(&dir);
