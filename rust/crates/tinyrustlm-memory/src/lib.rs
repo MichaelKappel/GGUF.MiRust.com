@@ -191,6 +191,47 @@ pub struct UaixMemoryBoundary {
     pub uses_tinyrustlm_runtime_harness: bool,
 }
 
+/// Machine-checkable summary of the UAIX file deck selected by a package plan.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct UaixMemoryFileDeckSummary {
+    /// Total required file count in the selected closed file set.
+    pub total_required_files: u32,
+    /// Files required by every supported UAIX memory package.
+    pub universal_required_files: u32,
+    /// Files required by the selected setup/profile family.
+    pub profile_required_files: u32,
+    /// Files required by the selected configuration.
+    pub configuration_specific_required_files: u32,
+    /// Files required only when package facts trigger them.
+    pub content_triggered_required_files: u32,
+    /// Files required by the advanced persona profile configuration.
+    pub advanced_persona_required_files: u32,
+    /// Required evidence files, including persona source evidence.
+    pub evidence_files: u32,
+    /// Required `.uai/exports/` files.
+    pub export_files: u32,
+    /// Required `.uai/personality/` dimension files.
+    pub persona_dimension_files: u32,
+    /// Content-triggered persona style-axis files.
+    pub triggered_persona_style_axis_files: u32,
+    /// The selected deck includes `.uai/exports/manifest-overlay.json`.
+    pub includes_manifest_overlay: bool,
+    /// The selected deck includes `.uai/exports/package-model.json`.
+    pub includes_package_model: bool,
+    /// The selected deck includes `.uai/exports/knowledge-graph.json`.
+    pub includes_knowledge_graph: bool,
+    /// The selected deck includes both `llms.uai` and `llms-full.uai`.
+    pub includes_llms_exports: bool,
+    /// The selected deck includes `.uai/agent-pickup.uai`.
+    pub includes_agent_pickup: bool,
+    /// The selected deck includes `.uai/archives/session-log.uai`.
+    pub includes_session_log: bool,
+    /// The selected deck binds persona source, preservation, and provenance evidence.
+    pub includes_persona_source_evidence: bool,
+    /// The harness expects the manifest to declare the full effective file set.
+    pub closed_required_file_set: bool,
+}
+
 /// Public descriptor for one supported UAIX memory setup path.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct UaixMemorySetupDescriptor {
@@ -238,6 +279,8 @@ pub struct UaixMemoryPackagePlan {
     pub setup: UaixMemorySetup,
     /// Required package-relative file records.
     pub required_files: Vec<UaixMemoryRequiredFile>,
+    /// Machine-checkable summary of the selected UAIX file deck.
+    pub file_deck: UaixMemoryFileDeckSummary,
     /// Required file count.
     pub required_file_count: u32,
     /// Public authority URLs used by this plan.
@@ -307,6 +350,8 @@ pub struct UaixMemoryPackageInspection {
     pub setup: UaixMemorySetup,
     /// Required-file statuses.
     pub required_files: Vec<UaixMemoryFileStatus>,
+    /// Machine-checkable summary of the selected UAIX file deck.
+    pub file_deck: UaixMemoryFileDeckSummary,
     /// Advanced persona dimension inspections when `advanced_persona_profile` is selected.
     pub persona_dimensions: Vec<UaixPersonaDimensionInspection>,
     /// Whether every required persona dimension declares review evidence markers.
@@ -392,10 +437,18 @@ pub fn supported_memory_setups() -> UaixMemorySetupCatalog {
             UAIX_MEMORY_WIZARD_URL,
             &[UAIX_MEMORY_WIZARD_URL],
             &[
+                "ai_digest_script_data_ai_digest",
+                "point_agent_urls",
+                "local_browser_draft_restore",
+                "safe_structured_output_mode",
                 "startup_packet",
                 "system_profile",
                 "receiver_brief",
                 "manifest_overlay",
+                "browser_generated_zip_package",
+                "canonical_starter_zip_downloads",
+                "package_model_json",
+                "knowledge_graph_json",
                 "llms_exports",
                 "hot_uai_memory",
             ],
@@ -476,7 +529,14 @@ pub fn supported_memory_setups() -> UaixMemorySetupCatalog {
             &[UAIX_MEMORY_WIZARD_URL, UAIX_PERSONA_PACK_URL],
             &[
                 "persona_entrypoint",
+                "uaix_zip_txt_template_decks",
                 "personality_dimension_files",
+                "depth_level_0_to_10_dimension_evidence",
+                "disclosure_boundary_evidence",
+                "source_confidence_evidence",
+                "non_inference_rules",
+                "triggered_style_axes",
+                "source_persona_preservation_rule",
                 "source_excerpts",
                 "fidelity_test_deck",
                 "runtime_variance_template",
@@ -619,12 +679,14 @@ pub fn memory_required_files(
         }
     }
     let required_files = files.into_values().collect::<Vec<_>>();
+    let file_deck = file_deck_summary(&required_files);
     Ok(UaixMemoryPackagePlan {
         kind: MEMORY_PACKAGE_PLAN_KIND.to_string(),
         version: 1,
         setup: request.setup,
         required_file_count: required_files.len() as u32,
         required_files,
+        file_deck,
         source_urls: vec![
             UAIX_MEMORY_WIZARD_URL.to_string(),
             UAIX_PERSONA_PACK_URL.to_string(),
@@ -707,6 +769,7 @@ pub fn inspect_memory_package_path(
         package_source: source.source_type,
         setup: request.setup,
         required_files: required_status,
+        file_deck: plan.file_deck,
         persona_dimensions,
         persona_dimensions_valid,
         persona_dimension_warning_count,
@@ -1486,6 +1549,63 @@ fn inspect_persona_dimension(
     }
 }
 
+fn file_deck_summary(required_files: &[UaixMemoryRequiredFile]) -> UaixMemoryFileDeckSummary {
+    let contains_path = |target: &str| required_files.iter().any(|file| file.path == target);
+    let count_state = |state: &str| {
+        required_files
+            .iter()
+            .filter(|file| file.state == state)
+            .count() as u32
+    };
+    let evidence_files = required_files
+        .iter()
+        .filter(|file| file.role == "evidence" || file.path.starts_with(".uai/evidence/"))
+        .count() as u32;
+    let export_files = required_files
+        .iter()
+        .filter(|file| file.role == "export" || file.path.starts_with(".uai/exports/"))
+        .count() as u32;
+    let persona_dimension_files = required_files
+        .iter()
+        .filter(|file| file.path.starts_with(".uai/personality/"))
+        .count() as u32;
+    let triggered_persona_style_axis_files = required_files
+        .iter()
+        .filter(|file| {
+            file.state == "content_triggered_required" && file.path.starts_with(".uai/personality/")
+        })
+        .count() as u32;
+    let includes_persona_source_evidence = [
+        ".uai/persona.uai",
+        ".uai/personality/preservation-rules.uai",
+        ".uai/evidence/source-excerpts.uai",
+        ".uai/evidence/provenance.uai",
+    ]
+    .iter()
+    .all(|path| contains_path(path));
+    UaixMemoryFileDeckSummary {
+        total_required_files: required_files.len() as u32,
+        universal_required_files: count_state("universal_required"),
+        profile_required_files: count_state("profile_required"),
+        configuration_specific_required_files: count_state("configuration_specific_required"),
+        content_triggered_required_files: count_state("content_triggered_required"),
+        advanced_persona_required_files: count_state("required_for_advanced_persona_profile"),
+        evidence_files,
+        export_files,
+        persona_dimension_files,
+        triggered_persona_style_axis_files,
+        includes_manifest_overlay: contains_path(".uai/exports/manifest-overlay.json"),
+        includes_package_model: contains_path(".uai/exports/package-model.json"),
+        includes_knowledge_graph: contains_path(".uai/exports/knowledge-graph.json"),
+        includes_llms_exports: contains_path(".uai/exports/llms.uai")
+            && contains_path(".uai/exports/llms-full.uai"),
+        includes_agent_pickup: contains_path(".uai/agent-pickup.uai"),
+        includes_session_log: contains_path(".uai/archives/session-log.uai"),
+        includes_persona_source_evidence,
+        closed_required_file_set: true,
+    }
+}
+
 fn insert_required(
     files: &mut BTreeMap<String, UaixMemoryRequiredFile>,
     path: &str,
@@ -1681,6 +1801,7 @@ fn is_memory_package_path(path: &str) -> bool {
         || path == "AGENTS.md"
         || path == "workspace.uai"
         || path.starts_with("agent-file-handoff/")
+        || path == "reports/deployment-memory-and-test-report.uai"
 }
 
 fn package_entry(bytes: Vec<u8>) -> PackageEntry {
@@ -1860,8 +1981,74 @@ mod tests {
         assert!(paths.contains(".uai/personality/religion-worldview.uai"));
         assert!(paths.contains(".uai/personality/sense-of-winter.uai"));
         assert!(paths.contains(".uai/evidence/provenance.uai"));
+        assert_eq!(
+            plan.file_deck.total_required_files,
+            plan.required_file_count
+        );
+        assert!(plan.file_deck.closed_required_file_set);
+        assert!(plan.file_deck.includes_manifest_overlay);
+        assert!(plan.file_deck.includes_package_model);
+        assert!(plan.file_deck.includes_knowledge_graph);
+        assert!(plan.file_deck.includes_llms_exports);
+        assert!(plan.file_deck.includes_agent_pickup);
+        assert!(plan.file_deck.includes_session_log);
+        assert!(plan.file_deck.includes_persona_source_evidence);
+        assert_eq!(plan.file_deck.total_required_files, 56);
+        assert_eq!(plan.file_deck.universal_required_files, 7);
+        assert_eq!(plan.file_deck.profile_required_files, 11);
+        assert_eq!(plan.file_deck.configuration_specific_required_files, 10);
+        assert_eq!(plan.file_deck.content_triggered_required_files, 4);
+        assert_eq!(plan.file_deck.advanced_persona_required_files, 24);
+        assert_eq!(plan.file_deck.persona_dimension_files, 22);
+        assert_eq!(plan.file_deck.triggered_persona_style_axis_files, 4);
+        assert_eq!(plan.file_deck.evidence_files, 5);
+        assert_eq!(plan.file_deck.export_files, 6);
         assert!(!plan.boundary.persona_source_mutation_allowed);
         assert!(plan.boundary.uses_tinyrustlm_runtime_harness);
+    }
+
+    #[test]
+    fn content_triggered_advanced_persona_plan_matches_browser_filedeck_smoke() {
+        let request = UaixMemoryPackageRequest {
+            setup: UaixMemorySetup::AdvancedPersonaProfile,
+            code_like_artifacts: true,
+            deployment: true,
+            communication_style: true,
+            source_notes: true,
+            advanced_persona: AdvancedPersonaOptions {
+                sense_of_style_depth: 3,
+                ..AdvancedPersonaOptions::default()
+            },
+            ..UaixMemoryPackageRequest::default()
+        };
+        let plan = memory_required_files(&request).expect("plan");
+        let paths = plan
+            .required_files
+            .iter()
+            .map(|file| file.path.as_str())
+            .collect::<BTreeSet<_>>();
+        assert!(paths.contains(".uai/coding-standards.uai"));
+        assert!(paths.contains(".uai/architecture.uai"));
+        assert!(paths.contains(".uai/next-recursive-prompt.uai"));
+        assert!(paths.contains("reports/deployment-memory-and-test-report.uai"));
+        assert!(paths.contains(".uai/communication-style.uai"));
+        assert!(paths.contains(".uai/source-notes.uai"));
+        assert_eq!(plan.required_file_count, 62);
+        assert_eq!(plan.file_deck.total_required_files, 62);
+        assert_eq!(plan.file_deck.universal_required_files, 7);
+        assert_eq!(plan.file_deck.profile_required_files, 11);
+        assert_eq!(plan.file_deck.configuration_specific_required_files, 10);
+        assert_eq!(plan.file_deck.content_triggered_required_files, 10);
+        assert_eq!(plan.file_deck.advanced_persona_required_files, 24);
+        assert_eq!(plan.file_deck.persona_dimension_files, 22);
+        assert_eq!(plan.file_deck.triggered_persona_style_axis_files, 4);
+        assert_eq!(plan.file_deck.evidence_files, 5);
+        assert_eq!(plan.file_deck.export_files, 6);
+        assert!(plan.file_deck.includes_manifest_overlay);
+        assert!(plan.file_deck.includes_package_model);
+        assert!(plan.file_deck.includes_knowledge_graph);
+        assert!(plan.file_deck.includes_llms_exports);
+        assert!(plan.file_deck.includes_persona_source_evidence);
     }
 
     #[test]
@@ -1875,6 +2062,10 @@ mod tests {
         ));
         let request = UaixMemoryPackageRequest {
             setup: UaixMemorySetup::AdvancedPersonaProfile,
+            code_like_artifacts: true,
+            deployment: true,
+            communication_style: true,
+            source_notes: true,
             ..UaixMemoryPackageRequest::default()
         };
         let plan = memory_required_files(&request).expect("plan");
@@ -1912,6 +2103,16 @@ mod tests {
 
         let inspection = inspect_memory_package_path(&root, &request).expect("inspection");
         assert!(inspection.valid);
+        assert!(inspection.required_files.iter().any(|file| {
+            file.path == "reports/deployment-memory-and-test-report.uai" && file.exists
+        }));
+        assert!(inspection.missing_required_files.is_empty());
+        assert!(inspection.manifest_missing_required_files.is_empty());
+        assert_eq!(
+            inspection.file_deck.total_required_files,
+            plan.required_file_count
+        );
+        assert!(inspection.file_deck.includes_persona_source_evidence);
         assert!(inspection.persona_dimensions_valid);
         assert_eq!(inspection.persona_dimension_warning_count, 0);
         assert!(inspection
@@ -1967,6 +2168,41 @@ mod tests {
             .setups
             .iter()
             .all(|descriptor| !descriptor.excluded_private_capabilities.is_empty()));
+        let base = catalog
+            .setups
+            .iter()
+            .find(|descriptor| descriptor.setup == UaixMemorySetup::Base)
+            .expect("base setup descriptor");
+        for feature in [
+            "ai_digest_script_data_ai_digest",
+            "point_agent_urls",
+            "local_browser_draft_restore",
+            "safe_structured_output_mode",
+            "canonical_starter_zip_downloads",
+            "package_model_json",
+            "knowledge_graph_json",
+        ] {
+            assert!(base.package_features.iter().any(|item| item == feature));
+        }
+        let advanced_persona = catalog
+            .setups
+            .iter()
+            .find(|descriptor| descriptor.setup == UaixMemorySetup::AdvancedPersonaProfile)
+            .expect("advanced persona descriptor");
+        for feature in [
+            "uaix_zip_txt_template_decks",
+            "source_persona_preservation_rule",
+            "depth_level_0_to_10_dimension_evidence",
+            "disclosure_boundary_evidence",
+            "source_confidence_evidence",
+            "non_inference_rules",
+            "triggered_style_axes",
+        ] {
+            assert!(advanced_persona
+                .package_features
+                .iter()
+                .any(|item| item == feature));
+        }
         assert!(catalog
             .source_urls
             .iter()

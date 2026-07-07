@@ -446,11 +446,11 @@ dependencies = [
 
 [[package]]
 name = "tinyrustlm-browser-harness"
-version = "0.1.3"
+version = "0.1.6"
 
 [[package]]
 name = "tinyrustlm-local-connect"
-version = "0.1.3"
+version = "0.1.6"
 dependencies = [
  "serde",
  "serde_json",
@@ -459,11 +459,11 @@ dependencies = [
 
 [[package]]
 name = "tinyrustlm-local-server"
-version = "0.1.3"
+version = "0.1.6"
 
 [[package]]
 name = "tinyrustlm-memory"
-version = "0.1.3"
+version = "0.1.6"
 dependencies = [
  "serde",
  "serde_json",
@@ -473,7 +473,7 @@ dependencies = [
 
 [[package]]
 name = "tinyrustlm-native"
-version = "0.1.3"
+version = "0.1.6"
 dependencies = [
  "serde",
  "serde_json",
@@ -485,7 +485,7 @@ dependencies = [
 
 [[package]]
 name = "tinyrustlm-p2p"
-version = "0.1.3"
+version = "0.1.6"
 dependencies = [
  "base64",
  "ed25519-dalek",
@@ -497,11 +497,11 @@ dependencies = [
 
 [[package]]
 name = "tinyrustlm-runtime"
-version = "0.1.3"
+version = "0.1.6"
 
 [[package]]
 name = "tinyrustlm-runtime-sdk"
-version = "0.1.3"
+version = "0.1.6"
 dependencies = [
  "serde",
  "tinyrustlm-runtime",
@@ -510,7 +510,7 @@ dependencies = [
 
 [[package]]
 name = "tinyrustlm-slm"
-version = "0.1.3"
+version = "0.1.6"
 dependencies = [
  "serde",
  "sha2",
@@ -519,7 +519,7 @@ dependencies = [
 
 [[package]]
 name = "tinyrustlm-slm-pack"
-version = "0.1.3"
+version = "0.1.6"
 dependencies = [
  "tinyrustlm-runtime",
 ]

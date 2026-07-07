@@ -307,7 +307,9 @@ jobs:
           NUGET_SOURCE: ${{ inputs.source }}
           TINYRUSTLM_CONSUMER_CORE_PACKAGE_ID: UAIX.Browser.p2pLLM.Runtime
           TINYRUSTLM_CONSUMER_P2P_PACKAGE_ID: UAIX.Browser.p2pRuntime.P2P
-        run: eng/verify-consumer.ps1 -PackageSource $env:NUGET_SOURCE -CorePackageId $env:TINYRUSTLM_CONSUMER_CORE_PACKAGE_ID -P2PPackageId $env:TINYRUSTLM_CONSUMER_P2P_PACKAGE_ID
+          TINYRUSTLM_CONSUMER_MEMORY_PACKAGE_ID: UAIX.Browser.Memory
+          TINYRUSTLM_CONSUMER_CONVERSION_PACKAGE_ID: UAIX.Browser.p2pLLM.Conversion
+        run: eng/verify-consumer.ps1 -PackageSource $env:NUGET_SOURCE -CorePackageId $env:TINYRUSTLM_CONSUMER_CORE_PACKAGE_ID -P2PPackageId $env:TINYRUSTLM_CONSUMER_P2P_PACKAGE_ID -MemoryPackageId $env:TINYRUSTLM_CONSUMER_MEMORY_PACKAGE_ID -ConversionPackageId $env:TINYRUSTLM_CONSUMER_CONVERSION_PACKAGE_ID
 
       - name: Upload UAIX Browser post-publish required reports
         uses: actions/upload-artifact@v4

@@ -3,7 +3,10 @@ param(
     [int]$Port = 8184,
     [int]$DebugPort = 9442,
     [string]$ReportOutput = "",
-    [switch]$RunBrowserSmoke
+    [switch]$RunBrowserSmoke,
+    [switch]$RunDeepBrowserSmoke,
+    [string[]]$BrowserSmokeModes = @(),
+    [int]$BrowserSmokeTimeoutSeconds = 1800
 )
 
 $ErrorActionPreference = "Stop"
@@ -35,6 +38,66 @@ function Invoke-Checked {
     $stderr = $process.StandardError.ReadToEnd()
     $process.WaitForExit()
     $output = ($stdout, $stderr | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join [Environment]::NewLine
+    if ($process.ExitCode -ne 0) {
+        throw "$Label failed with exit code $($process.ExitCode)`n$output"
+    }
+    return $output
+}
+
+function Stop-ProcessTree {
+    param([int]$ProcessId)
+
+    try {
+        & taskkill.exe /PID $ProcessId /T /F | Out-Null
+    }
+    catch {
+        Stop-Process -Id $ProcessId -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Invoke-BrowserSmoke {
+    param(
+        [string[]]$Arguments,
+        [string]$Label,
+        [string]$ReportPath,
+        [int]$TimeoutSeconds
+    )
+
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = "node"
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $startInfo.CreateNoWindow = $true
+    $startInfo.Arguments = ($Arguments | ForEach-Object { ConvertTo-ProcessArgument -Value $_ }) -join " "
+
+    $process = [System.Diagnostics.Process]::Start($startInfo)
+    $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+    $stderrTask = $process.StandardError.ReadToEndAsync()
+    $timeoutMilliseconds = if ($TimeoutSeconds -gt 0) { [Math]::Max(1, $TimeoutSeconds * 1000) } else { -1 }
+    if ($timeoutMilliseconds -gt 0 -and -not $process.WaitForExit($timeoutMilliseconds)) {
+        Stop-ProcessTree -ProcessId $process.Id
+        try {
+            [void]$process.WaitForExit(5000)
+        }
+        catch {
+        }
+        $stdout = $stdoutTask.GetAwaiter().GetResult()
+        $stderr = $stderrTask.GetAwaiter().GetResult()
+        $output = ($stdout, $stderr | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join [Environment]::NewLine
+        $timeoutMessage = "$Label timed out after $TimeoutSeconds seconds"
+        ($output, $timeoutMessage | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join [Environment]::NewLine |
+            Set-Content -LiteralPath $ReportPath -Encoding UTF8
+        throw "$timeoutMessage; see $ReportPath"
+    }
+
+    if ($timeoutMilliseconds -le 0) {
+        $process.WaitForExit()
+    }
+    $stdout = $stdoutTask.GetAwaiter().GetResult()
+    $stderr = $stderrTask.GetAwaiter().GetResult()
+    $output = ($stdout, $stderr | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join [Environment]::NewLine
+    $output | Set-Content -LiteralPath $ReportPath -Encoding UTF8
     if ($process.ExitCode -ne 0) {
         throw "$Label failed with exit code $($process.ExitCode)`n$output"
     }
@@ -85,6 +148,9 @@ function Write-UiReport {
         [string]$BrowserSmokeStatus,
         [string[]]$BrowserSmokeModes,
         [System.Collections.IDictionary]$BrowserSmokeStatuses,
+        [bool]$BrowserSmokeRequested,
+        [bool]$DeepBrowserSmokeRequested,
+        [string[]]$DeepBrowserSmokeModes,
         [string]$StaticHarnessOutput,
         [string]$HttpHarnessOutput,
         [string]$ErrorMessage,
@@ -105,17 +171,20 @@ function Write-UiReport {
         local_server_url = "http://127.0.0.1:$Port/app/"
         static_harness_status = $StaticHarnessStatus
         http_harness_status = $HttpHarnessStatus
-        browser_smoke_requested = [bool]$RunBrowserSmoke
+        browser_smoke_requested = $BrowserSmokeRequested
+        browser_smoke_timeout_seconds = $BrowserSmokeTimeoutSeconds
+        deep_browser_smoke_requested = $DeepBrowserSmokeRequested
+        deep_browser_smoke_modes = if ($DeepBrowserSmokeRequested) { @($DeepBrowserSmokeModes) } else { @() }
         browser_smoke_status = $BrowserSmokeStatus
-        browser_smoke_mode = if ($RunBrowserSmoke) { ($BrowserSmokeModes -join ",") } else { "" }
-        browser_smoke_modes = if ($RunBrowserSmoke) { @($BrowserSmokeModes) } else { @() }
-        browser_smoke_statuses = if ($RunBrowserSmoke) { $BrowserSmokeStatuses } else { [ordered]@{} }
+        browser_smoke_mode = if ($BrowserSmokeRequested) { ($BrowserSmokeModes -join ",") } else { "" }
+        browser_smoke_modes = if ($BrowserSmokeRequested) { @($BrowserSmokeModes) } else { @() }
+        browser_smoke_statuses = if ($BrowserSmokeRequested) { $BrowserSmokeStatuses } else { [ordered]@{} }
         browser_debug_port = $DebugPort
-        browser_debug_ports = if ($RunBrowserSmoke) { $BrowserDebugPorts } else { [ordered]@{} }
+        browser_debug_ports = if ($BrowserSmokeRequested) { $BrowserDebugPorts } else { [ordered]@{} }
         static_harness_output = $StaticHarnessOutput
         http_harness_output = $HttpHarnessOutput
-        browser_smoke_report_path = if ($RunBrowserSmoke) { [string]$BrowserSmokeReportPaths["source-options-ui"] } else { "" }
-        browser_smoke_report_paths = if ($RunBrowserSmoke) { $BrowserSmokeReportPaths } else { [ordered]@{} }
+        browser_smoke_report_path = if ($BrowserSmokeRequested -and $BrowserSmokeModes.Count -gt 0) { [string]$BrowserSmokeReportPaths[$BrowserSmokeModes[0]] } else { "" }
+        browser_smoke_report_paths = if ($BrowserSmokeRequested) { $BrowserSmokeReportPaths } else { [ordered]@{} }
         server_stdout_path = $ServerStdoutPath
         server_stderr_path = $ServerStderrPath
         error = $ErrorMessage
@@ -144,18 +213,72 @@ function Wait-UiServer {
     throw "tinyrustlm-local-server did not become ready on port $Port"
 }
 
+function Normalize-BrowserSmokeModeList {
+    param([string[]]$Modes)
+
+    $normalized = [System.Collections.Generic.List[string]]::new()
+    foreach ($entry in $Modes) {
+        if ([string]::IsNullOrWhiteSpace($entry)) {
+            continue
+        }
+        foreach ($mode in ($entry -split ",")) {
+            $trimmed = $mode.Trim()
+            if (-not [string]::IsNullOrWhiteSpace($trimmed)) {
+                $normalized.Add($trimmed)
+            }
+        }
+    }
+    return @($normalized)
+}
+
 $staticHarnessStatus = "not_run"
 $httpHarnessStatus = "not_run"
-$browserSmokeStatus = if ($RunBrowserSmoke) { "not_run" } else { "skipped" }
 $staticHarnessOutput = ""
 $httpHarnessOutput = ""
-$browserSmokeModes = @(
+$standardBrowserSmokeModes = @(
     "source-options-ui",
     "local-memory-deck-ui",
     "local-connect-approval-ui",
     "local-connect-endpoint-ui",
     "local-connect-rust-endpoint-ui"
 )
+$legacyDeepBrowserSmokeModes = @(
+    "hf-conversion-kit-exec"
+)
+$defaultDeepBrowserSmokeModes = @(
+    "hf-conversion-kit-safetensors-exec",
+    "hf-conversion-kit-review-exec",
+    "hf-conversion-kit-review-reject-exec",
+    "hf-conversion-kit-gguf-exec",
+    "hf-p2p-import-kit-exec"
+)
+$deepBrowserSmokeModes = @($legacyDeepBrowserSmokeModes + $defaultDeepBrowserSmokeModes)
+$knownBrowserSmokeModes = @($standardBrowserSmokeModes + $deepBrowserSmokeModes)
+$explicitBrowserSmokeModes = Normalize-BrowserSmokeModeList -Modes $BrowserSmokeModes
+if ($explicitBrowserSmokeModes.Count -gt 0) {
+    $browserSmokeModes = @($explicitBrowserSmokeModes)
+}
+else {
+    $browserSmokeModes = @()
+    if ($RunBrowserSmoke -or $RunDeepBrowserSmoke) {
+        $browserSmokeModes += $standardBrowserSmokeModes
+    }
+    if ($RunDeepBrowserSmoke) {
+        $browserSmokeModes += $defaultDeepBrowserSmokeModes
+    }
+}
+foreach ($mode in $browserSmokeModes) {
+    if ($knownBrowserSmokeModes -notcontains $mode) {
+        throw "Unknown TinyRustLM browser smoke mode '$mode'. Known modes: $($knownBrowserSmokeModes -join ', ')"
+    }
+}
+if ($BrowserSmokeTimeoutSeconds -lt 0) {
+    throw "BrowserSmokeTimeoutSeconds must be zero or greater."
+}
+$browserSmokeRequested = [bool]($browserSmokeModes.Count -gt 0)
+$selectedDeepBrowserSmokeModes = @($browserSmokeModes | Where-Object { $deepBrowserSmokeModes -contains $_ })
+$deepBrowserSmokeRequested = [bool]($selectedDeepBrowserSmokeModes.Count -gt 0)
+$browserSmokeStatus = if ($browserSmokeRequested) { "not_run" } else { "skipped" }
 $sourceOptionsSmokeReportName = "tinyrustlm-source-options-ui-smoke.json"
 $browserSmokeReportPaths = [ordered]@{}
 $browserSmokeStatuses = [ordered]@{}
@@ -164,7 +287,7 @@ for ($index = 0; $index -lt $browserSmokeModes.Count; $index++) {
     $mode = $browserSmokeModes[$index]
     $reportName = if ($mode -eq "source-options-ui") { $sourceOptionsSmokeReportName } else { "tinyrustlm-$mode-smoke.json" }
     $browserSmokeReportPaths[$mode] = Join-Path $RepoRoot "artifacts/reports/$reportName"
-    $browserSmokeStatuses[$mode] = if ($RunBrowserSmoke) { "not_run" } else { "skipped" }
+    $browserSmokeStatuses[$mode] = if ($browserSmokeRequested) { "not_run" } else { "skipped" }
     $browserDebugPorts[$mode] = $DebugPort + $index
 }
 $serverStdout = Join-Path $RepoRoot "artifacts/reports/tinyrustlm-ui-server-$Port.out.log"
@@ -198,16 +321,16 @@ try {
         -Label "TinyRustLM HTTP browser harness"
     $httpHarnessStatus = "pass"
 
-    if ($RunBrowserSmoke) {
+    if ($browserSmokeRequested) {
         foreach ($mode in $browserSmokeModes) {
             $reportPath = [string]$browserSmokeReportPaths[$mode]
             $modeDebugPort = [string]$browserDebugPorts[$mode]
             Remove-Item -LiteralPath $reportPath -Force -ErrorAction SilentlyContinue
-            $smokeOutput = Invoke-Checked `
-                -FilePath "node" `
+            [void](Invoke-BrowserSmoke `
                 -Arguments @((Join-Path $RepoRoot "tinyrustlm/tools/browser-smoke.js"), $appUrl, $modeDebugPort, "tinylm16q8", $mode) `
-                -Label "$mode browser smoke"
-            $smokeOutput | Set-Content -LiteralPath $reportPath -Encoding UTF8
+                -Label "$mode browser smoke" `
+                -ReportPath $reportPath `
+                -TimeoutSeconds $BrowserSmokeTimeoutSeconds)
             $browserSmokeStatuses[$mode] = "pass"
         }
         $browserSmokeStatus = "pass"
@@ -220,6 +343,9 @@ try {
         -BrowserSmokeStatus $browserSmokeStatus `
         -BrowserSmokeModes $browserSmokeModes `
         -BrowserSmokeStatuses $browserSmokeStatuses `
+        -BrowserSmokeRequested $browserSmokeRequested `
+        -DeepBrowserSmokeRequested $deepBrowserSmokeRequested `
+        -DeepBrowserSmokeModes $selectedDeepBrowserSmokeModes `
         -StaticHarnessOutput $staticHarnessOutput `
         -HttpHarnessOutput $httpHarnessOutput `
         -ErrorMessage "" `
@@ -238,6 +364,9 @@ catch {
         -BrowserSmokeStatus $browserSmokeStatus `
         -BrowserSmokeModes $browserSmokeModes `
         -BrowserSmokeStatuses $browserSmokeStatuses `
+        -BrowserSmokeRequested $browserSmokeRequested `
+        -DeepBrowserSmokeRequested $deepBrowserSmokeRequested `
+        -DeepBrowserSmokeModes $selectedDeepBrowserSmokeModes `
         -StaticHarnessOutput $staticHarnessOutput `
         -HttpHarnessOutput $httpHarnessOutput `
         -ErrorMessage $message `

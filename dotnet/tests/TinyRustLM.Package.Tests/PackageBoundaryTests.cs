@@ -85,6 +85,15 @@ public sealed class PackageBoundaryTests
             Assert.Contains("local-connect-approval-ui", script, StringComparison.Ordinal);
             Assert.Contains("local-connect-endpoint-ui", script, StringComparison.Ordinal);
             Assert.Contains("local-connect-rust-endpoint-ui", script, StringComparison.Ordinal);
+            Assert.Contains("hf-conversion-kit-exec", script, StringComparison.Ordinal);
+            Assert.Contains("hf-conversion-kit-safetensors-exec", script, StringComparison.Ordinal);
+            Assert.Contains("hf-conversion-kit-review-exec", script, StringComparison.Ordinal);
+            Assert.Contains("hf-conversion-kit-review-reject-exec", script, StringComparison.Ordinal);
+            Assert.Contains("hf-conversion-kit-gguf-exec", script, StringComparison.Ordinal);
+            Assert.Contains("hf-p2p-import-kit-exec", script, StringComparison.Ordinal);
+            Assert.Contains("deep_browser_smoke_requested", script, StringComparison.Ordinal);
+            Assert.Contains("deep_browser_smoke_modes", script, StringComparison.Ordinal);
+            Assert.Contains("browser_smoke_timeout_seconds", script, StringComparison.Ordinal);
             Assert.Contains("tinyrustlm-source-options-ui-smoke.json", script, StringComparison.Ordinal);
             Assert.Contains("browser_smoke_modes", script, StringComparison.Ordinal);
             Assert.Contains("browser_smoke_report_paths", script, StringComparison.Ordinal);
@@ -93,7 +102,51 @@ public sealed class PackageBoundaryTests
         }
 
         Assert.Contains("RunBrowserSmoke", powershellScript, StringComparison.Ordinal);
+        Assert.Contains("RunDeepBrowserSmoke", powershellScript, StringComparison.Ordinal);
+        Assert.Contains("BrowserSmokeModes", powershellScript, StringComparison.Ordinal);
+        Assert.Contains("BrowserSmokeTimeoutSeconds", powershellScript, StringComparison.Ordinal);
+        Assert.Contains("$deepBrowserSmokeModes = @($legacyDeepBrowserSmokeModes + $defaultDeepBrowserSmokeModes)", powershellScript, StringComparison.Ordinal);
+        Assert.Contains("$browserSmokeModes += $defaultDeepBrowserSmokeModes", powershellScript, StringComparison.Ordinal);
+        Assert.DoesNotContain("$browserSmokeModes += $deepBrowserSmokeModes", powershellScript, StringComparison.Ordinal);
         Assert.Contains("RUN_BROWSER_SMOKE", bashScript, StringComparison.Ordinal);
+        Assert.Contains("RUN_DEEP_BROWSER_SMOKE", bashScript, StringComparison.Ordinal);
+        Assert.Contains("TINYRUSTLM_BROWSER_SMOKE_MODES", bashScript, StringComparison.Ordinal);
+        Assert.Contains("BROWSER_SMOKE_TIMEOUT_SECONDS", bashScript, StringComparison.Ordinal);
+        Assert.Contains("DEEP_BROWSER_SMOKE_MODES=(\"${LEGACY_DEEP_BROWSER_SMOKE_MODES[@]}\" \"${DEFAULT_DEEP_BROWSER_SMOKE_MODES[@]}\")", bashScript, StringComparison.Ordinal);
+        Assert.Contains("BROWSER_SMOKE_MODES+=(\"${DEFAULT_DEEP_BROWSER_SMOKE_MODES[@]}\")", bashScript, StringComparison.Ordinal);
+        Assert.DoesNotContain("BROWSER_SMOKE_MODES+=(\"${DEEP_BROWSER_SMOKE_MODES[@]}\")", bashScript, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BrowserMemoryDeckUiExposesFileDeckEvidence()
+    {
+        var root = RepositoryRoot();
+        var app = File.ReadAllText(Path.Combine(root, "tinyrustlm/app/app.js"));
+        var smoke = File.ReadAllText(Path.Combine(root, "tinyrustlm/tools/browser-smoke.js"));
+        var readme = File.ReadAllText(Path.Combine(root, "tinyrustlm/README.md"));
+        var browserRuntime = File.ReadAllText(Path.Combine(root, "tinyrustlm/docs/browser-runtime.md"));
+
+        Assert.Contains("function localMemoryFileDeckSummary", app, StringComparison.Ordinal);
+        Assert.Contains("fileDeck", app, StringComparison.Ordinal);
+        Assert.Contains("totalRequiredFiles", app, StringComparison.Ordinal);
+        Assert.Contains("personaDimensionFiles", app, StringComparison.Ordinal);
+        Assert.Contains("evidenceFiles", app, StringComparison.Ordinal);
+        Assert.Contains("exportFiles", app, StringComparison.Ordinal);
+        Assert.Contains("includesManifestOverlay", app, StringComparison.Ordinal);
+        Assert.Contains("includesPackageModel", app, StringComparison.Ordinal);
+        Assert.Contains("includesKnowledgeGraph", app, StringComparison.Ordinal);
+        Assert.Contains("includesLlmsExports", app, StringComparison.Ordinal);
+        Assert.Contains("includesPersonaSourceEvidence", app, StringComparison.Ordinal);
+        Assert.Contains("FileDeck ${deck.totalRequiredFiles} required", app, StringComparison.Ordinal);
+        Assert.Contains("UAIX exports verified", app, StringComparison.Ordinal);
+        Assert.Contains("persona source evidence bound", app, StringComparison.Ordinal);
+
+        Assert.Contains("memory FileDeck summary was missing", smoke, StringComparison.Ordinal);
+        Assert.Contains("FileDeck 62 required / 22 persona / 5 evidence / 6 exports", smoke, StringComparison.Ordinal);
+        Assert.Contains("memory summary did not verify UAIX exports", smoke, StringComparison.Ordinal);
+        Assert.Contains("memory summary did not bind persona source evidence", smoke, StringComparison.Ordinal);
+        Assert.Contains("FileDeck-style summary", readme, StringComparison.Ordinal);
+        Assert.Contains("FileDeck-style summary", browserRuntime, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -163,6 +216,7 @@ public sealed class PackageBoundaryTests
         Assert.Contains("GetSupportedSetups()", sample, StringComparison.Ordinal);
         Assert.Contains("advanced_persona_profile", sample, StringComparison.Ordinal);
         Assert.Contains("GetRequiredFiles", sample, StringComparison.Ordinal);
+        Assert.Contains("FileDeck", sample, StringComparison.Ordinal);
         Assert.Contains("UAIX.Browser.Memory", sample, StringComparison.Ordinal);
         Assert.Contains("Consumers should use `GetSupportedSetups()`", readme, StringComparison.Ordinal);
         Assert.Contains("TinyRustLM.ConsoleSample --memory-setups", memoryHarness, StringComparison.Ordinal);
@@ -245,7 +299,7 @@ public sealed class PackageBoundaryTests
         AssertPackageProjectSearchMetadata(root, "dotnet/src/TinyRustLM.Abstractions/TinyRustLM.Abstractions.csproj", "UAIX.Browser", "UAIX.org", "p2pRuntime", "p2pRuntime.com", "p2pLLM", "p2pLLM.com", "MiniModel", ".slm", ".uai", "memory", "persona");
         AssertPackageProjectSearchMetadata(root, "dotnet/src/TinyRustLM.Core/TinyRustLM.Core.csproj", "UAIX.Browser.p2pLLM.Runtime", "UAIX.org", "p2pLLM", "p2pLLM.com", ".slm", "runtime", "harness", "diagnostics");
         AssertPackageProjectSearchMetadata(root, "dotnet/src/TinyRustLM.P2P/TinyRustLM.P2P.csproj", "UAIX.Browser.p2pRuntime.P2P", "UAIX.org", "p2pRuntime", "p2pRuntime.com", "MiniModel", "manifest", "announcement", "catalog", "receipt");
-        AssertPackageProjectSearchMetadata(root, "dotnet/src/TinyRustLM.Memory/TinyRustLM.Memory.csproj", "UAIX.Browser.Memory", "UAIX.org", ".uai", "AI Memory Package Wizard", "agent-pickup", "session-log", "manifest-overlay", "package-model", "knowledge-graph", "persona", "personality-packs", "LLM-Wiki", "multi-agent", "talisman-system");
+        AssertPackageProjectSearchMetadata(root, "dotnet/src/TinyRustLM.Memory/TinyRustLM.Memory.csproj", "UAIX.Browser.Memory", "UAIX.org", ".uai", ".uaix", "AI Memory Package Wizard", "ai-digest", "point-agent-urls", "canonical-starter-zip", "safe-structured-output", "agent-pickup", "session-log", "manifest-overlay", "package-model", "knowledge-graph", "persona", "personality-packs", "persona-deck", "triggered-style-axes", "LLM-Wiki", "multi-agent", "talisman-system");
         AssertPackageProjectSearchMetadata(root, "dotnet/src/TinyRustLM.Conversion/TinyRustLM.Conversion.csproj", "UAIX.Browser.p2pLLM.Conversion", "UAIX.org", "p2pLLM", "p2pLLM.com", ".slm", "conversion", "local-feed");
     }
 
@@ -535,6 +589,10 @@ public sealed class PackageBoundaryTests
         Assert.Contains("TINYRUSTLM_TEMP_NUGET_API_KEY", workflow, StringComparison.Ordinal);
         Assert.Contains("TINYRUSTLM_CONSUMER_CORE_PACKAGE_ID: UAIX.Browser.p2pLLM.Runtime", workflow, StringComparison.Ordinal);
         Assert.Contains("TINYRUSTLM_CONSUMER_P2P_PACKAGE_ID: UAIX.Browser.p2pRuntime.P2P", workflow, StringComparison.Ordinal);
+        Assert.Contains("TINYRUSTLM_CONSUMER_MEMORY_PACKAGE_ID: UAIX.Browser.Memory", workflow, StringComparison.Ordinal);
+        Assert.Contains("TINYRUSTLM_CONSUMER_CONVERSION_PACKAGE_ID: UAIX.Browser.p2pLLM.Conversion", workflow, StringComparison.Ordinal);
+        Assert.Contains("-MemoryPackageId $env:TINYRUSTLM_CONSUMER_MEMORY_PACKAGE_ID", workflow, StringComparison.Ordinal);
+        Assert.Contains("-ConversionPackageId $env:TINYRUSTLM_CONSUMER_CONVERSION_PACKAGE_ID", workflow, StringComparison.Ordinal);
         Assert.Contains("uaix-browser-nuget-post-publish-required-reports", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("eng/publish-nuget.ps1", workflow, StringComparison.Ordinal);
     }
@@ -559,6 +617,11 @@ public sealed class PackageBoundaryTests
 
         Assert.Contains("Verify TinyRustLM UI contract", workflow, StringComparison.Ordinal);
         Assert.Contains("eng/verify-tinyrustlm-ui.ps1 -RunBrowserSmoke", workflow, StringComparison.Ordinal);
+        Assert.Contains("run_deep_browser_smoke", workflow, StringComparison.Ordinal);
+        Assert.Contains("Verify TinyRustLM deep conversion and P2P UI contract", workflow, StringComparison.Ordinal);
+        Assert.Contains("-BrowserSmokeModes hf-conversion-kit-safetensors-exec,hf-conversion-kit-review-exec,hf-conversion-kit-review-reject-exec,hf-conversion-kit-gguf-exec,hf-p2p-import-kit-exec", workflow, StringComparison.Ordinal);
+        Assert.Contains("tinyrustlm-ui-deep-verification.json", workflow, StringComparison.Ordinal);
+        Assert.Contains("artifacts/reports/tinyrustlm-*-exec-smoke.json", workflow, StringComparison.Ordinal);
         Assert.Contains("TINYRUSTLM_UI_VERIFICATION_REPORT", workflow, StringComparison.Ordinal);
         Assert.Contains("UiVerificationReportIsMachineReadableWhenPresent", workflow, StringComparison.Ordinal);
         Assert.Contains("tinyrustlm-ui-verification", workflow, StringComparison.Ordinal);
@@ -818,10 +881,46 @@ public sealed class PackageBoundaryTests
         Assert.Contains("GetVersion()", verifyConsumerBash, StringComparison.Ordinal);
         Assert.Contains("CorePackageId", verifyConsumerPowerShell, StringComparison.Ordinal);
         Assert.Contains("P2PPackageId", verifyConsumerPowerShell, StringComparison.Ordinal);
+        Assert.Contains("MemoryPackageId", verifyConsumerPowerShell, StringComparison.Ordinal);
+        Assert.Contains("ConversionPackageId", verifyConsumerPowerShell, StringComparison.Ordinal);
+        Assert.Contains("TinyRustLM.Memory", verifyConsumerPowerShell, StringComparison.Ordinal);
+        Assert.Contains("TinyRustLM.Memory", verifyConsumerBash, StringComparison.Ordinal);
         Assert.Contains("TINYRUSTLM_CONSUMER_CORE_PACKAGE_ID", verifyConsumerPowerShell, StringComparison.Ordinal);
         Assert.Contains("TINYRUSTLM_CONSUMER_CORE_PACKAGE_ID", verifyConsumerBash, StringComparison.Ordinal);
         Assert.Contains("TINYRUSTLM_CONSUMER_P2P_PACKAGE_ID", verifyConsumerPowerShell, StringComparison.Ordinal);
         Assert.Contains("TINYRUSTLM_CONSUMER_P2P_PACKAGE_ID", verifyConsumerBash, StringComparison.Ordinal);
+        Assert.Contains("TINYRUSTLM_CONSUMER_MEMORY_PACKAGE_ID", verifyConsumerPowerShell, StringComparison.Ordinal);
+        Assert.Contains("TINYRUSTLM_CONSUMER_MEMORY_PACKAGE_ID", verifyConsumerBash, StringComparison.Ordinal);
+        Assert.Contains("TINYRUSTLM_CONSUMER_CONVERSION_PACKAGE_ID", verifyConsumerPowerShell, StringComparison.Ordinal);
+        Assert.Contains("TINYRUSTLM_CONSUMER_CONVERSION_PACKAGE_ID", verifyConsumerBash, StringComparison.Ordinal);
+        Assert.Contains("TinyRustLmMemoryClient", verifyConsumerPowerShell, StringComparison.Ordinal);
+        Assert.Contains("TinyRustLmMemoryClient", verifyConsumerBash, StringComparison.Ordinal);
+        Assert.Contains("uaix.memory.setup_catalog.v0", verifyConsumerPowerShell, StringComparison.Ordinal);
+        Assert.Contains("uaix.memory.setup_catalog.v0", verifyConsumerBash, StringComparison.Ordinal);
+        Assert.Contains("advanced_persona_profile", verifyConsumerPowerShell, StringComparison.Ordinal);
+        Assert.Contains("advanced_persona_profile", verifyConsumerBash, StringComparison.Ordinal);
+        Assert.Contains("ai-memory-package-wizard", verifyConsumerPowerShell, StringComparison.Ordinal);
+        Assert.Contains("ai-memory-package-wizard", verifyConsumerBash, StringComparison.Ordinal);
+        Assert.Contains("personality-packs", verifyConsumerPowerShell, StringComparison.Ordinal);
+        Assert.Contains("personality-packs", verifyConsumerBash, StringComparison.Ordinal);
+        foreach (var feature in new[]
+        {
+            "ai_digest_script_data_ai_digest",
+            "point_agent_urls",
+            "canonical_starter_zip_downloads",
+            "uaix_zip_txt_template_decks",
+            "source_persona_preservation_rule",
+            "non_inference_rules",
+            "triggered_style_axes"
+        })
+        {
+            Assert.Contains(feature, verifyConsumerPowerShell, StringComparison.Ordinal);
+            Assert.Contains(feature, verifyConsumerBash, StringComparison.Ordinal);
+        }
+        Assert.Contains("TinySlmConversionTool", verifyConsumerPowerShell, StringComparison.Ordinal);
+        Assert.Contains("TinySlmConversionTool", verifyConsumerBash, StringComparison.Ordinal);
+        Assert.Contains("ValidateSlm", verifyConsumerPowerShell, StringComparison.Ordinal);
+        Assert.Contains("ValidateSlm", verifyConsumerBash, StringComparison.Ordinal);
         Assert.Contains("P2PShareKitReport", verifyConsumerPowerShell, StringComparison.Ordinal);
         Assert.Contains("P2PShareKitReport", verifyConsumerBash, StringComparison.Ordinal);
         Assert.Contains("consumer-smoke-assembled.slm", verifyConsumerPowerShell, StringComparison.Ordinal);
@@ -1789,6 +1888,8 @@ public sealed class PackageBoundaryTests
         var root = document.RootElement;
         var status = root.GetProperty("status").GetString();
         var browserSmokeRequested = root.GetProperty("browser_smoke_requested").GetBoolean();
+        var deepBrowserSmokeRequested = root.TryGetProperty("deep_browser_smoke_requested", out var deepRequestedElement)
+            && deepRequestedElement.GetBoolean();
 
         Assert.Equal("tinyrustlm.ui_verification.v0", root.GetProperty("schema").GetString());
         Assert.Contains(status, new[] { "pass", "fail" });
@@ -1796,6 +1897,10 @@ public sealed class PackageBoundaryTests
         Assert.False(string.IsNullOrWhiteSpace(root.GetProperty("app_root").GetString()));
         Assert.StartsWith("http://127.0.0.1:", root.GetProperty("local_server_url").GetString(), StringComparison.Ordinal);
         Assert.True(root.GetProperty("browser_debug_port").GetInt32() > 0);
+        if (root.TryGetProperty("browser_smoke_timeout_seconds", out var timeoutElement))
+        {
+            Assert.True(timeoutElement.GetInt32() >= 0);
+        }
         Assert.False(string.IsNullOrWhiteSpace(root.GetProperty("server_stdout_path").GetString()));
         Assert.False(string.IsNullOrWhiteSpace(root.GetProperty("server_stderr_path").GetString()));
 
@@ -1808,28 +1913,69 @@ public sealed class PackageBoundaryTests
             Assert.True(string.IsNullOrWhiteSpace(root.GetProperty("error").GetString()));
             if (browserSmokeRequested)
             {
-                var expectedModes = new[]
+                var standardModes = new[]
                 {
                     "source-options-ui",
+                    "local-memory-deck-ui",
                     "local-connect-approval-ui",
                     "local-connect-endpoint-ui",
                     "local-connect-rust-endpoint-ui"
                 };
+                var deepModesExpected = new[]
+                {
+                    "hf-conversion-kit-exec",
+                    "hf-conversion-kit-safetensors-exec",
+                    "hf-conversion-kit-review-exec",
+                    "hf-conversion-kit-review-reject-exec",
+                    "hf-conversion-kit-gguf-exec",
+                    "hf-p2p-import-kit-exec"
+                };
+                var knownModes = standardModes.Concat(deepModesExpected).ToArray();
                 var browserSmokeModes = root.GetProperty("browser_smoke_modes")
                     .EnumerateArray()
-                    .Select(item => item.GetString())
+                    .Select(item => item.GetString() ?? "")
                     .ToArray();
 
+                Assert.NotEmpty(browserSmokeModes);
+                foreach (var mode in browserSmokeModes)
+                {
+                    Assert.Contains(mode, knownModes);
+                }
+
                 Assert.Equal("pass", root.GetProperty("browser_smoke_status").GetString());
-                Assert.Contains("source-options-ui", root.GetProperty("browser_smoke_mode").GetString());
-                Assert.Equal(expectedModes.OrderBy(value => value), browserSmokeModes.OrderBy(value => value));
-                Assert.EndsWith(
-                    "tinyrustlm-source-options-ui-smoke.json",
-                    root.GetProperty("browser_smoke_report_path").GetString() ?? "",
-                    StringComparison.OrdinalIgnoreCase);
+                Assert.Equal(string.Join(",", browserSmokeModes), root.GetProperty("browser_smoke_mode").GetString());
+                if (!deepBrowserSmokeRequested)
+                {
+                    Assert.Equal(standardModes.OrderBy(value => value), browserSmokeModes.OrderBy(value => value));
+                }
+                if (root.TryGetProperty("deep_browser_smoke_modes", out var deepModesElement))
+                {
+                    var deepModes = deepModesElement
+                        .EnumerateArray()
+                        .Select(item => item.GetString() ?? "")
+                        .ToArray();
+                    if (deepBrowserSmokeRequested)
+                    {
+                        Assert.NotEmpty(deepModes);
+                        Assert.Equal(
+                            browserSmokeModes
+                                .Where(mode => deepModesExpected.Contains(mode, StringComparer.Ordinal))
+                                .OrderBy(value => value),
+                            deepModes.OrderBy(value => value));
+                    }
+                    else
+                    {
+                        Assert.Empty(deepModes);
+                    }
+                }
                 var reportPaths = root.GetProperty("browser_smoke_report_paths");
                 var statuses = root.GetProperty("browser_smoke_statuses");
-                foreach (var mode in expectedModes)
+                var firstMode = browserSmokeModes[0];
+                Assert.EndsWith(
+                    $"tinyrustlm-{firstMode}-smoke.json",
+                    root.GetProperty("browser_smoke_report_path").GetString() ?? "",
+                    StringComparison.OrdinalIgnoreCase);
+                foreach (var mode in browserSmokeModes)
                 {
                     Assert.Equal("pass", statuses.GetProperty(mode).GetString());
                     Assert.EndsWith(
@@ -2866,6 +3012,28 @@ public sealed class PackageBoundaryTests
         {
             yield return entry;
         }
+        foreach (var entry in RecordSurface("TinyRustLM.UaixMemoryFileDeckSummary", 18,
+            "AdvancedPersonaRequiredFiles",
+            "ClosedRequiredFileSet",
+            "ConfigurationSpecificRequiredFiles",
+            "ContentTriggeredRequiredFiles",
+            "EvidenceFiles",
+            "ExportFiles",
+            "IncludesAgentPickup",
+            "IncludesKnowledgeGraph",
+            "IncludesLlmsExports",
+            "IncludesManifestOverlay",
+            "IncludesPackageModel",
+            "IncludesPersonaSourceEvidence",
+            "IncludesSessionLog",
+            "PersonaDimensionFiles",
+            "ProfileRequiredFiles",
+            "TotalRequiredFiles",
+            "TriggeredPersonaStyleAxisFiles",
+            "UniversalRequiredFiles"))
+        {
+            yield return entry;
+        }
         foreach (var entry in RecordSurface("TinyRustLM.UaixMemorySetupDescriptor", 7,
             "AuthorityUrls",
             "ExcludedPrivateCapabilities",
@@ -2887,8 +3055,9 @@ public sealed class PackageBoundaryTests
         {
             yield return entry;
         }
-        foreach (var entry in RecordSurface("TinyRustLM.UaixMemoryPackagePlan", 7,
+        foreach (var entry in RecordSurface("TinyRustLM.UaixMemoryPackagePlan", 8,
             "Boundary",
+            "FileDeck",
             "Kind",
             "RequiredFileCount",
             "RequiredFiles",
@@ -2924,8 +3093,9 @@ public sealed class PackageBoundaryTests
         {
             yield return entry;
         }
-        foreach (var entry in RecordSurface("TinyRustLM.UaixMemoryPackageInspection", 16,
+        foreach (var entry in RecordSurface("TinyRustLM.UaixMemoryPackageInspection", 17,
             "Boundary",
+            "FileDeck",
             "Kind",
             "Manifest",
             "ManifestDeclaresRequiredFiles",

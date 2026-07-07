@@ -21,6 +21,15 @@ const localConnectRustEndpointUiSmokeMode = smokeMode === "local-connect-rust-en
 const localMemoryDeckUiSmokeMode = smokeMode === "local-memory-deck-ui";
 const hfSearchUiSmokeMode = smokeMode === "hf-search-ui";
 const hfConversionKitExecSmokeMode = smokeMode === "hf-conversion-kit-exec";
+const hfConversionKitSafetensorsExecSmokeMode = smokeMode === "hf-conversion-kit-safetensors-exec";
+const hfConversionKitReviewExecSmokeMode = smokeMode === "hf-conversion-kit-review-exec";
+const hfConversionKitReviewRejectExecSmokeMode = smokeMode === "hf-conversion-kit-review-reject-exec";
+const hfConversionKitGgufExecSmokeMode = smokeMode === "hf-conversion-kit-gguf-exec";
+const hfConversionKitAnyExecSmokeMode = hfConversionKitExecSmokeMode
+  || hfConversionKitSafetensorsExecSmokeMode
+  || hfConversionKitReviewExecSmokeMode
+  || hfConversionKitReviewRejectExecSmokeMode
+  || hfConversionKitGgufExecSmokeMode;
 const hfP2pImportKitExecSmokeMode = smokeMode === "hf-p2p-import-kit-exec";
 const hfP2pImportReceiptRejectSmokeMode = smokeMode === "hf-p2p-import-receipt-reject";
 const hfLocalCatalogSmokeMode = smokeMode === "hf-local-catalog-ui";
@@ -2561,11 +2570,12 @@ async function runPageLocalConnectEndpointSmoke(client, endpointUrl) {
         executeActionIsError = byId("localConnectEndpointStatus").classList.contains("error");
       }
       const endpointAppRows = Array.from(document.querySelectorAll(".local-connect-endpoint-app")).map((row) => row.textContent.replace(/\\s+/g, " ").trim());
-      const approveWinword = document.querySelector('[data-local-connect-app-action="approve-app"][data-local-connect-app-name="winword.exe"]');
+      const documentApprovalAppName = executeNativeAction ? "AcmeDocs.exe" : "winword.exe";
+      const approveDocumentApp = Array.from(document.querySelectorAll('[data-local-connect-app-action="approve-app"]')).find((button) => button.dataset.localConnectAppName === documentApprovalAppName);
       const approvePowerShell = document.querySelector('[data-local-connect-app-action="approve-app"][data-local-connect-app-name="powershell.exe"]');
       const terminalAppApprovalDisabled = approvePowerShell ? approvePowerShell.disabled : false;
-      if (approveWinword) {
-        approveWinword.click();
+      if (approveDocumentApp) {
+        approveDocumentApp.click();
         await sleep(80);
       }
       const blockSecrets = document.querySelector('[data-local-connect-app-action="block-category"][data-local-connect-category="secrets"]');
@@ -2622,6 +2632,7 @@ async function runPageLocalConnectEndpointSmoke(client, endpointUrl) {
         endpointAppRows,
         endpointAppRowsAfterAppButtons,
         endpointAppRowsFullMode,
+        documentApprovalAppName,
         terminalAppApprovalDisabled,
         appButtonStatus,
         policyAfterAppButtons,
@@ -3510,6 +3521,12 @@ function localMemoryDeckRequiredPaths() {
     ".uai/exports/knowledge-graph.json",
     ".uai/exports/llms.uai",
     ".uai/exports/llms-full.uai",
+    ".uai/coding-standards.uai",
+    ".uai/architecture.uai",
+    ".uai/next-recursive-prompt.uai",
+    "reports/deployment-memory-and-test-report.uai",
+    ".uai/communication-style.uai",
+    ".uai/source-notes.uai",
     ".uai/readme.human",
     ".uai/persona.uai",
     ".uai/personality/identity.uai",
@@ -3574,6 +3591,10 @@ function writeLocalMemoryDeckFixture() {
   const manifest = {
     kind: "uaix.memory.manifest.v0",
     setup_mode: "advanced_persona_profile",
+    code_like_artifacts: true,
+    deployment: true,
+    communication_style: true,
+    source_notes: true,
     files: requiredPaths.map((relativePath) => ({ path: relativePath })),
     project_server_receives_memory_files: false,
     persona_source_mutation_allowed: false
@@ -6778,7 +6799,7 @@ function startLocalConnectEndpointSmokeServer() {
       const appRows = [
         ["chrome.exe", "browser", "approved-app", "allow", "category-always-approved"],
         ["outlook.exe", "email", "approved-app", "allow", "category-always-approved"],
-        ["winword.exe", "documents", "common-document", "ask", "not-selected"],
+        ["AcmeDocs.exe", "documents", "common-document", "ask", "not-selected"],
         ["powershell.exe", "terminal", "common-terminal", "ask", "not-selected"],
         ["bitwarden.exe", "secrets", "common-secrets", "ask", "not-selected"]
       ];
@@ -11670,6 +11691,23 @@ function assertLocalMemoryDeckSmoke(result, networkRequests) {
     if (!String(result.summary || "").includes("Advanced Persona Profile") || !String(result.summary || "").includes("required files checked")) {
       failures.push(`memory summary was ${result.summary}`);
     }
+    if (
+      !String(result.summary || "").includes("FileDeck")
+      || !String(result.summary || "").includes("persona")
+      || !String(result.summary || "").includes("evidence")
+      || !String(result.summary || "").includes("exports")
+    ) {
+      failures.push(`memory FileDeck summary was missing: ${result.summary}`);
+    }
+    if (!String(result.summary || "").includes("FileDeck 62 required / 22 persona / 5 evidence / 6 exports")) {
+      failures.push(`memory FileDeck summary did not match the full content-triggered advanced persona deck: ${result.summary}`);
+    }
+    if (!String(result.summary || "").includes("UAIX exports verified")) {
+      failures.push(`memory summary did not verify UAIX exports: ${result.summary}`);
+    }
+    if (!String(result.summary || "").includes("persona source evidence bound")) {
+      failures.push(`memory summary did not bind persona source evidence: ${result.summary}`);
+    }
     if (!String(result.preview || "").includes(".uai/persona.uai") || !String(result.preview || "").includes("Browser smoke UAIX memory fixture")) {
       failures.push(`memory preview did not include persona context: ${result.preview}`);
     }
@@ -11877,10 +11915,11 @@ function assertLocalConnectEndpointSmoke(result, networkRequests, endpointServer
       failures.push(`endpoint app rows did not render visible risk warnings: ${JSON.stringify(appRows)}`);
     }
     const policyAfterAppButtons = result.policyAfterAppButtons || {};
-    if (!Array.isArray(policyAfterAppButtons.approved_apps) || !policyAfterAppButtons.approved_apps.includes("winword.exe") || policyAfterAppButtons.approved_apps.includes("powershell.exe")) {
-      failures.push(`app-list approve button did not add only winword.exe: ${JSON.stringify(policyAfterAppButtons.approved_apps)}`);
+    const documentApprovalAppName = result.documentApprovalAppName || "winword.exe";
+    if (!Array.isArray(policyAfterAppButtons.approved_apps) || !policyAfterAppButtons.approved_apps.includes(documentApprovalAppName) || policyAfterAppButtons.approved_apps.includes("powershell.exe")) {
+      failures.push(`app-list approve button did not add only ${documentApprovalAppName}: ${JSON.stringify(policyAfterAppButtons.approved_apps)}`);
     }
-    if (!Array.isArray(policyAfterAppButtons.approved_app_bindings) || !policyAfterAppButtons.approved_app_bindings.some((binding) => binding.app === "winword.exe" && binding.category === "documents")) {
+    if (!Array.isArray(policyAfterAppButtons.approved_app_bindings) || !policyAfterAppButtons.approved_app_bindings.some((binding) => binding.app === documentApprovalAppName && binding.category === "documents")) {
       failures.push(`app-list approve button did not write document binding: ${JSON.stringify(policyAfterAppButtons.approved_app_bindings)}`);
     }
     if (result.terminalAppApprovalDisabled !== true) {
@@ -11890,7 +11929,7 @@ function assertLocalConnectEndpointSmoke(result, networkRequests, endpointServer
       failures.push(`app-list block button did not deny secrets: ${JSON.stringify(policyAfterAppButtons.category_approval)}`);
     }
     const appRowsAfterButtons = Array.isArray(result.endpointAppRowsAfterAppButtons) ? result.endpointAppRowsAfterAppButtons : [];
-    if (!appRowsAfterButtons.some((row) => row.includes("winword.exe") && row.includes("App approved") && row.includes("allow"))) {
+    if (!appRowsAfterButtons.some((row) => row.includes(documentApprovalAppName) && row.includes("App approved") && row.includes("allow"))) {
       failures.push(`approved app row did not update locally: ${JSON.stringify(appRowsAfterButtons)}`);
     }
     if (!appRowsAfterButtons.some((row) => row.includes("powershell.exe") && row.includes("Category risk only") && row.includes("ask"))) {
@@ -19245,7 +19284,7 @@ async function main() {
         ]
       });
     }
-    if (hfSearchUiSmokeMode || hfConversionKitExecSmokeMode || hfP2pImportKitExecSmokeMode || hfP2pImportReceiptRejectSmokeMode || hfLocalCatalogSmokeMode || hfPeerAnnouncementSmokeMode || hfPeerAnnouncementRejectSmokeMode || hfPeerAnnouncementBudgetSmokeMode || hfPeerContactCardSmokeMode || hfPeerContactCardRejectSmokeMode || hfPeerContactBookSmokeMode || hfPeerContactBookRejectSmokeMode || hfPeerCompanionInventorySmokeMode || hfCatalogAnnouncementRouteSmokeMode || hfEmptyCatalogAnnouncementRouteSmokeMode || hfCatalogAnnouncementRouteBudgetSmokeMode) {
+    if (hfSearchUiSmokeMode || hfConversionKitAnyExecSmokeMode || hfP2pImportKitExecSmokeMode || hfP2pImportReceiptRejectSmokeMode || hfLocalCatalogSmokeMode || hfPeerAnnouncementSmokeMode || hfPeerAnnouncementRejectSmokeMode || hfPeerAnnouncementBudgetSmokeMode || hfPeerContactCardSmokeMode || hfPeerContactCardRejectSmokeMode || hfPeerContactBookSmokeMode || hfPeerContactBookRejectSmokeMode || hfPeerCompanionInventorySmokeMode || hfCatalogAnnouncementRouteSmokeMode || hfEmptyCatalogAnnouncementRouteSmokeMode || hfCatalogAnnouncementRouteBudgetSmokeMode) {
       installHfSearchUiInterceptor(client);
       await client.send("Fetch.enable", {
         patterns: [
@@ -19518,7 +19557,7 @@ async function main() {
       }
       assertHfSearchUiSmoke(result, networkRequests);
       result.networkRequests = networkRequests;
-    } else if (hfConversionKitExecSmokeMode) {
+    } else if (hfConversionKitAnyExecSmokeMode) {
       await client.send("Page.reload", { ignoreCache: true });
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
@@ -19532,10 +19571,18 @@ async function main() {
         }
       }
       assertHfSearchUiSmoke(result, networkRequests);
-      result.conversionKitExecution = executeBrowserGeneratedConversionKit(result);
-      result.reviewConversionKitExecution = executeBrowserGeneratedReviewConversionKit(result);
-      result.reviewConversionKitFailure = executeBrowserGeneratedReviewConversionKitFailClosed(result);
-      result.ggufConversionKitExecution = executeBrowserGeneratedGgufReviewConversionKit(result);
+      if (hfConversionKitExecSmokeMode || hfConversionKitSafetensorsExecSmokeMode) {
+        result.conversionKitExecution = executeBrowserGeneratedConversionKit(result);
+      }
+      if (hfConversionKitExecSmokeMode || hfConversionKitReviewExecSmokeMode) {
+        result.reviewConversionKitExecution = executeBrowserGeneratedReviewConversionKit(result);
+      }
+      if (hfConversionKitExecSmokeMode || hfConversionKitReviewRejectExecSmokeMode) {
+        result.reviewConversionKitFailure = executeBrowserGeneratedReviewConversionKitFailClosed(result);
+      }
+      if (hfConversionKitExecSmokeMode || hfConversionKitGgufExecSmokeMode) {
+        result.ggufConversionKitExecution = executeBrowserGeneratedGgufReviewConversionKit(result);
+      }
       result.networkRequests = networkRequests;
     } else if (hfP2pImportKitExecSmokeMode || hfP2pImportReceiptRejectSmokeMode) {
       await client.send("Page.reload", { ignoreCache: true });

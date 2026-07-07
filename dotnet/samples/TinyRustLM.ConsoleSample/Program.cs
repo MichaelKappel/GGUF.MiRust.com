@@ -53,6 +53,8 @@ static void PrintMemoryPlanPreview(TinyRustLmMemoryClient memory)
         AdvancedPersona: new UaixAdvancedPersonaOptions(SenseOfStyleDepth: 2)));
 
     Console.WriteLine($"memory setup: {advancedPersona.Label} ({plan.RequiredFileCount} required files)");
+    Console.WriteLine(
+        $"  deck: {plan.FileDeck.PersonaDimensionFiles} persona files, {plan.FileDeck.EvidenceFiles} evidence files, {plan.FileDeck.ExportFiles} exports");
     foreach (var requiredFile in plan.RequiredFiles.Take(5))
     {
         Console.WriteLine($"  {requiredFile.Path} [{requiredFile.State}]");

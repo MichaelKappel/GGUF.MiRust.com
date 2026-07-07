@@ -65,6 +65,15 @@ browser_publish_required_terms = [
     "uaix-browser-nuget-feed-hashes.json",
     "UAIX.Browser.p2pLLM.Runtime",
 ]
+browser_nuget_published_required_terms = [
+    "UAIX.Browser.Core.Abstractions",
+    "UAIX.Browser.p2pLLM.Runtime",
+    "UAIX.Browser.p2pRuntime.P2P",
+    "UAIX.Browser.Memory",
+    "UAIX.Browser.p2pLLM.Conversion",
+    "0.1.6",
+    "post-publish verified",
+]
 ui_verification_required_terms = [
     "tinyrustlm.ui_verification.v0",
     "verify-tinyrustlm-ui.ps1",
@@ -88,10 +97,24 @@ public_root_verification_required_terms = [
     "local-import-ambiguous-selection",
     "peer-url-unsafe-ui",
 ]
+browser_memory_filedeck_required_terms = [
+    "FileDeck",
+    "FileDeck 62 required",
+    "local-memory-deck-ui",
+    "UAIX memory active",
+    "UAIX exports verified",
+    "persona source evidence bound",
+    "uaix_memory=advanced_persona_profile",
+]
 stale_literal_patterns = [
     "authenticated publish plus feed-current and feed-hash verification",
     "feed-current and feed-hash verification passes",
     "feed-current plus feed-hash verification",
+    "NuGet.org has zero listed versions",
+    "NuGet.org reports zero listed versions",
+    "blocked_missing_api_key",
+    "version `0.1.1` with SHA256SUMS-bound package-hash evidence",
+    "version `0.1.2` and passed clean consumer",
     "TinyRustLM.Abstractions, TinyRustLM.Core, and TinyRustLM.P2P",
     "TinyRustLM.Abstractions`, `TinyRustLM.Core`, and `TinyRustLM.P2P",
 ]
@@ -141,12 +164,14 @@ for site_root in site_roots:
             required_terms.append("SHA256SUMS")
             required_terms.append("symbol_publish_mode")
             required_terms.append("explicit_snupkg_push_after_primary_package")
+            required_terms.extend(browser_nuget_published_required_terms)
         if site_name in {"TinyRustLM.com", "TinyRustLM.MiRust.com"}:
             required_terms.extend(browser_feed_required_terms)
             required_terms.extend(browser_feed_current_required_terms)
             required_terms.extend(browser_publish_required_terms)
             required_terms.extend(ui_verification_required_terms)
             required_terms.extend(public_root_verification_required_terms)
+            required_terms.extend(browser_memory_filedeck_required_terms)
         elif relative_path == "docs/catalog-boundary.md":
             required_terms.append("SHA256SUMS-bound")
         checks.append(new_check(f"{site_name}/{relative_path}", site_root / relative_path, required_terms))

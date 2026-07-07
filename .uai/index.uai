@@ -1,5 +1,5 @@
-profile: runtime-mirust.uai-index.v72
-updated_utc: 2026-07-02T22:30:00Z
+profile: runtime-mirust.uai-index.v73
+updated_utc: 2026-07-07T02:25:06Z
 files:
   - .uai/totem.uai
   - .uai/taboo.uai
@@ -7,6 +7,7 @@ files:
   - .uai/system-profile.uai
   - .uai/workspace-guidance.uai
   - .uai/coding-standards.uai
+  - .uai/credential-inventory.uai
   - .uai/architecture.uai
   - .uai/report-synthesis.uai
   - .uai/file-handoff.uai

@@ -95,6 +95,36 @@ public sealed class SdkCoreTests
         Assert.Contains(catalog.SourceUrls, url => url.Contains("ai-memory-package-wizard", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(catalog.SourceUrls, url => url.Contains("personality-packs", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(catalog.SourceUrls, url => url.Contains("talisman-system", StringComparison.OrdinalIgnoreCase));
+        var baseSetup = Assert.Single(catalog.Setups, setup => setup.Setup == "base");
+        foreach (var feature in new[]
+        {
+            "ai_digest_script_data_ai_digest",
+            "point_agent_urls",
+            "local_browser_draft_restore",
+            "safe_structured_output_mode",
+            "canonical_starter_zip_downloads",
+            "package_model_json",
+            "knowledge_graph_json"
+        })
+        {
+            Assert.Contains(feature, baseSetup.PackageFeatures);
+        }
+        var advancedPersonaSetup = Assert.Single(
+            catalog.Setups,
+            setup => setup.Setup == "advanced_persona_profile");
+        foreach (var feature in new[]
+        {
+            "uaix_zip_txt_template_decks",
+            "source_persona_preservation_rule",
+            "depth_level_0_to_10_dimension_evidence",
+            "disclosure_boundary_evidence",
+            "source_confidence_evidence",
+            "non_inference_rules",
+            "triggered_style_axes"
+        })
+        {
+            Assert.Contains(feature, advancedPersonaSetup.PackageFeatures);
+        }
         Assert.All(catalog.Setups, setup =>
         {
             Assert.False(string.IsNullOrWhiteSpace(setup.Label));
@@ -110,16 +140,42 @@ public sealed class SdkCoreTests
         var request = new UaixMemoryPackageRequest(
             Setup: "advanced_persona_profile",
             CodeLikeArtifacts: true,
+            Deployment: true,
+            CommunicationStyle: true,
+            SourceNotes: true,
             AdvancedPersona: new UaixAdvancedPersonaOptions(SenseOfStyleDepth: 3));
         var plan = client.GetRequiredFiles(request);
         var planJson = client.GetRequiredFilesJson(request);
 
         Assert.Equal("uaix.memory.package_plan.v0", plan.Kind);
+        Assert.Equal(62, plan.RequiredFileCount);
+        Assert.Equal(plan.RequiredFileCount, plan.FileDeck.TotalRequiredFiles);
+        Assert.True(plan.FileDeck.ClosedRequiredFileSet);
+        Assert.True(plan.FileDeck.IncludesManifestOverlay);
+        Assert.True(plan.FileDeck.IncludesPackageModel);
+        Assert.True(plan.FileDeck.IncludesKnowledgeGraph);
+        Assert.True(plan.FileDeck.IncludesLlmsExports);
+        Assert.True(plan.FileDeck.IncludesAgentPickup);
+        Assert.True(plan.FileDeck.IncludesSessionLog);
+        Assert.True(plan.FileDeck.IncludesPersonaSourceEvidence);
+        Assert.Equal(7, plan.FileDeck.UniversalRequiredFiles);
+        Assert.Equal(11, plan.FileDeck.ProfileRequiredFiles);
+        Assert.Equal(10, plan.FileDeck.ConfigurationSpecificRequiredFiles);
+        Assert.Equal(10, plan.FileDeck.ContentTriggeredRequiredFiles);
+        Assert.Equal(24, plan.FileDeck.AdvancedPersonaRequiredFiles);
+        Assert.Equal(22, plan.FileDeck.PersonaDimensionFiles);
+        Assert.Equal(4, plan.FileDeck.TriggeredPersonaStyleAxisFiles);
+        Assert.Equal(5, plan.FileDeck.EvidenceFiles);
+        Assert.Equal(6, plan.FileDeck.ExportFiles);
         Assert.Contains(plan.RequiredFiles, file => file.Path == ".uai/agent-pickup.uai");
         Assert.Contains(plan.RequiredFiles, file => file.Path == ".uai/archives/session-log.uai");
         Assert.Contains(plan.RequiredFiles, file => file.Path == ".uai/exports/manifest-overlay.json");
         Assert.Contains(plan.RequiredFiles, file => file.Path == ".uai/exports/package-model.json");
         Assert.Contains(plan.RequiredFiles, file => file.Path == ".uai/exports/knowledge-graph.json");
+        Assert.Contains(plan.RequiredFiles, file => file.Path == ".uai/coding-standards.uai");
+        Assert.Contains(plan.RequiredFiles, file => file.Path == "reports/deployment-memory-and-test-report.uai");
+        Assert.Contains(plan.RequiredFiles, file => file.Path == ".uai/communication-style.uai");
+        Assert.Contains(plan.RequiredFiles, file => file.Path == ".uai/source-notes.uai");
         Assert.Contains(plan.RequiredFiles, file => file.Path == ".uai/personality/sense-of-winter.uai");
         Assert.Contains(plan.RequiredFiles, file => file.Path == ".uai/evidence/provenance.uai");
         Assert.False(plan.Boundary.PersonaSourceMutationAllowed);
@@ -244,7 +300,11 @@ public sealed class SdkCoreTests
                 JsonSerializer.Serialize(fullManifest, new JsonSerializerOptions { WriteIndented = true }));
 
             var personaInspection = client.InspectPackage(personaRoot, request);
-            Assert.True(personaInspection.Valid);
+            Assert.True(
+                personaInspection.Valid,
+                JsonSerializer.Serialize(personaInspection, new JsonSerializerOptions { WriteIndented = true }));
+            Assert.Equal(plan.RequiredFileCount, personaInspection.FileDeck.TotalRequiredFiles);
+            Assert.True(personaInspection.FileDeck.IncludesPersonaSourceEvidence);
             Assert.True(personaInspection.PersonaDimensionsValid);
             Assert.Equal(0, personaInspection.PersonaDimensionWarningCount);
             Assert.NotEmpty(personaInspection.PersonaDimensions);

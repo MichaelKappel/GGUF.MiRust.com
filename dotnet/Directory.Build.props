@@ -29,7 +29,7 @@
     <TinyRustLmMemoryPackageId Condition="'$(TinyRustLmMemoryPackageId)' == ''">$(TinyRustLmPackageIdPrefix).Memory</TinyRustLmMemoryPackageId>
     <TinyRustLmConversionPackageId Condition="'$(TinyRustLmConversionPackageId)' == ''">$(TinyRustLmPackageIdPrefix).Conversion</TinyRustLmConversionPackageId>
     <TinyRustLmPackPrivateConversion Condition="'$(TinyRustLmPackPrivateConversion)' == ''">false</TinyRustLmPackPrivateConversion>
-    <VersionPrefix>0.1.3</VersionPrefix>
+    <VersionPrefix>0.1.6</VersionPrefix>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>

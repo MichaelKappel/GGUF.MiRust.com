@@ -7,13 +7,30 @@ PORT="${2:-8184}"
 DEBUG_PORT="${3:-9442}"
 REPORT_OUTPUT="${4:-$REPO_ROOT/artifacts/reports/tinyrustlm-ui-verification.json}"
 RUN_BROWSER_SMOKE="${RUN_BROWSER_SMOKE:-0}"
-BROWSER_SMOKE_MODES=(
+RUN_DEEP_BROWSER_SMOKE="${RUN_DEEP_BROWSER_SMOKE:-0}"
+TINYRUSTLM_BROWSER_SMOKE_MODES="${TINYRUSTLM_BROWSER_SMOKE_MODES:-}"
+BROWSER_SMOKE_TIMEOUT_SECONDS="${BROWSER_SMOKE_TIMEOUT_SECONDS:-1800}"
+STANDARD_BROWSER_SMOKE_MODES=(
   "source-options-ui"
   "local-memory-deck-ui"
   "local-connect-approval-ui"
   "local-connect-endpoint-ui"
   "local-connect-rust-endpoint-ui"
 )
+LEGACY_DEEP_BROWSER_SMOKE_MODES=(
+  "hf-conversion-kit-exec"
+)
+DEFAULT_DEEP_BROWSER_SMOKE_MODES=(
+  "hf-conversion-kit-safetensors-exec"
+  "hf-conversion-kit-review-exec"
+  "hf-conversion-kit-review-reject-exec"
+  "hf-conversion-kit-gguf-exec"
+  "hf-p2p-import-kit-exec"
+)
+DEEP_BROWSER_SMOKE_MODES=("${LEGACY_DEEP_BROWSER_SMOKE_MODES[@]}" "${DEFAULT_DEEP_BROWSER_SMOKE_MODES[@]}")
+KNOWN_BROWSER_SMOKE_MODES=("${STANDARD_BROWSER_SMOKE_MODES[@]}" "${DEEP_BROWSER_SMOKE_MODES[@]}")
+BROWSER_SMOKE_MODES=()
+DEEP_BROWSER_SMOKE_SELECTED_MODES=()
 BROWSER_SMOKE_REPORT="$REPO_ROOT/artifacts/reports/tinyrustlm-source-options-ui-smoke.json"
 SERVER_STDOUT="$REPO_ROOT/artifacts/reports/tinyrustlm-ui-server-$PORT.out.log"
 SERVER_STDERR="$REPO_ROOT/artifacts/reports/tinyrustlm-ui-server-$PORT.err.log"
@@ -42,16 +59,72 @@ if [[ "$NODE_BIN" == *".exe" ]] && command -v wslpath >/dev/null 2>&1; then
   NODE_BROWSER_SMOKE_SCRIPT="$(wslpath -w "$NODE_BROWSER_SMOKE_SCRIPT")"
 fi
 
+trim() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s' "$value"
+}
+
+contains_mode() {
+  local needle="$1"
+  shift
+  local candidate
+  for candidate in "$@"; do
+    if [[ "$candidate" == "$needle" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+if [[ -n "$TINYRUSTLM_BROWSER_SMOKE_MODES" ]]; then
+  IFS=',' read -r -a requested_modes <<< "$TINYRUSTLM_BROWSER_SMOKE_MODES"
+  for raw_mode in "${requested_modes[@]}"; do
+    mode="$(trim "$raw_mode")"
+    if [[ -n "$mode" ]]; then
+      BROWSER_SMOKE_MODES+=("$mode")
+    fi
+  done
+else
+  if [[ "$RUN_BROWSER_SMOKE" == "1" || "$RUN_DEEP_BROWSER_SMOKE" == "1" ]]; then
+    BROWSER_SMOKE_MODES+=("${STANDARD_BROWSER_SMOKE_MODES[@]}")
+  fi
+  if [[ "$RUN_DEEP_BROWSER_SMOKE" == "1" ]]; then
+    BROWSER_SMOKE_MODES+=("${DEFAULT_DEEP_BROWSER_SMOKE_MODES[@]}")
+  fi
+fi
+for mode in "${BROWSER_SMOKE_MODES[@]}"; do
+  if ! contains_mode "$mode" "${KNOWN_BROWSER_SMOKE_MODES[@]}"; then
+    echo "Unknown TinyRustLM browser smoke mode '$mode'. Known modes: ${KNOWN_BROWSER_SMOKE_MODES[*]}" >&2
+    exit 1
+  fi
+  if contains_mode "$mode" "${DEEP_BROWSER_SMOKE_MODES[@]}"; then
+    DEEP_BROWSER_SMOKE_SELECTED_MODES+=("$mode")
+  fi
+done
+BROWSER_SMOKE_REQUESTED="0"
+if [[ "${#BROWSER_SMOKE_MODES[@]}" -gt 0 ]]; then
+  BROWSER_SMOKE_REQUESTED="1"
+fi
+DEEP_BROWSER_SMOKE_REQUESTED="0"
+if [[ "${#DEEP_BROWSER_SMOKE_SELECTED_MODES[@]}" -gt 0 ]]; then
+  DEEP_BROWSER_SMOKE_REQUESTED="1"
+fi
+
 STATIC_STATUS="not_run"
 HTTP_STATUS="not_run"
 BROWSER_STATUS="skipped"
+if [[ "$BROWSER_SMOKE_REQUESTED" == "1" ]]; then
+  BROWSER_STATUS="not_run"
+fi
 STATIC_OUTPUT=""
 HTTP_OUTPUT=""
 ERROR_MESSAGE=""
 SERVER_PID=""
 declare -A BROWSER_SMOKE_STATUS_BY_MODE
 for mode in "${BROWSER_SMOKE_MODES[@]}"; do
-  if [[ "$RUN_BROWSER_SMOKE" == "1" ]]; then
+  if [[ "$BROWSER_SMOKE_REQUESTED" == "1" ]]; then
     BROWSER_SMOKE_STATUS_BY_MODE["$mode"]="not_run"
   else
     BROWSER_SMOKE_STATUS_BY_MODE["$mode"]="skipped"
@@ -61,6 +134,11 @@ done
 join_browser_smoke_modes() {
   local IFS=","
   printf '%s' "${BROWSER_SMOKE_MODES[*]}"
+}
+
+join_deep_browser_smoke_modes() {
+  local IFS=","
+  printf '%s' "${DEEP_BROWSER_SMOKE_SELECTED_MODES[*]}"
 }
 
 join_browser_smoke_statuses() {
@@ -77,7 +155,7 @@ join_browser_smoke_statuses() {
 
 write_report() {
   local status="$1"
-  python3 - "$REPORT_OUTPUT" "$status" "$REPO_ROOT" "$ROOT" "$PORT" "$DEBUG_PORT" "$RUN_BROWSER_SMOKE" "$STATIC_STATUS" "$HTTP_STATUS" "$BROWSER_STATUS" "$(join_browser_smoke_modes)" "$(join_browser_smoke_statuses)" "$BROWSER_SMOKE_REPORT" "$SERVER_STDOUT" "$SERVER_STDERR" "$ERROR_MESSAGE" "$STATIC_OUTPUT" "$HTTP_OUTPUT" <<'PY'
+  python3 - "$REPORT_OUTPUT" "$status" "$REPO_ROOT" "$ROOT" "$PORT" "$DEBUG_PORT" "$BROWSER_SMOKE_REQUESTED" "$BROWSER_SMOKE_TIMEOUT_SECONDS" "$DEEP_BROWSER_SMOKE_REQUESTED" "$STATIC_STATUS" "$HTTP_STATUS" "$BROWSER_STATUS" "$(join_browser_smoke_modes)" "$(join_deep_browser_smoke_modes)" "$(join_browser_smoke_statuses)" "$BROWSER_SMOKE_REPORT" "$SERVER_STDOUT" "$SERVER_STDERR" "$ERROR_MESSAGE" "$STATIC_OUTPUT" "$HTTP_OUTPUT" <<'PY'
 import json
 import os
 import sys
@@ -90,11 +168,14 @@ from datetime import datetime, timezone
     root,
     port,
     debug_port,
-    run_browser_smoke,
+    browser_smoke_requested,
+    browser_smoke_timeout_seconds,
+    deep_browser_smoke_requested,
     static_status,
     http_status,
     browser_status,
     browser_modes_csv,
+    deep_browser_modes_csv,
     browser_statuses_csv,
     browser_report,
     server_stdout,
@@ -102,9 +183,10 @@ from datetime import datetime, timezone
     error_message,
     static_output,
     http_output,
-) = sys.argv[1:19]
+) = sys.argv[1:22]
 
-browser_modes = [mode for mode in browser_modes_csv.split(",") if mode] if run_browser_smoke == "1" else []
+browser_modes = [mode for mode in browser_modes_csv.split(",") if mode] if browser_smoke_requested == "1" else []
+deep_browser_modes = [mode for mode in deep_browser_modes_csv.split(",") if mode] if deep_browser_smoke_requested == "1" else []
 browser_statuses = {}
 for entry in [part for part in browser_statuses_csv.split(";") if part]:
     mode, _, mode_status = entry.partition("=")
@@ -128,17 +210,20 @@ report = {
     "local_server_url": f"http://127.0.0.1:{port}/app/",
     "static_harness_status": static_status,
     "http_harness_status": http_status,
-    "browser_smoke_requested": run_browser_smoke == "1",
+    "browser_smoke_requested": browser_smoke_requested == "1",
+    "browser_smoke_timeout_seconds": int(browser_smoke_timeout_seconds),
+    "deep_browser_smoke_requested": deep_browser_smoke_requested == "1",
+    "deep_browser_smoke_modes": deep_browser_modes,
     "browser_smoke_status": browser_status,
     "browser_smoke_mode": ",".join(browser_modes),
     "browser_smoke_modes": browser_modes,
-    "browser_smoke_statuses": browser_statuses if run_browser_smoke == "1" else {},
+    "browser_smoke_statuses": browser_statuses if browser_smoke_requested == "1" else {},
     "browser_debug_port": int(debug_port),
-    "browser_debug_ports": browser_debug_ports if run_browser_smoke == "1" else {},
+    "browser_debug_ports": browser_debug_ports if browser_smoke_requested == "1" else {},
     "static_harness_output": static_output,
     "http_harness_output": http_output,
-    "browser_smoke_report_path": os.path.abspath(browser_report) if run_browser_smoke == "1" else "",
-    "browser_smoke_report_paths": browser_report_paths if run_browser_smoke == "1" else {},
+    "browser_smoke_report_path": browser_report_paths.get(browser_modes[0], "") if browser_modes else "",
+    "browser_smoke_report_paths": browser_report_paths if browser_smoke_requested == "1" else {},
     "server_stdout_path": os.path.abspath(server_stdout),
     "server_stderr_path": os.path.abspath(server_stderr),
     "error": error_message,
@@ -183,8 +268,11 @@ mkdir -p "$(dirname "$REPORT_OUTPUT")"
 if [[ -z "$CARGO_BIN" ]]; then
   fail "cargo was not found on PATH"
 fi
-if [[ "$RUN_BROWSER_SMOKE" == "1" && -z "$NODE_BIN" ]]; then
+if [[ "$BROWSER_SMOKE_REQUESTED" == "1" && -z "$NODE_BIN" ]]; then
   fail "node was not found on PATH"
+fi
+if ! [[ "$BROWSER_SMOKE_TIMEOUT_SECONDS" =~ ^[0-9]+$ ]]; then
+  fail "BROWSER_SMOKE_TIMEOUT_SECONDS must be zero or greater"
 fi
 
 STATIC_OUTPUT="$(run_checked "TinyRustLM static browser harness" "$CARGO_BIN" run -p tinyrustlm-browser-harness -- "$CARGO_ROOT")"
@@ -224,17 +312,29 @@ fi
 HTTP_OUTPUT="$(run_checked "TinyRustLM HTTP browser harness" "$CARGO_BIN" run -p tinyrustlm-browser-harness -- "$CARGO_ROOT" --http "http://127.0.0.1:$PORT/app/")"
 HTTP_STATUS="pass"
 
-if [[ "$RUN_BROWSER_SMOKE" == "1" ]]; then
+if [[ "$BROWSER_SMOKE_REQUESTED" == "1" ]]; then
   BROWSER_STATUS="not_run"
   for index in "${!BROWSER_SMOKE_MODES[@]}"; do
     mode="${BROWSER_SMOKE_MODES[$index]}"
     mode_debug_port=$((DEBUG_PORT + index))
     mode_report="$REPO_ROOT/artifacts/reports/tinyrustlm-$mode-smoke.json"
     rm -f "$mode_report"
-    if ! "$NODE_BIN" "$NODE_BROWSER_SMOKE_SCRIPT" "http://127.0.0.1:$PORT/app/" "$mode_debug_port" tinylm16q8 "$mode" >"$mode_report" 2>&1; then
+    if [[ "$BROWSER_SMOKE_TIMEOUT_SECONDS" != "0" ]] && command -v timeout >/dev/null 2>&1; then
+      timeout "$BROWSER_SMOKE_TIMEOUT_SECONDS" "$NODE_BIN" "$NODE_BROWSER_SMOKE_SCRIPT" "http://127.0.0.1:$PORT/app/" "$mode_debug_port" tinylm16q8 "$mode" >"$mode_report" 2>&1
+      smoke_exit=$?
+    else
+      "$NODE_BIN" "$NODE_BROWSER_SMOKE_SCRIPT" "http://127.0.0.1:$PORT/app/" "$mode_debug_port" tinylm16q8 "$mode" >"$mode_report" 2>&1
+      smoke_exit=$?
+    fi
+    if [[ "$smoke_exit" -ne 0 ]]; then
       BROWSER_STATUS="fail"
       BROWSER_SMOKE_STATUS_BY_MODE["$mode"]="fail"
-      ERROR_MESSAGE="$mode browser smoke failed; see $mode_report"
+      if [[ "$smoke_exit" -eq 124 ]]; then
+        echo "$mode browser smoke timed out after $BROWSER_SMOKE_TIMEOUT_SECONDS seconds" >>"$mode_report"
+        ERROR_MESSAGE="$mode browser smoke timed out after $BROWSER_SMOKE_TIMEOUT_SECONDS seconds; see $mode_report"
+      else
+        ERROR_MESSAGE="$mode browser smoke failed; see $mode_report"
+      fi
       write_report "fail"
       cat "$mode_report" >&2
       exit 1

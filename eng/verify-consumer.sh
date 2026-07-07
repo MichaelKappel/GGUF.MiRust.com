@@ -7,6 +7,8 @@ MODEL_PATH="${2:-$REPO_ROOT/tinyrustlm/models/tiny-test-model.slm}"
 PACKAGE_VERSION="${3:-$("$REPO_ROOT/eng/get-package-version.sh")}"
 CORE_PACKAGE_ID="${4:-${TINYRUSTLM_CONSUMER_CORE_PACKAGE_ID:-TinyRustLM.Core}}"
 P2P_PACKAGE_ID="${5:-${TINYRUSTLM_CONSUMER_P2P_PACKAGE_ID:-TinyRustLM.P2P}}"
+MEMORY_PACKAGE_ID="${6:-${TINYRUSTLM_CONSUMER_MEMORY_PACKAGE_ID:-TinyRustLM.Memory}}"
+CONVERSION_PACKAGE_ID="${7:-${TINYRUSTLM_CONSUMER_CONVERSION_PACKAGE_ID:-}}"
 
 if ! command -v dotnet >/dev/null 2>&1; then
   echo "dotnet CLI is required to run TinyRustLM clean consumer package verification." >&2
@@ -35,13 +37,20 @@ dotnet new console --framework net8.0 --output "$PROJECT_DIR" >/dev/null
   cd "$PROJECT_DIR"
   dotnet add package "$CORE_PACKAGE_ID" --version "$PACKAGE_VERSION" --source "$PACKAGE_SOURCE" >/dev/null
   dotnet add package "$P2P_PACKAGE_ID" --version "$PACKAGE_VERSION" --source "$PACKAGE_SOURCE" >/dev/null
+  dotnet add package "$MEMORY_PACKAGE_ID" --version "$PACKAGE_VERSION" --source "$PACKAGE_SOURCE" >/dev/null
+  if [[ -n "$CONVERSION_PACKAGE_ID" ]]; then
+    dotnet add package "$CONVERSION_PACKAGE_ID" --version "$PACKAGE_VERSION" --source "$PACKAGE_SOURCE" >/dev/null
+  fi
 )
 
 cat > "$PROJECT_DIR/Program.cs" <<'CS'
+using System.Reflection;
 using System.Text.Json;
 using TinyRustLM;
 
 var modelPath = args.Length > 0 ? args[0] : throw new ArgumentException("model path argument is required");
+var memoryPackageId = args.Length > 1 ? args[1] : string.Empty;
+var conversionPackageId = args.Length > 2 ? args[2] : string.Empty;
 var inspector = new TinySlmInspector();
 var inspection = inspector.Inspect(modelPath);
 if (!inspection.Sha256.StartsWith("sha256:", StringComparison.Ordinal) || inspection.ByteCount <= 0)
@@ -63,6 +72,186 @@ if (!capabilities.SlmValidation || !capabilities.Generation || !capabilities.P2P
 if (!capabilities.ExcludedPrivateCapabilities.Any(item => item.Contains("model conversion", StringComparison.OrdinalIgnoreCase)))
 {
     throw new InvalidOperationException("Package consumer capability report did not declare the protected private boundary.");
+}
+
+var memory = new TinyRustLmMemoryClient();
+var memoryCatalog = memory.GetSupportedSetups();
+var expectedMemorySetups = new[]
+{
+    "base",
+    "agent_file_handoff",
+    "llm_wiki",
+    "file_handoff_llm_wiki",
+    "multi_agent_communication",
+    "talisman_system",
+    "advanced_persona_profile"
+};
+if (memoryCatalog.Kind != "uaix.memory.setup_catalog.v0"
+    || memoryCatalog.SetupCount < expectedMemorySetups.Length
+    || memoryCatalog.Boundary.HostedImportValidation
+    || memoryCatalog.Boundary.AutomaticRepositoryWrites
+    || !memoryCatalog.Boundary.UsesTinyrustlmRuntimeHarness)
+{
+    throw new InvalidOperationException("Package consumer UAIX memory setup catalog did not expose the protected local harness boundary.");
+}
+foreach (var setup in expectedMemorySetups)
+{
+    if (!memoryCatalog.Setups.Any(candidate => candidate.Setup == setup))
+    {
+        throw new InvalidOperationException($"Package consumer UAIX memory setup catalog omitted {setup}.");
+    }
+}
+if (!memoryCatalog.SourceUrls.Any(url => url.Contains("ai-memory-package-wizard", StringComparison.OrdinalIgnoreCase))
+    || !memoryCatalog.SourceUrls.Any(url => url.Contains("personality-packs", StringComparison.OrdinalIgnoreCase)))
+{
+    throw new InvalidOperationException("Package consumer UAIX memory catalog did not expose the Wizard and persona-pack authorities.");
+}
+var baseSetup = memoryCatalog.Setups.SingleOrDefault(setup => setup.Setup == "base");
+var expectedWizardFeatures = new[]
+{
+    "ai_digest_script_data_ai_digest",
+    "point_agent_urls",
+    "local_browser_draft_restore",
+    "safe_structured_output_mode",
+    "canonical_starter_zip_downloads",
+    "package_model_json",
+    "knowledge_graph_json"
+};
+if (baseSetup is null || expectedWizardFeatures.Any(feature => !baseSetup.PackageFeatures.Contains(feature)))
+{
+    throw new InvalidOperationException("Package consumer UAIX memory catalog did not expose the Wizard digest, setup URL, starter ZIP, and export-deck feature flags.");
+}
+var advancedPersona = memoryCatalog.Setups.SingleOrDefault(setup => setup.Setup == "advanced_persona_profile");
+if (advancedPersona is null
+    || !advancedPersona.AuthorityUrls.Any(url => url.Contains("personality-packs", StringComparison.OrdinalIgnoreCase)))
+{
+    throw new InvalidOperationException("Package consumer UAIX memory catalog did not expose advanced persona authority metadata.");
+}
+var expectedPersonaFeatures = new[]
+{
+    "uaix_zip_txt_template_decks",
+    "source_persona_preservation_rule",
+    "depth_level_0_to_10_dimension_evidence",
+    "disclosure_boundary_evidence",
+    "source_confidence_evidence",
+    "non_inference_rules",
+    "triggered_style_axes"
+};
+if (expectedPersonaFeatures.Any(feature => !advancedPersona.PackageFeatures.Contains(feature)))
+{
+    throw new InvalidOperationException("Package consumer UAIX memory catalog did not expose the advanced persona deck and preservation feature flags.");
+}
+var memoryRequest = new UaixMemoryPackageRequest(
+    Setup: "advanced_persona_profile",
+    CodeLikeArtifacts: true,
+    Deployment: true,
+    CommunicationStyle: true,
+    SourceNotes: true,
+    AdvancedPersona: new UaixAdvancedPersonaOptions(SenseOfStyleDepth: 3));
+var memoryPlan = memory.GetRequiredFiles(memoryRequest);
+var memoryPlanJson = memory.GetRequiredFilesJson(memoryRequest);
+if (memoryPlan.Kind != "uaix.memory.package_plan.v0"
+    || memoryPlan.Setup != "advanced_persona_profile"
+    || memoryPlan.RequiredFileCount != 62
+    || memoryPlan.FileDeck.TotalRequiredFiles != memoryPlan.RequiredFileCount
+    || !memoryPlan.FileDeck.ClosedRequiredFileSet
+    || !memoryPlan.FileDeck.IncludesManifestOverlay
+    || !memoryPlan.FileDeck.IncludesPackageModel
+    || !memoryPlan.FileDeck.IncludesKnowledgeGraph
+    || !memoryPlan.FileDeck.IncludesLlmsExports
+    || !memoryPlan.FileDeck.IncludesAgentPickup
+    || !memoryPlan.FileDeck.IncludesSessionLog
+    || !memoryPlan.FileDeck.IncludesPersonaSourceEvidence
+    || memoryPlan.FileDeck.UniversalRequiredFiles != 7
+    || memoryPlan.FileDeck.ProfileRequiredFiles != 11
+    || memoryPlan.FileDeck.ConfigurationSpecificRequiredFiles != 10
+    || memoryPlan.FileDeck.ContentTriggeredRequiredFiles != 10
+    || memoryPlan.FileDeck.AdvancedPersonaRequiredFiles != 24
+    || memoryPlan.FileDeck.PersonaDimensionFiles != 22
+    || memoryPlan.FileDeck.TriggeredPersonaStyleAxisFiles != 4
+    || memoryPlan.FileDeck.EvidenceFiles != 5
+    || memoryPlan.FileDeck.ExportFiles != 6
+    || !memoryPlan.Boundary.UsesTinyrustlmRuntimeHarness
+    || memoryPlan.Boundary.AutomaticRepositoryWrites
+    || memoryPlan.Boundary.PersonaSourceMutationAllowed
+    || !memoryPlan.RequiredFiles.Any(file => file.Path == ".uai/agent-pickup.uai")
+    || !memoryPlan.RequiredFiles.Any(file => file.Path == ".uai/exports/package-model.json")
+    || !memoryPlan.RequiredFiles.Any(file => file.Path == ".uai/personality/religion-worldview.uai")
+    || !memoryPlan.RequiredFiles.Any(file => file.Path == ".uai/personality/sense-of-winter.uai")
+    || !memoryPlan.RequiredFiles.Any(file => file.Path == ".uai/evidence/provenance.uai")
+    || !memoryPlan.RequiredFiles.Any(file => file.Path == ".uai/coding-standards.uai")
+    || !memoryPlan.RequiredFiles.Any(file => file.Path == "reports/deployment-memory-and-test-report.uai")
+    || !memoryPlan.RequiredFiles.Any(file => file.Path == ".uai/communication-style.uai")
+    || !memoryPlan.RequiredFiles.Any(file => file.Path == ".uai/source-notes.uai")
+    || !memoryPlanJson.Contains("\"kind\": \"uaix.memory.package_plan.v0\"", StringComparison.Ordinal))
+{
+    throw new InvalidOperationException("Package consumer UAIX memory advanced persona plan did not validate.");
+}
+var memoryManifestPaths = new[]
+{
+    ".uai/agent-pickup.uai",
+    ".uai/persona.uai",
+    ".uai/personality/religion-worldview.uai"
+};
+var memoryManifestJson = JsonSerializer.Serialize(new
+{
+    kind = "uaix.memory.manifest.v0",
+    setup_mode = "advanced_persona_profile",
+    files = memoryManifestPaths.Select(path => new { path }).ToArray()
+}, new JsonSerializerOptions { WriteIndented = true });
+var memoryManifest = memory.InspectManifest(memoryManifestJson);
+if (memoryManifest.Kind != "uaix.memory.manifest_inspection.v0"
+    || !memoryManifest.Valid
+    || !memoryManifest.AdvancedPersonaProfile
+    || memoryManifest.DeclaredFileCount != memoryManifestPaths.Length
+    || !memoryManifest.DeclaredFilePaths.Contains(".uai/personality/religion-worldview.uai"))
+{
+    throw new InvalidOperationException("Package consumer UAIX memory manifest inspection did not validate.");
+}
+
+var memoryPackageRoot = Path.Combine(Path.GetTempPath(), $"tinyrustlm-consumer-memory-{Guid.NewGuid():N}");
+try
+{
+    foreach (var file in memoryPlan.RequiredFiles)
+    {
+        var filePath = Path.Combine(
+            memoryPackageRoot,
+            file.Path.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+        var content = file.Path.StartsWith(".uai/personality/", StringComparison.Ordinal)
+            ? $"{file.Path}\ndepth_level_0_to_10: 6\ndisclosure_boundary: reviewed\nsource_confidence: high\nnon-inference rules: do not infer beyond source evidence\n"
+            : $"required {file.Path}";
+        File.WriteAllText(filePath, content);
+    }
+    var fullMemoryManifest = new
+    {
+        kind = "uaix.memory.manifest.v0",
+        setup_mode = "advanced_persona_profile",
+        files = memoryPlan.RequiredFiles.Select(file => new { path = file.Path }).ToArray()
+    };
+    File.WriteAllText(
+        Path.Combine(memoryPackageRoot, ".uai", "manifest.uaix.json"),
+        JsonSerializer.Serialize(fullMemoryManifest, new JsonSerializerOptions { WriteIndented = true }));
+    var memoryPackageInspection = memory.InspectPackage(memoryPackageRoot, memoryRequest);
+    if (!memoryPackageInspection.Valid
+        || memoryPackageInspection.MissingRequiredFiles.Count != 0
+        || memoryPackageInspection.ManifestMissingRequiredFiles.Count != 0
+        || !memoryPackageInspection.ManifestDeclaresRequiredFiles
+        || !memoryPackageInspection.RequiredFiles.Any(file => file.Path == "reports/deployment-memory-and-test-report.uai" && file.Exists)
+        || memoryPackageInspection.FileDeck.TotalRequiredFiles != 62
+        || !memoryPackageInspection.FileDeck.IncludesPersonaSourceEvidence
+        || !memoryPackageInspection.PersonaDimensionsValid
+        || !memory.ValidatePackage(memoryPackageRoot, memoryRequest))
+    {
+        throw new InvalidOperationException("Package consumer UAIX memory package inspection did not validate the full deployment report file deck.");
+    }
+}
+finally
+{
+    if (Directory.Exists(memoryPackageRoot))
+    {
+        Directory.Delete(memoryPackageRoot, recursive: true);
+    }
 }
 
 using (var runtime = factory.CreateRuntime())
@@ -227,8 +416,38 @@ if (manifestJson.Contains("\"manifest_contains_model_bytes\": true", StringCompa
     throw new InvalidOperationException("Package consumer manifest exposed model bytes.");
 }
 
-Console.WriteLine($"TinyRustLM consumer smoke passed: {inspection.Sha256} {plan.RequiredPieces.Count} pieces, assembled {receipt.OutputPath}, receipt {receipt.ReceiptPath}, receipt inspection {receiptInspection.ReceiptSha256}");
+if (!string.IsNullOrWhiteSpace(conversionPackageId))
+{
+    var conversionAssembly = Assembly.Load(new AssemblyName("TinyRustLM.Conversion"));
+    var toolType = conversionAssembly.GetType("TinyRustLM.TinySlmConversionTool", throwOnError: true)!;
+    var fromPackageLayout = toolType.GetMethod(
+        "FromPackageLayout",
+        BindingFlags.Public | BindingFlags.Static,
+        binder: null,
+        types: new[] { typeof(TimeSpan?) },
+        modifiers: null) ?? throw new InvalidOperationException("TinyRustLM conversion package did not expose FromPackageLayout.");
+    var validateSlm = toolType.GetMethod(
+        "ValidateSlm",
+        BindingFlags.Public | BindingFlags.Instance,
+        binder: null,
+        types: new[] { typeof(string) },
+        modifiers: null) ?? throw new InvalidOperationException("TinyRustLM conversion package did not expose ValidateSlm.");
+    var conversionTool = fromPackageLayout.Invoke(null, new object?[] { TimeSpan.FromSeconds(30) })
+        ?? throw new InvalidOperationException("TinyRustLM conversion package did not create a conversion tool.");
+    var conversionResult = validateSlm.Invoke(conversionTool, new object?[] { modelPath })
+        ?? throw new InvalidOperationException("TinyRustLM conversion package did not return a validation result.");
+    var resultType = conversionResult.GetType();
+    var exitCode = (int)(resultType.GetProperty("ExitCode")?.GetValue(conversionResult)
+        ?? throw new InvalidOperationException("TinyRustLM conversion result did not expose ExitCode."));
+    var stderr = (string)(resultType.GetProperty("StandardError")?.GetValue(conversionResult) ?? string.Empty);
+    if (exitCode != 0)
+    {
+        throw new InvalidOperationException($"Package consumer conversion validation failed with exit code {exitCode}: {stderr}");
+    }
+}
+
+Console.WriteLine($"TinyRustLM consumer smoke passed: {inspection.Sha256} {plan.RequiredPieces.Count} pieces, memory files {memoryPlan.RequiredFileCount} via {memoryPackageId}, conversion {(string.IsNullOrWhiteSpace(conversionPackageId) ? "skipped" : "validated")}, assembled {receipt.OutputPath}, receipt {receipt.ReceiptPath}, receipt inspection {receiptInspection.ReceiptSha256}");
 CS
 
-dotnet run --project "$PROJECT_DIR" --configuration Release -- "$MODEL_PATH"
+dotnet run --project "$PROJECT_DIR" --configuration Release -- "$MODEL_PATH" "$MEMORY_PACKAGE_ID" "$CONVERSION_PACKAGE_ID"
 echo "TinyRustLM consumer package source verified: $PACKAGE_SOURCE @ $PACKAGE_VERSION"

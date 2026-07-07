@@ -377,7 +377,7 @@ function Get-RequiredSearchTerms {
             $terms += @("p2pRuntime", "p2pRuntime.com", "P2P", "peer-to-peer", "model-sharing", "MiniModel", "manifest", "announcement", "catalog", "receipt")
         }
         "TinyRustLM.Memory" {
-            $terms += @("memory", "ai-memory", ".uai", "persona", "AI Memory Package Wizard", "agent-pickup", "session-log", "manifest-overlay", "package-model", "knowledge-graph", "personality-pack", "LLM Wiki", "file-handoff")
+            $terms += @("memory", "ai-memory", ".uai", ".uaix", "persona", "AI Memory Package Wizard", "ai-digest", "point-agent-urls", "canonical-starter-zip", "safe-structured-output", "agent-pickup", "session-log", "manifest-overlay", "package-model", "knowledge-graph", "personality-pack", "persona-deck", "triggered-style-axes", "LLM Wiki", "file-handoff")
         }
     }
     return @($terms | Sort-Object -Unique)

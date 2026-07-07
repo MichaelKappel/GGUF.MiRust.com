@@ -513,6 +513,7 @@
     localConnectFullControlAcknowledged: false,
     localConnectCategoryRules: null,
     localConnectApprovedApps: [],
+    localConnectApprovedAppCategories: Object.create(null),
     localConnectEndpointUrl: `${"http:"}//127.0.0.1:8711`,
     localConnectEndpointApps: null,
     hfLastAccepted: [],
@@ -776,6 +777,7 @@
     localConnectFullControlAcknowledged: "slmcomposer.ui.localConnectFullControlAcknowledged",
     localConnectCategoryRules: "slmcomposer.ui.localConnectCategoryRules",
     localConnectApprovedApps: "slmcomposer.ui.localConnectApprovedApps",
+    localConnectApprovedAppCategories: "slmcomposer.ui.localConnectApprovedAppCategories",
     localConnectEndpointUrl: "slmcomposer.ui.localConnectEndpointUrl",
     creativity: "slmcomposer.ui.creativity",
     length: "slmcomposer.ui.length",
@@ -949,6 +951,7 @@
     storageRemove(uiStorageKeys.localConnectFullControlAcknowledged);
     storageRemove(uiStorageKeys.localConnectCategoryRules);
     storageRemove(uiStorageKeys.localConnectApprovedApps);
+    storageRemove(uiStorageKeys.localConnectApprovedAppCategories);
     storageRemove(uiStorageKeys.localConnectEndpointUrl);
     storageSet(uiStorageKeys.version, uiPreferenceVersion);
   }
@@ -1311,10 +1314,13 @@
     return Boolean(category && category.id !== "terminal" && category.id !== "secrets");
   }
 
-  function localConnectApprovedAppBindings(approvedApps) {
+  function localConnectApprovedAppBindings(approvedApps, approvedAppCategories) {
     return approvedApps
       .map((app) => {
-        const categoryId = localConnectKnownCategoryForApp(app) || "files";
+        const appKey = String(app || "").trim().toLowerCase();
+        const categoryId = localConnectKnownCategoryForApp(app)
+          || (approvedAppCategories && approvedAppCategories[appKey])
+          || "files";
         const category = findLocalConnectCategory(categoryId);
         if (!localConnectAppLevelApprovalAllowed(category)) {
           return null;
@@ -1392,6 +1398,28 @@
       }
     }
     return apps;
+  }
+
+  function normalizeLocalConnectApprovedAppCategories(approvedApps, value) {
+    const categories = Object.create(null);
+    const raw = value && typeof value === "object" ? value : Object.create(null);
+    for (const app of approvedApps || []) {
+      const appKey = String(app || "").trim().toLowerCase();
+      if (!appKey || localConnectKnownCategoryForApp(app)) {
+        continue;
+      }
+      const rawCategory = sanitizeLocalConnectCategoryId(raw[appKey] || raw[app]);
+      const category = findLocalConnectCategory(rawCategory);
+      if (localConnectAppLevelApprovalAllowed(category)) {
+        categories[appKey] = category.id;
+      }
+    }
+    return categories;
+  }
+
+  function sanitizeLocalConnectCategoryId(value) {
+    const category = findLocalConnectCategory(String(value || "").trim());
+    return category ? category.id : "";
   }
 
   function sanitizeLocalConnectEndpointUrl(value) {
@@ -1666,11 +1694,26 @@
       setLocalConnectEndpointStatus("Critical categories cannot be app-level always approved. Use ask/block or full local-control lab mode on a non-sensitive machine.", true);
       return;
     }
+    const knownCategoryId = localConnectKnownCategoryForApp(appName);
+    if (knownCategoryId && knownCategoryId !== category.id) {
+      setLocalConnectEndpointStatus("Known app category did not match the endpoint row. Re-check the local endpoint before approving this app.", true);
+      return;
+    }
     const normalized = normalizeLocalConnectApprovedApps([
       ...(state.localConnectApprovedApps || []),
       String(appName || "").trim()
     ]);
     state.localConnectApprovedApps = normalized;
+    state.localConnectApprovedAppCategories = normalizeLocalConnectApprovedAppCategories(
+      normalized,
+      state.localConnectApprovedAppCategories
+    );
+    const approvedApp = normalized.find(
+      (app) => app.toLowerCase() === String(appName || "").trim().toLowerCase()
+    );
+    if (approvedApp && !localConnectKnownCategoryForApp(approvedApp)) {
+      state.localConnectApprovedAppCategories[approvedApp.toLowerCase()] = category.id;
+    }
     if (el.localConnectApprovedApps) {
       el.localConnectApprovedApps.value = normalized.join("\n");
     }
@@ -1921,7 +1964,11 @@
       );
     }
     const approvedApps = normalizeLocalConnectApprovedApps(state.localConnectApprovedApps || []);
-    const approvedAppBindings = localConnectApprovedAppBindings(approvedApps);
+    const approvedAppCategories = normalizeLocalConnectApprovedAppCategories(
+      approvedApps,
+      state.localConnectApprovedAppCategories
+    );
+    const approvedAppBindings = localConnectApprovedAppBindings(approvedApps, approvedAppCategories);
     const mode = sanitizeLocalConnectApprovalMode(state.localConnectApprovalMode);
     const fullControlAcknowledged = mode === "full" && Boolean(state.localConnectFullControlAcknowledged);
     return {
@@ -2077,6 +2124,10 @@
     state.localConnectApprovedApps = normalizeLocalConnectApprovedApps(
       el.localConnectApprovedApps ? el.localConnectApprovedApps.value : state.localConnectApprovedApps
     );
+    state.localConnectApprovedAppCategories = normalizeLocalConnectApprovedAppCategories(
+      state.localConnectApprovedApps,
+      state.localConnectApprovedAppCategories
+    );
     const hasAlwaysApproval = localConnectAppCategories.some(
       (category) => state.localConnectCategoryRules[category.id] === "always"
     ) || state.localConnectApprovedApps.length > 0;
@@ -2087,6 +2138,7 @@
     storageSet(uiStorageKeys.localConnectFullControlAcknowledged, String(Boolean(state.localConnectFullControlAcknowledged)));
     storageSet(uiStorageKeys.localConnectCategoryRules, JSON.stringify(state.localConnectCategoryRules));
     storageSet(uiStorageKeys.localConnectApprovedApps, JSON.stringify(state.localConnectApprovedApps));
+    storageSet(uiStorageKeys.localConnectApprovedAppCategories, JSON.stringify(state.localConnectApprovedAppCategories));
     if (!options.preserveEndpointApps) {
       clearLocalConnectEndpointApps();
     }
@@ -2114,6 +2166,14 @@
       state.localConnectApprovedApps = [];
     }
     try {
+      state.localConnectApprovedAppCategories = normalizeLocalConnectApprovedAppCategories(
+        state.localConnectApprovedApps,
+        JSON.parse(storageGet(uiStorageKeys.localConnectApprovedAppCategories, "{}"))
+      );
+    } catch (_error) {
+      state.localConnectApprovedAppCategories = Object.create(null);
+    }
+    try {
       state.localConnectEndpointUrl = sanitizeLocalConnectEndpointUrl(
         storageGet(uiStorageKeys.localConnectEndpointUrl, `${"http:"}//127.0.0.1:8711`)
       );
@@ -2128,6 +2188,7 @@
     state.localConnectFullControlAcknowledged = false;
     state.localConnectCategoryRules = defaultLocalConnectCategoryRules();
     state.localConnectApprovedApps = [];
+    state.localConnectApprovedAppCategories = Object.create(null);
     if (el.localConnectApprovedApps) {
       el.localConnectApprovedApps.value = "";
     }
@@ -3110,6 +3171,10 @@
     if (el.localConnectApprovedApps) {
       el.localConnectApprovedApps.addEventListener("input", () => {
         state.localConnectApprovedApps = normalizeLocalConnectApprovedApps(el.localConnectApprovedApps.value);
+        state.localConnectApprovedAppCategories = normalizeLocalConnectApprovedAppCategories(
+          state.localConnectApprovedApps,
+          state.localConnectApprovedAppCategories
+        );
         updateLocalConnectPolicyUi();
       });
       el.localConnectApprovedApps.addEventListener("change", () => {
@@ -4157,6 +4222,72 @@
     });
   }
 
+  function localMemoryFileDeckSummary(requiredPaths, setup) {
+    const normalizedPaths = uniqueLocalMemoryPaths(requiredPaths);
+    const pathSet = new Set(normalizedPaths);
+    const countFrom = (paths) => Array.from(new Set(paths.map((path) => normalizeLocalMemoryPath(path))))
+      .filter((path) => pathSet.has(path)).length;
+    const contains = (path) => pathSet.has(normalizeLocalMemoryPath(path));
+    const startsWith = (prefix) => normalizedPaths.filter((path) => path.startsWith(prefix)).length;
+    const baselineConfigurationPaths = localMemoryBaselinePaths.filter((path) => {
+      const normalized = normalizeLocalMemoryPath(path);
+      return normalized === ".uai/manifest.uaix.json"
+        || normalized === ".uai/agent-pickup.uai"
+        || normalized === ".uai/archives/session-log.uai"
+        || normalized.startsWith(".uai/exports/");
+    });
+    const baselineProfilePaths = localMemoryBaselinePaths.filter((path) => {
+      const normalized = normalizeLocalMemoryPath(path);
+      return !baselineConfigurationPaths.some((configurationPath) => normalizeLocalMemoryPath(configurationPath) === normalized);
+    });
+    const triggeredStyleAxisPaths = localMemoryAdvancedPersonaPaths
+      .filter((path) => localMemoryOptionalContentPaths.every((entry) => normalizeLocalMemoryPath(entry[1]) !== normalizeLocalMemoryPath(path)))
+      .slice(-4)
+      .map((path) => normalizeLocalMemoryPath(path));
+    const advancedPersonaRequiredPaths = localMemoryAdvancedPersonaPaths.filter((path) => {
+      const normalized = normalizeLocalMemoryPath(path);
+      return normalized !== ".uai/readme.human" && !triggeredStyleAxisPaths.includes(normalized);
+    });
+    const configurationSpecificPaths = [
+      ...baselineConfigurationPaths,
+      ...localMemoryFileHandoffPaths,
+      ...localMemoryMultiAgentPaths,
+      ...(setup === "talisman_system" ? localMemoryTalismanPaths : []),
+      ".uai/long-term-memory.uai",
+      ".uai/readme.human"
+    ];
+    const contentTriggeredPaths = [
+      ...localMemoryCodeBearingPaths,
+      ...localMemoryOptionalContentPaths
+        .map((entry) => entry[1])
+        .filter((path) => setup !== "talisman_system" || normalizeLocalMemoryPath(path) !== "reports/deployment-memory-and-test-report.uai"),
+      ...triggeredStyleAxisPaths
+    ];
+    return {
+      totalRequiredFiles: normalizedPaths.length,
+      universalRequiredFiles: countFrom(localMemoryUniversalPaths),
+      profileRequiredFiles: countFrom(baselineProfilePaths),
+      configurationSpecificRequiredFiles: countFrom(configurationSpecificPaths),
+      contentTriggeredRequiredFiles: countFrom(contentTriggeredPaths),
+      advancedPersonaRequiredFiles: countFrom(advancedPersonaRequiredPaths),
+      evidenceFiles: startsWith(".uai/evidence/"),
+      exportFiles: startsWith(".uai/exports/"),
+      personaDimensionFiles: startsWith(".uai/personality/"),
+      triggeredPersonaStyleAxisFiles: triggeredStyleAxisPaths.filter((path) => pathSet.has(path)).length,
+      includesManifestOverlay: contains(".uai/exports/manifest-overlay.json"),
+      includesPackageModel: contains(".uai/exports/package-model.json"),
+      includesKnowledgeGraph: contains(".uai/exports/knowledge-graph.json"),
+      includesLlmsExports: contains(".uai/exports/llms.uai") && contains(".uai/exports/llms-full.uai"),
+      includesAgentPickup: contains(".uai/agent-pickup.uai"),
+      includesSessionLog: contains(".uai/archives/session-log.uai"),
+      includesPersonaSourceEvidence: contains(".uai/persona.uai")
+        && contains(".uai/personality/preservation-rules.uai")
+        && contains(".uai/evidence/source-excerpts.uai")
+        && contains(".uai/evidence/provenance.uai"),
+      closedRequiredFileSet: true
+    };
+  }
+
   function trimTextToByteLimit(text, byteLimit) {
     const limit = Math.max(0, Number.parseInt(byteLimit, 10) || 0);
     const value = String(text || "");
@@ -4286,6 +4417,7 @@
     const personaDimensionsValid = setup !== "advanced_persona_profile" || personaDimensions.every((dimension) => dimension.valid);
     const valid = missingRequiredFiles.length === 0 && manifestMissingRequiredFiles.length === 0 && personaDimensionsValid;
     const contextText = valid ? buildLocalMemoryContextText(entries, requiredPaths) : "";
+    const fileDeck = localMemoryFileDeckSummary(requiredPaths, setup);
     return {
       kind: "uaix.memory.browser_deck_inspection.v0",
       setup,
@@ -4294,6 +4426,7 @@
       byteCount: Array.from(entries.values()).reduce((total, entry) => total + entry.byteCount, 0),
       manifestSha256: manifestEntry.sha256,
       requiredFiles,
+      fileDeck,
       missingRequiredFiles,
       manifestMissingRequiredFiles,
       manifestDeclaresRequiredFiles: manifestMissingRequiredFiles.length === 0,
@@ -4345,6 +4478,20 @@
       `${inspection.requiredFiles.length} required files checked; project server receives memory files: no`
     );
     el.localMemoryPackageSummary.append(required);
+    if (inspection.fileDeck) {
+      const deck = inspection.fileDeck;
+      el.localMemoryPackageSummary.append(elementWithText(
+        "span",
+        "",
+        `FileDeck ${deck.totalRequiredFiles} required / ${deck.personaDimensionFiles} persona / ${deck.evidenceFiles} evidence / ${deck.exportFiles} exports`
+      ));
+      if (deck.includesManifestOverlay && deck.includesPackageModel && deck.includesKnowledgeGraph && deck.includesLlmsExports) {
+        el.localMemoryPackageSummary.append(elementWithText("span", "", "UAIX exports verified"));
+      }
+      if (deck.includesPersonaSourceEvidence) {
+        el.localMemoryPackageSummary.append(elementWithText("span", "", "persona source evidence bound"));
+      }
+    }
     if (inspection.missingRequiredFiles.length) {
       el.localMemoryPackageSummary.append(elementWithText(
         "span",

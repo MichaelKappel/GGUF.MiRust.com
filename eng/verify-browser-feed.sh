@@ -157,7 +157,7 @@ def expected_packages(version):
             "id": "UAIX.Browser.Memory",
             "name": f"UAIX.Browser.Memory.{version}.nupkg",
             "dependencies": ["UAIX.Browser.Core.Abstractions", "UAIX.Browser.p2pLLM.Runtime"],
-            "terms": ["TinyRustLM", "UAIX", "UAIX.org", "UAIX.Browser", "memory", "ai-memory", ".uai", "persona", "AI Memory Package Wizard", "agent-pickup", "session-log", "manifest-overlay", "package-model", "knowledge-graph", "personality-pack"],
+            "terms": ["TinyRustLM", "UAIX", "UAIX.org", "UAIX.Browser", "memory", "ai-memory", ".uai", ".uaix", "persona", "AI Memory Package Wizard", "ai-digest", "point-agent-urls", "canonical-starter-zip", "safe-structured-output", "agent-pickup", "session-log", "manifest-overlay", "package-model", "knowledge-graph", "personality-pack", "persona-deck", "triggered-style-axes"],
         },
         {
             "id": "UAIX.Browser.p2pLLM.Conversion",

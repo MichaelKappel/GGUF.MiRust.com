@@ -127,6 +127,15 @@ $browserPublishRequiredTerms = @(
     "uaix-browser-nuget-feed-hashes.json",
     "UAIX.Browser.p2pLLM.Runtime"
 )
+$browserNuGetPublishedRequiredTerms = @(
+    "UAIX.Browser.Core.Abstractions",
+    "UAIX.Browser.p2pLLM.Runtime",
+    "UAIX.Browser.p2pRuntime.P2P",
+    "UAIX.Browser.Memory",
+    "UAIX.Browser.p2pLLM.Conversion",
+    "0.1.6",
+    "post-publish verified"
+)
 $uiVerificationRequiredTerms = @(
     "tinyrustlm.ui_verification.v0",
     "verify-tinyrustlm-ui.ps1",
@@ -150,6 +159,15 @@ $publicRootVerificationRequiredTerms = @(
     "local-import-ambiguous-selection",
     "peer-url-unsafe-ui"
 )
+$browserMemoryFileDeckRequiredTerms = @(
+    "FileDeck",
+    "FileDeck 62 required",
+    "local-memory-deck-ui",
+    "UAIX memory active",
+    "UAIX exports verified",
+    "persona source evidence bound",
+    "uaix_memory=advanced_persona_profile"
+)
 
 foreach ($siteRoot in $resolvedSiteRoots) {
     $siteName = Split-Path -Leaf $siteRoot
@@ -160,6 +178,7 @@ foreach ($siteRoot in $resolvedSiteRoots) {
         $requiredTerms = @($commonRequiredTerms)
         if ($siteName -in @("TinyRustLM.com", "TinyRustLM.MiRust.com", "MiniModel.org", "MiniModel.MiRust.com")) {
             $requiredTerms += $shaRequiredTerms
+            $requiredTerms += $browserNuGetPublishedRequiredTerms
         }
         if ($siteName -in @("TinyRustLM.com", "TinyRustLM.MiRust.com")) {
             $requiredTerms += $browserFeedRequiredTerms
@@ -167,6 +186,7 @@ foreach ($siteRoot in $resolvedSiteRoots) {
             $requiredTerms += $browserPublishRequiredTerms
             $requiredTerms += $uiVerificationRequiredTerms
             $requiredTerms += $publicRootVerificationRequiredTerms
+            $requiredTerms += $browserMemoryFileDeckRequiredTerms
         }
         elseif ($relativePath -eq "docs/catalog-boundary.md") {
             $requiredTerms += @("SHA256SUMS-bound")
@@ -181,11 +201,16 @@ foreach ($siteRoot in $resolvedSiteRoots) {
 
 $staleMatches = New-Object System.Collections.Generic.List[object]
 $staleLiteralPatterns = @(
-    "authenticated publish plus feed-current and feed-hash verification",
-    "feed-current and feed-hash verification passes",
-    "feed-current plus feed-hash verification",
-    "TinyRustLM.Abstractions, TinyRustLM.Core, and TinyRustLM.P2P",
-    "TinyRustLM.Abstractions`, `TinyRustLM.Core`, and `TinyRustLM.P2P"
+    'authenticated publish plus feed-current and feed-hash verification',
+    'feed-current and feed-hash verification passes',
+    'feed-current plus feed-hash verification',
+    'NuGet.org has zero listed versions',
+    'NuGet.org reports zero listed versions',
+    'blocked_missing_api_key',
+    'version `0.1.1` with SHA256SUMS-bound package-hash evidence',
+    'version `0.1.2` and passed clean consumer',
+    'TinyRustLM.Abstractions, TinyRustLM.Core, and TinyRustLM.P2P',
+    'TinyRustLM.Abstractions`, `TinyRustLM.Core`, and `TinyRustLM.P2P'
 )
 
 $staleScanFiles = @($checks.ToArray() |

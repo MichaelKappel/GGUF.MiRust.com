@@ -49,6 +49,27 @@ public sealed record UaixMemoryBoundary(
     bool PersonaSourceMutationAllowed,
     bool UsesTinyrustlmRuntimeHarness);
 
+/// <summary>Machine-checkable summary of the selected UAIX memory file deck.</summary>
+public sealed record UaixMemoryFileDeckSummary(
+    int TotalRequiredFiles,
+    int UniversalRequiredFiles,
+    int ProfileRequiredFiles,
+    int ConfigurationSpecificRequiredFiles,
+    int ContentTriggeredRequiredFiles,
+    int AdvancedPersonaRequiredFiles,
+    int EvidenceFiles,
+    int ExportFiles,
+    int PersonaDimensionFiles,
+    int TriggeredPersonaStyleAxisFiles,
+    bool IncludesManifestOverlay,
+    bool IncludesPackageModel,
+    bool IncludesKnowledgeGraph,
+    bool IncludesLlmsExports,
+    bool IncludesAgentPickup,
+    bool IncludesSessionLog,
+    bool IncludesPersonaSourceEvidence,
+    bool ClosedRequiredFileSet);
+
 /// <summary>Public descriptor for one supported UAIX memory package setup.</summary>
 public sealed record UaixMemorySetupDescriptor(
     string Setup,
@@ -74,6 +95,7 @@ public sealed record UaixMemoryPackagePlan(
     int Version,
     string Setup,
     IReadOnlyList<UaixMemoryRequiredFile> RequiredFiles,
+    UaixMemoryFileDeckSummary FileDeck,
     int RequiredFileCount,
     IReadOnlyList<string> SourceUrls,
     UaixMemoryBoundary Boundary);
@@ -111,6 +133,7 @@ public sealed record UaixMemoryPackageInspection(
     string PackageSource,
     string Setup,
     IReadOnlyList<UaixMemoryFileStatus> RequiredFiles,
+    UaixMemoryFileDeckSummary FileDeck,
     IReadOnlyList<UaixPersonaDimensionInspection> PersonaDimensions,
     bool PersonaDimensionsValid,
     int PersonaDimensionWarningCount,
