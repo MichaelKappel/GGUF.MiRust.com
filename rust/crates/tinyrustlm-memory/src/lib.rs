@@ -214,6 +214,8 @@ pub struct UaixMemoryFileDeckSummary {
     pub persona_dimension_files: u32,
     /// Content-triggered persona style-axis files.
     pub triggered_persona_style_axis_files: u32,
+    /// The selected deck includes `.uai/exports/manifest.json`.
+    pub includes_manifest_json: bool,
     /// The selected deck includes `.uai/exports/manifest-overlay.json`.
     pub includes_manifest_overlay: bool,
     /// The selected deck includes `.uai/exports/package-model.json`.
@@ -440,10 +442,17 @@ pub fn supported_memory_setups() -> UaixMemorySetupCatalog {
                 "ai_digest_script_data_ai_digest",
                 "point_agent_urls",
                 "local_browser_draft_restore",
+                "prompt_nudges",
                 "safe_structured_output_mode",
+                "review_export_checks",
                 "startup_packet",
                 "system_profile",
                 "receiver_brief",
+                "agent_use_blocks_codex_claude_gpt",
+                "raw_session_log",
+                "family_aware_required_files",
+                "dtmi_policy",
+                "manifest_json",
                 "manifest_overlay",
                 "browser_generated_zip_package",
                 "canonical_starter_zip_downloads",
@@ -1594,6 +1603,7 @@ fn file_deck_summary(required_files: &[UaixMemoryRequiredFile]) -> UaixMemoryFil
         export_files,
         persona_dimension_files,
         triggered_persona_style_axis_files,
+        includes_manifest_json: contains_path(".uai/exports/manifest.json"),
         includes_manifest_overlay: contains_path(".uai/exports/manifest-overlay.json"),
         includes_package_model: contains_path(".uai/exports/package-model.json"),
         includes_knowledge_graph: contains_path(".uai/exports/knowledge-graph.json"),
@@ -1986,6 +1996,7 @@ mod tests {
             plan.required_file_count
         );
         assert!(plan.file_deck.closed_required_file_set);
+        assert!(plan.file_deck.includes_manifest_json);
         assert!(plan.file_deck.includes_manifest_overlay);
         assert!(plan.file_deck.includes_package_model);
         assert!(plan.file_deck.includes_knowledge_graph);
@@ -2177,7 +2188,14 @@ mod tests {
             "ai_digest_script_data_ai_digest",
             "point_agent_urls",
             "local_browser_draft_restore",
+            "prompt_nudges",
             "safe_structured_output_mode",
+            "review_export_checks",
+            "agent_use_blocks_codex_claude_gpt",
+            "raw_session_log",
+            "family_aware_required_files",
+            "dtmi_policy",
+            "manifest_json",
             "canonical_starter_zip_downloads",
             "package_model_json",
             "knowledge_graph_json",

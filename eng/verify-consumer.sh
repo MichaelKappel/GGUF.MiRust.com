@@ -27,6 +27,7 @@ MODEL_PATH="$MODEL_DIR/$(basename "$MODEL_PATH")"
 TEMP_ROOT="$(mktemp -d)"
 PROJECT_DIR="$TEMP_ROOT/ConsumerSmoke"
 export NUGET_PACKAGES="$TEMP_ROOT/packages"
+export NUGET_HTTP_CACHE_PATH="$TEMP_ROOT/http-cache"
 cleanup() {
   rm -rf "$TEMP_ROOT"
 }
@@ -155,6 +156,7 @@ if (memoryPlan.Kind != "uaix.memory.package_plan.v0"
     || memoryPlan.RequiredFileCount != 62
     || memoryPlan.FileDeck.TotalRequiredFiles != memoryPlan.RequiredFileCount
     || !memoryPlan.FileDeck.ClosedRequiredFileSet
+    || !memoryPlan.FileDeck.IncludesManifestJson
     || !memoryPlan.FileDeck.IncludesManifestOverlay
     || !memoryPlan.FileDeck.IncludesPackageModel
     || !memoryPlan.FileDeck.IncludesKnowledgeGraph

@@ -61,6 +61,7 @@ public sealed record UaixMemoryFileDeckSummary(
     int ExportFiles,
     int PersonaDimensionFiles,
     int TriggeredPersonaStyleAxisFiles,
+    bool IncludesManifestJson,
     bool IncludesManifestOverlay,
     bool IncludesPackageModel,
     bool IncludesKnowledgeGraph,

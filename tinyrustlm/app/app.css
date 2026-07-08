@@ -849,6 +849,10 @@ svg {
   gap: 8px;
 }
 
+.search-row.hf-search-row {
+  grid-template-columns: minmax(0, 1fr) minmax(132px, 160px) auto;
+}
+
 .source-flow-row {
   display: flex;
   flex-wrap: wrap;
@@ -992,6 +996,12 @@ input[type="file"] {
   color: var(--text);
   border-color: rgba(96, 165, 250, .46);
   background: rgba(24, 45, 72, .76);
+}
+
+@media (max-width: 680px) {
+  .search-row.hf-search-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .text-link-button {

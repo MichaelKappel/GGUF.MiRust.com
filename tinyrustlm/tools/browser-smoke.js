@@ -13,6 +13,8 @@ const path = require("path");
 const appUrl = process.argv[2] || "http://127.0.0.1:8080/app/";
 const port = Number(process.argv[3] || 9223);
 const smokeMode = process.argv[5] || "single";
+const publicDefaultDemoSmokeMode = smokeMode === "public-default-demo";
+const disableDefaultDemoInterceptor = process.env.TINYRUSTLM_DISABLE_DEFAULT_DEMO_INTERCEPTOR === "1";
 const publicLocalOnlySmokeMode = smokeMode === "public-local-only";
 const peerUrlUnsafeUiSmokeMode = smokeMode === "peer-url-unsafe-ui";
 const localConnectApprovalUiSmokeMode = smokeMode === "local-connect-approval-ui";
@@ -54,11 +56,16 @@ const hfGgufSourceByteCount = 268435456;
 const smokePeerBindAddr = "127.0.0.1:8123";
 const smokePeerBaseUrl = `http://${smokePeerBindAddr}/peer-pieces/`;
 const smokeBackupPeerBaseUrl = "http://127.0.0.1:8124/peer-pieces/";
+const defaultDemoModelSha256 = "6af985853325eaa6d3eaaa8aadd3511da9596eb542fb2d03a9bc9dc1f4377adf";
+const defaultDemoModelByteCount = 8832;
+const defaultDemoArtifactByteChecksum = "0xa338bbb579e3e971";
+const defaultDemoSlmChecksum = "0x481f1037d57ebcd3";
 const shareMetadataSmokeMode = smokeMode === "share-metadata-ui";
 const shareMetadataKitExecSmokeMode = smokeMode === "share-metadata-kit-exec";
 const shareMetadataImportSmokeMode = smokeMode === "share-metadata-import-ui";
 const importReceiptLedgerSmokeMode = smokeMode === "import-receipt-ledger-ui";
 const peerStatusCheckSmokeMode = smokeMode === "peer-status-check-ui";
+const peerStatusLiveSmokeMode = smokeMode === "peer-status-live-ui";
 const peerCompanionInventorySmokeMode = smokeMode === "peer-companion-inventory-ui";
 const catalogLocalImportSmokeMode = smokeMode === "catalog-local-import";
 const localImportAmbiguousSelectionSmokeMode = smokeMode === "local-import-ambiguous-selection";
@@ -1573,6 +1580,8 @@ function fulfillBinaryRequest(client, requestId, body) {
     responseCode: 200,
     responseHeaders: [
       { name: "content-type", value: "application/octet-stream" },
+      { name: "access-control-allow-origin", value: "*" },
+      { name: "access-control-allow-headers", value: "*" },
       { name: "content-length", value: String(body.length) }
     ],
     body: body.toString("base64")
@@ -1736,10 +1745,95 @@ function hfCatalogAnnouncementRouteSnapshot(options = {}) {
   return catalog;
 }
 
+function defaultDemoMetadataFixture() {
+  return {
+    demo_version: 0,
+    demo_kind: "minimodel.public_demo_model.v0",
+    demo_status: "public-demo-autoload-ready",
+    generated_at: "2026-07-07T17:10:00Z",
+    publisher_id: "minimodel.org",
+    publisher_key_id: "minimodel-development-key-v0",
+    project_server_serves_model_bytes: true,
+    project_server_runs_model_bytes: false,
+    project_server_proxies_model_bytes: false,
+    artifact_project_server_url: "../artifacts/demo/tiny-test-model-q8.slm",
+    artifact_kind: "slm",
+    artifact_file_name: "tiny-test-model-q8.slm",
+    local_file_name_hint: "tiny-test-model-q8.slm",
+    artifact_byte_count: defaultDemoModelByteCount,
+    artifact_sha256: `sha256:${defaultDemoModelSha256}`,
+    artifact_byte_checksum: defaultDemoArtifactByteChecksum,
+    model_id: "tinyrustlm/tiny-test-model-q8",
+    display_name: "TinyRustLM Fixture q8_0",
+    model_card_route: "../docs/catalog-boundary.md",
+    license_route: "../LICENSE.txt",
+    manifest_route: "../examples/tiny-test-model-q8.minimodel.manifest.v0",
+    execution_policy: "public-demo-browser-autoload",
+    browser_autoload: {
+      intended_origin: "https://TinyRustLM.com",
+      fetch_policy: "cors-omit-credentials",
+      credentials_omitted: true,
+      checksum_required: true,
+      byte_count_required: true,
+      runtime_validation_required: true
+    },
+    source_kind: "minimodel-public-demo-autoload",
+    source_identity: "MiniModel.org public demo",
+    slm_model_shape: "vocab=260,hidden=8,layers=1,heads=2,kv_heads=2,head_dim=4,ffn=16,context=16",
+    slm_quantization: "q8_0",
+    slm_checksum: defaultDemoSlmChecksum,
+    slm_tokenizer_checksum: "0x288f65d94c26743e",
+    slm_tensor_layout_checksum: "0xd8fb6e636a8badd6",
+    slm_config_checksum: "unavailable",
+    quality_claim: "runtime-execution-smoke-only",
+    trained_quality_claim: "not-claimed",
+    evidence_admission_status: "accepted-for-runtime-smoke",
+    required_next_gate: "replace-with-trained-or-evaluated-model-before-product-quality-claim",
+    max_tokens: 16
+  };
+}
+
+function defaultDemoArtifactFixtureBytes() {
+  const modelPath = path.resolve(__dirname, "..", "models", "tiny-test-model-q8.slm");
+  return Buffer.from(fs.readFileSync(modelPath));
+}
+
+async function tryFulfillDefaultDemoRequest(client, params) {
+  const requestUrl = params.request && params.request.url ? params.request.url : "";
+  if (/^https?:\/\/minimodel\.org\/catalog\/default-demo\.v0\.json\b/i.test(requestUrl)) {
+    await fulfillJsonRequest(client, params.requestId, defaultDemoMetadataFixture());
+    return true;
+  }
+  if (/^https?:\/\/minimodel\.org\/artifacts\/demo\/tiny-test-model-q8\.slm\b/i.test(requestUrl)) {
+    await fulfillBinaryRequest(client, params.requestId, defaultDemoArtifactFixtureBytes());
+    return true;
+  }
+  return false;
+}
+
+function installDefaultDemoInterceptor(client) {
+  client.on("Fetch.requestPaused", (params) => {
+    (async () => {
+      if (await tryFulfillDefaultDemoRequest(client, params)) {
+        return;
+      }
+      await continuePausedRequest(client, params.requestId);
+    })().catch((error) => {
+      console.error(error);
+      continuePausedRequest(client, params.requestId).catch((continueError) => {
+        console.error(continueError);
+      });
+    });
+  });
+}
+
 function installHfSearchUiInterceptor(client) {
   client.on("Fetch.requestPaused", (params) => {
     const requestUrl = params.request && params.request.url ? params.request.url : "";
     (async () => {
+      if (await tryFulfillDefaultDemoRequest(client, params)) {
+        return;
+      }
       if (/^https?:\/\/huggingface\.co\/api\/models\b/i.test(requestUrl)) {
         await fulfillJsonRequest(client, params.requestId, [
           {
@@ -1849,6 +1943,25 @@ function installHfSearchUiInterceptor(client) {
       continuePausedRequest(client, params.requestId).catch((continueError) => {
         console.error(continueError);
       });
+    });
+  });
+}
+
+function installPeerStatusLiveInterceptor(client) {
+  client.on("Fetch.requestPaused", (params) => {
+    const requestUrl = params.request && params.request.url ? params.request.url : "";
+    (async () => {
+      if (await tryFulfillDefaultDemoRequest(client, params)) {
+        return;
+      }
+      if (requestUrl === `${smokePeerBaseUrl}minimodel.peer_status.v0.json`) {
+        await fulfillJsonRequest(client, params.requestId, peerStatusLiveFixtureBody());
+        return;
+      }
+      await continuePausedRequest(client, params.requestId);
+    })().catch((error) => {
+      console.error(`peer status live interceptor failed: ${error && error.stack ? error.stack : error}`);
+      continuePausedRequest(client, params.requestId).catch(() => {});
     });
   });
 }
@@ -2116,6 +2229,111 @@ async function runPagePublicLocalOnlySmoke(client) {
     awaitPromise: true,
     returnByValue: true,
     timeout: 90000
+  });
+  return parseEvaluateValue(result);
+}
+
+async function runPagePublicDefaultDemoSmoke(client) {
+  const expression = `
+    (async () => {
+      const byId = (id) => document.getElementById(id);
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const stateSnapshot = () => JSON.stringify({
+        href: location.href,
+        title: document.title,
+        readyState: document.readyState,
+        runtimeStatus: byId("runtimeStatus") ? byId("runtimeStatus").textContent : "missing",
+        wasmState: byId("wasmState") ? byId("wasmState").textContent : "missing",
+        modelState: byId("modelState") ? byId("modelState").textContent : "missing",
+        errorState: byId("errorState") ? byId("errorState").textContent : "missing",
+        localModelState: byId("localModelState") ? byId("localModelState").textContent : "missing",
+        catalogStatus: byId("catalogStatus") ? byId("catalogStatus").textContent : "missing",
+        modelToolbarName: byId("modelToolbarName") ? byId("modelToolbarName").textContent : "missing",
+        modelLoadPill: byId("modelLoadPill") ? byId("modelLoadPill").textContent : "missing",
+        selectedModel: byId("modelSelect") ? byId("modelSelect").value : "missing",
+        modelOptions: byId("modelSelect")
+          ? Array.from(byId("modelSelect").options).map((option) => ({
+            value: option.value,
+            text: option.textContent.trim(),
+            disabled: option.disabled
+          }))
+          : [],
+        bodyText: document.body ? document.body.textContent.replace(/\\s+/g, " ").trim().slice(0, 500) : ""
+      });
+      const waitFor = async (predicate, label) => {
+        for (let index = 0; index < 400; index += 1) {
+          if (predicate()) {
+            return;
+          }
+          await sleep(50);
+        }
+        throw new Error("timed out waiting for " + label + ": " + stateSnapshot());
+      };
+      await waitFor(
+        () => byId("wasmState") && byId("wasmState").textContent === "loaded",
+        "runtime boot"
+      );
+      await waitFor(
+        () => byId("runtimeStatus") && byId("runtimeStatus").textContent === "Ready" &&
+          byId("modelState") && byId("modelState").textContent.startsWith("loaded"),
+        "default MiniModel demo load"
+      );
+      byId("prompt").value = "hi";
+      byId("chatForm").dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await waitFor(
+        () => byId("response") && byId("response").textContent.length > 0,
+        "default demo generation"
+      );
+      return JSON.stringify({
+        title: document.title,
+        hostname: window.location.hostname,
+        h1: document.querySelector("h1") ? document.querySelector("h1").textContent.trim() : "",
+        eyebrow: document.querySelector(".eyebrow") ? document.querySelector(".eyebrow").textContent.trim() : "",
+        notice: document.querySelector(".notice") ? document.querySelector(".notice").textContent.trim() : "",
+        footer: byId("appFooter") ? byId("appFooter").textContent.trim().replace(/\\s+/g, " ") : "",
+        runtimeStatus: byId("runtimeStatus").textContent,
+        wasmState: byId("wasmState").textContent,
+        modelState: byId("modelState").textContent,
+        errorState: byId("errorState").textContent,
+        provenanceState: byId("provenanceState").textContent,
+        provenanceSourceKind: byId("provenanceSourceKind").textContent,
+        provenanceSourceSnapshot: byId("provenanceSourceSnapshot").textContent,
+        provenanceSourceId: byId("provenanceSourceId").textContent,
+        provenanceQualityClaim: byId("provenanceQualityClaim").textContent,
+        provenanceNextGate: byId("provenanceNextGate").textContent,
+        localModelState: byId("localModelState").textContent,
+        catalogUrl: byId("catalogUrlInput").value,
+        catalogStatus: byId("catalogStatus").textContent,
+        hfStatus: byId("hfStatus").textContent,
+        selectedModel: byId("modelSelect").value,
+        modelToolbarName: byId("modelToolbarName").textContent,
+        modelLoadPill: byId("modelLoadPill").textContent,
+        currentModelSummary: byId("currentModelSummary").textContent,
+        response: byId("response").textContent,
+        consoleText: byId("console").textContent,
+        diagnostics: byId("diagnostics").textContent,
+        conversationItems: Array.from(document.querySelectorAll("#conversation .message")).map((item) => ({
+          role: item.querySelector(".message-role") ? item.querySelector(".message-role").textContent.trim() : "",
+          text: item.querySelector(".message-text") ? item.querySelector(".message-text").textContent : "",
+          isError: item.classList.contains("error")
+        })),
+        modelOptions: Array.from(byId("modelSelect").options).map((option) => ({
+          value: option.value,
+          text: option.textContent.trim(),
+          disabled: option.disabled
+        })),
+        generateDisabled: byId("generateButton").disabled,
+        resetDisabled: byId("resetButton").disabled,
+        modelSelectDisabled: byId("modelSelect").disabled,
+        importLocalModelDisabled: byId("importLocalModelButton").disabled
+      });
+    })()
+  `;
+  const result = await client.send("Runtime.evaluate", {
+    expression,
+    awaitPromise: true,
+    returnByValue: true,
+    timeout: 120000
   });
   return parseEvaluateValue(result);
 }
@@ -2810,6 +3028,53 @@ async function runPageHfSearchUiSmoke(client) {
       await sleep(50);
       byId("simpleHfSourceButton").click();
       await sleep(50);
+      const initialSimpleHfQuery = byId("simpleHfSearchInput") ? byId("simpleHfSearchInput").value : "";
+      const initialAdvancedHfQuery = byId("hfSearchInput") ? byId("hfSearchInput").value : "";
+      const simpleHfPlaceholder = byId("simpleHfSearchInput") ? byId("simpleHfSearchInput").getAttribute("placeholder") || "" : "";
+      const advancedHfPlaceholder = byId("hfSearchInput") ? byId("hfSearchInput").getAttribute("placeholder") || "" : "";
+      const initialSimpleHfSort = byId("simpleHfSortSelect") ? byId("simpleHfSortSelect").value : "";
+      const initialAdvancedHfSort = byId("hfSortSelect") ? byId("hfSortSelect").value : "";
+      byId("simpleHfSearchButton").click();
+      for (let index = 0; index < 120; index += 1) {
+        const status = byId("simpleDiscoveryStatus") ? byId("simpleDiscoveryStatus").textContent : "";
+        if (document.querySelectorAll("#simpleHfResults li").length >= 4 && status.includes("TinyRustLM-ready")) {
+          break;
+        }
+        await sleep(100);
+      }
+      const browseResultCount = document.querySelectorAll("#simpleHfResults li").length;
+      const browseAdvancedResultCount = document.querySelectorAll("#hfResults li").length;
+      const browseStatus = byId("simpleDiscoveryStatus") ? byId("simpleDiscoveryStatus").textContent : "";
+      const browseHfStatus = byId("hfStatus") ? byId("hfStatus").textContent : "";
+      const browseTexts = textList("#simpleHfResults li");
+      if (byId("simpleHfSortSelect")) {
+        byId("simpleHfSortSelect").value = "new";
+        byId("simpleHfSortSelect").dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      if (byId("hfSortSelect")) {
+        byId("hfSortSelect").value = "new";
+      }
+      byId("simpleHfSearchButton").click();
+      for (let index = 0; index < 120; index += 1) {
+        const status = byId("simpleDiscoveryStatus") ? byId("simpleDiscoveryStatus").textContent : "";
+        if (document.querySelectorAll("#simpleHfResults li").length >= 4 && status.includes("new releases")) {
+          break;
+        }
+        await sleep(100);
+      }
+      const newBrowseResultCount = document.querySelectorAll("#simpleHfResults li").length;
+      const newBrowseAdvancedResultCount = document.querySelectorAll("#hfResults li").length;
+      const newBrowseStatus = byId("simpleDiscoveryStatus") ? byId("simpleDiscoveryStatus").textContent : "";
+      const newBrowseHfStatus = byId("hfStatus") ? byId("hfStatus").textContent : "";
+      const newBrowseSimpleHfSort = byId("simpleHfSortSelect") ? byId("simpleHfSortSelect").value : "";
+      const newBrowseAdvancedHfSort = byId("hfSortSelect") ? byId("hfSortSelect").value : "";
+      if (byId("simpleHfSortSelect")) {
+        byId("simpleHfSortSelect").value = "popular";
+        byId("simpleHfSortSelect").dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      if (byId("hfSortSelect")) {
+        byId("hfSortSelect").value = "popular";
+      }
       byId("simpleHfSearchInput").value = "tiny";
       window.__tinyrustlmDownloads = [];
       window.__tinyrustlmDownloadNames = [];
@@ -2977,6 +3242,23 @@ async function runPageHfSearchUiSmoke(client) {
       const actionTexts = textList("#simpleHfResults button, #simpleHfResults a, #simpleHfResults .compatibility-pill, #simpleHfResults .model-result-meta");
       return JSON.stringify({
         initiallyOpen,
+        initialSimpleHfQuery,
+        initialAdvancedHfQuery,
+        simpleHfPlaceholder,
+        advancedHfPlaceholder,
+        initialSimpleHfSort,
+        initialAdvancedHfSort,
+        browseResultCount,
+        browseAdvancedResultCount,
+        browseStatus,
+        browseHfStatus,
+        browseTexts,
+        newBrowseResultCount,
+        newBrowseAdvancedResultCount,
+        newBrowseStatus,
+        newBrowseHfStatus,
+        newBrowseSimpleHfSort,
+        newBrowseAdvancedHfSort,
         panelOpenImmediatelyAfterSearchClick,
         panelHiddenImmediatelyAfterSearchClick,
         panelOpenImmediatelyAfterRefilterClick,
@@ -4070,6 +4352,46 @@ function peerStatusCheckFixtureBody() {
   };
 }
 
+function peerStatusLiveFixtureBody() {
+  return {
+    status_kind: "minimodel.peer_status",
+    status_version: 0,
+    created_utc: "2026-07-05T00:00:00Z",
+    share_status: "ready-to-serve",
+    transfer_protocol: "direct-http-piece-server-v0",
+    peer_base_url: smokePeerBaseUrl,
+    model_id: "tinyrustlm/tiny-test-model-q8",
+    routes: {
+      peer_status: "minimodel.peer_status.v0.json",
+      peer_piece_set: "minimodel.peer_piece_set.v0",
+      peer_companion_state: "minimodel.peer_companion_state.v0.json"
+    },
+    manifest: {
+      sha256: "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+    },
+    artifact: {
+      kind: "slm",
+      byte_count: 8832,
+      sha256: "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+    },
+    pieces: {
+      piece_set_path_hint: "minimodel.peer_piece_set.v0",
+      piece_set_sha256: "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      piece_count: 1,
+      merkle_root_sha256: "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+    },
+    boundary: {
+      metadata_only: true,
+      peer_status_embeds_model_bytes: false,
+      peer_status_embeds_piece_bytes: false,
+      project_server_serves_model_bytes: false,
+      project_server_runs_model_bytes: false,
+      project_server_proxies_model_bytes: false,
+      requires_rust_reverify_before_browser_import: true
+    }
+  };
+}
+
 function writePeerStatusCheckFixture() {
   const statusDir = fs.mkdtempSync(path.join(os.tmpdir(), "tinyrustlm-peer-status-check-"));
   const statusPath = path.join(statusDir, "tiny-test-model-q8.peer-status-check.v0.json");
@@ -4830,6 +5152,82 @@ async function runPagePeerStatusCheckSmoke(client) {
   } finally {
     fs.rmSync(fixture.statusDir, { recursive: true, force: true });
   }
+}
+
+async function runPagePeerStatusLiveSmoke(client) {
+  const waitExpression = `
+    (async () => {
+      const byId = (id) => document.getElementById(id);
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      for (let index = 0; index < 600; index += 1) {
+        if (
+          byId("wasmState") &&
+          byId("wasmState").textContent === "loaded" &&
+          byId("sidebarP2pSetupButton") &&
+          byId("simplePeerBaseUrlInput") &&
+          byId("simpleCheckPeerStatusButton") &&
+          byId("simplePeerStatusCheckStatus") &&
+          byId("checkPeerStatusButton") &&
+          byId("peerStatusCheckStatus")
+        ) {
+          return true;
+        }
+        await sleep(100);
+      }
+      throw new Error("runtime did not boot for live peer status smoke");
+    })()
+  `;
+  parseEvaluateValue(await client.send("Runtime.evaluate", {
+    expression: waitExpression,
+    awaitPromise: true,
+    returnByValue: true,
+    timeout: 90000
+  }));
+  const importExpression = `
+    (async () => {
+      const byId = (id) => document.getElementById(id);
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const visible = (node) => {
+        if (!node || node.closest("[hidden]")) {
+          return false;
+        }
+        for (let current = node; current; current = current.parentElement) {
+          const style = window.getComputedStyle(current);
+          if (style.display === "none" || style.visibility === "hidden") {
+            return false;
+          }
+        }
+        return node.getClientRects().length > 0;
+      };
+      byId("sidebarP2pSetupButton").click();
+      byId("simplePeerBaseUrlInput").value = ${JSON.stringify(smokePeerBaseUrl)};
+      byId("simpleCheckPeerStatusButton").click();
+      for (let index = 0; index < 400; index += 1) {
+        const status = byId("simplePeerStatusCheckStatus").textContent || "";
+        if (status.includes("Live peer status loaded") && status.includes("Rust reverify required")) {
+          break;
+        }
+        await sleep(50);
+      }
+      return JSON.stringify({
+        simpleStatus: byId("simplePeerStatusCheckStatus").textContent,
+        advancedStatus: byId("peerStatusCheckStatus").textContent,
+        simplePeerUrlStatus: byId("simplePeerUrlStatus").textContent,
+        simpleDiscoveryStatus: byId("simpleDiscoveryStatus").textContent,
+        simplePeerBaseUrlValue: byId("simplePeerBaseUrlInput").value,
+        panelOpen: visible(byId("simpleDiscoveryPanel")),
+        p2pPanelHidden: byId("simpleP2pSourcePanel").hidden,
+        bodyText: document.body.textContent.replace(/\\s+/g, " ").slice(0, 12000)
+      });
+    })()
+  `;
+  const result = await client.send("Runtime.evaluate", {
+    expression: importExpression,
+    awaitPromise: true,
+    returnByValue: true,
+    timeout: 90000
+  });
+  return parseEvaluateValue(result);
 }
 
 async function runPagePeerCompanionInventorySmoke(client) {
@@ -11171,8 +11569,8 @@ function assertUiSnapshot(snapshot, phase, viewportName) {
   if (!localOnlyCopy.includes("Local browser inference") || !localOnlyCopy.includes("No prompts sent to a server")) {
     failures.push(`${prefix} privacy badge was ${snapshot.privacyBadge}`);
   }
-  if (!localOnlyCopy.includes("TinyRustLM.com does not serve runnable model weights")) {
-    failures.push(`${prefix} model-serving boundary was not visible`);
+  if (!localOnlyCopy.includes("tiny verified demo model loads from MiniModel.org")) {
+    failures.push(`${prefix} MiniModel demo boundary was not visible`);
   }
   if (
     !snapshot.footer.includes("TinyRustLM.com") ||
@@ -12113,6 +12511,62 @@ function assertHfSearchUiSmoke(result, networkRequests) {
   } else {
     if (result.initiallyOpen) {
       failures.push("model source popover was open before the user requested it");
+    }
+    if (String(result.initialSimpleHfQuery || "").trim() || String(result.initialAdvancedHfQuery || "").trim()) {
+      failures.push(`Hugging Face search inputs should start empty: ${JSON.stringify({
+        simple: result.initialSimpleHfQuery,
+        advanced: result.initialAdvancedHfQuery
+      })}`);
+    }
+    if (!String(result.simpleHfPlaceholder || "").includes("TinyLlama") || !String(result.advancedHfPlaceholder || "").includes("TinyLlama")) {
+      failures.push(`Hugging Face search placeholders were not useful examples: ${JSON.stringify({
+        simple: result.simpleHfPlaceholder,
+        advanced: result.advancedHfPlaceholder
+      })}`);
+    }
+    if (result.initialSimpleHfSort !== "popular" || result.initialAdvancedHfSort !== "popular") {
+      failures.push(`Hugging Face browse sort should default to popular: ${JSON.stringify({
+        simple: result.initialSimpleHfSort,
+        advanced: result.initialAdvancedHfSort
+      })}`);
+    }
+    if (result.browseResultCount !== 4 || result.browseAdvancedResultCount !== 4) {
+      failures.push(`blank Hugging Face browse should show only viable candidates, got ${result.browseResultCount}/${result.browseAdvancedResultCount}`);
+    }
+    if (!String(result.browseStatus || "").includes("TinyRustLM-ready candidates") || !String(result.browseHfStatus || "").includes("TinyRustLM-ready candidates")) {
+      failures.push(`blank Hugging Face browse status did not explain viable candidate filtering: ${result.browseStatus}/${result.browseHfStatus}`);
+    }
+    if (!String(result.browseStatus || "").includes("up to 100") || !String(result.browseHfStatus || "").includes("up to 100")) {
+      failures.push(`blank Hugging Face browse status did not expose the top 100 viable-candidate target: ${result.browseStatus}/${result.browseHfStatus}`);
+    }
+    if (result.newBrowseSimpleHfSort !== "new" || result.newBrowseAdvancedHfSort !== "new") {
+      failures.push(`New releases browse did not keep simple and advanced sort controls aligned: ${JSON.stringify({
+        simple: result.newBrowseSimpleHfSort,
+        advanced: result.newBrowseAdvancedHfSort
+      })}`);
+    }
+    if (result.newBrowseResultCount !== 4 || result.newBrowseAdvancedResultCount !== 4) {
+      failures.push(`New releases blank Hugging Face browse should show only viable candidates, got ${result.newBrowseResultCount}/${result.newBrowseAdvancedResultCount}`);
+    }
+    if (!String(result.newBrowseStatus || "").includes("new releases") || !String(result.newBrowseHfStatus || "").includes("new releases")) {
+      failures.push(`New releases browse status did not expose the selected order: ${result.newBrowseStatus}/${result.newBrowseHfStatus}`);
+    }
+    const browseRequest = (Array.isArray(networkRequests) ? networkRequests : [])
+      .find((requestUrl) => /huggingface\.co\/api\/models\b/i.test(requestUrl) && /[?&]limit=500(?:&|$)/i.test(requestUrl) && !/[?&]search=/i.test(requestUrl));
+    if (!browseRequest) {
+      failures.push(`blank Hugging Face browse did not request the bounded top 500 metadata scan: ${JSON.stringify(networkRequests)}`);
+    }
+    const newBrowseRequest = (Array.isArray(networkRequests) ? networkRequests : [])
+      .find((requestUrl) => /huggingface\.co\/api\/models\b/i.test(requestUrl)
+        && /[?&]limit=500(?:&|$)/i.test(requestUrl)
+        && /[?&]sort=createdAt(?:&|$)/i.test(requestUrl)
+        && /[?&]direction=-1(?:&|$)/i.test(requestUrl)
+        && !/[?&]search=/i.test(requestUrl));
+    if (!newBrowseRequest) {
+      failures.push(`New releases browse did not request the bounded top 500 createdAt metadata scan: ${JSON.stringify(networkRequests)}`);
+    }
+    if ((Array.isArray(result.browseTexts) ? result.browseTexts : []).join(" ").includes("example-org/no-supported-source")) {
+      failures.push(`blank Hugging Face browse included a no-source model: ${JSON.stringify(result.browseTexts)}`);
     }
     if (!result.panelOpenImmediatelyAfterSearchClick || result.panelHiddenImmediatelyAfterSearchClick) {
       failures.push(`Search Metadata click immediately closed the source popover: ${JSON.stringify(result)}`);
@@ -16036,6 +16490,66 @@ function assertPeerStatusCheckSmoke(result, networkRequests) {
   }
 }
 
+function assertPeerStatusLiveSmoke(result, networkRequests) {
+  const failures = [];
+  if (!result || typeof result !== "object") {
+    failures.push("live peer status result was missing");
+  } else {
+    const simpleStatus = String(result.simpleStatus || "");
+    const advancedStatus = String(result.advancedStatus || "");
+    const simpleDiscoveryStatus = String(result.simpleDiscoveryStatus || "");
+    for (const [label, status] of [
+      ["simple peer status", simpleStatus],
+      ["advanced peer status", advancedStatus],
+      ["simple discovery status", simpleDiscoveryStatus]
+    ]) {
+      if (!status.includes("Live peer status loaded")
+          || !status.includes("tinyrustlm/tiny-test-model-q8")
+          || !status.includes("1 piece")
+          || !status.includes("8.6 KiB artifact")
+          || !status.includes(smokePeerBaseUrl)
+          || !status.includes("status route minimodel.peer_status.v0.json")
+          || !status.includes("companion minimodel.peer_companion_state.v0.json")
+          || !status.includes("no peer bytes fetched")
+          || !status.includes("status sha256:")
+          || !status.includes("Rust reverify required")) {
+        failures.push(`${label} was ${status}`);
+      }
+    }
+    if (!String(result.simplePeerUrlStatus || "").includes("Live peer status metadata validated")) {
+      failures.push(`known peer URL status did not show live validation: ${result.simplePeerUrlStatus}`);
+    }
+    if (String(result.simplePeerBaseUrlValue || "") !== smokePeerBaseUrl) {
+      failures.push(`known peer URL input was not preserved: ${result.simplePeerBaseUrlValue}`);
+    }
+    if (!result.panelOpen || result.p2pPanelHidden) {
+      failures.push(`P2P source panel was not open: ${JSON.stringify({ panelOpen: result.panelOpen, p2pPanelHidden: result.p2pPanelHidden })}`);
+    }
+    const bodyText = String(result.bodyText || "");
+    if (!bodyText.includes("Check Peer") || !bodyText.includes("Check Known Peer")) {
+      failures.push("live peer status controls were missing from rendered UI");
+    }
+  }
+  const statusRoute = `${smokePeerBaseUrl}minimodel.peer_status.v0.json`;
+  const peerRequests = networkRequests.filter((requestUrl) => requestUrl.startsWith(smokePeerBaseUrl));
+  if (!peerRequests.includes(statusRoute)) {
+    failures.push(`live peer status route was not fetched: ${JSON.stringify(networkRequests)}`);
+  }
+  for (const requestUrl of peerRequests) {
+    if (requestUrl !== statusRoute) {
+      failures.push(`live peer status smoke fetched non-status peer route: ${requestUrl}`);
+    }
+  }
+  for (const requestUrl of networkRequests) {
+    if (requestUrl.includes("huggingface.co") || requestUrl.includes("MiniModel.org") || requestUrl.includes("minimodel.org")) {
+      failures.push(`live peer status smoke made unrelated remote request: ${requestUrl}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
 function assertPeerCompanionInventorySmoke(result, networkRequests) {
   const failures = [];
   if (!result || typeof result !== "object") {
@@ -16306,10 +16820,10 @@ function assertPublicLocalOnlySmoke(result, networkRequests) {
   if (result.eyebrow !== "Private Rust/WASM") {
     failures.push(`public eyebrow was ${result.eyebrow}`);
   }
-  if (!String(result.notice || "").includes("TinyRustLM.com does not serve runnable model weights")) {
+  if (!String(result.notice || "").includes("tiny verified demo model loads from MiniModel.org")) {
     failures.push(`public notice was ${result.notice}`);
   }
-  if (!String(result.footer || "").includes("Local .slm models only")) {
+  if (!String(result.footer || "").includes("MiniModel demo autoload")) {
     failures.push(`public footer was ${result.footer}`);
   }
   if (result.wasmState !== "loaded") {
@@ -16353,6 +16867,110 @@ function assertPublicLocalOnlySmoke(result, networkRequests) {
     if (requestUrl.includes("MiniModel.org") || requestUrl.includes("minimodel.org")) {
       failures.push(`public catalog loaded before user action: ${requestUrl}`);
     }
+  }
+  if (failures.length > 0) {
+    throw new Error(failures.join("; "));
+  }
+}
+
+function assertPublicDefaultDemoSmoke(result, networkRequests) {
+  const failures = [];
+  if (result.hostname !== "tinyrustlm.com") {
+    failures.push(`hostname was ${result.hostname}`);
+  }
+  if (result.title !== "TinyRustLM" || result.h1 !== "TinyRustLM") {
+    failures.push(`public title/h1 were ${result.title}/${result.h1}`);
+  }
+  if (result.eyebrow !== "Private Rust/WASM") {
+    failures.push(`public eyebrow was ${result.eyebrow}`);
+  }
+  if (!String(result.notice || "").includes("tiny verified demo model loads from MiniModel.org")) {
+    failures.push(`public notice was ${result.notice}`);
+  }
+  if (!String(result.footer || "").includes("MiniModel demo autoload")) {
+    failures.push(`public footer was ${result.footer}`);
+  }
+  if (result.wasmState !== "loaded") {
+    failures.push(`public WASM state was ${result.wasmState}`);
+  }
+  if (result.runtimeStatus !== "Ready") {
+    failures.push(`public runtime status was ${result.runtimeStatus}`);
+  }
+  if (!String(result.modelState || "").startsWith("loaded")) {
+    failures.push(`public model state was ${result.modelState}`);
+  }
+  if (result.errorState !== "none") {
+    failures.push(`public error state was ${result.errorState}`);
+  }
+  if (result.provenanceSourceKind !== "minimodel-public-demo-autoload") {
+    failures.push(`public provenance source kind was ${result.provenanceSourceKind}`);
+  }
+  if (result.provenanceSourceSnapshot !== "minimodel-public-demo-autoload") {
+    failures.push(`public provenance source snapshot was ${result.provenanceSourceSnapshot}`);
+  }
+  if (result.provenanceSourceId !== "tinyrustlm/tiny-test-model-q8") {
+    failures.push(`public provenance source id was ${result.provenanceSourceId}`);
+  }
+  if (result.provenanceQualityClaim !== "runtime-execution-smoke-only") {
+    failures.push(`public quality claim was ${result.provenanceQualityClaim}`);
+  }
+  if (result.provenanceNextGate !== "replace-with-trained-or-evaluated-model-before-product-quality-claim") {
+    failures.push(`public next gate was ${result.provenanceNextGate}`);
+  }
+  if (!String(result.localModelState || "").includes("sha256:6af985853325eaa6d3eaaa8aadd3511da9596eb542fb2d03a9bc9dc1f4377adf")) {
+    failures.push(`public local model state was ${result.localModelState}`);
+  }
+  if (!String(result.catalogStatus || "").includes("Default MiniModel demo loaded from MiniModel.org")) {
+    failures.push(`public catalog status was ${result.catalogStatus}`);
+  }
+  if (result.hfStatus !== "idle") {
+    failures.push(`public HF state was ${result.hfStatus}`);
+  }
+  if (result.selectedModel !== "__local_slm_file") {
+    failures.push(`public selected model was ${result.selectedModel}`);
+  }
+  if (!String(result.modelToolbarName || "").includes("TinyRustLM Fixture q8_0")) {
+    failures.push(`public toolbar name was ${result.modelToolbarName}`);
+  }
+  if (result.modelLoadPill !== "Loaded locally") {
+    failures.push(`public model load pill was ${result.modelLoadPill}`);
+  }
+  if (!String(result.response || "").includes("e")) {
+    failures.push(`public response was ${JSON.stringify(result.response)}`);
+  }
+  if (!String(result.consoleText || "").includes("generate(")) {
+    failures.push("public console did not record generation");
+  }
+  if (!String(result.diagnostics || "").includes('"active_quantization_mode": "q8_0"')) {
+    failures.push("public diagnostics did not report q8_0");
+  }
+  if (!Array.isArray(result.conversationItems) || result.conversationItems.length !== 2) {
+    failures.push(`public conversation count was ${result.conversationItems ? result.conversationItems.length : "missing"}`);
+  }
+  if (result.generateDisabled || result.resetDisabled || result.modelSelectDisabled) {
+    failures.push("public runtime controls were disabled after default demo load");
+  }
+  if (result.importLocalModelDisabled) {
+    failures.push("public local import button was disabled");
+  }
+  const options = Array.isArray(result.modelOptions) ? result.modelOptions : [];
+  if (options.length !== 1 || options[0].value !== "__local_slm_file" || !options[0].text.includes("MiniModel public demo")) {
+    failures.push(`public model options were ${JSON.stringify(options)}`);
+  }
+  if (!networkRequests.some((requestUrl) => /^https?:\/\/minimodel\.org\/catalog\/default-demo\.v0\.json\b/i.test(requestUrl))) {
+    failures.push("default MiniModel demo metadata was not requested");
+  }
+  if (!networkRequests.some((requestUrl) => /^https?:\/\/minimodel\.org\/artifacts\/demo\/tiny-test-model-q8\.slm\b/i.test(requestUrl))) {
+    failures.push("default MiniModel demo artifact was not requested");
+  }
+  if (networkRequests.some((requestUrl) => requestUrl.includes("/models/"))) {
+    failures.push(`public local /models route was requested: ${networkRequests.filter((requestUrl) => requestUrl.includes("/models/")).join(", ")}`);
+  }
+  if (networkRequests.some((requestUrl) => requestUrl.includes("huggingface.co"))) {
+    failures.push(`public external discovery ran before user action: ${networkRequests.filter((requestUrl) => requestUrl.includes("huggingface.co")).join(", ")}`);
+  }
+  if (networkRequests.some((requestUrl) => /^https?:\/\/minimodel\.org\/catalog\/models\.v0\.json\b/i.test(requestUrl))) {
+    failures.push("default metadata catalog was requested instead of the narrow public demo metadata");
   }
   if (failures.length > 0) {
     throw new Error(failures.join("; "));
@@ -19110,7 +19728,15 @@ async function main() {
       browserArgs.push(`--unsafely-treat-insecure-origin-as-secure=${publicSmokeUrl.origin}`);
     }
   }
-  browserArgs.push(appUrl);
+  const publicSmokeLaunchUrl = (() => {
+    if (!publicDefaultDemoSmokeMode && (publicSmokeUrl.hostname === "tinyrustlm.com" || publicSmokeUrl.hostname === "www.tinyrustlm.com")) {
+      const url = new URL(appUrl);
+      url.searchParams.set("autoload", "0");
+      return url.toString();
+    }
+    return appUrl;
+  })();
+  browserArgs.push(publicSmokeLaunchUrl);
   const browserProcess = childProcess.spawn(browser, browserArgs, {
     stdio: "ignore",
     windowsHide: true
@@ -19128,6 +19754,42 @@ async function main() {
     await client.send("Page.enable", {});
     await client.send("Runtime.enable", {});
     await client.send("Network.enable", {});
+    const publicHostSmokeUrl = (() => {
+      try {
+        const host = new URL(appUrl).hostname.toLowerCase();
+        return host === "tinyrustlm.com" || host === "www.tinyrustlm.com";
+      } catch (_error) {
+        return false;
+      }
+    })();
+    const modeInstallsRemoteMetadataInterceptor = hfSearchUiSmokeMode
+      || hfConversionKitAnyExecSmokeMode
+      || hfP2pImportKitExecSmokeMode
+      || hfP2pImportReceiptRejectSmokeMode
+      || hfLocalCatalogSmokeMode
+      || hfPeerAnnouncementSmokeMode
+      || hfPeerAnnouncementRejectSmokeMode
+      || hfPeerAnnouncementBudgetSmokeMode
+      || hfPeerContactCardSmokeMode
+      || hfPeerContactCardRejectSmokeMode
+      || hfPeerContactBookSmokeMode
+      || hfPeerContactBookRejectSmokeMode
+      || hfPeerCompanionInventorySmokeMode
+      || hfCatalogAnnouncementRouteSmokeMode
+      || hfEmptyCatalogAnnouncementRouteSmokeMode
+      || hfCatalogAnnouncementRouteBudgetSmokeMode
+      || peerStatusLiveSmokeMode;
+    if (publicHostSmokeUrl && !modeInstallsRemoteMetadataInterceptor && !disableDefaultDemoInterceptor) {
+      installDefaultDemoInterceptor(client);
+      await client.send("Fetch.enable", {
+        patterns: [
+          {
+            urlPattern: "*",
+            requestStage: "Request"
+          }
+        ]
+      });
+    }
     if (smokeMode === "model-error" || smokeMode === "missing-model" || convertedTrainedRegistrySmokeMode || convertedTrainedSourceManifestDriftSmokeMode || convertedTrainedSourceIdentityDriftSmokeMode || convertedTrainedSourceReviewDriftSmokeMode || convertedTrainedSourceReviewSidecarDriftSmokeMode || convertedTrainedSourceReviewTokenizerImportDriftSmokeMode || convertedTrainedSourceReviewEvalRouteDriftSmokeMode || convertedTrainedSourceReviewOmittedSmokeMode || convertedTrainedSourceValidationDriftSmokeMode || convertedTrainedRuntimeEvidenceDriftSmokeMode || convertedTrainedEvalEvidenceDriftSmokeMode || convertedTrainedAdmissionDriftSmokeMode || compactOperatorRegistrySmokeModes.has(smokeMode) || compactOperatorReceiptDriftSmokeModes.has(smokeMode) || generatedSelectorDriftSmokeModes.has(smokeMode) || smokeMode === "selector-budget" || smokeMode === "sidecar-budget-contract" || smokeMode === "runtime-manifest-drift" || smokeMode === "module-plan-profile-drift" || smokeMode === "module-plan-execution-profile-drift" || smokeMode === "module-plan-fetch-policy-drift" || smokeMode === "module-plan-origin-policy-drift" || smokeMode === "module-plan-wasm-memory-drift" || smokeMode === "module-plan-wasm-export-set-drift" || smokeMode === "module-plan-wasm-heap-drift" || smokeMode === "module-plan-context-token-drift" || smokeMode === "module-plan-sampler-cap-drift" || smokeMode === "module-plan-tokenizer-drift" || smokeMode === "module-plan-resource-drift" || smokeMode === "module-plan-runtime-scratch-drift" || smokeMode === "module-plan-output-limit-drift" || smokeMode === "module-plan-prompt-limit-drift" || smokeMode === "module-plan-fetch-count-drift" || smokeMode === "module-plan-planned-fetch-count-drift" || smokeMode === "module-plan-route-set-algorithm-drift" || smokeMode === "module-plan-route-set-version-drift" || smokeMode === "module-plan-route-set-drift" || smokeMode === "module-plan-operator-receipt-drift" || smokeMode === "module-plan-kv-cache-drift" || smokeMode === "module-plan-adapter-stack-budget-drift" || smokeMode === "module-plan-total-budget-drift" || smokeMode === "module-plan-total-limit-drift" || smokeMode === "module-plan-count-drift" || smokeMode === "module-plan-graph-drift" || smokeMode === "module-plan-stack-drift" || smokeMode === "module-plan-role-drift" || smokeMode === "module-plan-slot-drift" || smokeMode === "module-plan-phase-drift" || smokeMode === "module-plan-byte-drift" || smokeMode === "module-plan-checksum-drift" || smokeMode === "module-plan-dependency-drift" || smokeMode === "assembly-eval-case-drift" || smokeMode === "assembly-evidence-file-drift" || smokeMode === "adapter-family-receipt-drift" || smokeMode === "adapter-manifest-drift" || smokeMode === "source-backed-alr1-manifest-drift" || smokeMode === "adapter-artifact-drift" || smokeMode === "module-plan-payload-checksum-drift" || smokeMode === "adapter-stack-prefetch-drift" || smokeMode === "adapter-stack-rust-validate-drift" || smokeMode === "adapter-sidecar-registry-q8" || smokeMode === "adapter-sidecar-checksum-mismatch" || smokeMode === "adapter-manifest-budget") {
       if (smokeMode === "model-error") {
         installMalformedModelInterceptor(client);
@@ -19286,6 +19948,17 @@ async function main() {
     }
     if (hfSearchUiSmokeMode || hfConversionKitAnyExecSmokeMode || hfP2pImportKitExecSmokeMode || hfP2pImportReceiptRejectSmokeMode || hfLocalCatalogSmokeMode || hfPeerAnnouncementSmokeMode || hfPeerAnnouncementRejectSmokeMode || hfPeerAnnouncementBudgetSmokeMode || hfPeerContactCardSmokeMode || hfPeerContactCardRejectSmokeMode || hfPeerContactBookSmokeMode || hfPeerContactBookRejectSmokeMode || hfPeerCompanionInventorySmokeMode || hfCatalogAnnouncementRouteSmokeMode || hfEmptyCatalogAnnouncementRouteSmokeMode || hfCatalogAnnouncementRouteBudgetSmokeMode) {
       installHfSearchUiInterceptor(client);
+      await client.send("Fetch.enable", {
+        patterns: [
+          {
+            urlPattern: "*",
+            requestStage: "Request"
+          }
+        ]
+      });
+    }
+    if (peerStatusLiveSmokeMode) {
+      installPeerStatusLiveInterceptor(client);
       await client.send("Fetch.enable", {
         patterns: [
           {
@@ -19903,6 +20576,21 @@ async function main() {
         }
       }
       assertPeerStatusCheckSmoke(result, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (peerStatusLiveSmokeMode) {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPagePeerStatusLiveSmoke(client);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertPeerStatusLiveSmoke(result, networkRequests);
       result.networkRequests = networkRequests;
     } else if (peerCompanionInventorySmokeMode) {
       await client.send("Page.reload", { ignoreCache: true });
@@ -20644,6 +21332,21 @@ async function main() {
         }
       }
       assertCatalogLocalImportSmoke(result, networkRequests);
+      result.networkRequests = networkRequests;
+    } else if (publicDefaultDemoSmokeMode) {
+      await client.send("Page.reload", { ignoreCache: true });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await sleep(500);
+          result = await runPagePublicDefaultDemoSmoke(client);
+          break;
+        } catch (error) {
+          if (!error.message.includes("Execution context was destroyed") || attempt === 2) {
+            throw error;
+          }
+        }
+      }
+      assertPublicDefaultDemoSmoke(result, networkRequests);
       result.networkRequests = networkRequests;
     } else if (publicLocalOnlySmokeMode) {
       await client.send("Page.reload", { ignoreCache: true });

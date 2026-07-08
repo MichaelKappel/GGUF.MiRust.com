@@ -56,6 +56,7 @@ browser_publish_required_terms = [
     "audit-browser-nuget-release-readiness.ps1",
     "uaix.browser.nuget.release_readiness.v0",
     "uaix-browser-nuget-release-readiness.json",
+    "uaix-browser-nuget-release-readiness-publish-plan-dry-run.json",
     "published_current",
     "blocked_remote_hash_mismatch",
     "VersionPrefix",
@@ -71,7 +72,7 @@ browser_nuget_published_required_terms = [
     "UAIX.Browser.p2pRuntime.P2P",
     "UAIX.Browser.Memory",
     "UAIX.Browser.p2pLLM.Conversion",
-    "0.1.6",
+    "0.1.8",
     "post-publish verified",
 ]
 ui_verification_required_terms = [
@@ -81,10 +82,12 @@ ui_verification_required_terms = [
     "local-connect-approval-ui",
     "local-connect-endpoint-ui",
     "local-connect-rust-endpoint-ui",
+    "peer-status-live-ui",
     "Local .slm",
     "Hugging Face",
     "P2P import",
     "Advanced tools",
+    "minimodel.peer_status.v0.json",
 ]
 public_root_verification_required_terms = [
     "tinyrustlm.public_root_verification.v0",
@@ -92,10 +95,11 @@ public_root_verification_required_terms = [
     "verify-tinyrustlm-public-root.sh",
     "tinyrustlm-public-root-verification.json",
     "tinyrustlm.com-loopback-browser-smoke",
-    "public-local-only",
+    "public-default-demo",
     "catalog-local-import",
     "local-import-ambiguous-selection",
     "peer-url-unsafe-ui",
+    "peer-status-live-ui",
 ]
 browser_memory_filedeck_required_terms = [
     "FileDeck",
@@ -106,6 +110,34 @@ browser_memory_filedeck_required_terms = [
     "persona source evidence bound",
     "uaix_memory=advanced_persona_profile",
 ]
+local_connect_category_binding_required_terms = [
+    "unknown endpoint-listed app",
+    "row-selected category",
+    "known app category drift",
+    "typed-action-dry-run-default-execution-consent-v1",
+    "x-tinyrustlm-execution-consent",
+    "native-opener-v1",
+]
+huggingface_top_compatible_required_terms = [
+    "top 100",
+    "top 500",
+    "TinyRustLM-ready",
+    "Popular",
+    "New releases",
+    "hf-search-ui",
+]
+public_default_demo_required_terms = [
+    "public-default-demo",
+    "default MiniModel demo",
+    "catalog/default-demo.v0.json",
+    "artifacts/demo/tiny-test-model-q8.slm",
+    "MiniModel demo autoload",
+]
+minimodel_peer_metadata_cors_required_terms = [
+    "CORS/PNA",
+    "Check Peer",
+    "non-CORS",
+]
 stale_literal_patterns = [
     "authenticated publish plus feed-current and feed-hash verification",
     "feed-current and feed-hash verification passes",
@@ -115,6 +147,7 @@ stale_literal_patterns = [
     "blocked_missing_api_key",
     "version `0.1.1` with SHA256SUMS-bound package-hash evidence",
     "version `0.1.2` and passed clean consumer",
+    "typed-action-dry-run-default-v1",
     "TinyRustLM.Abstractions, TinyRustLM.Core, and TinyRustLM.P2P",
     "TinyRustLM.Abstractions`, `TinyRustLM.Core`, and `TinyRustLM.P2P",
 ]
@@ -172,8 +205,12 @@ for site_root in site_roots:
             required_terms.extend(ui_verification_required_terms)
             required_terms.extend(public_root_verification_required_terms)
             required_terms.extend(browser_memory_filedeck_required_terms)
+            required_terms.extend(local_connect_category_binding_required_terms)
+            required_terms.extend(huggingface_top_compatible_required_terms)
+            required_terms.extend(public_default_demo_required_terms)
         elif relative_path == "docs/catalog-boundary.md":
             required_terms.append("SHA256SUMS-bound")
+            required_terms.extend(minimodel_peer_metadata_cors_required_terms)
         checks.append(new_check(f"{site_name}/{relative_path}", site_root / relative_path, required_terms))
 
 stale_matches = []

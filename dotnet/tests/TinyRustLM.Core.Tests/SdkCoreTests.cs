@@ -101,8 +101,15 @@ public sealed class SdkCoreTests
             "ai_digest_script_data_ai_digest",
             "point_agent_urls",
             "local_browser_draft_restore",
+            "prompt_nudges",
             "safe_structured_output_mode",
+            "review_export_checks",
             "canonical_starter_zip_downloads",
+            "agent_use_blocks_codex_claude_gpt",
+            "raw_session_log",
+            "family_aware_required_files",
+            "dtmi_policy",
+            "manifest_json",
             "package_model_json",
             "knowledge_graph_json"
         })
@@ -151,6 +158,7 @@ public sealed class SdkCoreTests
         Assert.Equal(62, plan.RequiredFileCount);
         Assert.Equal(plan.RequiredFileCount, plan.FileDeck.TotalRequiredFiles);
         Assert.True(plan.FileDeck.ClosedRequiredFileSet);
+        Assert.True(plan.FileDeck.IncludesManifestJson);
         Assert.True(plan.FileDeck.IncludesManifestOverlay);
         Assert.True(plan.FileDeck.IncludesPackageModel);
         Assert.True(plan.FileDeck.IncludesKnowledgeGraph);

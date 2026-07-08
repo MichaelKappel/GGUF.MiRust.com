@@ -299,7 +299,7 @@ public sealed class PackageBoundaryTests
         AssertPackageProjectSearchMetadata(root, "dotnet/src/TinyRustLM.Abstractions/TinyRustLM.Abstractions.csproj", "UAIX.Browser", "UAIX.org", "p2pRuntime", "p2pRuntime.com", "p2pLLM", "p2pLLM.com", "MiniModel", ".slm", ".uai", "memory", "persona");
         AssertPackageProjectSearchMetadata(root, "dotnet/src/TinyRustLM.Core/TinyRustLM.Core.csproj", "UAIX.Browser.p2pLLM.Runtime", "UAIX.org", "p2pLLM", "p2pLLM.com", ".slm", "runtime", "harness", "diagnostics");
         AssertPackageProjectSearchMetadata(root, "dotnet/src/TinyRustLM.P2P/TinyRustLM.P2P.csproj", "UAIX.Browser.p2pRuntime.P2P", "UAIX.org", "p2pRuntime", "p2pRuntime.com", "MiniModel", "manifest", "announcement", "catalog", "receipt");
-        AssertPackageProjectSearchMetadata(root, "dotnet/src/TinyRustLM.Memory/TinyRustLM.Memory.csproj", "UAIX.Browser.Memory", "UAIX.org", ".uai", ".uaix", "AI Memory Package Wizard", "ai-digest", "point-agent-urls", "canonical-starter-zip", "safe-structured-output", "agent-pickup", "session-log", "manifest-overlay", "package-model", "knowledge-graph", "persona", "personality-packs", "persona-deck", "triggered-style-axes", "LLM-Wiki", "multi-agent", "talisman-system");
+        AssertPackageProjectSearchMetadata(root, "dotnet/src/TinyRustLM.Memory/TinyRustLM.Memory.csproj", "UAIX.Browser.Memory", "UAIX.org", ".uai", ".uaix", "AI Memory Package Wizard", "ai-digest", "point-agent-urls", "prompt-nudges", "canonical-starter-zip", "safe-structured-output", "review-export-checks", "agent-use-blocks", "dtmi-policy", "family-aware-required-files", "agent-pickup", "session-log", "manifest-json", "manifest-overlay", "package-model", "knowledge-graph", "persona", "personality-packs", "persona-deck", "triggered-style-axes", "LLM-Wiki", "multi-agent", "talisman-system");
         AssertPackageProjectSearchMetadata(root, "dotnet/src/TinyRustLM.Conversion/TinyRustLM.Conversion.csproj", "UAIX.Browser.p2pLLM.Conversion", "UAIX.org", "p2pLLM", "p2pLLM.com", ".slm", "conversion", "local-feed");
     }
 
@@ -1124,7 +1124,7 @@ public sealed class PackageBoundaryTests
         {
             Assert.Contains("uaix.browser.nuget.release_readiness.v0", script, StringComparison.Ordinal);
             Assert.Contains("uaix-browser-nuget-release-readiness.json", script, StringComparison.Ordinal);
-            Assert.Contains("uaix-browser-nuget-publish-plan.json", script, StringComparison.Ordinal);
+            Assert.Contains("uaix-browser-nuget-release-readiness-publish-plan-dry-run.json", script, StringComparison.Ordinal);
             Assert.Contains("uaix-browser-nuget-local-feed-current.json", script, StringComparison.Ordinal);
             Assert.Contains("uaix-browser-nuget-local-feed-hashes.json", script, StringComparison.Ordinal);
             Assert.Contains("uaix-browser-nuget-release-feed-current.json", script, StringComparison.Ordinal);
@@ -1188,6 +1188,8 @@ public sealed class PackageBoundaryTests
         }
 
         Assert.Contains("dotnet CLI is required", bashConsumerScript, StringComparison.Ordinal);
+        Assert.Contains("NUGET_HTTP_CACHE_PATH", File.ReadAllText(Path.Combine(root, "eng/verify-consumer.ps1")), StringComparison.Ordinal);
+        Assert.Contains("NUGET_HTTP_CACHE_PATH", bashConsumerScript, StringComparison.Ordinal);
         Assert.Contains("consumer_output", bashScript, StringComparison.Ordinal);
         Assert.Contains("error_message", bashScript, StringComparison.Ordinal);
     }
@@ -3012,7 +3014,7 @@ public sealed class PackageBoundaryTests
         {
             yield return entry;
         }
-        foreach (var entry in RecordSurface("TinyRustLM.UaixMemoryFileDeckSummary", 18,
+        foreach (var entry in RecordSurface("TinyRustLM.UaixMemoryFileDeckSummary", 19,
             "AdvancedPersonaRequiredFiles",
             "ClosedRequiredFileSet",
             "ConfigurationSpecificRequiredFiles",
@@ -3022,6 +3024,7 @@ public sealed class PackageBoundaryTests
             "IncludesAgentPickup",
             "IncludesKnowledgeGraph",
             "IncludesLlmsExports",
+            "IncludesManifestJson",
             "IncludesManifestOverlay",
             "IncludesPackageModel",
             "IncludesPersonaSourceEvidence",

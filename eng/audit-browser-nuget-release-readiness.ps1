@@ -46,7 +46,7 @@ if (-not $PublishPlanReport) {
         $env:UAIX_BROWSER_PUBLISH_PLAN_REPORT
     }
     else {
-        Join-Path $RepoRoot "artifacts/reports/uaix-browser-nuget-publish-plan.json"
+        Join-Path $RepoRoot "artifacts/reports/uaix-browser-nuget-release-readiness-publish-plan-dry-run.json"
     }
 }
 if (-not $LocalFeedCurrentReport) {

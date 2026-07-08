@@ -55,7 +55,9 @@ $TempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("tinyrustlm-consumer-" 
 $ProjectDir = Join-Path $TempRoot "ConsumerSmoke"
 New-Item -ItemType Directory -Force -Path $ProjectDir | Out-Null
 $OldNuGetPackages = $env:NUGET_PACKAGES
+$OldNuGetHttpCachePath = $env:NUGET_HTTP_CACHE_PATH
 $env:NUGET_PACKAGES = Join-Path $TempRoot "packages"
+$env:NUGET_HTTP_CACHE_PATH = Join-Path $TempRoot "http-cache"
 
 try {
     Invoke-DotNet -Arguments @("new", "console", "--framework", "net8.0", "--output", $ProjectDir) | Out-Null
@@ -184,6 +186,7 @@ if (memoryPlan.Kind != "uaix.memory.package_plan.v0"
     || memoryPlan.RequiredFileCount != 62
     || memoryPlan.FileDeck.TotalRequiredFiles != memoryPlan.RequiredFileCount
     || !memoryPlan.FileDeck.ClosedRequiredFileSet
+    || !memoryPlan.FileDeck.IncludesManifestJson
     || !memoryPlan.FileDeck.IncludesManifestOverlay
     || !memoryPlan.FileDeck.IncludesPackageModel
     || !memoryPlan.FileDeck.IncludesKnowledgeGraph
@@ -487,6 +490,12 @@ finally {
     }
     else {
         $env:NUGET_PACKAGES = $OldNuGetPackages
+    }
+    if ($null -eq $OldNuGetHttpCachePath) {
+        Remove-Item Env:\NUGET_HTTP_CACHE_PATH -ErrorAction SilentlyContinue
+    }
+    else {
+        $env:NUGET_HTTP_CACHE_PATH = $OldNuGetHttpCachePath
     }
     if (Test-Path -LiteralPath $TempRoot) {
         Remove-Item -Recurse -Force -LiteralPath $TempRoot

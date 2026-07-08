@@ -16,7 +16,7 @@ else
   REPORT_OUTPUT="${4:-$DEFAULT_REPORT_OUTPUT}"
 fi
 PUBLIC_ROOT_SMOKE_MODES=(
-  "public-local-only"
+  "public-default-demo"
   "catalog-local-import"
   "local-import-ambiguous-selection"
   "peer-url-unsafe-ui"
@@ -24,6 +24,7 @@ PUBLIC_ROOT_SMOKE_MODES=(
   "local-connect-approval-ui"
   "local-connect-endpoint-ui"
   "local-connect-rust-endpoint-ui"
+  "peer-status-live-ui"
 )
 SERVER_STDOUT="$REPO_ROOT/artifacts/reports/tinyrustlm-public-root-server-$PORT.out.log"
 SERVER_STDERR="$REPO_ROOT/artifacts/reports/tinyrustlm-public-root-server-$PORT.err.log"

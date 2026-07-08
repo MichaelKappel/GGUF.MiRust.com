@@ -118,6 +118,7 @@ $browserPublishRequiredTerms = @(
     "audit-browser-nuget-release-readiness.ps1",
     "uaix.browser.nuget.release_readiness.v0",
     "uaix-browser-nuget-release-readiness.json",
+    "uaix-browser-nuget-release-readiness-publish-plan-dry-run.json",
     "published_current",
     "blocked_remote_hash_mismatch",
     "VersionPrefix",
@@ -133,7 +134,7 @@ $browserNuGetPublishedRequiredTerms = @(
     "UAIX.Browser.p2pRuntime.P2P",
     "UAIX.Browser.Memory",
     "UAIX.Browser.p2pLLM.Conversion",
-    "0.1.6",
+    "0.1.8",
     "post-publish verified"
 )
 $uiVerificationRequiredTerms = @(
@@ -143,10 +144,12 @@ $uiVerificationRequiredTerms = @(
     "local-connect-approval-ui",
     "local-connect-endpoint-ui",
     "local-connect-rust-endpoint-ui",
+    "peer-status-live-ui",
     "Local .slm",
     "Hugging Face",
     "P2P import",
-    "Advanced tools"
+    "Advanced tools",
+    "minimodel.peer_status.v0.json"
 )
 $publicRootVerificationRequiredTerms = @(
     "tinyrustlm.public_root_verification.v0",
@@ -154,10 +157,11 @@ $publicRootVerificationRequiredTerms = @(
     "verify-tinyrustlm-public-root.sh",
     "tinyrustlm-public-root-verification.json",
     "tinyrustlm.com-loopback-browser-smoke",
-    "public-local-only",
+    "public-default-demo",
     "catalog-local-import",
     "local-import-ambiguous-selection",
-    "peer-url-unsafe-ui"
+    "peer-url-unsafe-ui",
+    "peer-status-live-ui"
 )
 $browserMemoryFileDeckRequiredTerms = @(
     "FileDeck",
@@ -167,6 +171,34 @@ $browserMemoryFileDeckRequiredTerms = @(
     "UAIX exports verified",
     "persona source evidence bound",
     "uaix_memory=advanced_persona_profile"
+)
+$localConnectCategoryBindingRequiredTerms = @(
+    "unknown endpoint-listed app",
+    "row-selected category",
+    "known app category drift",
+    "typed-action-dry-run-default-execution-consent-v1",
+    "x-tinyrustlm-execution-consent",
+    "native-opener-v1"
+)
+$huggingFaceTopCompatibleRequiredTerms = @(
+    "top 100",
+    "top 500",
+    "TinyRustLM-ready",
+    "Popular",
+    "New releases",
+    "hf-search-ui"
+)
+$publicDefaultDemoRequiredTerms = @(
+    "public-default-demo",
+    "default MiniModel demo",
+    "catalog/default-demo.v0.json",
+    "artifacts/demo/tiny-test-model-q8.slm",
+    "MiniModel demo autoload"
+)
+$miniModelPeerMetadataCorsRequiredTerms = @(
+    "CORS/PNA",
+    "Check Peer",
+    "non-CORS"
 )
 
 foreach ($siteRoot in $resolvedSiteRoots) {
@@ -187,9 +219,13 @@ foreach ($siteRoot in $resolvedSiteRoots) {
             $requiredTerms += $uiVerificationRequiredTerms
             $requiredTerms += $publicRootVerificationRequiredTerms
             $requiredTerms += $browserMemoryFileDeckRequiredTerms
+            $requiredTerms += $localConnectCategoryBindingRequiredTerms
+            $requiredTerms += $huggingFaceTopCompatibleRequiredTerms
+            $requiredTerms += $publicDefaultDemoRequiredTerms
         }
         elseif ($relativePath -eq "docs/catalog-boundary.md") {
             $requiredTerms += @("SHA256SUMS-bound")
+            $requiredTerms += $miniModelPeerMetadataCorsRequiredTerms
         }
 
         $checks.Add((New-Check `
@@ -209,6 +245,7 @@ $staleLiteralPatterns = @(
     'blocked_missing_api_key',
     'version `0.1.1` with SHA256SUMS-bound package-hash evidence',
     'version `0.1.2` and passed clean consumer',
+    'typed-action-dry-run-default-v1',
     'TinyRustLM.Abstractions, TinyRustLM.Core, and TinyRustLM.P2P',
     'TinyRustLM.Abstractions`, `TinyRustLM.Core`, and `TinyRustLM.P2P'
 )

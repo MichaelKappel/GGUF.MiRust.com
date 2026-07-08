@@ -94,6 +94,9 @@
     minimodel: `${httpsScheme}MiniModel.MiRust.com/`
   };
   const defaultCatalogUrl = `${httpsScheme}MiniModel.org/catalog/models.v0.json`;
+  const defaultDemoModelUrl = `${httpsScheme}MiniModel.org/catalog/default-demo.v0.json`;
+  const defaultDemoArtifactPathPrefix = "/artifacts/demo/";
+  const defaultDemoModelKind = "minimodel.public_demo_model.v0";
   const svgNamespace = "http" + "://www.w3.org/2000/svg";
   const catalogTextByteBudget = 256 * 1024;
   const catalogMaxEntries = 64;
@@ -102,6 +105,12 @@
   const hfDiscoveryHost = "huggingface.co";
   const hfSearchLimit = 8;
   const hfSearchApiLimit = 24;
+  const hfBrowseLimit = 100;
+  const hfBrowseApiLimit = 500;
+  const hfBrowseSortModes = {
+    popular: { sort: "downloads", direction: "-1", label: "popular" },
+    new: { sort: "createdAt", direction: "-1", label: "new releases" }
+  };
   const hfLargeSourceWarningBytes = 2 * 1024 * 1024 * 1024;
   const blockedPeerHosts = new Set([
     "minimodel.org",
@@ -517,7 +526,8 @@
     localConnectEndpointUrl: `${"http:"}//127.0.0.1:8711`,
     localConnectEndpointApps: null,
     hfLastAccepted: [],
-    defaultCatalogCheckedForAvailability: false
+    defaultCatalogCheckedForAvailability: false,
+    defaultDemoAutoLoadAttempted: false
   };
 
   const el = {
@@ -534,6 +544,7 @@
     simpleChooseLocalButton: document.getElementById("simpleChooseLocalButton"),
     simpleImportLocalModelButton: document.getElementById("simpleImportLocalModelButton"),
     simpleHfSearchInput: document.getElementById("simpleHfSearchInput"),
+    simpleHfSortSelect: document.getElementById("simpleHfSortSelect"),
     simpleHfSearchButton: document.getElementById("simpleHfSearchButton"),
     simpleHfP2pToggle: document.getElementById("simpleHfP2pToggle"),
     simpleHfP2pStatus: document.getElementById("simpleHfP2pStatus"),
@@ -541,6 +552,7 @@
     simpleHfFlowSummary: document.getElementById("simpleHfFlowSummary"),
     simplePeerBaseUrlInput: document.getElementById("simplePeerBaseUrlInput"),
     simpleSavePeerUrlButton: document.getElementById("simpleSavePeerUrlButton"),
+    simpleCheckPeerStatusButton: document.getElementById("simpleCheckPeerStatusButton"),
     simplePeerUrlStatus: document.getElementById("simplePeerUrlStatus"),
     simplePeerContactCardFile: document.getElementById("simplePeerContactCardFile"),
     simpleApplyPeerContactCardButton: document.getElementById("simpleApplyPeerContactCardButton"),
@@ -640,6 +652,7 @@
     importReceiptLedgerEntries: document.getElementById("importReceiptLedgerEntries"),
     peerStatusCheckFile: document.getElementById("peerStatusCheckFile"),
     peerStatusCheckButton: document.getElementById("peerStatusCheckButton"),
+    checkPeerStatusButton: document.getElementById("checkPeerStatusButton"),
     peerStatusCheckStatus: document.getElementById("peerStatusCheckStatus"),
     peerCompanionInventoryFile: document.getElementById("peerCompanionInventoryFile"),
     peerCompanionInventoryButton: document.getElementById("peerCompanionInventoryButton"),
@@ -647,6 +660,7 @@
     catalogStatus: document.getElementById("catalogStatus"),
     catalogResults: document.getElementById("catalogResults"),
     hfSearchInput: document.getElementById("hfSearchInput"),
+    hfSortSelect: document.getElementById("hfSortSelect"),
     hfSearchButton: document.getElementById("hfSearchButton"),
     hfStatus: document.getElementById("hfStatus"),
     hfResults: document.getElementById("hfResults"),
@@ -3271,6 +3285,16 @@
         }
       });
     }
+    if (el.simpleCheckPeerStatusButton) {
+      el.simpleCheckPeerStatusButton.addEventListener("click", () => {
+        setSimpleSourceOption("p2p", true);
+        checkLivePeerStatus().catch((error) => {
+          setPeerStatusCheckStatus(errorMessage(error), true);
+        }).finally(() => {
+          holdModelPopoverOpen(3000);
+        });
+      });
+    }
     if (el.simplePeerBaseUrlInput) {
       el.simplePeerBaseUrlInput.addEventListener("keydown", (event) => {
         if (event.key !== "Enter") {
@@ -3341,6 +3365,9 @@
         if (el.hfSearchInput && el.simpleHfSearchInput) {
           el.hfSearchInput.value = el.simpleHfSearchInput.value;
         }
+        if (el.hfSortSelect && el.simpleHfSortSelect) {
+          el.hfSortSelect.value = normalizeHfBrowseSort(el.simpleHfSortSelect.value);
+        }
         searchHuggingFaceModels({ keepSimplePopover: true }).catch((error) => {
           if (error && error.name === "AbortError") {
             return;
@@ -3360,6 +3387,11 @@
         if (el.simpleHfSearchButton) {
           el.simpleHfSearchButton.click();
         }
+      });
+    }
+    if (el.simpleHfSortSelect && el.hfSortSelect) {
+      el.simpleHfSortSelect.addEventListener("change", () => {
+        el.hfSortSelect.value = normalizeHfBrowseSort(el.simpleHfSortSelect.value);
       });
     }
     if (el.prompt) {
@@ -4634,6 +4666,9 @@
     if (isError) {
       return friendlyError(value);
     }
+    if (lower.includes("minimodel public demo") || lower.includes("default minimodel demo")) {
+      return "Default MiniModel demo verified. You can generate now.";
+    }
     if (lower.includes("selected")) {
       return "Local file selected. Click Import Selected .slm to validate it.";
     }
@@ -4958,6 +4993,227 @@
       throw new Error(`${sourceLabel} did not list any models`);
     }
     return entries;
+  }
+
+  function requireDefaultDemoBool(raw, key, expected, label) {
+    if (!raw || raw[key] !== expected) {
+      throw new Error(`${label} must declare ${key}=${expected}`);
+    }
+  }
+
+  function defaultDemoArtifactUrl(raw, metadataUrl, label) {
+    const route = catalogText(raw.artifact_project_server_url || raw.artifact_route || raw.artifact_url);
+    if (!route || route.includes("\n") || route.includes("\r")) {
+      throw new Error(`${label} artifact URL was invalid`);
+    }
+    let url = null;
+    try {
+      url = new URL(route, metadataUrl);
+    } catch (_error) {
+      throw new Error(`${label} artifact URL was invalid`);
+    }
+    if (url.protocol !== "https:" || url.hostname.toLowerCase() !== "minimodel.org") {
+      throw new Error(`${label} artifact must be served from ${httpsScheme}MiniModel.org`);
+    }
+    if (url.username || url.password || url.search || url.hash) {
+      throw new Error(`${label} artifact URL must not include credentials, query, or fragment`);
+    }
+    if (!url.pathname.startsWith(defaultDemoArtifactPathPrefix) || !url.pathname.endsWith(".slm")) {
+      throw new Error(`${label} artifact must stay under ${defaultDemoArtifactPathPrefix}`);
+    }
+    return url.toString();
+  }
+
+  function defaultDemoEntryFromBody(body, metadataUrl) {
+    const label = "Default MiniModel demo";
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      throw new Error(`${label} metadata was not a JSON object`);
+    }
+    if (catalogText(body.demo_kind || body.catalog_kind) !== defaultDemoModelKind) {
+      throw new Error(`${label} kind was unsupported`);
+    }
+    if (catalogInteger(body.demo_version) !== 0) {
+      throw new Error(`${label} version was unsupported`);
+    }
+    if (catalogText(body.demo_status) !== "public-demo-autoload-ready") {
+      throw new Error(`${label} status was not ready`);
+    }
+    requireDefaultDemoBool(body, "project_server_serves_model_bytes", true, label);
+    requireDefaultDemoBool(body, "project_server_runs_model_bytes", false, label);
+    requireDefaultDemoBool(body, "project_server_proxies_model_bytes", false, label);
+    const autoload = body.browser_autoload && typeof body.browser_autoload === "object" && !Array.isArray(body.browser_autoload)
+      ? body.browser_autoload
+      : null;
+    if (!autoload) {
+      throw new Error(`${label} browser_autoload metadata was missing`);
+    }
+    requireDefaultDemoBool(autoload, "checksum_required", true, `${label} browser_autoload`);
+    requireDefaultDemoBool(autoload, "byte_count_required", true, `${label} browser_autoload`);
+    requireDefaultDemoBool(autoload, "credentials_omitted", true, `${label} browser_autoload`);
+    if (catalogText(autoload.intended_origin) !== `${httpsScheme}TinyRustLM.com`) {
+      throw new Error(`${label} intended origin was invalid`);
+    }
+    const modelId = catalogText(body.model_id);
+    if (!isCatalogModelId(modelId)) {
+      throw new Error(`${label} model id was invalid`);
+    }
+    if (catalogText(body.artifact_kind).toLowerCase() !== "slm") {
+      throw new Error(`${label} artifact was not an .slm`);
+    }
+    const artifactByteCount = catalogInteger(body.artifact_byte_count || body.artifact_bytes);
+    if (!artifactByteCount || artifactByteCount > localModelMaxBytes) {
+      throw new Error(`${label} byte count was invalid`);
+    }
+    const artifactSha256 = normalizeCatalogSha256(body.artifact_sha256 || body.sha256);
+    if (!artifactSha256) {
+      throw new Error(`${label} SHA-256 was invalid`);
+    }
+    const maxTokens = catalogInteger(body.max_tokens);
+    return {
+      raw: body,
+      catalogBaseUrl: metadataUrl,
+      browserAutoLoad: true,
+      modelId,
+      displayName: (catalogText(body.display_name || body.name) || modelId).slice(0, 96),
+      publisherId: catalogText(body.publisher_id || body.source_identity || body.source_id),
+      publisherKeyId: catalogText(body.publisher_key_id || body.publisher_key || body.key_id),
+      artifactKind: "slm",
+      artifactProjectServerUrl: defaultDemoArtifactUrl(body, metadataUrl, label),
+      artifactByteCount,
+      artifactSha256,
+      artifactByteChecksum: catalogText(body.artifact_byte_checksum || body.browser_byte_checksum),
+      slmChecksum: catalogText(body.slm_checksum),
+      modelShape: catalogText(body.slm_model_shape || body.model_shape),
+      quantization: catalogText(body.slm_quantization || body.quantization),
+      tokenizerChecksum: catalogText(body.slm_tokenizer_checksum || body.tokenizer_checksum),
+      configChecksum: catalogText(body.slm_config_checksum || body.config_checksum),
+      sourceKind: catalogText(body.source_kind) || "minimodel-public-demo-autoload",
+      sourceIdentity: catalogText(body.source_identity || body.source_id) || "MiniModel.org public demo",
+      sourceModelId: catalogText(body.source_model_id || body.upstream_model_id || body.upstream_source_id),
+      sourceHuggingFaceModelId: catalogText(body.source_huggingface_model_id || body.huggingface_model_id || body.hf_model_id),
+      sourceUrl: catalogText(body.source_url || body.upstream_url) || metadataUrl,
+      peerHintStatus: "public-demo-autoload",
+      peerImportStatus: "",
+      peerOfferRoute: "",
+      peerOfferSha256: "",
+      peerOfferChunkCount: null,
+      peerOfferMerkleRootSha256: "",
+      peerSources: [],
+      licenseRoute: catalogText(body.license_route),
+      modelCardRoute: catalogText(body.model_card_route),
+      manifestRoute: catalogText(body.manifest_route),
+      evidenceRoute: catalogText(body.evidence_admission_route || body.admission_route || body.eval_route),
+      admissionStatus: catalogText(body.evidence_admission_status || body.admission_status) || "accepted-for-runtime-smoke",
+      qualityClaim: catalogText(body.quality_claim) || "runtime-execution-smoke-only",
+      trainedQualityClaim: catalogText(body.trained_quality_claim) || "not-claimed",
+      requiredNextGate: catalogText(body.required_next_gate) || "replace-with-trained-or-evaluated-model-before-product-quality-claim",
+      fileNameHint: safeLocalModelName(body.local_file_name_hint || body.artifact_file_name || `${modelId.split("/").pop()}.slm`),
+      maxTokens: maxTokens && maxTokens > 0 && maxTokens <= 512 ? maxTokens : 16
+    };
+  }
+
+  async function fetchDefaultDemoModelMetadata() {
+    const response = await fetch(defaultDemoModelUrl, {
+      cache: "no-store",
+      credentials: "omit",
+      mode: "cors",
+      redirect: "error"
+    });
+    if (!response.ok) {
+      throw new Error(`Default MiniModel demo metadata request failed (${response.status})`);
+    }
+    const text = await response.text();
+    if (state.encoder.encode(text).length > catalogTextByteBudget) {
+      throw new Error("Default MiniModel demo metadata exceeded browser budget");
+    }
+    return defaultDemoEntryFromBody(JSON.parse(text), defaultDemoModelUrl);
+  }
+
+  async function fetchDefaultDemoModelBytes(entry) {
+    const response = await fetch(entry.artifactProjectServerUrl, {
+      cache: "no-store",
+      credentials: "omit",
+      mode: "cors",
+      redirect: "error"
+    });
+    if (!response.ok) {
+      throw new Error(`Default MiniModel demo artifact request failed (${response.status})`);
+    }
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.length !== entry.artifactByteCount) {
+      throw new Error("Default MiniModel demo byte count mismatch");
+    }
+    const sha256 = await sha256Hex(bytes);
+    if (sha256 !== entry.artifactSha256) {
+      throw new Error("Default MiniModel demo SHA-256 mismatch");
+    }
+    const checksum = bytesChecksumHex(bytes);
+    if (entry.artifactByteChecksum && checksum !== entry.artifactByteChecksum) {
+      throw new Error("Default MiniModel demo .slm checksum mismatch");
+    }
+    return { bytes, sha256, checksum };
+  }
+
+  async function autoLoadDefaultMiniModelDemo() {
+    if (!isPublicLocalOnlyHost()) {
+      return false;
+    }
+    const search = new URLSearchParams(window.location.search);
+    if (search.get("autoload") === "0" || search.get("autoload") === "false") {
+      return false;
+    }
+    state.defaultDemoAutoLoadAttempted = true;
+    try {
+      setText(el.modelState, "loading MiniModel demo", false);
+      setText(el.runtimeStatus, "Loading default model", false);
+      setCatalogStatus("loading default MiniModel demo metadata", false);
+      setLocalModelStatus("loading default MiniModel demo from MiniModel.org", false);
+      const entry = await fetchDefaultDemoModelMetadata();
+      setCatalogStatus(`${entry.displayName} demo metadata loaded`, false);
+      const artifact = await fetchDefaultDemoModelBytes(entry);
+      state.catalogEntries = [entry];
+      state.selectedCatalogEntry = entry;
+      state.localModel = {
+        label: `${entry.displayName} (MiniModel public demo)`,
+        path: `minimodel-demo:${entry.modelId}`,
+        maxTokens: entry.maxTokens,
+        localFile: {
+          name: entry.fileNameHint,
+          bytes: artifact.bytes,
+          byteLength: artifact.bytes.length,
+          checksum: artifact.checksum,
+          sha256: artifact.sha256,
+          catalogEntry: entry,
+          importReceipt: null,
+          verified: false
+        }
+      };
+      paths.models = modelsWithLocalModel(paths.models);
+      renderModelOptions(paths.models, false, localModelKey);
+      renderCatalogResults(state.catalogEntries);
+      setLocalModelStatus(
+        `${entry.fileNameHint} / MiniModel public demo / ${formatByteCount(artifact.bytes.length)} / ${artifact.sha256} / ${artifact.checksum}`,
+        false
+      );
+      const loaded = await loadSelectedModel();
+      if (!loaded) {
+        throw new Error("Default MiniModel demo failed Rust/WASM validation");
+      }
+      setCatalogStatus(`Default MiniModel demo loaded from MiniModel.org; ${entry.artifactSha256}`, false);
+      return true;
+    } catch (error) {
+      const text = errorMessage(error);
+      state.modelLoaded = false;
+      state.hasContext = false;
+      setText(el.modelState, "default demo failed", true);
+      setText(el.runtimeStatus, "Default model failed", true);
+      setText(el.errorState, text, true);
+      setCatalogStatus(text, true);
+      setLocalModelStatus(text, true);
+      setControls(false, true);
+      renderDiagnostics();
+      return true;
+    }
   }
 
   function catalogAnnouncementRouteFromRaw(raw, index, catalogBaseUrl) {
@@ -6251,6 +6507,90 @@
     requireImportLedgerBool(object.requires_rust_reverify_before_browser_import, `${label}.requires_rust_reverify_before_browser_import`, true);
   }
 
+  function validatePeerStatusBoundary(boundary, label) {
+    const object = requireImportLedgerObject(boundary, label);
+    requireImportLedgerBool(object.metadata_only, `${label}.metadata_only`, true);
+    requireImportLedgerBool(object.peer_status_embeds_model_bytes, `${label}.peer_status_embeds_model_bytes`, false);
+    requireImportLedgerBool(object.peer_status_embeds_piece_bytes, `${label}.peer_status_embeds_piece_bytes`, false);
+    requireImportLedgerBool(object.project_server_serves_model_bytes, `${label}.project_server_serves_model_bytes`, false);
+    requireImportLedgerBool(object.project_server_runs_model_bytes, `${label}.project_server_runs_model_bytes`, false);
+    requireImportLedgerBool(object.project_server_proxies_model_bytes, `${label}.project_server_proxies_model_bytes`, false);
+    requireImportLedgerBool(object.requires_rust_reverify_before_browser_import, `${label}.requires_rust_reverify_before_browser_import`, true);
+  }
+
+  function validatePeerStatusBody(body, responseSha256, expectedPeerBaseUrl, sourceLabel) {
+    const label = sourceLabel || "Live peer status";
+    const object = requireImportLedgerObject(body, label);
+    if (catalogText(object.status_kind) !== "minimodel.peer_status") {
+      throw new Error(`${label}.status_kind was unsupported`);
+    }
+    if (catalogInteger(object.status_version) !== 0) {
+      throw new Error(`${label}.status_version was unsupported`);
+    }
+    const createdAt = requireImportLedgerString(object.created_utc, `${label}.created_utc`, 32);
+    if (!isStrictMiniModelUtcTimestamp(createdAt)) {
+      throw new Error(`${label}.created_utc was invalid`);
+    }
+    if (requireImportLedgerString(object.share_status, `${label}.share_status`, 64) !== "ready-to-serve") {
+      throw new Error(`${label}.share_status was unsupported`);
+    }
+    if (requireImportLedgerString(object.transfer_protocol, `${label}.transfer_protocol`, 128) !== "direct-http-piece-server-v0") {
+      throw new Error(`${label}.transfer_protocol was unsupported`);
+    }
+    const peerBaseUrl = normalizedPeerBaseUrl(requireImportLedgerString(object.peer_base_url, `${label}.peer_base_url`, 256));
+    if (expectedPeerBaseUrl && peerBaseUrl !== expectedPeerBaseUrl) {
+      throw new Error(`${label}.peer_base_url did not match the known peer URL`);
+    }
+    const statusUrl = new URL(peerStatusRoute, peerBaseUrl).href;
+    const modelId = requireImportLedgerString(object.model_id, `${label}.model_id`, 180);
+    if (!isCatalogModelId(modelId)) {
+      throw new Error(`${label}.model_id was invalid`);
+    }
+    const routes = requireImportLedgerObject(object.routes, `${label}.routes`);
+    if (requireImportLedgerString(routes.peer_status, `${label}.routes.peer_status`, 128) !== peerStatusRoute) {
+      throw new Error(`${label}.routes.peer_status was unsupported`);
+    }
+    if (requireImportLedgerString(routes.peer_piece_set, `${label}.routes.peer_piece_set`, 128) !== peerPieceSetRoute) {
+      throw new Error(`${label}.routes.peer_piece_set was unsupported`);
+    }
+    const companionStateRoute = requireImportLedgerString(routes.peer_companion_state, `${label}.routes.peer_companion_state`, 128);
+    if (companionStateRoute !== peerCompanionStateRoute && companionStateRoute !== "not-advertised") {
+      throw new Error(`${label}.routes.peer_companion_state was unsupported`);
+    }
+    const manifest = requireImportLedgerObject(object.manifest, `${label}.manifest`);
+    const manifestSha256 = requireImportLedgerSha(manifest.sha256, `${label}.manifest.sha256`);
+    const artifact = requireImportLedgerObject(object.artifact, `${label}.artifact`);
+    if (requireImportLedgerString(artifact.kind, `${label}.artifact.kind`, 32) !== "slm") {
+      throw new Error(`${label}.artifact.kind was unsupported`);
+    }
+    const artifactByteCount = requireImportLedgerInteger(artifact.byte_count, `${label}.artifact.byte_count`, { minimum: 1 });
+    const artifactSha256 = requireImportLedgerSha(artifact.sha256, `${label}.artifact.sha256`);
+    const pieces = requireImportLedgerObject(object.pieces, `${label}.pieces`);
+    if (requireImportLedgerString(pieces.piece_set_path_hint, `${label}.pieces.piece_set_path_hint`, 128) !== peerPieceSetRoute) {
+      throw new Error(`${label}.pieces.piece_set_path_hint was unsupported`);
+    }
+    const pieceSetSha256 = requireImportLedgerSha(pieces.piece_set_sha256, `${label}.pieces.piece_set_sha256`);
+    const pieceCount = requireImportLedgerInteger(pieces.piece_count, `${label}.pieces.piece_count`, { minimum: 1 });
+    const merkleRootSha256 = requireImportLedgerSha(pieces.merkle_root_sha256, `${label}.pieces.merkle_root_sha256`);
+    validatePeerStatusBoundary(object.boundary, `${label}.boundary`);
+    return {
+      sourceLabel: label,
+      sourceKind: "live-peer-status",
+      reportSha256: responseSha256,
+      checkedAt: createdAt,
+      modelId,
+      peerBaseUrl,
+      statusUrl,
+      companionStateRoute,
+      manifestSha256,
+      artifactByteCount,
+      artifactSha256,
+      pieceSetSha256,
+      pieceCount,
+      merkleRootSha256
+    };
+  }
+
   function validatePeerStatusCheckBody(body, reportSha256, sourceLabel) {
     const label = sourceLabel || "Peer status check";
     const object = requireImportLedgerObject(body, label);
@@ -6304,6 +6644,7 @@
     validatePeerStatusCheckBoundary(object.boundary, `${label}.boundary`);
     return {
       sourceLabel: label,
+      sourceKind: "saved-peer-status-check",
       reportSha256,
       checkedAt,
       modelId,
@@ -6324,7 +6665,13 @@
       return "peer status optional";
     }
     const pieceText = `${check.pieceCount} piece${check.pieceCount === 1 ? "" : "s"}`;
-    return `Peer status check loaded: ${check.sourceLabel} / ${check.modelId} / ${pieceText} / ${formatByteCount(check.artifactByteCount)} artifact / ${check.peerBaseUrl} / companion ${check.companionStateRoute} / no peer bytes fetched / ${check.reportSha256} / Rust reverify required`;
+    const statusPrefix = check.sourceKind === "live-peer-status"
+      ? "Live peer status loaded"
+      : "Peer status check loaded";
+    const digestText = check.sourceKind === "live-peer-status"
+      ? `status ${check.reportSha256}`
+      : check.reportSha256;
+    return `${statusPrefix}: ${check.sourceLabel} / ${check.modelId} / ${pieceText} / ${formatByteCount(check.artifactByteCount)} artifact / ${check.peerBaseUrl} / status route ${peerStatusRoute} / companion ${check.companionStateRoute} / no peer bytes fetched / ${digestText} / Rust reverify required`;
   }
 
   async function importPeerStatusCheckFile(preferredInput) {
@@ -6348,6 +6695,47 @@
     const check = validatePeerStatusCheckBody(body, await sha256Text(text), fileName);
     state.peerStatusCheck = check;
     setPeerStatusCheckStatus(peerStatusCheckStatusText(check), false);
+    return check;
+  }
+
+  async function checkLivePeerStatus() {
+    const rawPeerBaseUrl = (el.simplePeerBaseUrlInput && el.simplePeerBaseUrlInput.value.trim())
+      || state.peerBaseUrl;
+    const peerBaseUrl = normalizedPeerBaseUrl(rawPeerBaseUrl);
+    if (!peerBaseUrl) {
+      throw new Error("Enter a consenting known peer URL before checking peer status");
+    }
+    setPeerBaseUrl(peerBaseUrl, { keepPeerContactBook: true });
+    const statusUrl = new URL(peerStatusRoute, peerBaseUrl).href;
+    setPeerStatusCheckStatus(`checking live peer status metadata ${statusUrl}`, false);
+    let response;
+    try {
+      response = await fetch(statusUrl, {
+        method: "GET",
+        cache: "no-store",
+        credentials: "omit",
+        mode: "cors",
+        redirect: "error"
+      });
+    } catch (error) {
+      throw new Error(`Live peer status metadata check failed for ${statusUrl}: ${errorMessage(error)}. Restart the MiniModel peer with metadata CORS support if this is a local peer.`);
+    }
+    if (!response.ok) {
+      throw new Error(`Live peer status metadata check failed: HTTP ${response.status}`);
+    }
+    const contentLength = Number(response.headers.get("content-length") || "0");
+    if (Number.isFinite(contentLength) && contentLength > catalogTextByteBudget) {
+      throw new Error("Live peer status exceeded browser metadata budget");
+    }
+    const text = await response.text();
+    if (state.encoder.encode(text).length > catalogTextByteBudget) {
+      throw new Error("Live peer status exceeded browser metadata budget");
+    }
+    const body = JSON.parse(text);
+    const check = validatePeerStatusBody(body, await sha256Text(text), peerBaseUrl, "Live peer status");
+    state.peerStatusCheck = check;
+    setPeerStatusCheckStatus(peerStatusCheckStatusText(check), false);
+    updatePeerUrlStatus(`Live peer status metadata validated: ${check.modelId} at ${check.peerBaseUrl}; Rust reverify required`, false);
     return check;
   }
 
@@ -9922,15 +10310,64 @@
     return 0;
   }
 
-  function prioritizeHfResults(candidates) {
+  function normalizeHfBrowseSort(value) {
+    const key = String(value || "").toLowerCase();
+    return Object.prototype.hasOwnProperty.call(hfBrowseSortModes, key) ? key : "popular";
+  }
+
+  function selectedHfBrowseSort() {
+    if (el.hfSortSelect) {
+      return normalizeHfBrowseSort(el.hfSortSelect.value);
+    }
+    if (el.simpleHfSortSelect) {
+      return normalizeHfBrowseSort(el.simpleHfSortSelect.value);
+    }
+    return "popular";
+  }
+
+  function hfResultDateMillis(result) {
+    const raw = result && (result.createdAt || result.lastModified || result.lastModifiedAt);
+    const millis = Date.parse(raw || "");
+    return Number.isFinite(millis) ? millis : 0;
+  }
+
+  function prioritizeHfResults(candidates, options = {}) {
+    const limit = Number.isFinite(options.limit) ? options.limit : hfSearchLimit;
+    const order = options.order || "actionable";
     return candidates
       .map((entry, index) => ({
         entry,
         index,
         rank: hfResultActionRank(entry),
-        downloads: Number.isFinite(entry.result && entry.result.downloads) ? entry.result.downloads : 0
+        downloads: Number.isFinite(entry.result && entry.result.downloads) ? entry.result.downloads : 0,
+        createdAt: hfResultDateMillis(entry.result)
       }))
+      .filter((item) => !options.viableOnly || item.rank > 0)
       .sort((left, right) => {
+        if (order === "popular") {
+          if (right.downloads !== left.downloads) {
+            return right.downloads - left.downloads;
+          }
+          if (right.rank !== left.rank) {
+            return right.rank - left.rank;
+          }
+          if (right.createdAt !== left.createdAt) {
+            return right.createdAt - left.createdAt;
+          }
+          return left.index - right.index;
+        }
+        if (order === "new") {
+          if (right.createdAt !== left.createdAt) {
+            return right.createdAt - left.createdAt;
+          }
+          if (right.rank !== left.rank) {
+            return right.rank - left.rank;
+          }
+          if (right.downloads !== left.downloads) {
+            return right.downloads - left.downloads;
+          }
+          return left.index - right.index;
+        }
         if (right.rank !== left.rank) {
           return right.rank - left.rank;
         }
@@ -9939,11 +10376,11 @@
         }
         return left.index - right.index;
       })
-      .slice(0, hfSearchLimit)
+      .slice(0, limit)
       .map((item) => item.entry);
   }
 
-  function renderHfResults(results) {
+  function renderHfResults(results, options = {}) {
     clearHfResults();
     const candidates = [];
     for (const result of results) {
@@ -9952,13 +10389,25 @@
         candidates.push({ result, modelId });
       }
     }
-    const accepted = prioritizeHfResults(candidates);
+    const accepted = prioritizeHfResults(candidates, options);
     state.hfLastAccepted = accepted;
     if (!accepted.length) {
-      setHfStatus("no model records returned", false);
+      setHfStatus(
+        options.viableOnly
+          ? `no TinyRustLM-ready candidates found after scanning ${results.length} ${options.sortLabel || "Hugging Face"} model cards`
+          : "no model records returned",
+        false
+      );
       return;
     }
     renderAcceptedHfResults(accepted);
+    if (options.viableOnly) {
+      setHfStatus(
+        `${accepted.length} of up to ${hfBrowseLimit} TinyRustLM-ready candidates from ${results.length} scanned ${options.sortLabel || "Hugging Face"} model cards; ${hfAvailabilitySummary(accepted)}; local .slm verification required`,
+        false
+      );
+      return;
+    }
     setHfStatus(`${hfAvailabilitySummary(accepted)}; local .slm verification required`, false);
   }
 
@@ -9990,23 +10439,30 @@
       holdModelPopoverOpen(5000);
     }
     const query = String(el.hfSearchInput && el.hfSearchInput.value ? el.hfSearchInput.value : "").trim();
-    if (!query) {
-      throw new Error("Enter a model search phrase");
-    }
+    const browseMode = !query;
+    const sortKey = selectedHfBrowseSort();
+    const sortMode = hfBrowseSortModes[sortKey] || hfBrowseSortModes.popular;
     if (state.hfSearchAbort) {
       state.hfSearchAbort.abort();
     }
     clearHfResults();
-    setHfStatus("searching model-card metadata", false);
+    setHfStatus(
+      browseMode
+        ? `finding up to ${hfBrowseLimit} TinyRustLM-ready candidates from top ${hfBrowseApiLimit} ${sortMode.label} model-card metadata`
+        : "searching model-card metadata",
+      false
+    );
     const controller = new AbortController();
     state.hfSearchAbort = controller;
     const catalogAvailability = ensureDefaultCatalogForHfAvailability();
     const url = new URL(`${hfOrigin()}/api/models`);
-    url.searchParams.set("search", query);
+    if (query) {
+      url.searchParams.set("search", query);
+    }
     url.searchParams.set("filter", "text-generation");
-    url.searchParams.set("sort", "downloads");
-    url.searchParams.set("direction", "-1");
-    url.searchParams.set("limit", String(hfSearchApiLimit));
+    url.searchParams.set("sort", sortMode.sort);
+    url.searchParams.set("direction", sortMode.direction);
+    url.searchParams.set("limit", String(browseMode ? hfBrowseApiLimit : hfSearchApiLimit));
     url.searchParams.set("full", "true");
     const response = await fetch(url.toString(), {
       cache: "no-store",
@@ -10021,7 +10477,12 @@
       throw new Error("External model search returned an unexpected body");
     }
     await catalogAvailability;
-    renderHfResults(results);
+    renderHfResults(results, {
+      viableOnly: browseMode,
+      limit: browseMode ? hfBrowseLimit : hfSearchLimit,
+      order: browseMode ? sortKey : "actionable",
+      sortLabel: sortMode.label
+    });
     if (keepSimplePopover) {
       holdModelPopoverOpen(3000);
     }
@@ -13839,7 +14300,9 @@
         source_id: importReceipt ? importReceipt.modelId : catalogEntry ? catalogEntry.modelId : model.localFile.name,
         source_snapshot: importReceipt
           ? localImportReceiptProvenanceSnapshot(importReceipt)
-          : catalogEntry ? "catalog-metadata-plus-browser-file-picker" : "browser-file-picker",
+          : catalogEntry
+            ? catalogEntry.browserAutoLoad ? "minimodel-public-demo-autoload" : "catalog-metadata-plus-browser-file-picker"
+            : "browser-file-picker",
         source_review: importReceipt ? localImportReceiptReviewSummary(importReceipt) : "",
         source_review_routes: importReceipt ? localImportReceiptRouteSummary(importReceipt) : "",
         source_review_artifacts: importReceipt ? localImportReceiptArtifactSummary(importReceipt, model.localFile.byteLength) : "",
@@ -15055,7 +15518,10 @@
       }
       restoreStaticModelOptions();
       await loadSelectorRegistry();
-      await loadSelectedModel();
+      const demoHandled = await autoLoadDefaultMiniModelDemo();
+      if (!demoHandled) {
+        await loadSelectedModel();
+      }
     } catch (error) {
       setText(el.runtimeStatus, "Boot failed", true);
       setText(el.modelState, "boot error", true);
@@ -15389,6 +15855,14 @@
     });
   });
 
+  if (el.checkPeerStatusButton) {
+    el.checkPeerStatusButton.addEventListener("click", function () {
+      checkLivePeerStatus().catch((error) => {
+        setPeerStatusCheckStatus(errorMessage(error), true);
+      });
+    });
+  }
+
   el.peerStatusCheckFile.addEventListener("change", function () {
     const file = el.peerStatusCheckFile.files && el.peerStatusCheckFile.files[0];
     if (!file) {
@@ -15414,6 +15888,9 @@
   });
 
   el.hfSearchButton.addEventListener("click", function () {
+    if (el.simpleHfSortSelect && el.hfSortSelect) {
+      el.simpleHfSortSelect.value = normalizeHfBrowseSort(el.hfSortSelect.value);
+    }
     searchHuggingFaceModels().catch((error) => {
       if (error && error.name === "AbortError") {
         return;
@@ -15429,6 +15906,12 @@
     event.preventDefault();
     el.hfSearchButton.click();
   });
+
+  if (el.hfSortSelect && el.simpleHfSortSelect) {
+    el.hfSortSelect.addEventListener("change", () => {
+      el.simpleHfSortSelect.value = normalizeHfBrowseSort(el.hfSortSelect.value);
+    });
+  }
 
   el.saveShareMetadataButton.addEventListener("click", function () {
     saveShareMetadata().catch((error) => {

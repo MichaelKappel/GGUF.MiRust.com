@@ -238,9 +238,11 @@ $httpHarnessOutput = ""
 $standardBrowserSmokeModes = @(
     "source-options-ui",
     "local-memory-deck-ui",
+    "hf-search-ui",
     "local-connect-approval-ui",
     "local-connect-endpoint-ui",
-    "local-connect-rust-endpoint-ui"
+    "local-connect-rust-endpoint-ui",
+    "peer-status-live-ui"
 )
 $legacyDeepBrowserSmokeModes = @(
     "hf-conversion-kit-exec"

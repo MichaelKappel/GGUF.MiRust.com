@@ -16,14 +16,15 @@ if (-not $ReportOutput) {
 }
 if ($SmokeModes.Count -eq 0) {
     $SmokeModes = @(
-        "public-local-only",
+        "public-default-demo",
         "catalog-local-import",
         "local-import-ambiguous-selection",
         "peer-url-unsafe-ui",
         "local-memory-deck-ui",
         "local-connect-approval-ui",
         "local-connect-endpoint-ui",
-        "local-connect-rust-endpoint-ui"
+        "local-connect-rust-endpoint-ui",
+        "peer-status-live-ui"
     )
 }
 

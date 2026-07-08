@@ -13,9 +13,11 @@ BROWSER_SMOKE_TIMEOUT_SECONDS="${BROWSER_SMOKE_TIMEOUT_SECONDS:-1800}"
 STANDARD_BROWSER_SMOKE_MODES=(
   "source-options-ui"
   "local-memory-deck-ui"
+  "hf-search-ui"
   "local-connect-approval-ui"
   "local-connect-endpoint-ui"
   "local-connect-rust-endpoint-ui"
+  "peer-status-live-ui"
 )
 LEGACY_DEEP_BROWSER_SMOKE_MODES=(
   "hf-conversion-kit-exec"

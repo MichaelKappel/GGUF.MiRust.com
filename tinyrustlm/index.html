@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TinyRustLM</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="./app/app.css?v=20260707-local-connect-category-binding">
+  <link rel="stylesheet" href="./app/app.css?v=20260707-hf-top500-ready">
 </head>
 <body>
   <svg class="icon-sprite" aria-hidden="true" focusable="false">
@@ -114,10 +114,10 @@
       <section id="modelToolbar" class="model-toolbar" aria-label="Loaded local model">
         <div class="model-icon" aria-hidden="true"><svg><use href="#icon-cube"></use></svg></div>
         <button id="modelEditButton" class="model-name-button" type="button" aria-haspopup="dialog" aria-expanded="false">
-          <span id="modelToolbarName">Choose a local .slm</span>
+          <span id="modelToolbarName">Loading MiniModel demo</span>
           <svg aria-hidden="true"><use href="#icon-chevron"></use></svg>
         </button>
-        <span id="modelLoadPill" class="status-pill neutral"><span class="mini-dot"></span>No model imported</span>
+        <span id="modelLoadPill" class="status-pill neutral"><span class="mini-dot"></span>Loading demo</span>
         <span class="status-pill info"><span class="mini-dot"></span>WASM ready <span id="wasmState" class="sr-only">waiting</span></span>
         <span id="modelContextPill" class="status-pill neutral">Browser local</span>
         <button class="edit-model-button" type="button" data-open-model-popover>
@@ -162,9 +162,13 @@
         </div>
         <div id="simpleHfSourcePanel" class="source-panel" data-source-panel="huggingface" hidden>
           <label for="simpleHfSearchInput">Hugging Face metadata search</label>
-          <p>These are external model-card candidates. Nothing runs here until Rust converts a compatible source to `.slm`, verifies it, and you choose the local file.</p>
-          <div class="search-row">
-            <input id="simpleHfSearchInput" type="search" value="tiny text-generation slm">
+          <p>Leave search empty to browse up to the top 100 TinyRustLM-ready candidates by Popular or New releases, or enter a model phrase.</p>
+          <div class="search-row hf-search-row">
+            <input id="simpleHfSearchInput" type="search" placeholder="TinyLlama" autocomplete="off" spellcheck="false">
+            <select id="simpleHfSortSelect" aria-label="Hugging Face browse order">
+              <option value="popular" selected>Popular</option>
+              <option value="new">New releases</option>
+            </select>
             <button id="simpleHfSearchButton" type="button">Search Metadata</button>
           </div>
           <div class="source-flow-row">
@@ -184,6 +188,7 @@
           <div class="search-row">
             <input id="simplePeerBaseUrlInput" type="url" inputmode="url" placeholder="127.0.0.1:8123/">
             <button id="simpleSavePeerUrlButton" type="button">Use Peer</button>
+            <button id="simpleCheckPeerStatusButton" class="secondary-action" type="button">Check Peer</button>
           </div>
           <p id="simplePeerUrlStatus" class="inline-status">Enter the consenting peer URL once; P2P imports will use it.</p>
           <label for="simplePeerContactCardFile">Peer contact card JSON</label>
@@ -224,7 +229,7 @@
           <ol id="simpleCatalogResults" class="model-results"></ol>
         </div>
         <button id="simpleOpenAdvancedDiscoveryButton" class="text-link-button" type="button">Open source details in Advanced Tools</button>
-        <div id="simpleDiscoveryStatus" class="helper-status" aria-live="polite">Choose a trusted local .slm file. No network is needed.</div>
+        <div id="simpleDiscoveryStatus" class="helper-status" aria-live="polite">Loading the verified MiniModel demo. Private models still use local files or P2P.</div>
       </section>
 
       <section id="simpleErrorPanel" class="simple-error" hidden aria-live="polite">
@@ -406,6 +411,7 @@
             <label for="peerStatusCheckFile">Peer status check JSON</label>
             <input id="peerStatusCheckFile" type="file" accept=".json,application/json">
             <button id="peerStatusCheckButton" class="secondary-action" type="button">Load Peer Status</button>
+            <button id="checkPeerStatusButton" class="secondary-action" type="button">Check Known Peer</button>
             <p id="peerStatusCheckStatus" class="inline-status">peer status optional</p>
             <label for="peerCompanionInventoryFile">Peer companion inventory JSON</label>
             <input id="peerCompanionInventoryFile" type="file" accept=".json,application/json">
@@ -415,8 +421,12 @@
             <ol id="catalogResults" class="model-results"></ol>
 
             <label for="hfSearchInput">Hugging Face metadata</label>
-            <div class="search-row">
-              <input id="hfSearchInput" type="search" value="tiny text-generation slm">
+            <div class="search-row hf-search-row">
+              <input id="hfSearchInput" type="search" placeholder="TinyLlama" autocomplete="off" spellcheck="false">
+              <select id="hfSortSelect" aria-label="Hugging Face browse order">
+                <option value="popular" selected>Popular</option>
+                <option value="new">New releases</option>
+              </select>
               <button id="hfSearchButton" type="button">Search Metadata</button>
             </div>
             <p id="hfStatus" class="inline-status">idle</p>
@@ -640,11 +650,11 @@
       <span>TinyRustLM.com</span>
       <span>Browser-local Rust/WASM runtime</span>
       <span>Developer portal: tinyrustlm.mirust.com</span>
-      <span>Local .slm models only</span>
-      <span class="notice">TinyRustLM.com does not serve runnable model weights. Prompts are not sent to a server.</span>
+      <span>MiniModel demo autoload</span>
+      <span class="notice">A tiny verified demo model loads from MiniModel.org; prompts stay in this browser.</span>
       <span id="currentModelSummary" class="model-summary">No model loaded</span>
     </footer>
   </main>
-  <script src="./app/app.js?v=20260707-local-connect-category-binding"></script>
+  <script src="./app/app.js?v=20260707-minimodel-demo-autoload"></script>
 </body>
 </html>
